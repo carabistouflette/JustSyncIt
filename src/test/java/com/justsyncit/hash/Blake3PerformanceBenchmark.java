@@ -18,6 +18,7 @@
 
 package com.justsyncit.hash;
 
+import com.justsyncit.TestServiceFactory;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
@@ -48,7 +49,7 @@ public class Blake3PerformanceBenchmark {
 
     @Setup
     public void setup() {
-        blake3Service = new Blake3ServiceImpl();
+        blake3Service = TestServiceFactory.createBlake3Service();
         random = new Random(12345); // Fixed seed for reproducible results
         
         // Prepare test data of various sizes

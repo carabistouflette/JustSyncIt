@@ -18,6 +18,7 @@
 
 package com.justsyncit.hash;
 
+import com.justsyncit.TestServiceFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 
@@ -38,7 +39,7 @@ class Blake3PerformanceTest {
     @Test
     @Disabled("Performance test - run manually when needed")
     void testSmallDataPerformance() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[64]; // 64 bytes
         new Random(12345).nextBytes(data);
 
@@ -65,7 +66,7 @@ class Blake3PerformanceTest {
     @Test
     @Disabled("Performance test - run manually when needed")
     void testMediumDataPerformance() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024]; // 1 KB
         new Random(12345).nextBytes(data);
 
@@ -92,7 +93,7 @@ class Blake3PerformanceTest {
     @Test
     @Disabled("Performance test - run manually when needed")
     void testLargeDataPerformance() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024 * 1024]; // 1 MB
         new Random(12345).nextBytes(data);
 
@@ -119,7 +120,7 @@ class Blake3PerformanceTest {
     @Test
     @Disabled("Performance test - run manually when needed")
     void testIncrementalHashingPerformance() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024 * 1024]; // 1 MB
         new Random(12345).nextBytes(data);
 
@@ -150,7 +151,7 @@ class Blake3PerformanceTest {
     @Test
     @Disabled("Performance test - run manually when needed")
     void testChunkedHashingPerformance() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[10 * 1024 * 1024]; // 10 MB
         new Random(12345).nextBytes(data);
 
@@ -193,7 +194,7 @@ class Blake3PerformanceTest {
     @Test
     @Disabled("Performance test - run manually when needed")
     void compareDirectVsIncremental() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024]; // 1 KB
         new Random(12345).nextBytes(data);
 
@@ -236,7 +237,7 @@ class Blake3PerformanceTest {
      */
     @Test
     void quickPerformanceCheck() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         Blake3Service.Blake3Info info = service.getInfo();
         
         System.out.println("BLAKE3 Implementation Info:");

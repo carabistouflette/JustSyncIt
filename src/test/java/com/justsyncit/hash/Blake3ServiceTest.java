@@ -18,6 +18,7 @@
 
 package com.justsyncit.hash;
 
+import com.justsyncit.TestServiceFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -42,7 +43,7 @@ class Blake3ServiceTest {
 
     @BeforeEach
     void setUp() {
-        blake3Service = new Blake3ServiceImpl();
+        blake3Service = TestServiceFactory.createBlake3Service();
     }
 
     @Test

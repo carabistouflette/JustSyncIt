@@ -34,7 +34,7 @@ class JustSyncItApplicationTest {
 
     @BeforeEach
     void setUp() {
-        application = new JustSyncItApplication();
+        application = TestServiceFactory.createApplication();
     }
 
     @Test

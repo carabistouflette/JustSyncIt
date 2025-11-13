@@ -19,37 +19,22 @@
 package com.justsyncit;
 
 import com.justsyncit.command.CommandRegistry;
-import com.justsyncit.command.HashCommand;
-import com.justsyncit.command.VerifyCommand;
 import com.justsyncit.hash.*;
 import com.justsyncit.simd.SimdDetectionService;
 import com.justsyncit.simd.SimdDetectionServiceImpl;
 
 /**
- * Factory for creating application services and dependencies.
- * Follows Dependency Inversion Principle by providing abstractions.
+ * Factory for creating test services with mocked or minimal dependencies.
+ * This helps simplify test setup while maintaining SOLID principles.
  */
-public class ServiceFactory {
+public class TestServiceFactory {
 
     /**
-     * Creates a fully configured JustSyncItApplicationRefactored.
+     * Creates a Blake3Service with minimal dependencies for testing.
      *
-     * @return configured application instance
+     * @return Blake3Service instance for testing
      */
-    public JustSyncItApplication createApplication() {
-        Blake3Service blake3Service = createBlake3Service();
-        CommandRegistry commandRegistry = createCommandRegistry(blake3Service);
-        ApplicationInfoDisplay infoDisplay = createInfoDisplay();
-        
-        return new JustSyncItApplication(blake3Service, commandRegistry, infoDisplay);
-    }
-
-    /**
-     * Creates a BLAKE3 service with all dependencies.
-     *
-     * @return configured BLAKE3 service
-     */
-    private Blake3Service createBlake3Service() {
+    public static Blake3Service createBlake3Service() {
         HashAlgorithm hashAlgorithm = new Sha256HashAlgorithm();
         BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
         IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
@@ -63,27 +48,27 @@ public class ServiceFactory {
     }
 
     /**
-     * Creates a command registry with all commands.
+     * Creates a JustSyncItApplication with minimal dependencies for testing.
      *
-     * @param blake3Service BLAKE3 service for commands
-     * @return configured command registry
+     * @return JustSyncItApplication instance for testing
      */
-    private CommandRegistry createCommandRegistry(Blake3Service blake3Service) {
-        CommandRegistry registry = new CommandRegistry();
+    public static JustSyncItApplication createApplication() {
+        Blake3Service blake3Service = createBlake3Service();
+        CommandRegistry commandRegistry = new CommandRegistry();
+        ApplicationInfoDisplay infoDisplay = new ConsoleInfoDisplay();
         
-        // Register commands
-        registry.register(new HashCommand(blake3Service));
-        registry.register(new VerifyCommand(blake3Service));
-        
-        return registry;
+        return new JustSyncItApplication(blake3Service, commandRegistry, infoDisplay);
     }
 
     /**
-     * Creates an application info display.
+     * Creates a Blake3Service with mocked dependencies for testing.
+     * This allows for more focused unit testing.
      *
-     * @return info display instance
+     * @return Blake3Service instance with mocked dependencies
      */
-    private ApplicationInfoDisplay createInfoDisplay() {
-        return new ConsoleInfoDisplay();
+    public static Blake3Service createBlake3ServiceWithMocks() {
+        // In a real scenario, you would use a mocking framework like Mockito
+        // For now, we'll use null dependencies and handle them gracefully in tests
+        return new Blake3ServiceImpl(null, null, null, null, null);
     }
 }

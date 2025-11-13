@@ -18,6 +18,7 @@
 
 package com.justsyncit.hash;
 
+import com.justsyncit.TestServiceFactory;
 import org.junit.jupiter.api.Test;
 import java.util.Arrays;
 
@@ -28,7 +29,7 @@ class Blake3TestVectorCheck {
 
     @Test
     void checkHashValues() {
-        Blake3Service service = new Blake3ServiceImpl();
+        Blake3Service service = TestServiceFactory.createBlake3Service();
         
         // Empty input
         byte[] empty = new byte[0];
