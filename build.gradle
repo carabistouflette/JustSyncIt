@@ -2,7 +2,7 @@ plugins {
     id 'java'
     id 'application'
     id 'checkstyle'
-    id 'com.github.spotbugs' version '5.0.14'
+    id 'com.github.spotbugs' version '6.0.25'
 }
 
 group = 'com.justSyncIt'
@@ -85,7 +85,7 @@ checkstyle {
 
 // SpotBugs configuration
 spotbugs {
-    toolVersion = '4.8.0'
+    toolVersion = '4.8.6'
     ignoreFailures = false
     effort = 'max'
     reportLevel = 'low'
