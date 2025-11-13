@@ -31,6 +31,7 @@ import java.nio.file.Paths;
  */
 public class VerifyCommand implements Command {
 
+    /** BLAKE3 service instance. */
     private final Blake3Service blake3Service;
 
     /**
@@ -79,30 +80,30 @@ public class VerifyCommand implements Command {
     private boolean verifyFileIntegrity(String filePath, String expectedHash) {
         try {
             Path path = Paths.get(filePath);
-            
+
             if (!Files.exists(path)) {
                 System.err.println("Error: File does not exist: " + filePath);
                 return false;
             }
-            
+
             if (!Files.isRegularFile(path)) {
                 System.err.println("Error: Path is not a regular file: " + filePath);
                 return false;
             }
-            
+
             System.out.println("Verifying integrity of: " + filePath);
             System.out.println("Expected hash: " + expectedHash);
-            
+
             long startTime = System.currentTimeMillis();
             String actualHash = blake3Service.hashFile(path);
             long endTime = System.currentTimeMillis();
-            
+
             boolean isValid = expectedHash.equals(actualHash);
-            
+
             System.out.println("Actual hash:   " + actualHash);
             System.out.println("Result: " + (isValid ? "VALID" : "INVALID"));
             System.out.println("Time: " + (endTime - startTime) + " ms");
-            
+
             if (isValid) {
                 System.out.println("✓ File integrity is intact");
                 return true;
@@ -110,7 +111,7 @@ public class VerifyCommand implements Command {
                 System.out.println("✗ File integrity check FAILED - file may be corrupted");
                 return false;
             }
-            
+
         } catch (IOException e) {
             System.err.println("Error verifying file: " + e.getMessage());
             return false;

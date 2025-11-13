@@ -16,34 +16,25 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.justsyncit.command;
+package com.justsyncit.storage;
 
-import com.justsyncit.hash.Blake3Service;
+import java.io.IOException;
+import java.util.Set;
 
 /**
- * Context object that provides services to commands.
- * Follows Dependency Inversion Principle by providing abstractions to commands.
+ * Interface for garbage collection functionality.
+ * Follows Interface Segregation Principle by focusing only on garbage collection.
  */
-public class CommandContext {
-
-    /** BLAKE3 service instance. */
-    private final Blake3Service blake3Service;
+public interface GarbageCollectible {
 
     /**
-     * Creates a new CommandContext with the provided services.
+     * Performs garbage collection to remove orphaned chunks.
+     * Orphaned chunks are those not referenced in the provided active hashes set.
      *
-     * @param blake3Service the BLAKE3 service
+     * @param activeHashes set of hashes that are currently referenced
+     * @return the number of chunks removed during garbage collection
+     * @throws IOException if an I/O error occurs during garbage collection
+     * @throws IllegalArgumentException if activeHashes is null
      */
-    public CommandContext(Blake3Service blake3Service) {
-        this.blake3Service = blake3Service;
-    }
-
-    /**
-     * Gets the BLAKE3 service.
-     *
-     * @return the BLAKE3 service
-     */
-    public Blake3Service getBlake3Service() {
-        return blake3Service;
-    }
+    long garbageCollect(Set<String> activeHashes) throws IOException;
 }

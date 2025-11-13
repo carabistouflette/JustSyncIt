@@ -29,6 +29,7 @@ import java.util.Locale;
  */
 public class X86SimdDetector implements SimdDetector {
 
+    /** Logger instance. */
     private static final Logger logger = LoggerFactory.getLogger(X86SimdDetector.class);
 
     @Override
@@ -39,7 +40,7 @@ public class X86SimdDetector implements SimdDetector {
     @Override
     public SimdInfo detectCapabilities() {
         String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        
+
         SimdInfoImpl.Builder builder = new SimdInfoImpl.Builder()
                 .setOperatingSystem(osName)
                 .setArchitecture(System.getProperty("os.arch", "").toLowerCase(Locale.ROOT))
@@ -48,23 +49,23 @@ public class X86SimdDetector implements SimdDetector {
         // Try to detect SIMD capabilities
         if (hasAvx512Support()) {
             builder.setAvx512Supported(true)
-                   .setBestSimdInstructionSet("AVX-512");
+                    .setBestSimdInstructionSet("AVX-512");
             logger.info("AVX-512 support detected");
         } else if (hasAvx2Support()) {
             builder.setAvx2Supported(true)
-                   .setBestSimdInstructionSet("AVX2");
+                    .setBestSimdInstructionSet("AVX2");
             logger.info("AVX2 support detected");
         } else if (hasAvxSupport()) {
             builder.setAvxSupported(true)
-                   .setBestSimdInstructionSet("AVX");
+                    .setBestSimdInstructionSet("AVX");
             logger.info("AVX support detected");
         } else if (hasSse4Support()) {
             builder.setSse4Supported(true)
-                   .setBestSimdInstructionSet("SSE4");
+                    .setBestSimdInstructionSet("SSE4");
             logger.info("SSE4 support detected");
         } else if (hasSse2Support()) {
             builder.setSse2Supported(true)
-                   .setBestSimdInstructionSet("SSE2");
+                    .setBestSimdInstructionSet("SSE2");
             logger.info("SSE2 support detected");
         } else {
             logger.info("No SIMD extensions detected, falling back to scalar implementation");
@@ -82,10 +83,10 @@ public class X86SimdDetector implements SimdDetector {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
-                return cpuInfo.contains("avx512f") && 
-                       cpuInfo.contains("avx512bw") && 
-                       cpuInfo.contains("avx512vl");
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
+                return cpuInfo.contains("avx512f")
+                        && cpuInfo.contains("avx512bw")
+                        && cpuInfo.contains("avx512vl");
             }
         } catch (Exception e) {
             logger.debug("Could not check AVX-512 support via /proc/cpuinfo", e);
@@ -101,7 +102,7 @@ public class X86SimdDetector implements SimdDetector {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("avx2");
             }
         } catch (Exception e) {
@@ -118,7 +119,7 @@ public class X86SimdDetector implements SimdDetector {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("avx");
             }
         } catch (Exception e) {
@@ -135,7 +136,7 @@ public class X86SimdDetector implements SimdDetector {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("sse4_1") || cpuInfo.contains("sse4_2");
             }
         } catch (Exception e) {
@@ -152,7 +153,7 @@ public class X86SimdDetector implements SimdDetector {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("sse2");
             }
         } catch (Exception e) {

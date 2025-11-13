@@ -29,7 +29,7 @@ public class ConsoleInfoDisplay implements ApplicationInfoDisplay {
     @Override
     public void displayBlake3Info(Blake3Service blake3Service) {
         Blake3Service.Blake3Info info = blake3Service.getInfo();
-        
+
         System.out.println("\n=== BLAKE3 Implementation Information ===");
         System.out.println("Version: " + info.getVersion());
         System.out.println("SIMD Support: " + (info.hasSimdSupport() ? "Yes" : "No"));

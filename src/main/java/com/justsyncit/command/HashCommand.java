@@ -31,6 +31,7 @@ import java.nio.file.Paths;
  */
 public class HashCommand implements Command {
 
+    /** BLAKE3 service instance. */
     private final Blake3Service blake3Service;
 
     /**
@@ -77,28 +78,28 @@ public class HashCommand implements Command {
     private boolean hashFile(String filePath) {
         try {
             Path path = Paths.get(filePath);
-            
+
             if (!Files.exists(path)) {
                 System.err.println("Error: File does not exist: " + filePath);
                 return false;
             }
-            
+
             if (!Files.isRegularFile(path)) {
                 System.err.println("Error: Path is not a regular file: " + filePath);
                 return false;
             }
-            
+
             long startTime = System.currentTimeMillis();
             String hash = blake3Service.hashFile(path);
             long endTime = System.currentTimeMillis();
-            
+
             System.out.println("File: " + filePath);
             System.out.println("Size: " + Files.size(path) + " bytes");
             System.out.println("BLAKE3 Hash: " + hash);
             System.out.println("Time: " + (endTime - startTime) + " ms");
-            
+
             return true;
-            
+
         } catch (IOException e) {
             System.err.println("Error hashing file: " + e.getMessage());
             return false;

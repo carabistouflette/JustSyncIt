@@ -16,34 +16,18 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.justsyncit.command;
-
-import com.justsyncit.hash.Blake3Service;
+package com.justsyncit.storage;
 
 /**
- * Context object that provides services to commands.
- * Follows Dependency Inversion Principle by providing abstractions to commands.
+ * Interface for content-addressable storage system.
+ * Provides deduplication by storing chunks identified by their cryptographic hash.
+ * Follows Interface Segregation Principle by composing multiple focused interfaces.
  */
-public class CommandContext {
-
-    /** BLAKE3 service instance. */
-    private final Blake3Service blake3Service;
-
-    /**
-     * Creates a new CommandContext with the provided services.
-     *
-     * @param blake3Service the BLAKE3 service
-     */
-    public CommandContext(Blake3Service blake3Service) {
-        this.blake3Service = blake3Service;
-    }
-
-    /**
-     * Gets the BLAKE3 service.
-     *
-     * @return the BLAKE3 service
-     */
-    public Blake3Service getBlake3Service() {
-        return blake3Service;
-    }
+public interface ContentStore extends
+        ChunkStorage,
+        StorageStatistics,
+        GarbageCollectible,
+        ClosableResource {
+    // This interface now combines multiple focused interfaces
+    // No additional methods needed - all functionality is inherited
 }

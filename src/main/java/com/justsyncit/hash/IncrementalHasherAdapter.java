@@ -24,6 +24,7 @@ package com.justsyncit.hash;
  */
 public class IncrementalHasherAdapter implements Blake3Service.Blake3IncrementalHasher {
 
+    /** The adapted hasher instance. */
     private final IncrementalHasherFactory.IncrementalHasher adaptedHasher;
 
     /**

@@ -18,9 +18,9 @@
 
 package com.justsyncit;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -33,7 +33,7 @@ class JustSyncItApplicationTest {
     private JustSyncItApplication application;
 
     @BeforeEach
-    void setUp() {
+    void setUpApplication() {
         application = TestServiceFactory.createApplication();
     }
 

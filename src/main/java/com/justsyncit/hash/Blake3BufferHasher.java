@@ -29,9 +29,13 @@ import java.util.HexFormat;
  */
 public class Blake3BufferHasher implements BufferHasher {
 
+    /** Logger for the buffer hasher. */
     private static final Logger logger = LoggerFactory.getLogger(Blake3BufferHasher.class);
+
+    /** Hex format for hash string representation. */
     private static final HexFormat HEX_FORMAT = HexFormat.of();
 
+    /** Hash algorithm instance. */
     private final HashAlgorithm hashAlgorithm;
 
     /**
@@ -50,7 +54,7 @@ public class Blake3BufferHasher implements BufferHasher {
         }
 
         logger.trace("Hashing buffer of {} bytes", data.length);
-        
+
         try {
             hashAlgorithm.update(data);
             byte[] hash = hashAlgorithm.digest();

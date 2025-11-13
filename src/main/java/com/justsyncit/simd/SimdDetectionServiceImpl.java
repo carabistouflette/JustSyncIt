@@ -31,10 +31,14 @@ import java.util.Locale;
  */
 public class SimdDetectionServiceImpl implements SimdDetectionService {
 
+    /** Logger instance. */
     private static final Logger logger = LoggerFactory.getLogger(SimdDetectionServiceImpl.class);
-    
+
+    /** Cached SIMD information. */
     private volatile SimdInfo cachedSimdInfo;
+    /** Lock for cache synchronization. */
     private final Object cacheLock = new Object();
+    /** List of SIMD detectors. */
     private final List<SimdDetector> detectors;
 
     /**
@@ -72,7 +76,7 @@ public class SimdDetectionServiceImpl implements SimdDetectionService {
      */
     private SimdInfo detectSimdCapabilities() {
         String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
-        
+
         logger.debug("Detecting SIMD capabilities for architecture: {}", arch);
 
         // Find a detector that supports this architecture

@@ -30,10 +30,15 @@ import java.nio.file.Path;
  */
 public class Blake3ServiceImpl implements Blake3Service {
 
+    /** File hashing service. */
     private final FileHasher fileHasher;
+    /** Buffer hashing service. */
     private final BufferHasher bufferHasher;
+    /** Stream hashing service. */
     private final StreamHasher streamHasher;
+    /** Incremental hasher factory. */
     private final IncrementalHasherFactory incrementalHasherFactory;
+    /** BLAKE3 information provider. */
     private final Blake3Info blake3Info;
 
     /**
@@ -87,9 +92,11 @@ public class Blake3ServiceImpl implements Blake3Service {
      * Implementation of Blake3Info providing information about the BLAKE3 implementation.
      */
     private static class Blake3InfoImpl implements Blake3Info {
+        /** SIMD detection service. */
         private final SimdDetectionService simdDetectionService;
 
-        public Blake3InfoImpl(SimdDetectionService simdDetectionService) {
+        /** Creates a new Blake3InfoImpl. */
+        Blake3InfoImpl(SimdDetectionService simdDetectionService) {
             this.simdDetectionService = simdDetectionService;
         }
 

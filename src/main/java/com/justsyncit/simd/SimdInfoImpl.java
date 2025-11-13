@@ -23,16 +23,25 @@ package com.justsyncit.simd;
  * Follows Builder pattern for construction.
  */
 public final class SimdInfoImpl implements SimdInfo {
-    
+    /** Operating system name. */
     private final String operatingSystem;
+    /** System architecture. */
     private final String architecture;
+    /** Java version. */
     private final String javaVersion;
+    /** AVX-512 support flag. */
     private final boolean avx512Supported;
+    /** AVX2 support flag. */
     private final boolean avx2Supported;
+    /** AVX support flag. */
     private final boolean avxSupported;
+    /** SSE4 support flag. */
     private final boolean sse4Supported;
+    /** SSE2 support flag. */
     private final boolean sse2Supported;
+    /** NEON support flag. */
     private final boolean neonSupported;
+    /** Best SIMD instruction set available. */
     private final String bestSimdInstructionSet;
 
     private SimdInfoImpl(Builder builder) {
@@ -49,53 +58,53 @@ public final class SimdInfoImpl implements SimdInfo {
     }
 
     @Override
-    public String getOperatingSystem() { 
-        return operatingSystem; 
+    public String getOperatingSystem() {
+        return operatingSystem;
     }
-    
+
     @Override
-    public String getArchitecture() { 
-        return architecture; 
+    public String getArchitecture() {
+        return architecture;
     }
-    
+
     @Override
-    public String getJavaVersion() { 
-        return javaVersion; 
+    public String getJavaVersion() {
+        return javaVersion;
     }
-    
+
     @Override
-    public boolean isAvx512Supported() { 
-        return avx512Supported; 
+    public boolean isAvx512Supported() {
+        return avx512Supported;
     }
-    
+
     @Override
-    public boolean isAvx2Supported() { 
-        return avx2Supported; 
+    public boolean isAvx2Supported() {
+        return avx2Supported;
     }
-    
+
     @Override
-    public boolean isAvxSupported() { 
-        return avxSupported; 
+    public boolean isAvxSupported() {
+        return avxSupported;
     }
-    
+
     @Override
-    public boolean isSse4Supported() { 
-        return sse4Supported; 
+    public boolean isSse4Supported() {
+        return sse4Supported;
     }
-    
+
     @Override
-    public boolean isSse2Supported() { 
-        return sse2Supported; 
+    public boolean isSse2Supported() {
+        return sse2Supported;
     }
-    
+
     @Override
-    public boolean isNeonSupported() { 
-        return neonSupported; 
+    public boolean isNeonSupported() {
+        return neonSupported;
     }
-    
+
     @Override
-    public String getBestSimdInstructionSet() { 
-        return bestSimdInstructionSet; 
+    public String getBestSimdInstructionSet() {
+        return bestSimdInstructionSet;
     }
 
     @Override
@@ -105,24 +114,35 @@ public final class SimdInfoImpl implements SimdInfo {
 
     @Override
     public String toString() {
-        return String.format("SimdInfo{os='%s', arch='%s', bestSIMD='%s', AVX512=%s, AVX2=%s, AVX=%s, SSE4=%s, SSE2=%s, NEON=%s}",
-            operatingSystem, architecture, bestSimdInstructionSet, 
-            avx512Supported, avx2Supported, avxSupported, sse4Supported, sse2Supported, neonSupported);
+        return String.format(
+                "SimdInfo{os='%s', arch='%s', bestSIMD='%s', AVX512=%s, AVX2=%s, AVX=%s, SSE4=%s, SSE2=%s, NEON=%s}",
+                operatingSystem, architecture, bestSimdInstructionSet,
+                avx512Supported, avx2Supported, avxSupported, sse4Supported, sse2Supported, neonSupported);
     }
 
     /**
      * Builder for SimdInfoImpl.
      */
     public static final class Builder {
+        /** Operating system name. */
         private String operatingSystem;
+        /** System architecture. */
         private String architecture;
+        /** Java version. */
         private String javaVersion;
+        /** AVX-512 support flag. */
         private boolean avx512Supported;
+        /** AVX2 support flag. */
         private boolean avx2Supported;
+        /** AVX support flag. */
         private boolean avxSupported;
+        /** SSE4 support flag. */
         private boolean sse4Supported;
+        /** SSE2 support flag. */
         private boolean sse2Supported;
+        /** NEON support flag. */
         private boolean neonSupported;
+        /** Best SIMD instruction set available. */
         private String bestSimdInstructionSet = "NONE";
 
         public Builder setOperatingSystem(String operatingSystem) {

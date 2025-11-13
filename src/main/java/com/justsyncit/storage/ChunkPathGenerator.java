@@ -16,34 +16,31 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.justsyncit.command;
+package com.justsyncit.storage;
 
-import com.justsyncit.hash.Blake3Service;
+import java.nio.file.Path;
 
 /**
- * Context object that provides services to commands.
- * Follows Dependency Inversion Principle by providing abstractions to commands.
+ * Interface for generating file paths for chunks based on their hash.
+ * Different implementations can use different strategies for organizing chunks.
  */
-public class CommandContext {
-
-    /** BLAKE3 service instance. */
-    private final Blake3Service blake3Service;
+public interface ChunkPathGenerator {
 
     /**
-     * Creates a new CommandContext with the provided services.
+     * Generates the file path for a chunk based on its hash.
      *
-     * @param blake3Service the BLAKE3 service
+     * @param storageDirectory the base storage directory
+     * @param hash the chunk hash
+     * @return the file path for the chunk
+     * @throws IllegalArgumentException if hash is null or invalid
      */
-    public CommandContext(Blake3Service blake3Service) {
-        this.blake3Service = blake3Service;
-    }
+    Path generatePath(Path storageDirectory, String hash);
 
     /**
-     * Gets the BLAKE3 service.
+     * Validates that a hash is compatible with this path generator.
      *
-     * @return the BLAKE3 service
+     * @param hash the hash to validate
+     * @throws IllegalArgumentException if hash is null or invalid
      */
-    public Blake3Service getBlake3Service() {
-        return blake3Service;
-    }
+    void validateHash(String hash);
 }
