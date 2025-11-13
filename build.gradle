@@ -56,20 +56,20 @@ jar {
 
 // Custom tasks for different build types
 task devBuild {
-    description 'Build for development'
-    group 'build'
+    description = 'Build for development'
+    group = 'build'
     dependsOn compileJava, processResources, testClasses
 }
 
 task testBuild {
-    description 'Build for testing'
-    group 'build'
+    description = 'Build for testing'
+    group = 'build'
     dependsOn test
 }
 
 task releaseBuild {
-    description 'Build for release'
-    group 'build'
+    description = 'Build for release'
+    group = 'build'
     dependsOn testBuild, jar
 }
 
@@ -87,8 +87,8 @@ checkstyle {
 spotbugs {
     toolVersion = '4.8.6'
     ignoreFailures = false
-    effort = 'max'
-    reportLevel = 'low'
+    effort = com.github.spotbugs.snom.Effort.valueOf('MAX')
+    reportLevel = com.github.spotbugs.snom.Confidence.valueOf('LOW')
     excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
 }
 
