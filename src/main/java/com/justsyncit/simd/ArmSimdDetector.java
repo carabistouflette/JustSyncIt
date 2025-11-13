@@ -29,6 +29,7 @@ import java.util.Locale;
  */
 public class ArmSimdDetector implements SimdDetector {
 
+    /** Logger instance. */
     private static final Logger logger = LoggerFactory.getLogger(ArmSimdDetector.class);
 
     @Override
@@ -39,7 +40,7 @@ public class ArmSimdDetector implements SimdDetector {
     @Override
     public SimdInfo detectCapabilities() {
         String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        
+
         SimdInfoImpl.Builder builder = new SimdInfoImpl.Builder()
                 .setOperatingSystem(osName)
                 .setArchitecture(System.getProperty("os.arch", "").toLowerCase(Locale.ROOT))
@@ -48,7 +49,7 @@ public class ArmSimdDetector implements SimdDetector {
         // Check for NEON support
         if (hasNeonSupport()) {
             builder.setNeonSupported(true)
-                   .setBestSimdInstructionSet("NEON");
+                    .setBestSimdInstructionSet("NEON");
             logger.info("ARM NEON support detected");
         } else {
             logger.info("No ARM SIMD extensions detected");
@@ -66,7 +67,7 @@ public class ArmSimdDetector implements SimdDetector {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("neon");
             }
         } catch (Exception e) {

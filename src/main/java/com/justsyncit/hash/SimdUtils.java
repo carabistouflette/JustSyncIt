@@ -24,23 +24,26 @@ import org.slf4j.LoggerFactory;
 import java.util.Locale;
 
 /**
- * Utility class for detecting SIMD instruction set support on the current platform.
+ * Utility class for detecting SIMD instruction set support on current platform.
  * Provides runtime detection of AVX2, AVX-512, and other SIMD capabilities.
  */
-public final class SIMDUtils {
+public final class SimdUtils {
 
-    private static final Logger logger = LoggerFactory.getLogger(SIMDUtils.class);
-    
+    /** Logger instance. */
+    private static final Logger logger = LoggerFactory.getLogger(SimdUtils.class);
+
+    /** Cached SIMD information. */
     private static volatile SimdInfo cachedSimdInfo;
+    /** Lock for cache synchronization. */
     private static final Object cacheLock = new Object();
 
     // Private constructor to prevent instantiation
-    private SIMDUtils() {
+    private SimdUtils() {
         throw new UnsupportedOperationException("Utility class cannot be instantiated");
     }
 
     /**
-     * Gets SIMD information for the current platform.
+     * Gets SIMD information for current platform.
      * Results are cached for performance.
      *
      * @return SimdInfo containing detected SIMD capabilities
@@ -57,22 +60,22 @@ public final class SIMDUtils {
     }
 
     /**
-     * Detects SIMD capabilities on the current platform.
+     * Detects SIMD capabilities on current platform.
      *
      * @return SimdInfo with detected capabilities
      */
     private static SimdInfo detectSimdCapabilities() {
         String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
         String arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
-        
+
         logger.debug("Detecting SIMD capabilities for OS: {}, Arch: {}", osName, arch);
 
         SimdInfo.Builder builder = new SimdInfo.Builder();
 
         // Set basic platform info
         builder.setOperatingSystem(osName)
-               .setArchitecture(arch)
-               .setJavaVersion(System.getProperty("java.version"));
+                .setArchitecture(arch)
+                .setJavaVersion(System.getProperty("java.version"));
 
         // Detect CPU features based on architecture
         if (arch.contains("amd64") || arch.contains("x86_64")) {
@@ -96,11 +99,10 @@ public final class SIMDUtils {
         try {
             // Try to use CPUID through JNI if available
             // For now, we'll use system properties and heuristics
-            
             // Check for AVX-512 support (Linux-specific check)
             if (hasAvx512Support()) {
                 builder.setAvx512Supported(true)
-                       .setBestSimdInstructionSet("AVX-512");
+                        .setBestSimdInstructionSet("AVX-512");
                 logger.info("AVX-512 support detected");
                 return;
             }
@@ -108,7 +110,7 @@ public final class SIMDUtils {
             // Check for AVX2 support
             if (hasAvx2Support()) {
                 builder.setAvx2Supported(true)
-                       .setBestSimdInstructionSet("AVX2");
+                        .setBestSimdInstructionSet("AVX2");
                 logger.info("AVX2 support detected");
                 return;
             }
@@ -116,7 +118,7 @@ public final class SIMDUtils {
             // Check for AVX support
             if (hasAvxSupport()) {
                 builder.setAvxSupported(true)
-                       .setBestSimdInstructionSet("AVX");
+                        .setBestSimdInstructionSet("AVX");
                 logger.info("AVX support detected");
                 return;
             }
@@ -124,7 +126,7 @@ public final class SIMDUtils {
             // Check for SSE4.1/4.2 support
             if (hasSse4Support()) {
                 builder.setSse4Supported(true)
-                       .setBestSimdInstructionSet("SSE4");
+                        .setBestSimdInstructionSet("SSE4");
                 logger.info("SSE4 support detected");
                 return;
             }
@@ -132,7 +134,7 @@ public final class SIMDUtils {
             // Check for basic SSE2 support (most x86 CPUs have this)
             if (hasSse2Support()) {
                 builder.setSse2Supported(true)
-                       .setBestSimdInstructionSet("SSE2");
+                        .setBestSimdInstructionSet("SSE2");
                 logger.info("SSE2 support detected");
                 return;
             }
@@ -154,7 +156,7 @@ public final class SIMDUtils {
             // Check for NEON support (most modern ARM CPUs have this)
             if (hasNeonSupport()) {
                 builder.setNeonSupported(true)
-                       .setBestSimdInstructionSet("NEON");
+                        .setBestSimdInstructionSet("NEON");
                 logger.info("ARM NEON support detected");
                 return;
             }
@@ -177,10 +179,10 @@ public final class SIMDUtils {
             if (osName.contains("linux")) {
                 // Check /proc/cpuinfo for AVX-512 flags
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
-                return cpuInfo.contains("avx512f") && 
-                       cpuInfo.contains("avx512bw") && 
-                       cpuInfo.contains("avx512vl");
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
+                return cpuInfo.contains("avx512f")
+                        && cpuInfo.contains("avx512bw")
+                        && cpuInfo.contains("avx512vl");
             }
         } catch (Exception e) {
             logger.debug("Could not check AVX-512 support via /proc/cpuinfo", e);
@@ -196,7 +198,7 @@ public final class SIMDUtils {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("avx2");
             }
         } catch (Exception e) {
@@ -213,7 +215,7 @@ public final class SIMDUtils {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("avx");
             }
         } catch (Exception e) {
@@ -230,7 +232,7 @@ public final class SIMDUtils {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("sse4_1") || cpuInfo.contains("sse4_2");
             }
         } catch (Exception e) {
@@ -247,7 +249,7 @@ public final class SIMDUtils {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("sse2");
             }
         } catch (Exception e) {
@@ -264,7 +266,7 @@ public final class SIMDUtils {
             String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
             if (osName.contains("linux")) {
                 String cpuInfo = new String(java.nio.file.Files.readAllBytes(
-                    java.nio.file.Paths.get("/proc/cpuinfo")));
+                        java.nio.file.Paths.get("/proc/cpuinfo")), java.nio.charset.StandardCharsets.UTF_8);
                 return cpuInfo.contains("neon");
             }
         } catch (Exception e) {
@@ -277,15 +279,25 @@ public final class SIMDUtils {
      * Immutable class containing SIMD capability information.
      */
     public static final class SimdInfo {
+        /** Operating system name. */
         private final String operatingSystem;
+        /** System architecture. */
         private final String architecture;
+        /** Java version. */
         private final String javaVersion;
+        /** AVX-512 support flag. */
         private final boolean avx512Supported;
+        /** AVX2 support flag. */
         private final boolean avx2Supported;
+        /** AVX support flag. */
         private final boolean avxSupported;
+        /** SSE4 support flag. */
         private final boolean sse4Supported;
+        /** SSE2 support flag. */
         private final boolean sse2Supported;
+        /** NEON support flag. */
         private final boolean neonSupported;
+        /** Best SIMD instruction set available. */
         private final String bestSimdInstructionSet;
 
         private SimdInfo(Builder builder) {
@@ -301,16 +313,45 @@ public final class SIMDUtils {
             this.bestSimdInstructionSet = builder.bestSimdInstructionSet;
         }
 
-        public String getOperatingSystem() { return operatingSystem; }
-        public String getArchitecture() { return architecture; }
-        public String getJavaVersion() { return javaVersion; }
-        public boolean isAvx512Supported() { return avx512Supported; }
-        public boolean isAvx2Supported() { return avx2Supported; }
-        public boolean isAvxSupported() { return avxSupported; }
-        public boolean isSse4Supported() { return sse4Supported; }
-        public boolean isSse2Supported() { return sse2Supported; }
-        public boolean isNeonSupported() { return neonSupported; }
-        public String getBestSimdInstructionSet() { return bestSimdInstructionSet; }
+        public String getOperatingSystem() {
+            return operatingSystem;
+        }
+
+        public String getArchitecture() {
+            return architecture;
+        }
+
+        public String getJavaVersion() {
+            return javaVersion;
+        }
+
+        public boolean isAvx512Supported() {
+            return avx512Supported;
+        }
+
+        public boolean isAvx2Supported() {
+            return avx2Supported;
+        }
+
+        public boolean isAvxSupported() {
+            return avxSupported;
+        }
+
+        public boolean isSse4Supported() {
+            return sse4Supported;
+        }
+
+        public boolean isSse2Supported() {
+            return sse2Supported;
+        }
+
+        public boolean isNeonSupported() {
+            return neonSupported;
+        }
+
+        public String getBestSimdInstructionSet() {
+            return bestSimdInstructionSet;
+        }
 
         public boolean hasSimdSupport() {
             return !"NONE".equals(bestSimdInstructionSet);
@@ -318,24 +359,36 @@ public final class SIMDUtils {
 
         @Override
         public String toString() {
-            return String.format("SimdInfo{os='%s', arch='%s', bestSIMD='%s', AVX512=%s, AVX2=%s, AVX=%s, SSE4=%s, SSE2=%s, NEON=%s}",
-                operatingSystem, architecture, bestSimdInstructionSet, 
-                avx512Supported, avx2Supported, avxSupported, sse4Supported, sse2Supported, neonSupported);
+            return String.format(
+                    "SimdInfo{os='%s', arch='%s', bestSIMD='%s', AVX512=%s, AVX2=%s, "
+                            + "AVX=%s, SSE4=%s, SSE2=%s, NEON=%s}",
+                    operatingSystem, architecture, bestSimdInstructionSet,
+                    avx512Supported, avx2Supported, avxSupported, sse4Supported, sse2Supported, neonSupported);
         }
 
         /**
          * Builder for SimdInfo.
          */
         public static final class Builder {
+            /** Operating system name. */
             private String operatingSystem;
+            /** System architecture. */
             private String architecture;
+            /** Java version. */
             private String javaVersion;
+            /** AVX-512 support flag. */
             private boolean avx512Supported;
+            /** AVX2 support flag. */
             private boolean avx2Supported;
+            /** AVX support flag. */
             private boolean avxSupported;
+            /** SSE4 support flag. */
             private boolean sse4Supported;
+            /** SSE2 support flag. */
             private boolean sse2Supported;
+            /** NEON support flag. */
             private boolean neonSupported;
+            /** Best SIMD instruction set available. */
             private String bestSimdInstructionSet = "NONE";
 
             public Builder setOperatingSystem(String operatingSystem) {

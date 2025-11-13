@@ -30,9 +30,12 @@ import java.io.InputStream;
  */
 public class Blake3StreamHasher implements StreamHasher {
 
+    /** Logger for the stream hasher. */
     private static final Logger logger = LoggerFactory.getLogger(Blake3StreamHasher.class);
+    /** Buffer size for streaming operations (8KB). */
     private static final int BUFFER_SIZE = 8192; // 8KB buffer for streaming
 
+    /** Incremental hasher factory. */
     private final IncrementalHasherFactory incrementalHasherFactory;
 
     /**
@@ -51,16 +54,16 @@ public class Blake3StreamHasher implements StreamHasher {
         }
 
         logger.trace("Hashing input stream");
-        
+
         IncrementalHasherFactory.IncrementalHasher hasher = incrementalHasherFactory.createIncrementalHasher();
         byte[] buffer = new byte[BUFFER_SIZE];
         int bytesRead;
-        
+
         try {
             while ((bytesRead = inputStream.read(buffer)) != -1) {
                 hasher.update(buffer, 0, bytesRead);
             }
-            
+
             return hasher.digest();
         } catch (IOException e) {
             logger.error("Error reading from input stream", e);

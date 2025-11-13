@@ -26,19 +26,30 @@ import java.security.NoSuchAlgorithmException;
  * This class implements the HashAlgorithm interface using Java's built-in SHA-256.
  * Note: This is currently used as a fallback until a true BLAKE3 implementation is available.
  */
-public class Sha256HashAlgorithm implements HashAlgorithm {
+public final class Sha256HashAlgorithm implements HashAlgorithm {
 
+    /** MessageDigest instance for SHA-256. */
     private final MessageDigest digest;
 
     /**
      * Creates a new SHA-256 hash algorithm instance.
+     * @throws RuntimeException if SHA-256 algorithm is not available
      */
-    public Sha256HashAlgorithm() {
+    private Sha256HashAlgorithm() {
         try {
             this.digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException("SHA-256 algorithm not available", e);
         }
+    }
+
+    /**
+     * Creates a new SHA-256 hash algorithm instance.
+     * @return a new Sha256HashAlgorithm instance
+     * @throws RuntimeException if SHA-256 algorithm is not available
+     */
+    public static Sha256HashAlgorithm create() {
+        return new Sha256HashAlgorithm();
     }
 
     @Override

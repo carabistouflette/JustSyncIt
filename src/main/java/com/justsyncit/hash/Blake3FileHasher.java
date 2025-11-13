@@ -32,10 +32,16 @@ import java.nio.file.Path;
  */
 public class Blake3FileHasher implements FileHasher {
 
+    /** Logger for the file hasher. */
     private static final Logger logger = LoggerFactory.getLogger(Blake3FileHasher.class);
+
+    /** Buffer size for streaming operations (8KB). */
     private static final int BUFFER_SIZE = 8192; // 8KB buffer for streaming
 
+    /** Stream hasher instance. */
     private final StreamHasher streamHasher;
+
+    /** Buffer hasher instance. */
     private final BufferHasher bufferHasher;
 
     /**
@@ -54,17 +60,17 @@ public class Blake3FileHasher implements FileHasher {
         if (filePath == null) {
             throw new IllegalArgumentException("File path cannot be null");
         }
-        
+
         if (!Files.exists(filePath)) {
             throw new IllegalArgumentException("File does not exist: " + filePath);
         }
-        
+
         if (!Files.isRegularFile(filePath)) {
             throw new IllegalArgumentException("Path is not a regular file: " + filePath);
         }
 
         logger.debug("Hashing file: {}", filePath);
-        
+
         long fileSize = Files.size(filePath);
         logger.trace("File size: {} bytes", fileSize);
 

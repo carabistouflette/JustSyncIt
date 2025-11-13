@@ -25,7 +25,8 @@ import org.junit.jupiter.api.Disabled;
 import java.util.Arrays;
 import java.util.Random;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Performance tests for BLAKE3 hashing implementation.
@@ -33,15 +34,19 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class Blake3PerformanceTest {
 
+    /** Number of warmup iterations. */
     private static final int WARMUP_ITERATIONS = 1000;
+    /** Number of measurement iterations. */
     private static final int MEASUREMENT_ITERATIONS = 10000;
+    /** Shared random instance for performance tests. */
+    private static final Random random = new Random(12345);
 
     @Test
     @Disabled("Performance test - run manually when needed")
     void testSmallDataPerformance() {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[64]; // 64 bytes
-        new Random(12345).nextBytes(data);
+        random.nextBytes(data);
 
         // Warmup
         for (int i = 0; i < WARMUP_ITERATIONS; i++) {
@@ -68,7 +73,7 @@ class Blake3PerformanceTest {
     void testMediumDataPerformance() {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024]; // 1 KB
-        new Random(12345).nextBytes(data);
+        random.nextBytes(data);
 
         // Warmup
         for (int i = 0; i < WARMUP_ITERATIONS; i++) {
@@ -95,7 +100,7 @@ class Blake3PerformanceTest {
     void testLargeDataPerformance() {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024 * 1024]; // 1 MB
-        new Random(12345).nextBytes(data);
+        random.nextBytes(data);
 
         // Warmup
         for (int i = 0; i < WARMUP_ITERATIONS / 10; i++) {
@@ -122,7 +127,7 @@ class Blake3PerformanceTest {
     void testIncrementalHashingPerformance() {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024 * 1024]; // 1 MB
-        new Random(12345).nextBytes(data);
+        random.nextBytes(data);
 
         // Warmup
         for (int i = 0; i < WARMUP_ITERATIONS / 10; i++) {
@@ -153,12 +158,12 @@ class Blake3PerformanceTest {
     void testChunkedHashingPerformance() {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[10 * 1024 * 1024]; // 10 MB
-        new Random(12345).nextBytes(data);
+        random.nextBytes(data);
 
         // Warmup
         for (int i = 0; i < 10; i++) {
             Blake3Service.Blake3IncrementalHasher hasher = service.createIncrementalHasher();
-            
+
             // Update in 1KB chunks
             int chunkSize = 1024;
             for (int j = 0; j < data.length; j += chunkSize) {
@@ -172,7 +177,7 @@ class Blake3PerformanceTest {
         long startTime = System.nanoTime();
         for (int i = 0; i < 100; i++) {
             Blake3Service.Blake3IncrementalHasher hasher = service.createIncrementalHasher();
-            
+
             // Update in 1KB chunks
             int chunkSize = 1024;
             for (int j = 0; j < data.length; j += chunkSize) {
@@ -196,7 +201,7 @@ class Blake3PerformanceTest {
     void compareDirectVsIncremental() {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024]; // 1 KB
-        new Random(12345).nextBytes(data);
+        random.nextBytes(data);
 
         // Direct hashing
         long startTime = System.nanoTime();
@@ -219,12 +224,17 @@ class Blake3PerformanceTest {
         // Verify hashes are identical
         assertEquals(directHash, incrementalHash, "Direct and incremental hashes should be identical");
 
-        double directThroughputMBps = (data.length * MEASUREMENT_ITERATIONS) / (1024.0 * 1024.0) / (directTime / 1_000_000_000.0);
-        double incrementalThroughputMBps = (data.length * MEASUREMENT_ITERATIONS) / (1024.0 * 1024.0) / (incrementalTime / 1_000_000_000.0);
+        double directThroughputMBps = (data.length * MEASUREMENT_ITERATIONS)
+                / (1024.0 * 1024.0) / (directTime / 1_000_000_000.0);
+        double incrementalThroughputMBps = (data.length * MEASUREMENT_ITERATIONS)
+                / (1024.0 * 1024.0) / (incrementalTime / 1_000_000_000.0);
 
-        System.out.printf("Direct (1KB): %.2f MB/s%n", directThroughputMBps);
-        System.out.printf("Incremental (1KB): %.2f MB/s%n", incrementalThroughputMBps);
-        System.out.printf("Performance ratio: %.2fx%n", directThroughputMBps / incrementalThroughputMBps);
+        System.out.printf(
+                "Direct (1KB): %.2f MB/s%n", directThroughputMBps);
+        System.out.printf(
+                "Incremental (1KB): %.2f MB/s%n", incrementalThroughputMBps);
+        System.out.printf(
+                "Performance ratio: %.2fx%n", directThroughputMBps / incrementalThroughputMBps);
 
         // Both should have reasonable performance
         assertTrue(directThroughputMBps > 0.1, "Direct hashing should be reasonable");
@@ -239,26 +249,26 @@ class Blake3PerformanceTest {
     void quickPerformanceCheck() {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         Blake3Service.Blake3Info info = service.getInfo();
-        
+
         System.out.println("BLAKE3 Implementation Info:");
         System.out.println("  Version: " + info.getVersion());
         System.out.println("  SIMD Support: " + info.hasSimdSupport());
         System.out.println("  SIMD Instruction Set: " + info.getSimdInstructionSet());
         System.out.println("  JNI Implementation: " + info.isJniImplementation());
-        
+
         // Test with various data sizes
         int[] sizes = {64, 1024, 1024 * 1024, 10 * 1024 * 1024};
         String[] sizeNames = {"64B", "1KB", "1MB", "10MB"};
-        
+
         for (int i = 0; i < sizes.length; i++) {
             byte[] data = new byte[sizes[i]];
             Arrays.fill(data, (byte) 0x42);
-            
+
             // Warmup
             for (int j = 0; j < 100; j++) {
                 service.hashBuffer(data);
             }
-            
+
             // Measure
             int iterations = Math.max(1, 1000000 / sizes[i]); // Scale iterations based on size
             long startTime = System.nanoTime();
@@ -266,28 +276,29 @@ class Blake3PerformanceTest {
                 service.hashBuffer(data);
             }
             long endTime = System.nanoTime();
-            
+
             double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
             double throughputMBps = (sizes[i] * iterations) / (1024.0 * 1024.0) / durationSeconds;
             double throughputGbps = throughputMBps / 1024.0;
-            
-            System.out.printf("%s: %.2f MB/s (%.3f GB/s) - %d iterations%n", 
-                sizeNames[i], throughputMBps, throughputGbps, iterations);
+
+            System.out.printf(
+                    "%s: %.2f MB/s (%.3f GB/s) - %d iterations%n",
+                    sizeNames[i], throughputMBps, throughputGbps, iterations);
         }
-        
+
         // Basic performance assertion - should handle at least 1MB/s for small data
         byte[] smallData = new byte[1024];
         Arrays.fill(smallData, (byte) 0x42);
-        
+
         long startTime = System.nanoTime();
         for (int i = 0; i < 1000; i++) {
             service.hashBuffer(smallData);
         }
         long endTime = System.nanoTime();
-        
+
         double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
         double throughputMBps = (1024.0 * 1000) / (1024.0 * 1024.0) / durationSeconds;
-        
+
         System.out.printf("Basic performance check: %.2f MB/s%n", throughputMBps);
         assertTrue(throughputMBps > 1.0, "Should achieve at least 1MB/s for 1KB data");
     }

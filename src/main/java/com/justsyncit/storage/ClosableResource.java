@@ -16,34 +16,20 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.justsyncit.command;
+package com.justsyncit.storage;
 
-import com.justsyncit.hash.Blake3Service;
+import java.io.IOException;
 
 /**
- * Context object that provides services to commands.
- * Follows Dependency Inversion Principle by providing abstractions to commands.
+ * Interface for resources that can be closed.
+ * Follows Interface Segregation Principle by focusing only on resource cleanup.
  */
-public class CommandContext {
-
-    /** BLAKE3 service instance. */
-    private final Blake3Service blake3Service;
+public interface ClosableResource {
 
     /**
-     * Creates a new CommandContext with the provided services.
+     * Closes the resource and releases any associated resources.
      *
-     * @param blake3Service the BLAKE3 service
+     * @throws IOException if an I/O error occurs during closing
      */
-    public CommandContext(Blake3Service blake3Service) {
-        this.blake3Service = blake3Service;
-    }
-
-    /**
-     * Gets the BLAKE3 service.
-     *
-     * @return the BLAKE3 service
-     */
-    public Blake3Service getBlake3Service() {
-        return blake3Service;
-    }
+    void close() throws IOException;
 }

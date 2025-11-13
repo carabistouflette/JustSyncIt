@@ -31,10 +31,16 @@ import org.slf4j.LoggerFactory;
  */
 public class JustSyncItApplication {
 
+    /** Logger for the application. */
     private static final Logger logger = LoggerFactory.getLogger(JustSyncItApplication.class);
-    
+
+    /** BLAKE3 service instance. */
     private final Blake3Service blake3Service;
+
+    /** Command registry for managing commands. */
     private final CommandRegistry commandRegistry;
+
+    /** Application info display component. */
     private final ApplicationInfoDisplay infoDisplay;
 
     /**
@@ -79,7 +85,7 @@ public class JustSyncItApplication {
      */
     public void run(String[] args) {
         logger.info("JustSyncIt is running");
-        
+
         // Display BLAKE3 implementation info
         infoDisplay.displayBlake3Info(blake3Service);
 
@@ -104,29 +110,29 @@ public class JustSyncItApplication {
      */
     private void processCommands(String[] args) {
         logger.info("Running with {} arguments", args.length);
-        
+
         CommandContext context = new CommandContext(blake3Service);
         boolean commandExecuted = false;
-        
+
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
-            
+
             if (commandRegistry.hasCommand(arg)) {
                 Command command = commandRegistry.getCommand(arg);
-                
+
                 // Extract arguments for this command
                 String[] commandArgs = extractCommandArgs(args, i, command);
-                
+
                 boolean success = command.execute(commandArgs, context);
                 if (success) {
                     commandExecuted = true;
                 }
-                
+
                 // Skip past command arguments
                 i += commandArgs.length;
             }
         }
-        
+
         if (!commandExecuted) {
             System.out.println("No valid command found. Use --help for available commands.");
             commandRegistry.displayHelp();
@@ -144,15 +150,15 @@ public class JustSyncItApplication {
     private String[] extractCommandArgs(String[] args, int startIndex, Command command) {
         String commandName = command.getName();
         int argCount = getExpectedArgCount(commandName);
-        
+
         if (startIndex + argCount >= args.length) {
             return new String[0];
         }
-        
+
         String[] commandArgs = new String[argCount + 1]; // +1 for command name
         commandArgs[0] = commandName;
         System.arraycopy(args, startIndex + 1, commandArgs, 1, argCount);
-        
+
         return commandArgs;
     }
 

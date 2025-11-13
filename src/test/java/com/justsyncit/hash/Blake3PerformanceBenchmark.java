@@ -19,7 +19,16 @@
 package com.justsyncit.hash;
 
 import com.justsyncit.TestServiceFactory;
-import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.BenchmarkMode;
+import org.openjdk.jmh.annotations.Fork;
+import org.openjdk.jmh.annotations.Measurement;
+import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
@@ -40,24 +49,29 @@ import java.util.concurrent.TimeUnit;
 @Fork(1)
 public class Blake3PerformanceBenchmark {
 
+    /** BLAKE3 service instance. */
     private Blake3Service blake3Service;
+    /** Small test data (64 bytes). */
     private byte[] smallData;
+    /** Medium test data (1 KB). */
     private byte[] mediumData;
+    /** Large test data (1 MB). */
     private byte[] largeData;
+    /** Huge test data (10 MB). */
     private byte[] hugeData;
-    private Random random;
+    /** Random number generator. */
+    private static final Random random = new Random(12345); // Fixed seed for reproducible results
 
     @Setup
-    public void setup() {
+    public void benchmarkSetup() {
         blake3Service = TestServiceFactory.createBlake3Service();
-        random = new Random(12345); // Fixed seed for reproducible results
-        
+
         // Prepare test data of various sizes
         smallData = new byte[64]; // 64 bytes
         mediumData = new byte[1024]; // 1 KB
         largeData = new byte[1024 * 1024]; // 1 MB
         hugeData = new byte[10 * 1024 * 1024]; // 10 MB
-        
+
         random.nextBytes(smallData);
         random.nextBytes(mediumData);
         random.nextBytes(largeData);
@@ -115,14 +129,14 @@ public class Blake3PerformanceBenchmark {
     @Benchmark
     public String hashIncrementalInChunks() {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
-        
+
         // Update in 1KB chunks
         int chunkSize = 1024;
         for (int i = 0; i < hugeData.length; i += chunkSize) {
             int length = Math.min(chunkSize, hugeData.length - i);
             hasher.update(hugeData, i, length);
         }
-        
+
         return hasher.digest();
     }
 
@@ -151,7 +165,7 @@ public class Blake3PerformanceBenchmark {
             sb.append("test data ");
             sb.append(i);
         }
-        return blake3Service.hashBuffer(sb.toString().getBytes());
+        return blake3Service.hashBuffer(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     @Benchmark
@@ -161,7 +175,7 @@ public class Blake3PerformanceBenchmark {
             sb.append("test data ");
             sb.append(i);
         }
-        return blake3Service.hashBuffer(sb.toString().getBytes());
+        return blake3Service.hashBuffer(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     /**
@@ -176,7 +190,6 @@ public class Blake3PerformanceBenchmark {
                 .shouldDoGC(true)
                 .jvmArgs("-Xmx2g")
                 .build();
-
         new Runner(opt).run();
     }
 }

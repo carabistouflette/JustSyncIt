@@ -27,6 +27,7 @@ import java.util.Map;
  */
 public class CommandRegistry {
 
+    /** Map of registered commands. */
     private final Map<String, Command> commands = new HashMap<>();
 
     /**

@@ -29,9 +29,12 @@ import java.util.HexFormat;
  */
 public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory {
 
+    /** Logger for the factory. */
     private static final Logger logger = LoggerFactory.getLogger(Blake3IncrementalHasherFactory.class);
+    /** Hex format for hash string representation. */
     private static final HexFormat HEX_FORMAT = HexFormat.of();
 
+    /** Hash algorithm instance. */
     private final HashAlgorithm hashAlgorithm;
 
     /**
@@ -45,27 +48,43 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
 
     @Override
     public IncrementalHasher createIncrementalHasher() {
-        return new Blake3IncrementalHasherImpl();
+        return Blake3IncrementalHasherImpl.create(hashAlgorithm);
     }
 
     /**
      * Implementation of IncrementalHasher using the provided hash algorithm.
      */
-    private class Blake3IncrementalHasherImpl implements IncrementalHasher {
+    private static class Blake3IncrementalHasherImpl implements IncrementalHasher {
+        /** Hash algorithm instance. */
         private final HashAlgorithm hasher;
+        /** Flag indicating if the hasher has been finalized. */
         private boolean finalized = false;
 
-        public Blake3IncrementalHasherImpl() {
-            this.hasher = createNewHashAlgorithm();
+        /** Creates a new Blake3IncrementalHasherImpl with provided hasher. */
+        private Blake3IncrementalHasherImpl(HashAlgorithm hasher) {
+            this.hasher = hasher;
         }
 
-        private HashAlgorithm createNewHashAlgorithm() {
+        /**
+         * Factory method to create a new Blake3IncrementalHasherImpl.
+         * @param prototypeHashAlgorithm the hash algorithm to use as prototype
+         * @return a new instance or throws RuntimeException if creation fails
+         */
+        private static IncrementalHasher create(HashAlgorithm prototypeHashAlgorithm) {
+            HashAlgorithm newHasher;
             // Create a new instance to ensure thread safety and isolation
-            if (hashAlgorithm instanceof Sha256HashAlgorithm) {
-                return new Sha256HashAlgorithm();
+            if (prototypeHashAlgorithm instanceof Sha256HashAlgorithm) {
+                try {
+                    newHasher = Sha256HashAlgorithm.create();
+                } catch (RuntimeException e) {
+                    throw new RuntimeException("Failed to create SHA-256 algorithm instance", e);
+                }
+            } else {
+                // For future hash algorithm implementations
+                throw new UnsupportedOperationException(
+                    "Unsupported hash algorithm: " + prototypeHashAlgorithm.getClass().getSimpleName());
             }
-            // For future hash algorithm implementations
-            throw new UnsupportedOperationException("Unsupported hash algorithm: " + hashAlgorithm.getClass().getSimpleName());
+            return new Blake3IncrementalHasherImpl(newHasher);
         }
 
         @Override

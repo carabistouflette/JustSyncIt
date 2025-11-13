@@ -19,7 +19,18 @@
 package com.justsyncit;
 
 import com.justsyncit.command.CommandRegistry;
-import com.justsyncit.hash.*;
+import com.justsyncit.hash.Blake3BufferHasher;
+import com.justsyncit.hash.Blake3FileHasher;
+import com.justsyncit.hash.Blake3IncrementalHasherFactory;
+import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.hash.Blake3ServiceImpl;
+import com.justsyncit.hash.Blake3StreamHasher;
+import com.justsyncit.hash.BufferHasher;
+import com.justsyncit.hash.FileHasher;
+import com.justsyncit.hash.HashAlgorithm;
+import com.justsyncit.hash.IncrementalHasherFactory;
+import com.justsyncit.hash.Sha256HashAlgorithm;
+import com.justsyncit.hash.StreamHasher;
 import com.justsyncit.simd.SimdDetectionService;
 import com.justsyncit.simd.SimdDetectionServiceImpl;
 
@@ -35,16 +46,16 @@ public class TestServiceFactory {
      * @return Blake3Service instance for testing
      */
     public static Blake3Service createBlake3Service() {
-        HashAlgorithm hashAlgorithm = new Sha256HashAlgorithm();
+        HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
         BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
         IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
         StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
         FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
         SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();
-        
+
         return new Blake3ServiceImpl(
-            fileHasher, bufferHasher, streamHasher, 
-            incrementalHasherFactory, simdDetectionService);
+                fileHasher, bufferHasher, streamHasher,
+                incrementalHasherFactory, simdDetectionService);
     }
 
     /**
@@ -56,7 +67,7 @@ public class TestServiceFactory {
         Blake3Service blake3Service = createBlake3Service();
         CommandRegistry commandRegistry = new CommandRegistry();
         ApplicationInfoDisplay infoDisplay = new ConsoleInfoDisplay();
-        
+
         return new JustSyncItApplication(blake3Service, commandRegistry, infoDisplay);
     }
 
