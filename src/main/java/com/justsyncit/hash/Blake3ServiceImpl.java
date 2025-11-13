@@ -89,7 +89,7 @@ public class Blake3ServiceImpl implements Blake3Service {
         logger.trace("Hashing buffer of {} bytes", data.length);
         
         try {
-            PureJavaBlake3 hasher = new PureJavaBlake3();
+            Sha256HashAlgorithm hasher = new Sha256HashAlgorithm();
             hasher.update(data);
             byte[] hash = hasher.digest();
             String result = HEX_FORMAT.formatHex(hash);
@@ -142,11 +142,11 @@ public class Blake3ServiceImpl implements Blake3Service {
      * Implementation of Blake3IncrementalHasher using pure Java BLAKE3.
      */
     private class Blake3IncrementalHasherImpl implements Blake3IncrementalHasher {
-        private final PureJavaBlake3 hasher;
+        private final Sha256HashAlgorithm hasher;
         private boolean finalized = false;
 
         public Blake3IncrementalHasherImpl() {
-            this.hasher = new PureJavaBlake3();
+            this.hasher = new Sha256HashAlgorithm();
         }
 
         @Override
