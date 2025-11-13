@@ -1,0 +1,109 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  checks: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        java-version: [21]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+        
+    - name: Cache Gradle packages
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      
+    - name: Run dev build
+      run: ./gradlew devBuild
+       
+    - name: Run tests
+      run: ./gradlew clean test --no-configuration-cache
+       
+    - name: Check test results
+      run: ls -la build/test-results/test/ || echo "Test results directory not found"
+       
+    - name: Run Checkstyle
+      run: ./gradlew checkstyleMain checkstyleTest
+      
+    - name: Run SpotBugs
+      run: ./gradlew spotbugsMain spotbugsTest
+      
+    - name: Generate test report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: Gradle Tests
+        path: build/test-results/test/TEST-*.xml
+        reporter: java-junit
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-java21
+        path: |
+          build/reports/tests/
+          build/reports/checkstyle/
+          build/reports/spotbugs/
+          
+    - name: Run release build (only on main branch)
+      if: matrix.java-version == '21' && github.ref == 'refs/heads/main'
+      run: ./gradlew releaseBuild
+      
+    - name: Upload JAR artifact (only on main branch)
+      if: matrix.java-version == '21' && github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v4
+      with:
+        name: justsyncit-jar-java21
+        path: build/libs/*.jar
+        
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'

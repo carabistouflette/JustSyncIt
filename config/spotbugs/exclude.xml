@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!-- Exclude test classes from certain checks -->
+    <Match>
+        <Class name="~.*Test.*" />
+        <Bug pattern="DM_EXIT" />
+    </Match>
+    
+    <!-- Exclude test classes from field initialization checks (false positives with JUnit) -->
+    <Match>
+        <Class name="~.*Test.*" />
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR" />
+    </Match>
+    
+    <!-- Exclude generated classes -->
+    <Match>
+        <Class name="~.*\..*_.+" />
+    </Match>
+    
+    <!-- Exclude specific patterns that are common in this project -->
+    <Match>
+        <Bug pattern="SE_BAD_FIELD" />
+        <Class name="~.*\.exception\..*" />
+    </Match>
+    
+    <!-- Exclude serialization warnings for non-serializable classes -->
+    <Match>
+        <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED" />
+        <Class name="~.*\.config\..*" />
+    </Match>
+</FindBugsFilter>
