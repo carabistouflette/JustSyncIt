@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.justSyncIt;
+package com.justsyncit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
  */
 public class JustSyncItApplication {
 
+    /** Logger for this application class. */
     private static final Logger logger = LoggerFactory.getLogger(JustSyncItApplication.class);
 
     /**

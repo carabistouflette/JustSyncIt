@@ -16,7 +16,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.justSyncIt;
+package com.justsyncit;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 class JustSyncItApplicationTest {
 
+    /** Application instance for testing. */
     private JustSyncItApplication application;
 
     @BeforeEach
