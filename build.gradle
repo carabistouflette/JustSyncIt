@@ -1,0 +1,105 @@
+plugins {
+    id 'java'
+    id 'application'
+    id 'checkstyle'
+    id 'com.github.spotbugs' version '5.0.14'
+}
+
+group = 'com.justSyncIt'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // JUnit 5 for testing
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.0'
+    
+    // Additional testing utilities
+    testImplementation 'org.mockito:mockito-core:5.5.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.5.0'
+    
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+    implementation 'ch.qos.logback:logback-classic:1.4.11'
+}
+
+application {
+    mainClass = 'com.justSyncIt.JustSyncItApplication'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+jar {
+    manifest {
+        attributes(
+            'Main-Class': 'com.justSyncIt.JustSyncItApplication',
+            'Implementation-Title': 'JustSyncIt',
+            'Implementation-Version': project.version
+        )
+    }
+}
+
+// Custom tasks for different build types
+task devBuild {
+    description 'Build for development'
+    group 'build'
+    dependsOn compileJava, processResources, testClasses
+}
+
+task testBuild {
+    description 'Build for testing'
+    group 'build'
+    dependsOn test
+}
+
+task releaseBuild {
+    description 'Build for release'
+    group 'build'
+    dependsOn testBuild, jar
+}
+
+// Checkstyle configuration
+checkstyle {
+    toolVersion = '10.12.4'
+    configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
+    configProperties = [configDir: "${rootDir}/config/checkstyle"]
+    ignoreFailures = false
+    maxErrors = 0
+    maxWarnings = 0
+}
+
+// SpotBugs configuration
+spotbugs {
+    toolVersion = '4.8.0'
+    ignoreFailures = false
+    effort = 'max'
+    reportLevel = 'low'
+    excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
+}
+
+// Configure SpotBugs tasks
+tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
+    reports {
+        xml {
+            required = true
+        }
+        html {
+            required = true
+        }
+    }
+}
