@@ -3,6 +3,7 @@ plugins {
     id 'application'
     id 'checkstyle'
     id 'com.github.spotbugs' version '6.0.25'
+    id 'me.champeau.jmh' version '0.7.2'
 }
 
 group = 'com.justsyncit'
@@ -26,6 +27,12 @@ dependencies {
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.16'
     implementation 'ch.qos.logback:logback-classic:1.5.17'
+    
+    // No external BLAKE3 dependency - using pure Java implementation
+    
+    // Performance benchmarking
+    testImplementation 'org.openjdk.jmh:jmh-core:1.37'
+    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
 }
 
 application {
