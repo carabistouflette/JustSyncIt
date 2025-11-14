@@ -4,6 +4,9 @@ plugins {
     id 'checkstyle'
     id 'com.github.spotbugs' version '6.0.25'
     id 'me.champeau.jmh' version '0.7.2'
+    id 'jacoco'
+    id 'org.sonarqube' version '5.1.0.4882'
+    id 'org.owasp.dependencycheck' version '10.0.4'
 }
 
 group = 'com.justsyncit'
@@ -37,6 +40,81 @@ dependencies {
 
 application {
     mainClass = 'com.justsyncit.JustSyncItApplication'
+}
+
+// JaCoCo configuration for code coverage
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+    
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                '**/generated/**',
+                '**/test/**'
+            ])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.80  // Require 80% code coverage
+            }
+        }
+    }
+}
+
+// SonarQube configuration
+sonarqube {
+    properties {
+        property "sonar.projectKey", "justsyncit"
+        property "sonar.organization", "justsyncit"
+        property "sonar.host.url", "https://sonarcloud.io"
+        property "sonar.java.coveragePlugin", "jacoco"
+        property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/test/jacocoTestReport.xml"
+        property "sonar.java.binaries", "${buildDir}/classes/java/main"
+        property "sonar.java.test.binaries", "${buildDir}/classes/java/test"
+        property "sonar.exclusions", "**/generated/**,**/test/**"
+        property "sonar.spotbugs.reportPaths", "${buildDir}/reports/spotbugs/main.xml,${buildDir}/reports/spotbugs/test.xml"
+        property "sonar.checkstyle.reportPaths", "${buildDir}/reports/checkstyle/main.xml,${buildDir}/reports/checkstyle/test.xml"
+    }
+}
+
+// OWASP Dependency Check configuration
+dependencyCheck {
+    failBuildOnCVSS = 7.0  // Fail build on CVSS 7.0 or higher
+    failOnError = true
+    
+    suppressionFile = "${rootDir}/config/dependency-check/suppressions.xml"
+    suppressionFileValidUntil = "2025-12-31"
+    
+    analyzers {
+        experimentalEnabled = false
+        archiveEnabled = true
+        jarEnabled = true
+        centralEnabled = true
+        nuspecEnabled = false
+        assemblyEnabled = false
+        golangDepEnabled = false
+        golangModEnabled = false
+        rubygemsEnabled = false
+        pythonEnabled = false
+        pythonDistributionEnabled = false
+        pythonPipEnabled = false
+    }
+    
+    formats = ['HTML', 'XML', 'CSV', 'JSON', 'SVR']
 }
 
 java {
@@ -77,7 +155,18 @@ task testBuild {
 task releaseBuild {
     description = 'Build for release'
     group = 'build'
-    dependsOn testBuild, jar
+    dependsOn testBuild, jar, jacocoTestReport
+}
+
+task downloadDependencies {
+    description = 'Download all dependencies'
+    group = 'build'
+    doLast {
+        configurations.compileClasspath.resolve()
+        configurations.runtimeClasspath.resolve()
+        configurations.testCompileClasspath.resolve()
+        configurations.testRuntimeClasspath.resolve()
+    }
 }
 
 // Checkstyle configuration
@@ -110,3 +199,16 @@ tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
         }
     }
 }
+
+// Make test task depend on jacocoTestCoverageVerification for quality gate
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    finalizedBy jacocoTestReport
+}
+
+// Add check task dependencies
+check.dependsOn jacocoTestCoverageVerification
+check.dependsOn dependencyCheckAggregate

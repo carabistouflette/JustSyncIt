@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Load rules once and periodically evaluate them
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+  # - "alert_rules.yml"
+
+scrape_configs:
+  # JustSyncIt application metrics
+  - job_name: 'justsyncit'
+    static_configs:
+      - targets: ['justsyncit:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 10s
+
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+# Alerting rules
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
