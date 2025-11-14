@@ -9,6 +9,8 @@ plugins {
     id 'org.owasp.dependencycheck' version '10.0.4'
 }
 
+import org.gradle.api.file.DuplicatesStrategy
+
 group = 'com.justsyncit'
 version = '1.0-SNAPSHOT'
 
@@ -208,3 +210,29 @@ test {
 // Add check task dependencies
 check.dependsOn jacocoTestCoverageVerification
 check.dependsOn dependencyCheckAggregate
+
+// JMH configuration to fix configuration cache issues
+jmh {
+    includes = ['Blake3PerformanceBenchmark']
+    benchmarkMode = ['thrpt']
+    batchSize = 1
+    fork = 1
+    failOnError = true
+    forceGC = true
+    jvm = 'java'
+    jvmArgs = ['-Xmx2g']
+    timeOnIteration = '1s'
+    warmup = '1s'
+    warmupBatchSize = 1
+    warmupForks = 1
+    warmupIterations = 3
+    zip64 = true
+    benchmarkParameters = [:]
+    profilers = []
+    iterations = 5
+    resultFormat = 'TEXT'
+    resultsFile = file("${buildDir}/results/jmh/results.txt")
+    
+    // Fix configuration cache issues
+    duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
