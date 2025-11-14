@@ -97,7 +97,6 @@ dependencyCheck {
     failOnError = true
     
     suppressionFile = "${rootDir}/config/dependency-check/suppressions.xml"
-    suppressionFileValidUntil = "2025-12-31"
     
     analyzers {
         experimentalEnabled = false
@@ -109,9 +108,6 @@ dependencyCheck {
         golangDepEnabled = false
         golangModEnabled = false
         rubygemsEnabled = false
-        pythonEnabled = false
-        pythonDistributionEnabled = false
-        pythonPipEnabled = false
     }
     
     formats = ['HTML', 'XML', 'CSV', 'JSON', 'SVR']
