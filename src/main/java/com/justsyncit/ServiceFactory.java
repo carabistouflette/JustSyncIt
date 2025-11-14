@@ -21,6 +21,7 @@ package com.justsyncit;
 import com.justsyncit.command.CommandRegistry;
 import com.justsyncit.command.HashCommand;
 import com.justsyncit.command.VerifyCommand;
+import com.justsyncit.network.command.NetworkCommand;
 import com.justsyncit.hash.Blake3BufferHasher;
 import com.justsyncit.hash.Blake3FileHasher;
 import com.justsyncit.hash.Blake3IncrementalHasherFactory;
@@ -35,6 +36,14 @@ import com.justsyncit.hash.Sha256HashAlgorithm;
 import com.justsyncit.hash.StreamHasher;
 import com.justsyncit.simd.SimdDetectionService;
 import com.justsyncit.simd.SimdDetectionServiceImpl;
+import com.justsyncit.network.NetworkService;
+import com.justsyncit.network.NetworkServiceImpl;
+import com.justsyncit.network.client.TcpClient;
+import com.justsyncit.network.server.TcpServer;
+import com.justsyncit.network.connection.ConnectionManager;
+import com.justsyncit.network.connection.ConnectionManagerImpl;
+import com.justsyncit.network.transfer.FileTransferManager;
+import com.justsyncit.network.transfer.FileTransferManagerImpl;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.FilesystemChunkIndex;
 import com.justsyncit.storage.FilesystemContentStore;
@@ -104,6 +113,43 @@ public class ServiceFactory {
         // Register commands
         registry.register(new HashCommand(blake3Service));
         registry.register(new VerifyCommand(blake3Service));
+
+        return registry;
+    }
+
+    /**
+     * Creates a network service with all dependencies.
+     *
+     * @return configured network service
+     */
+    public NetworkService createNetworkService() {
+        TcpServer tcpServer = new TcpServer();
+        TcpClient tcpClient = new TcpClient();
+        ConnectionManager connectionManager = new ConnectionManagerImpl();
+        FileTransferManager fileTransferManager = new FileTransferManagerImpl();
+
+        return new NetworkServiceImpl(tcpServer, tcpClient, connectionManager, fileTransferManager);
+    }
+
+    /**
+     * Creates a command registry with network commands.
+     *
+     * @param blake3Service BLAKE3 service
+     * @param networkService network service
+     * @return configured command registry with network commands
+     */
+    public CommandRegistry createCommandRegistryWithNetwork(
+            Blake3Service blake3Service, NetworkService networkService) {
+        CommandRegistry registry = createCommandRegistry(blake3Service);
+
+        // Register network command
+        try {
+            registry.register(NetworkCommand.create(
+                    networkService, createContentStore(blake3Service)));
+        } catch (Exception e) {
+            // Handle registration exception
+            throw new RuntimeException("Failed to register network command", e);
+        }
 
         return registry;
     }
