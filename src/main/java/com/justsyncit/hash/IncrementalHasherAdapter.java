@@ -47,7 +47,7 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
     }
 
     @Override
-    public String digest() {
+    public String digest() throws HashingException {
         return adaptedHasher.digest();
     }
 

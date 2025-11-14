@@ -177,7 +177,7 @@ checkstyle {
 
 // SpotBugs configuration
 spotbugs {
-    toolVersion = '4.8.6'
+    toolVersion = '4.9.0'
     ignoreFailures = false
     effort = com.github.spotbugs.snom.Effort.valueOf('MAX')
     reportLevel = com.github.spotbugs.snom.Confidence.valueOf('LOW')

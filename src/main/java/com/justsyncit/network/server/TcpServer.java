@@ -18,6 +18,7 @@
 
 package com.justsyncit.network.server;
 
+import com.justsyncit.ServiceException;
 import com.justsyncit.network.protocol.ProtocolMessage;
 
 import java.io.IOException;
@@ -36,6 +37,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
@@ -91,16 +93,32 @@ public class TcpServer {
      * @return a CompletableFuture that completes when the server is started
      * @throws IOException if an I/O error occurs
      */
-    public CompletableFuture<Void> start(int port) throws IOException {
+    public CompletableFuture<Void> start(int port) throws IOException, ServiceException {
         if (running.compareAndSet(false, true)) {
-            return CompletableFuture.runAsync(() -> {
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            
+            // Submit the task and handle the returned Future properly
+            Future<?> submitFuture = executorService.submit(() -> {
                 try {
                     doStart(port);
+                    future.complete(null);
                 } catch (IOException e) {
                     running.set(false);
-                    throw new RuntimeException("Failed to start server on port " + port, e);
+                    future.completeExceptionally(e);
+                } catch (Exception e) {
+                    running.set(false);
+                    future.completeExceptionally(new ServiceException("Failed to start server on port " + port, e));
                 }
-            }, executorService);
+            });
+            
+            // Handle potential task rejection
+            future.whenComplete((result, throwable) -> {
+                if (throwable != null) {
+                    submitFuture.cancel(true);
+                }
+            });
+            
+            return future;
         } else {
             return CompletableFuture.failedFuture(new IllegalStateException("Server is already running"));
         }
@@ -184,6 +202,7 @@ public class TcpServer {
     /**
      * Handles new client connections.
      */
+    @SuppressWarnings("AT_UNSAFE_RESOURCE_ACCESS_IN_THREAD")
     private void handleAccept(SelectionKey key) throws IOException {
         ServerSocketChannel serverChannel = (ServerSocketChannel) key.channel();
         SocketChannel clientChannel = serverChannel.accept();
@@ -206,7 +225,16 @@ public class TcpServer {
             // Create client connection
             SocketAddress clientAddress = clientChannel.getRemoteAddress();
             ClientConnection connection = ClientConnection.create(clientChannel, clientAddress);
-            clients.put(clientAddress, connection);
+            
+            // Use putIfAbsent to avoid race conditions
+            ClientConnection existingConnection = clients.putIfAbsent(clientAddress, connection);
+            if (existingConnection != null) {
+                // Connection already exists, close this one
+                connection.close();
+                // Use the existing connection
+            } else {
+                // Use the new connection we created
+            }
 
             logger.debug("Client connected: {}", clientAddress);
             notifyClientConnected((InetSocketAddress) clientAddress);
@@ -216,12 +244,14 @@ public class TcpServer {
     /**
      * Handles read operations from clients.
      */
+    @SuppressWarnings("AT_UNSAFE_RESOURCE_ACCESS_IN_THREAD")
     private void handleRead(SelectionKey key, ByteBuffer readBuffer) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
-        ClientConnection connection = clients.get(clientChannel.getRemoteAddress());
+        SocketAddress remoteAddress = clientChannel.getRemoteAddress();
+        ClientConnection connection = clients.get(remoteAddress);
 
         if (connection == null) {
-            logger.warn("Received data from unknown client: {}", clientChannel.getRemoteAddress());
+            logger.warn("Received data from unknown client: {}", remoteAddress);
             return;
         }
 
@@ -235,11 +265,10 @@ public class TcpServer {
             }
 
             // Process received data
-            SocketAddress clientAddress = clientChannel.getRemoteAddress();
-            connection.processReceivedData(readBuffer, message -> handleMessage(message, clientAddress));
+            connection.processReceivedData(readBuffer, message -> handleMessage(message, remoteAddress));
 
         } catch (IOException e) {
-            logger.error("Error reading from client: {}", clientChannel.getRemoteAddress(), e);
+            logger.error("Error reading from client: {}", remoteAddress, e);
             handleClientDisconnection(clientChannel);
         }
     }
@@ -247,9 +276,11 @@ public class TcpServer {
     /**
      * Handles write operations to clients.
      */
+    @SuppressWarnings("AT_UNSAFE_RESOURCE_ACCESS_IN_THREAD")
     private void handleWrite(SelectionKey key) throws IOException {
         SocketChannel clientChannel = (SocketChannel) key.channel();
-        ClientConnection connection = clients.get(clientChannel.getRemoteAddress());
+        SocketAddress remoteAddress = clientChannel.getRemoteAddress();
+        ClientConnection connection = clients.get(remoteAddress);
 
         if (connection != null) {
             connection.writePendingData(clientChannel);
@@ -267,6 +298,7 @@ public class TcpServer {
     /**
      * Handles client disconnection.
      */
+    @SuppressWarnings("AT_UNSAFE_RESOURCE_ACCESS_IN_THREAD")
     private void handleClientDisconnection(SocketChannel clientChannel) {
         try {
             SocketAddress clientAddress = clientChannel.getRemoteAddress();

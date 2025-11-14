@@ -43,7 +43,7 @@ class Blake3PerformanceTest {
 
     @Test
     @Disabled("Performance test - run manually when needed")
-    void testSmallDataPerformance() {
+    void testSmallDataPerformance() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[64]; // 64 bytes
         random.nextBytes(data);
@@ -70,7 +70,7 @@ class Blake3PerformanceTest {
 
     @Test
     @Disabled("Performance test - run manually when needed")
-    void testMediumDataPerformance() {
+    void testMediumDataPerformance() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024]; // 1 KB
         random.nextBytes(data);
@@ -97,7 +97,7 @@ class Blake3PerformanceTest {
 
     @Test
     @Disabled("Performance test - run manually when needed")
-    void testLargeDataPerformance() {
+    void testLargeDataPerformance() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024 * 1024]; // 1 MB
         random.nextBytes(data);
@@ -124,7 +124,7 @@ class Blake3PerformanceTest {
 
     @Test
     @Disabled("Performance test - run manually when needed")
-    void testIncrementalHashingPerformance() {
+    void testIncrementalHashingPerformance() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024 * 1024]; // 1 MB
         random.nextBytes(data);
@@ -155,7 +155,7 @@ class Blake3PerformanceTest {
 
     @Test
     @Disabled("Performance test - run manually when needed")
-    void testChunkedHashingPerformance() {
+    void testChunkedHashingPerformance() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[10 * 1024 * 1024]; // 10 MB
         random.nextBytes(data);
@@ -198,7 +198,7 @@ class Blake3PerformanceTest {
 
     @Test
     @Disabled("Performance test - run manually when needed")
-    void compareDirectVsIncremental() {
+    void compareDirectVsIncremental() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         byte[] data = new byte[1024]; // 1 KB
         random.nextBytes(data);
@@ -246,7 +246,7 @@ class Blake3PerformanceTest {
      * This method provides a quick performance check without being disabled.
      */
     @Test
-    void quickPerformanceCheck() {
+    void quickPerformanceCheck() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
         Blake3Service.Blake3Info info = service.getInfo();
 

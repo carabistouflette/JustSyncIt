@@ -18,6 +18,7 @@
 
 package com.justsyncit.storage;
 
+import com.justsyncit.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ public final class TwoLevelChunkPathGenerator implements ChunkPathGenerator {
     }
 
     @Override
-    public Path generatePath(Path storageDirectory, String hash) {
+    public Path generatePath(Path storageDirectory, String hash) throws ServiceException {
         validateHash(hash);
 
         // Use first 2 characters as subdirectory, rest as filename
@@ -60,7 +61,7 @@ public final class TwoLevelChunkPathGenerator implements ChunkPathGenerator {
             try {
                 Files.createDirectories(parentDir);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to create chunk directory: " + parentDir, e);
+                throw new ServiceException("Failed to create chunk directory: " + parentDir, e);
             }
         }
 

@@ -33,22 +33,22 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
 
     /**
      * Creates a new SHA-256 hash algorithm instance.
-     * @throws RuntimeException if SHA-256 algorithm is not available
+     * @throws HashingException if SHA-256 algorithm is not available
      */
-    private Sha256HashAlgorithm() {
+    private Sha256HashAlgorithm() throws HashingException {
         try {
             this.digest = MessageDigest.getInstance("SHA-256");
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("SHA-256 algorithm not available", e);
+            throw new HashingException("SHA-256 algorithm not available", e);
         }
     }
 
     /**
      * Creates a new SHA-256 hash algorithm instance.
      * @return a new Sha256HashAlgorithm instance
-     * @throws RuntimeException if SHA-256 algorithm is not available
+     * @throws HashingException if SHA-256 algorithm is not available
      */
-    public static Sha256HashAlgorithm create() {
+    public static Sha256HashAlgorithm create() throws HashingException {
         return new Sha256HashAlgorithm();
     }
 

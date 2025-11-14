@@ -16,7 +16,7 @@ import static java.util.Arrays.fill;
 class SimpleHashTest {
 
     @Test
-    void printHashValues() {
+    void printHashValues() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
 
         // Empty input

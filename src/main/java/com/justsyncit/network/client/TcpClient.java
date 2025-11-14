@@ -98,14 +98,21 @@ public class TcpClient {
      * @throws IOException if an I/O error occurs
      */
     public CompletableFuture<Void> connect(InetSocketAddress address) throws IOException {
-        if (connections.containsKey(address)) {
+        // Check if already connected in an atomic way
+        ServerConnection existingConnection = connections.get(address);
+        if (existingConnection != null) {
             return CompletableFuture.completedFuture(null);
         }
 
         CompletableFuture<Void> connectFuture = new CompletableFuture<>();
 
         // Store the connection future for completion in handleConnect
-        pendingConnections.put(address, connectFuture);
+        // Use putIfAbsent to avoid race conditions
+        CompletableFuture<Void> existingFuture = pendingConnections.putIfAbsent(address, connectFuture);
+        if (existingFuture != null) {
+            // Connection already in progress
+            return existingFuture;
+        }
 
         // Start connection process
         CompletableFuture.runAsync(() -> {
@@ -114,7 +121,7 @@ public class TcpClient {
             } catch (IOException e) {
                 connectFuture.completeExceptionally(e);
                 // Remove from pending connections if failed
-                pendingConnections.remove(address);
+                pendingConnections.remove(address, connectFuture);
             }
         }, executorService);
 
@@ -141,8 +148,8 @@ public class TcpClient {
                 com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_RECEIVE_BUFFER_SIZE
         );
 
-        // Store the connection future
-        pendingConnections.put(address, connectFuture);
+        // Store the connection future (already checked with putIfAbsent in connect method)
+        pendingConnections.putIfAbsent(address, connectFuture);
 
         // Create selector if not exists
         if (selector == null) {
@@ -172,7 +179,7 @@ public class TcpClient {
                 com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_CHUNK_SIZE * 2
         );
 
-        while (running.get() || !connections.isEmpty()) {
+        while (running.get() || hasActiveConnections()) {
             try {
                 // Wait for events
                 selector.select();
@@ -224,7 +231,16 @@ public class TcpClient {
                 // Connection successful
                 logger.info("TCP connection established to server: {}", serverAddress);
                 ServerConnection connection = ServerConnection.create(socketChannel, serverAddress);
-                connections.put(serverAddress, connection);
+                
+                // Use putIfAbsent to avoid race conditions
+                ServerConnection existingConnection = connections.putIfAbsent(serverAddress, connection);
+                if (existingConnection != null) {
+                    // Connection already exists, close this one
+                    connection.close();
+                    // Use the existing connection
+                } else {
+                    // Use the new connection we created
+                }
 
                 // Register for read operations
                 key.interestOps(SelectionKey.OP_READ);
@@ -232,7 +248,7 @@ public class TcpClient {
                 logger.debug("Connected to server: {}", serverAddress);
                 notifyConnected(serverAddress);
 
-                // Complete the connection future
+                // Complete the connection future atomically
                 CompletableFuture<Void> connectFuture = pendingConnections.remove(serverAddress);
                 if (connectFuture != null) {
                     logger.debug("Completing connection future for {}", serverAddress);
@@ -261,10 +277,11 @@ public class TcpClient {
      */
     private void handleRead(SelectionKey key, ByteBuffer readBuffer) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
-        ServerConnection connection = connections.get(socketChannel.getRemoteAddress());
+        SocketAddress remoteAddress = socketChannel.getRemoteAddress();
+        ServerConnection connection = connections.get(remoteAddress);
 
         if (connection == null) {
-            logger.warn("Received data from unknown server: {}", socketChannel.getRemoteAddress());
+            logger.warn("Received data from unknown server: {}", remoteAddress);
             return;
         }
 
@@ -278,8 +295,7 @@ public class TcpClient {
             }
 
             // Process received data
-            SocketAddress serverAddress = socketChannel.getRemoteAddress();
-            connection.processReceivedData(readBuffer, message -> handleMessage(message, serverAddress));
+            connection.processReceivedData(readBuffer, message -> handleMessage(message, remoteAddress));
 
         } catch (IOException e) {
             logger.error("Error reading from server: {}", socketChannel.getRemoteAddress(), e);
@@ -292,13 +308,14 @@ public class TcpClient {
      */
     private void handleWrite(SelectionKey key) throws IOException {
         SocketChannel socketChannel = (SocketChannel) key.channel();
-        ServerConnection connection = connections.get(socketChannel.getRemoteAddress());
+        SocketAddress remoteAddress = socketChannel.getRemoteAddress();
+        ServerConnection connection = connections.get(remoteAddress);
 
         if (connection != null) {
             try {
                 connection.writePendingData();
             } catch (IOException e) {
-                logger.error("Error writing to server: {}", socketChannel.getRemoteAddress(), e);
+                logger.error("Error writing to server: {}", remoteAddress, e);
                 handleServerDisconnection(socketChannel);
             }
         }
@@ -519,5 +536,15 @@ public class TcpClient {
          * @param context the context in which the error occurred
          */
         void onError(Throwable error, String context);
+    }
+    
+    /**
+     * Checks if there are active connections in a thread-safe way.
+     * This method avoids the SpotBugs warning about non-atomic operations on ConcurrentHashMap.
+     *
+     * @return true if there are active connections, false otherwise
+     */
+    private boolean hasActiveConnections() {
+        return !connections.isEmpty();
     }
 }

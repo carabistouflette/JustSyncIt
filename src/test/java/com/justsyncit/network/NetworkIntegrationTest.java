@@ -30,7 +30,9 @@ import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.MemoryContentStore;
 import com.justsyncit.storage.Blake3IntegrityVerifier;
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.hash.HashingException;
 import com.justsyncit.TestServiceFactory;
+import com.justsyncit.ServiceException;
 
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
@@ -39,6 +41,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.io.IOException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+import java.lang.InterruptedException;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,7 +78,7 @@ public class NetworkIntegrationTest {
     private Blake3Service blake3Service;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() throws IOException, ExecutionException, InterruptedException, TimeoutException, HashingException, ServiceException {
         blake3Service = TestServiceFactory.createBlake3Service();
         contentStore1 = new MemoryContentStore(new Blake3IntegrityVerifier(blake3Service));
 
@@ -107,7 +113,7 @@ public class NetworkIntegrationTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() throws IOException, ExecutionException, InterruptedException, TimeoutException, ServiceException {
         if (networkService1 != null && networkService1.isRunning()) {
             networkService1.stopServer().get(5, TimeUnit.SECONDS);
         }
@@ -125,7 +131,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should start network server on available port")
-    void shouldStartNetworkServer() throws Exception {
+    void shouldStartNetworkServer() throws IOException, ServiceException, ExecutionException, InterruptedException, TimeoutException {
         // Given
         NetworkService service = new com.justsyncit.network.NetworkServiceImpl(
                 new TcpServer(), new TcpClient(),
@@ -143,7 +149,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should establish connection between two nodes")
-    void shouldEstablishConnection() throws Exception {
+    void shouldEstablishConnection() throws IOException, ServiceException, ExecutionException, InterruptedException, TimeoutException {
         // Given
         // InetSocketAddress address1 = new InetSocketAddress(TEST_HOST, 10001);
         // InetSocketAddress address2 = new InetSocketAddress(TEST_HOST, 10002);
@@ -173,7 +179,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should exchange handshake messages")
-    void shouldExchangeHandshakeMessages() throws Exception {
+    void shouldExchangeHandshakeMessages() throws IOException, ServiceException, ExecutionException, InterruptedException, TimeoutException {
         // Given
         networkService1.startServer(10003).get(5, TimeUnit.SECONDS);
         networkService2.startServer(10004).get(5, TimeUnit.SECONDS);
@@ -209,7 +215,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should transfer file between nodes")
-    void shouldTransferFileBetweenNodes() throws Exception {
+    void shouldTransferFileBetweenNodes() throws IOException, ServiceException, ExecutionException, InterruptedException, TimeoutException {
         // Given
         networkService1.startServer(10005).get(5, TimeUnit.SECONDS);
         networkService2.startServer(10006).get(5, TimeUnit.SECONDS);
@@ -248,7 +254,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should handle chunked file transfer")
-    void shouldHandleChunkedFileTransfer() throws Exception {
+    void shouldHandleChunkedFileTransfer() throws IOException, ServiceException, ExecutionException, InterruptedException, TimeoutException {
         // Given
         networkService1.startServer(10007).get(5, TimeUnit.SECONDS);
         networkService2.startServer(10008).get(5, TimeUnit.SECONDS);
@@ -283,7 +289,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should handle connection failures gracefully")
-    void shouldHandleConnectionFailuresGracefully() throws Exception {
+    void shouldHandleConnectionFailuresGracefully() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         // Given
         InetSocketAddress invalidAddress = new InetSocketAddress(TEST_HOST, 19999);
 
@@ -301,7 +307,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should maintain connection statistics")
-    void shouldMaintainConnectionStatistics() throws Exception {
+    void shouldMaintainConnectionStatistics() throws IOException, ServiceException, ExecutionException, InterruptedException, TimeoutException {
         // Given
         networkService1.startServer(10009).get(5, TimeUnit.SECONDS);
         networkService2.startServer(10010).get(5, TimeUnit.SECONDS);
@@ -336,7 +342,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should handle concurrent transfers")
-    void shouldHandleConcurrentTransfers() throws Exception {
+    void shouldHandleConcurrentTransfers() throws IOException, ServiceException, ExecutionException, InterruptedException, TimeoutException {
         // Given
         networkService1.startServer(10011).get(5, TimeUnit.SECONDS);
         networkService2.startServer(10012).get(5, TimeUnit.SECONDS);
@@ -384,7 +390,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should verify message serialization")
-    void shouldVerifyMessageSerialization() throws Exception {
+    void shouldVerifyMessageSerialization() throws ExecutionException, InterruptedException, TimeoutException {
         // Given
         HandshakeMessage handshake = new HandshakeMessage("test-node-1", 0);
 
@@ -409,7 +415,7 @@ public class NetworkIntegrationTest {
 
     @Test
     @DisplayName("Should handle protocol version mismatch")
-    void shouldHandleProtocolVersionMismatch() throws Exception {
+    void shouldHandleProtocolVersionMismatch() throws ExecutionException, InterruptedException, TimeoutException {
         // Given
         HandshakeMessage invalidHandshake = new HandshakeMessage("test-node", 0);
         byte[] serialized = invalidHandshake.serialize().array();

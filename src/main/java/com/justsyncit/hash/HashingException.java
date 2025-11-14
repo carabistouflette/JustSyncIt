@@ -19,17 +19,26 @@
 package com.justsyncit.hash;
 
 /**
- * Interface for buffer hashing operations.
- * Follows Interface Segregation Principle by focusing only on buffer operations.
+ * Exception thrown when hashing operations fail.
  */
-public interface BufferHasher {
-
+public class HashingException extends Exception {
+    
     /**
-     * Hashes a byte array.
+     * Creates a new HashingException with the specified message.
      *
-     * @param data the byte array to hash
-     * @return the hash as a hexadecimal string
-     * @throws IllegalArgumentException if the data is null
+     * @param message the detail message
      */
-    String hashBuffer(byte[] data) throws HashingException;
+    public HashingException(String message) {
+        super(message);
+    }
+    
+    /**
+     * Creates a new HashingException with the specified message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause of this exception
+     */
+    public HashingException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

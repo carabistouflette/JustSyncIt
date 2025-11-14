@@ -33,7 +33,7 @@ class JustSyncItApplicationTest {
     private JustSyncItApplication application;
 
     @BeforeEach
-    void setUpApplication() {
+    void setUpApplication() throws com.justsyncit.hash.HashingException {
         application = TestServiceFactory.createApplication();
     }
 

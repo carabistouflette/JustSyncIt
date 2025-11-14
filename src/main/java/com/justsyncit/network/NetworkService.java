@@ -18,6 +18,7 @@
 
 package com.justsyncit.network;
 
+import com.justsyncit.ServiceException;
 import com.justsyncit.network.protocol.ProtocolMessage;
 import com.justsyncit.network.transfer.FileTransferResult;
 import com.justsyncit.storage.ContentStore;
@@ -40,8 +41,9 @@ public interface NetworkService {
      * @param port the port to listen on
      * @return a CompletableFuture that completes when the server is started
      * @throws IOException if an I/O error occurs
+     * @throws ServiceException if a service error occurs
      */
-    CompletableFuture<Void> startServer(int port) throws IOException;
+    CompletableFuture<Void> startServer(int port) throws IOException, ServiceException;
 
     /**
      * Stops the network server and closes all connections.

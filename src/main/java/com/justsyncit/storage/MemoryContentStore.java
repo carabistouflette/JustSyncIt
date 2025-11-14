@@ -18,6 +18,7 @@
 
 package com.justsyncit.storage;
 
+import com.justsyncit.hash.HashingException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -53,7 +54,12 @@ public final class MemoryContentStore extends AbstractContentStore {
     @Override
     protected String doStoreChunk(byte[] data) throws IOException {
         // Calculate hash of the data
-        String hash = integrityVerifier.calculateHash(data);
+        String hash;
+        try {
+            hash = integrityVerifier.calculateHash(data);
+        } catch (HashingException e) {
+            throw new IOException("Failed to calculate hash for chunk", e);
+        }
 
         // Check if chunk already exists
         if (chunkStorage.containsKey(hash)) {

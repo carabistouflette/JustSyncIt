@@ -50,6 +50,9 @@ import com.justsyncit.storage.FilesystemContentStore;
 
 import java.io.IOException;
 
+import com.justsyncit.ServiceException;
+import com.justsyncit.hash.HashingException;
+
 /**
  * Factory for creating application services and dependencies.
  * Follows Dependency Inversion Principle by providing abstractions.
@@ -60,8 +63,9 @@ public class ServiceFactory {
      * Creates a fully configured JustSyncItApplicationRefactored.
      *
      * @return configured application instance
+     * @throws ServiceException if application creation fails
      */
-    public JustSyncItApplication createApplication() {
+    public JustSyncItApplication createApplication() throws ServiceException {
         Blake3Service blake3Service = createBlake3Service();
         CommandRegistry commandRegistry = createCommandRegistry(blake3Service);
         ApplicationInfoDisplay infoDisplay = createInfoDisplay();
@@ -73,18 +77,23 @@ public class ServiceFactory {
      * Creates a BLAKE3 service with all dependencies.
      *
      * @return configured BLAKE3 service
+     * @throws ServiceException if service creation fails
      */
-    private Blake3Service createBlake3Service() {
-        HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
-        BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
-        IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
-        StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
-        FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
-        SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();
+    private Blake3Service createBlake3Service() throws ServiceException {
+        try {
+            HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
+            BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
+            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
+            StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
+            FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
+            SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();
 
-        return new Blake3ServiceImpl(
-                fileHasher, bufferHasher, streamHasher,
-                incrementalHasherFactory, simdDetectionService);
+            return new Blake3ServiceImpl(
+                    fileHasher, bufferHasher, streamHasher,
+                    incrementalHasherFactory, simdDetectionService);
+        } catch (HashingException e) {
+            throw new ServiceException("Failed to create BLAKE3 service", e);
+        }
     }
 
     /**
@@ -139,16 +148,19 @@ public class ServiceFactory {
      * @return configured command registry with network commands
      */
     public CommandRegistry createCommandRegistryWithNetwork(
-            Blake3Service blake3Service, NetworkService networkService) {
+            Blake3Service blake3Service, NetworkService networkService) throws ServiceException {
         CommandRegistry registry = createCommandRegistry(blake3Service);
 
         // Register network command
         try {
             registry.register(NetworkCommand.create(
                     networkService, createContentStore(blake3Service)));
+        } catch (IOException e) {
+            // Handle registration exception
+            throw new ServiceException("Failed to register network command", e);
         } catch (Exception e) {
             // Handle registration exception
-            throw new RuntimeException("Failed to register network command", e);
+            throw new ServiceException("Failed to register network command", e);
         }
 
         return registry;

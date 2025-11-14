@@ -44,18 +44,23 @@ public class TestServiceFactory {
      * Creates a Blake3Service with minimal dependencies for testing.
      *
      * @return Blake3Service instance for testing
+     * @throws com.justsyncit.hash.HashingException if service creation fails
      */
-    public static Blake3Service createBlake3Service() {
-        HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
-        BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
-        IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
-        StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
-        FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
-        SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();
+    public static Blake3Service createBlake3Service() throws com.justsyncit.hash.HashingException {
+        try {
+            HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
+            BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
+            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
+            StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
+            FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
+            SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();
 
-        return new Blake3ServiceImpl(
-                fileHasher, bufferHasher, streamHasher,
-                incrementalHasherFactory, simdDetectionService);
+            return new Blake3ServiceImpl(
+                    fileHasher, bufferHasher, streamHasher,
+                    incrementalHasherFactory, simdDetectionService);
+        } catch (com.justsyncit.hash.HashingException e) {
+            throw new com.justsyncit.hash.HashingException("Failed to create Blake3Service for testing", e);
+        }
     }
 
     /**
@@ -63,7 +68,7 @@ public class TestServiceFactory {
      *
      * @return JustSyncItApplication instance for testing
      */
-    public static JustSyncItApplication createApplication() {
+    public static JustSyncItApplication createApplication() throws com.justsyncit.hash.HashingException {
         Blake3Service blake3Service = createBlake3Service();
         CommandRegistry commandRegistry = new CommandRegistry();
         ApplicationInfoDisplay infoDisplay = new ConsoleInfoDisplay();

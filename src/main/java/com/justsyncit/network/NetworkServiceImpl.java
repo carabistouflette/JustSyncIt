@@ -18,6 +18,7 @@
 
 package com.justsyncit.network;
 
+import com.justsyncit.ServiceException;
 import com.justsyncit.network.protocol.ProtocolMessage;
 import com.justsyncit.network.server.TcpServer;
 import com.justsyncit.network.client.TcpClient;
@@ -190,7 +191,7 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     @Override
-    public CompletableFuture<Void> startServer(int port) throws IOException {
+    public CompletableFuture<Void> startServer(int port) throws IOException, ServiceException {
         if (running.compareAndSet(false, true)) {
             statistics.start();
             return fileTransferManager.start()
@@ -198,6 +199,8 @@ public class NetworkServiceImpl implements NetworkService {
                     try {
                         return tcpServer.start(port);
                     } catch (IOException e) {
+                        return CompletableFuture.failedFuture(e);
+                    } catch (ServiceException e) {
                         return CompletableFuture.failedFuture(e);
                     }
                 })

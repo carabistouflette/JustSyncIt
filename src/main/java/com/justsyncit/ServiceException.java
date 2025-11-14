@@ -16,20 +16,29 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package com.justsyncit.hash;
+package com.justsyncit;
 
 /**
- * Interface for buffer hashing operations.
- * Follows Interface Segregation Principle by focusing only on buffer operations.
+ * Exception thrown when service operations fail.
  */
-public interface BufferHasher {
-
+public class ServiceException extends Exception {
+    
     /**
-     * Hashes a byte array.
+     * Creates a new ServiceException with the specified message.
      *
-     * @param data the byte array to hash
-     * @return the hash as a hexadecimal string
-     * @throws IllegalArgumentException if the data is null
+     * @param message detail message
      */
-    String hashBuffer(byte[] data) throws HashingException;
+    public ServiceException(String message) {
+        super(message);
+    }
+    
+    /**
+     * Creates a new ServiceException with the specified message and cause.
+     *
+     * @param message detail message
+     * @param cause   cause of this exception
+     */
+    public ServiceException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

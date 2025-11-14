@@ -63,7 +63,7 @@ public class Blake3PerformanceBenchmark {
     private static final Random random = new Random(12345); // Fixed seed for reproducible results
 
     @Setup
-    public void benchmarkSetup() {
+    public void benchmarkSetup() throws HashingException {
         blake3Service = TestServiceFactory.createBlake3Service();
 
         // Prepare test data of various sizes
@@ -79,55 +79,55 @@ public class Blake3PerformanceBenchmark {
     }
 
     @Benchmark
-    public String hashSmallData() {
+    public String hashSmallData() throws HashingException {
         return blake3Service.hashBuffer(smallData);
     }
 
     @Benchmark
-    public String hashMediumData() {
+    public String hashMediumData() throws HashingException {
         return blake3Service.hashBuffer(mediumData);
     }
 
     @Benchmark
-    public String hashLargeData() {
+    public String hashLargeData() throws HashingException {
         return blake3Service.hashBuffer(largeData);
     }
 
     @Benchmark
-    public String hashHugeData() {
+    public String hashHugeData() throws HashingException {
         return blake3Service.hashBuffer(hugeData);
     }
 
     @Benchmark
-    public String hashIncrementalSmall() {
+    public String hashIncrementalSmall() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
         hasher.update(smallData);
         return hasher.digest();
     }
 
     @Benchmark
-    public String hashIncrementalMedium() {
+    public String hashIncrementalMedium() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
         hasher.update(mediumData);
         return hasher.digest();
     }
 
     @Benchmark
-    public String hashIncrementalLarge() {
+    public String hashIncrementalLarge() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
         hasher.update(largeData);
         return hasher.digest();
     }
 
     @Benchmark
-    public String hashIncrementalHuge() {
+    public String hashIncrementalHuge() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
         hasher.update(hugeData);
         return hasher.digest();
     }
 
     @Benchmark
-    public String hashIncrementalInChunks() {
+    public String hashIncrementalInChunks() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
 
         // Update in 1KB chunks
@@ -141,25 +141,25 @@ public class Blake3PerformanceBenchmark {
     }
 
     @Benchmark
-    public String hashZerosSmall() {
+    public String hashZerosSmall() throws HashingException {
         byte[] zeros = new byte[64];
         return blake3Service.hashBuffer(zeros);
     }
 
     @Benchmark
-    public String hashZerosMedium() {
+    public String hashZerosMedium() throws HashingException {
         byte[] zeros = new byte[1024];
         return blake3Service.hashBuffer(zeros);
     }
 
     @Benchmark
-    public String hashZerosLarge() {
+    public String hashZerosLarge() throws HashingException {
         byte[] zeros = new byte[1024 * 1024];
         return blake3Service.hashBuffer(zeros);
     }
 
     @Benchmark
-    public String hashSequentialSmall() {
+    public String hashSequentialSmall() throws HashingException {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 100; i++) {
             sb.append("test data ");
@@ -169,7 +169,7 @@ public class Blake3PerformanceBenchmark {
     }
 
     @Benchmark
-    public String hashSequentialMedium() {
+    public String hashSequentialMedium() throws HashingException {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < 1000; i++) {
             sb.append("test data ");

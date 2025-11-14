@@ -47,7 +47,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
     }
 
     @Override
-    public IncrementalHasher createIncrementalHasher() {
+    public IncrementalHasher createIncrementalHasher() throws HashingException {
         return Blake3IncrementalHasherImpl.create(hashAlgorithm);
     }
 
@@ -70,14 +70,14 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
          * @param prototypeHashAlgorithm the hash algorithm to use as prototype
          * @return a new instance or throws RuntimeException if creation fails
          */
-        private static IncrementalHasher create(HashAlgorithm prototypeHashAlgorithm) {
+        private static IncrementalHasher create(HashAlgorithm prototypeHashAlgorithm) throws HashingException {
             HashAlgorithm newHasher;
             // Create a new instance to ensure thread safety and isolation
             if (prototypeHashAlgorithm instanceof Sha256HashAlgorithm) {
                 try {
                     newHasher = Sha256HashAlgorithm.create();
-                } catch (RuntimeException e) {
-                    throw new RuntimeException("Failed to create SHA-256 algorithm instance", e);
+                } catch (HashingException e) {
+                    throw new HashingException("Failed to create SHA-256 algorithm instance", e);
                 }
             } else {
                 // For future hash algorithm implementations
@@ -111,7 +111,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
         }
 
         @Override
-        public String digest() {
+        public String digest() throws HashingException {
             if (finalized) {
                 throw new IllegalStateException("Hasher has already been finalized");
             }
@@ -122,7 +122,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
                 return HEX_FORMAT.formatHex(hash);
             } catch (Exception e) {
                 logger.error("Error finalizing hash", e);
-                throw new RuntimeException("Failed to finalize hash", e);
+                throw new HashingException("Failed to finalize hash", e);
             }
         }
 

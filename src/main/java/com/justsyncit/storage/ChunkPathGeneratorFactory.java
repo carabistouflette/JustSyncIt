@@ -18,6 +18,7 @@
 
 package com.justsyncit.storage;
 
+import com.justsyncit.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +102,7 @@ public final class ChunkPathGeneratorFactory {
     private static final class SingleLevelChunkPathGenerator implements ChunkPathGenerator {
 
         @Override
-        public java.nio.file.Path generatePath(java.nio.file.Path storageDirectory, String hash) {
+        public java.nio.file.Path generatePath(java.nio.file.Path storageDirectory, String hash) throws ServiceException {
             validateHash(hash);
 
             String subDir = hash.substring(0, 1);
@@ -114,7 +115,7 @@ public final class ChunkPathGeneratorFactory {
                 try {
                     java.nio.file.Files.createDirectories(parentDir);
                 } catch (java.io.IOException e) {
-                    throw new RuntimeException(
+                    throw new ServiceException(
                             "Failed to create chunk directory: " + parentDir,
                             e);
                 }

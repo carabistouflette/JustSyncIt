@@ -19,6 +19,8 @@
 package com.justsyncit.storage;
 
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.hash.HashingException;
+import com.justsyncit.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,7 +107,12 @@ public final class FilesystemContentStore extends AbstractContentStore {
     @Override
     protected String doStoreChunk(byte[] data) throws IOException {
         // Calculate hash of the data
-        String hash = integrityVerifier.calculateHash(data);
+        String hash;
+        try {
+            hash = integrityVerifier.calculateHash(data);
+        } catch (HashingException e) {
+            throw new IOException("Failed to calculate hash for chunk", e);
+        }
 
         // Check if chunk already exists
         lock.readLock().lock();
@@ -126,7 +133,12 @@ public final class FilesystemContentStore extends AbstractContentStore {
                 return hash;
             }
 
-            Path chunkPath = pathGenerator.generatePath(storageDirectory, hash);
+            Path chunkPath;
+            try {
+                chunkPath = pathGenerator.generatePath(storageDirectory, hash);
+            } catch (ServiceException e) {
+                throw new IOException("Failed to generate path for chunk", e);
+            }
 
             // Write chunk to file
             Files.write(chunkPath, data, StandardOpenOption.CREATE_NEW);
@@ -139,7 +151,14 @@ public final class FilesystemContentStore extends AbstractContentStore {
 
         } catch (IOException e) {
             // Clean up partial write if it exists
-            Path chunkPath = pathGenerator.generatePath(storageDirectory, hash);
+            Path chunkPath;
+            try {
+                chunkPath = pathGenerator.generatePath(storageDirectory, hash);
+            } catch (ServiceException pathException) {
+                // If we can't generate the path, we can't clean up the file
+                logger.warn("Failed to generate path for cleanup: {}", pathException.getMessage());
+                throw e;
+            }
             try {
                 Files.deleteIfExists(chunkPath);
             } catch (IOException cleanupException) {

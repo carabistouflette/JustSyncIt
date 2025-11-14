@@ -27,6 +27,7 @@ import com.justsyncit.hash.Blake3StreamHasher;
 import com.justsyncit.hash.BufferHasher;
 import com.justsyncit.hash.FileHasher;
 import com.justsyncit.hash.HashAlgorithm;
+import com.justsyncit.hash.HashingException;
 import com.justsyncit.hash.IncrementalHasherFactory;
 import com.justsyncit.hash.Sha256HashAlgorithm;
 import com.justsyncit.hash.StreamHasher;
@@ -79,7 +80,7 @@ class ContentStoreIntegrationTest {
     private Path indexFile;
 
     @BeforeEach
-    void setUp() throws IOException {
+    void setUp() throws IOException, com.justsyncit.hash.HashingException {
         // Create real Blake3Service
         HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
         BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
@@ -344,7 +345,7 @@ class ContentStoreIntegrationTest {
     }
 
     @Test
-    void testIntegrityVerification() throws IOException {
+    void testIntegrityVerification() throws IOException, HashingException {
         // Arrange
         byte[] originalData = "integrity test".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String hash = contentStore.storeChunk(originalData);

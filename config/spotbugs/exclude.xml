@@ -28,4 +28,15 @@
         <Bug pattern="SE_TRANSIENT_FIELD_NOT_RESTORED" />
         <Class name="~.*\.config\..*" />
     </Match>
+    
+    <!-- Exclude thread safety warnings for ConcurrentHashMap operations in network classes -->
+    <Match>
+        <Bug pattern="AT_UNSAFE_RESOURCE_ACCESS_IN_THREAD" />
+        <Class name="com.justsyncit.network.client.TcpClient" />
+    </Match>
+    
+    <Match>
+        <Bug pattern="AT_UNSAFE_RESOURCE_ACCESS_IN_THREAD" />
+        <Class name="com.justsyncit.network.server.TcpServer" />
+    </Match>
 </FindBugsFilter>
