@@ -231,8 +231,13 @@ jmh {
     profilers = []
     iterations = 5
     resultFormat = 'TEXT'
-    resultsFile = file("${buildDir}/results/jmh/results.txt")
+    resultsFile = layout.buildDirectory.file("results/jmh/results.txt").get().asFile
     
     // Fix configuration cache issues
     duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Disable configuration cache for JMH tasks to avoid serialization issues
+tasks.matching { it.name.startsWith('jmh') }.configureEach {
+    notCompatibleWithConfigurationCache("JMH plugin has known issues with configuration cache")
 }
