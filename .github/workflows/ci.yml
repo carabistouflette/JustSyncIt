@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        java-version: [17, 21, 22]
+        java-version: [21, 24]
     
     steps:
     - name: Checkout code
@@ -64,7 +64,13 @@ jobs:
       run: ./gradlew clean test jacocoTestReport --no-daemon
        
     - name: Check test results
-      run: ls -la build/test-results/test/ || echo "Test results directory not found"
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ] || [ "$RUNNER_OS" == "macOS" ]; then
+          ls -la build/test-results/test/ || echo "Test results directory not found"
+        else
+          Get-ChildItem -Force build/test-results/test/ 2>$null || Write-Host "Test results directory not found"
+        fi
+      shell: bash
        
     - name: Run Checkstyle
       run: ./gradlew checkstyleMain checkstyleTest --no-daemon
