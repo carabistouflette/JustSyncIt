@@ -241,3 +241,8 @@ jmh {
 tasks.matching { it.name.startsWith('jmh') }.configureEach {
     notCompatibleWithConfigurationCache("JMH plugin has known issues with configuration cache")
 }
+
+// Disable configuration cache for SonarQube task to avoid compatibility issues
+tasks.named('sonarqube') {
+    notCompatibleWithConfigurationCache("SonarQube plugin has known issues with configuration cache")
+}
