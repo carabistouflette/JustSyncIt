@@ -96,7 +96,7 @@ public class TcpServer {
     public CompletableFuture<Void> start(int port) throws IOException, ServiceException {
         if (running.compareAndSet(false, true)) {
             CompletableFuture<Void> future = new CompletableFuture<>();
-            
+
             // Submit the task and handle the returned Future properly
             Future<?> submitFuture = executorService.submit(() -> {
                 try {
@@ -110,14 +110,14 @@ public class TcpServer {
                     future.completeExceptionally(new ServiceException("Failed to start server on port " + port, e));
                 }
             });
-            
+
             // Handle potential task rejection
             future.whenComplete((result, throwable) -> {
                 if (throwable != null) {
                     submitFuture.cancel(true);
                 }
             });
-            
+
             return future;
         } else {
             return CompletableFuture.failedFuture(new IllegalStateException("Server is already running"));
@@ -225,7 +225,7 @@ public class TcpServer {
             // Create client connection
             SocketAddress clientAddress = clientChannel.getRemoteAddress();
             ClientConnection connection = ClientConnection.create(clientChannel, clientAddress);
-            
+
             // Use putIfAbsent to avoid race conditions
             ClientConnection existingConnection = clients.putIfAbsent(clientAddress, connection);
             if (existingConnection != null) {

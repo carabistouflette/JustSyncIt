@@ -102,7 +102,8 @@ public final class ChunkPathGeneratorFactory {
     private static final class SingleLevelChunkPathGenerator implements ChunkPathGenerator {
 
         @Override
-        public java.nio.file.Path generatePath(java.nio.file.Path storageDirectory, String hash) throws ServiceException {
+        public java.nio.file.Path generatePath(java.nio.file.Path storageDirectory, String hash)
+                throws ServiceException {
             validateHash(hash);
 
             String subDir = hash.substring(0, 1);

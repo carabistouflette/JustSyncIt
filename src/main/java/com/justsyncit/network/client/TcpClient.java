@@ -231,7 +231,7 @@ public class TcpClient {
                 // Connection successful
                 logger.info("TCP connection established to server: {}", serverAddress);
                 ServerConnection connection = ServerConnection.create(socketChannel, serverAddress);
-                
+
                 // Use putIfAbsent to avoid race conditions
                 ServerConnection existingConnection = connections.putIfAbsent(serverAddress, connection);
                 if (existingConnection != null) {
@@ -537,7 +537,7 @@ public class TcpClient {
          */
         void onError(Throwable error, String context);
     }
-    
+
     /**
      * Checks if there are active connections in a thread-safe way.
      * This method avoids the SpotBugs warning about non-atomic operations on ConcurrentHashMap.

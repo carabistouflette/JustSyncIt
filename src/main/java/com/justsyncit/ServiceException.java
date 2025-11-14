@@ -22,7 +22,7 @@ package com.justsyncit;
  * Exception thrown when service operations fail.
  */
 public class ServiceException extends Exception {
-    
+
     /**
      * Creates a new ServiceException with the specified message.
      *
@@ -31,7 +31,7 @@ public class ServiceException extends Exception {
     public ServiceException(String message) {
         super(message);
     }
-    
+
     /**
      * Creates a new ServiceException with the specified message and cause.
      *

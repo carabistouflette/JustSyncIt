@@ -50,7 +50,6 @@ import com.justsyncit.storage.FilesystemContentStore;
 
 import java.io.IOException;
 
-import com.justsyncit.ServiceException;
 import com.justsyncit.hash.HashingException;
 
 /**

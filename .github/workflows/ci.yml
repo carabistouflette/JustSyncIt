@@ -68,7 +68,7 @@ jobs:
         if [ "$RUNNER_OS" == "Linux" ] || [ "$RUNNER_OS" == "macOS" ]; then
           ls -la build/test-results/test/ || echo "Test results directory not found"
         else
-          Get-ChildItem -Force build/test-results/test/ 2>$null || Write-Host "Test results directory not found"
+          dir build\test-results\test\ || echo "Test results directory not found"
         fi
       shell: bash
        

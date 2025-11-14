@@ -22,7 +22,7 @@ package com.justsyncit.hash;
  * Exception thrown when hashing operations fail.
  */
 public class HashingException extends Exception {
-    
+
     /**
      * Creates a new HashingException with the specified message.
      *
@@ -31,7 +31,7 @@ public class HashingException extends Exception {
     public HashingException(String message) {
         super(message);
     }
-    
+
     /**
      * Creates a new HashingException with the specified message and cause.
      *
