@@ -5,7 +5,7 @@ plugins {
     id 'com.github.spotbugs' version '6.0.25'
     id 'me.champeau.jmh' version '0.7.2'
     id 'jacoco'
-    id 'org.sonarqube' version '4.4.1.3373'
+    // id 'org.sonarqube' version '4.0.0.2929' // Disabled - no SonarCloud account/token available
     id 'org.owasp.dependencycheck' version '12.1.0'
 }
 
@@ -77,21 +77,6 @@ jacocoTestCoverageVerification {
     }
 }
 
-// SonarQube configuration
-sonarqube {
-    properties {
-        property "sonar.projectKey", "justsyncit"
-        property "sonar.organization", "justsyncit"
-        property "sonar.host.url", "https://sonarcloud.io"
-        property "sonar.java.coveragePlugin", "jacoco"
-        property "sonar.coverage.jacoco.xmlReportPaths", "${buildDir}/reports/jacoco/test/jacocoTestReport.xml"
-        property "sonar.java.binaries", "${buildDir}/classes/java/main"
-        property "sonar.java.test.binaries", "${buildDir}/classes/java/test"
-        property "sonar.exclusions", "**/generated/**,**/test/**"
-        property "sonar.spotbugs.reportPaths", "${buildDir}/reports/spotbugs/main.xml,${buildDir}/reports/spotbugs/test.xml"
-        property "sonar.checkstyle.reportPaths", "${buildDir}/reports/checkstyle/main.xml,${buildDir}/reports/checkstyle/test.xml"
-    }
-}
 
 // OWASP Dependency Check configuration
 dependencyCheck {
@@ -251,17 +236,4 @@ jmh {
 // Disable configuration cache for JMH tasks to avoid serialization issues
 tasks.matching { it.name.startsWith('jmh') }.configureEach {
     notCompatibleWithConfigurationCache("JMH plugin has known issues with configuration cache")
-}
-
-// Disable configuration cache for SonarQube task to avoid compatibility issues
-tasks.named('sonarqube') {
-    notCompatibleWithConfigurationCache("SonarQube plugin has known issues with configuration cache")
-    // Additional configuration to ensure compatibility
-    inputs.files(fileTree("src")).withPropertyName("sources").skipWhenEmpty()
-    inputs.files(fileTree("build")).withPropertyName("buildDir").skipWhenEmpty()
-}
-
-// Also handle any related SonarQube tasks
-tasks.matching { it.name.toLowerCase().contains('sonar') }.configureEach {
-    notCompatibleWithConfigurationCache("SonarQube plugin has known issues with configuration cache")
 }
