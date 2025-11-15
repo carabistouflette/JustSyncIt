@@ -5,7 +5,7 @@ plugins {
     id 'com.github.spotbugs' version '6.0.25'
     id 'me.champeau.jmh' version '0.7.2'
     id 'jacoco'
-    id 'org.sonarqube' version '5.1.0.4882'
+    id 'org.sonarqube' version '4.4.1.3373'
     id 'org.owasp.dependencycheck' version '10.0.4'
 }
 
@@ -96,7 +96,7 @@ sonarqube {
 // OWASP Dependency Check configuration
 dependencyCheck {
     failBuildOnCVSS = 7.0  // Fail build on CVSS 7.0 or higher
-    failOnError = true
+    failOnError = false  // Don't fail build on NVD data parsing errors
     
     suppressionFile = "${rootDir}/config/dependency-check/suppressions.xml"
     
@@ -113,6 +113,19 @@ dependencyCheck {
     }
     
     formats = ['HTML', 'XML', 'CSV', 'JSON', 'SVR']
+}
+
+// Disable configuration cache for dependency check tasks to avoid serialization issues
+tasks.named('dependencyCheckAggregate') {
+    notCompatibleWithConfigurationCache("Dependency check plugin has known issues with configuration cache")
+}
+
+tasks.named('dependencyCheckAnalyze') {
+    notCompatibleWithConfigurationCache("Dependency check plugin has known issues with configuration cache")
+}
+
+tasks.named('dependencyCheckUpdate') {
+    notCompatibleWithConfigurationCache("Dependency check plugin has known issues with configuration cache")
 }
 
 java {
@@ -244,5 +257,13 @@ tasks.matching { it.name.startsWith('jmh') }.configureEach {
 
 // Disable configuration cache for SonarQube task to avoid compatibility issues
 tasks.named('sonarqube') {
+    notCompatibleWithConfigurationCache("SonarQube plugin has known issues with configuration cache")
+    // Additional configuration to ensure compatibility
+    inputs.files(fileTree("src")).withPropertyName("sources").skipWhenEmpty()
+    inputs.files(fileTree("build")).withPropertyName("buildDir").skipWhenEmpty()
+}
+
+// Also handle any related SonarQube tasks
+tasks.matching { it.name.toLowerCase().contains('sonar') }.configureEach {
     notCompatibleWithConfigurationCache("SonarQube plugin has known issues with configuration cache")
 }
