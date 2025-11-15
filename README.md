@@ -2,7 +2,6 @@
 
 [![CI/CD Pipeline](https://github.com/carabistouflette/justsyncit/workflows/CI/CD%20Pipeline/badge.svg)](https://github.com/carabistouflette/justsyncit/actions)
 [![codecov](https://codecov.io/gh/justsyncit/justsyncit/branch/main/graph/badge.svg)](https://codecov.io/gh/justsyncit/justsyncit)
-[![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=justsyncit&metric=alert_status)](https://sonarcloud.io/dashboard?id=justsyncit)
 [![Security Scan](https://github.com/carabistouflette/justsyncit/workflows/Security%20Scan/badge.svg)](https://github.com/carabistouflette/justsyncit/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/r/justsyncit/app)
@@ -108,7 +107,6 @@ This project maintains high code quality standards:
 - **SpotBugs** - Static analysis for bug detection
 - **JUnit 5** - Comprehensive unit testing
 - **JaCoCo** - Code coverage reporting
-- **SonarCloud** - Continuous code quality analysis
 - **OWASP Dependency Check** - Security vulnerability scanning
 - **EditorConfig** - Consistent editor configuration across team members
 
@@ -118,7 +116,7 @@ This project includes a comprehensive CI/CD pipeline:
 
 - **Multi-platform builds**: Linux, Windows, macOS
 - **Multi-version testing**: Java 17, 21, 22
-- **Code quality**: Checkstyle, SpotBugs, SonarCloud analysis
+- **Code quality**: Checkstyle, SpotBugs analysis
 - **Security scanning**: OWASP Dependency Check, Trivy vulnerability scanner
 - **Automated releases**: Semantic versioning with GitHub releases
 - **Docker builds**: Multi-architecture container images
@@ -137,7 +135,6 @@ This project includes a comprehensive CI/CD pipeline:
 - **Checkstyle** - Code style enforcement
 - **SpotBugs** - Static code analysis
 - **JaCoCo** - Code coverage
-- **SonarQube** - Code quality analysis
 - **OWASP Dependency Check** - Security scanning
 
 ## Project Structure

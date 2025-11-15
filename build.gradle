@@ -5,7 +5,6 @@ plugins {
     id 'com.github.spotbugs' version '6.0.25'
     id 'me.champeau.jmh' version '0.7.2'
     id 'jacoco'
-    // id 'org.sonarqube' version '4.0.0.2929' // Disabled - no SonarCloud account/token available
     id 'org.owasp.dependencycheck' version '12.1.0'
 }
 
