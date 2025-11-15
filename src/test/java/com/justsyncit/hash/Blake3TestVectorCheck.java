@@ -29,7 +29,7 @@ import static java.util.Arrays.fill;
 class Blake3TestVectorCheck {
 
     @Test
-    void checkHashValues() {
+    void checkHashValues() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
 
         // Empty input

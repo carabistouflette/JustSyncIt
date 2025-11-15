@@ -1,0 +1,94 @@
+# Site settings
+title: JustSyncIt Documentation
+description: Comprehensive documentation for JustSyncIt file synchronization tool
+baseurl: "/justsyncit"
+url: "https://justsyncit.github.io"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+theme: minima
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Exclude from processing
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+
+# Collections
+collections:
+  api:
+    output: true
+    permalink: /:collection/:name/
+  guides:
+    output: true
+    permalink: /:collection/:name/
+
+# Navigation
+navigation:
+  - title: Getting Started
+    subitems:
+      - title: Installation
+        url: /guides/installation/
+      - title: Quick Start
+        url: /guides/quick-start/
+      - title: Configuration
+        url: /guides/configuration/
+  - title: User Guide
+    subitems:
+      - title: Basic Usage
+        url: /guides/basic-usage/
+      - title: Advanced Features
+        url: /guides/advanced-features/
+      - title: Troubleshooting
+        url: /guides/troubleshooting/
+  - title: API Reference
+    subitems:
+      - title: Core Classes
+        url: /api/core/
+      - title: Network Protocol
+        url: /api/network/
+      - title: Storage API
+        url: /api/storage/
+  - title: Development
+    subitems:
+      - title: Contributing
+        url: /guides/contributing/
+      - title: Architecture
+        url: /guides/architecture/
+      - title: Performance
+        url: /guides/performance/
+
+# Default values
+defaults:
+  - scope:
+      path: ""
+      type: "guides"
+    values:
+      layout: "guide"
+  - scope:
+      path: ""
+      type: "api"
+    values:
+      layout: "api"
+
+# SEO and social
+twitter:
+  username: justsyncit
+  card: summary
+
+logo: "/assets/images/logo.png"
+
+# Google Analytics (if needed)
+google_analytics: UA-XXXXXXXXX-X

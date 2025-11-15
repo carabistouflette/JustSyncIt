@@ -19,6 +19,7 @@
 package com.justsyncit.storage;
 
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.hash.HashingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -53,7 +54,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
-    void testVerifyIntegrityWithValidData() throws Exception {
+    void testVerifyIntegrityWithValidData() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String expectedHash = "abcdef1234567890";
@@ -83,7 +84,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
-    void testVerifyIntegrityWithMismatchedHash() throws Exception {
+    void testVerifyIntegrityWithMismatchedHash() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String expectedHash = "expected_hash";
@@ -104,7 +105,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
-    void testCalculateHashWithValidData() {
+    void testCalculateHashWithValidData() throws HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String expectedHash = "abcdef1234567890";
@@ -153,7 +154,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
-    void testVerifyIntegrityWithEmptyData() throws Exception {
+    void testVerifyIntegrityWithEmptyData() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = new byte[0];
         String expectedHash = "empty_hash";
@@ -165,7 +166,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
-    void testCalculateHashWithEmptyData() {
+    void testCalculateHashWithEmptyData() throws HashingException {
         // Arrange
         byte[] data = new byte[0];
         String expectedHash = "empty_hash";
@@ -180,7 +181,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
-    void testVerifyIntegrityWithLargeData() throws Exception {
+    void testVerifyIntegrityWithLargeData() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = new byte[1024 * 1024]; // 1MB
         for (int i = 0; i < data.length; i++) {

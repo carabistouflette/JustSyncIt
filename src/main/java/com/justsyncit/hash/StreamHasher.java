@@ -34,7 +34,8 @@ public interface StreamHasher {
      * @param inputStream the input stream to hash
      * @return the hash as a hexadecimal string
      * @throws IOException if an I/O error occurs while reading from the stream
+     * @throws HashingException if a hashing error occurs
      * @throws IllegalArgumentException if the inputStream is null
      */
-    String hashStream(InputStream inputStream) throws IOException;
+    String hashStream(InputStream inputStream) throws IOException, HashingException;
 }

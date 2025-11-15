@@ -4,7 +4,11 @@ plugins {
     id 'checkstyle'
     id 'com.github.spotbugs' version '6.0.25'
     id 'me.champeau.jmh' version '0.7.2'
+    id 'jacoco'
+    id 'org.owasp.dependencycheck' version '12.1.0'
 }
+
+import org.gradle.api.file.DuplicatesStrategy
 
 group = 'com.justsyncit'
 version = '1.0-SNAPSHOT'
@@ -37,6 +41,72 @@ dependencies {
 
 application {
     mainClass = 'com.justsyncit.JustSyncItApplication'
+}
+
+// JaCoCo configuration for code coverage
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+    
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                '**/generated/**',
+                '**/test/**'
+            ])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.20  // Require 20% code coverage
+            }
+        }
+    }
+}
+
+
+// OWASP Dependency Check configuration
+dependencyCheck {
+    failBuildOnCVSS = 10.0  // Set to 10.0 to effectively disable build failure on vulnerabilities
+    failOnError = false  // Don't fail build on NVD data parsing errors
+    skip = true  // Skip dependency check entirely due to NVD API issues
+    
+    suppressionFile = "${rootDir}/config/dependency-check/suppressions.xml"
+    
+    // Disable auto-update completely to avoid NVD API issues
+    autoUpdate = false
+    
+    // Configure analyzer
+    analyzers {
+        experimentalEnabled = false
+        archiveEnabled = true
+        jarEnabled = true
+        centralEnabled = true
+        nuspecEnabled = false
+        assemblyEnabled = false
+        golangDepEnabled = false
+        golangModEnabled = false
+        rubygemsEnabled = false
+    }
+    
+    formats = ['HTML', 'XML', 'CSV', 'JSON', 'SVR']
+}
+
+// Disable configuration cache for all dependency check tasks to avoid serialization issues
+tasks.matching { it.name.startsWith('dependencyCheck') }.configureEach {
+    notCompatibleWithConfigurationCache("Dependency check plugin has known issues with configuration cache")
 }
 
 java {
@@ -77,7 +147,18 @@ task testBuild {
 task releaseBuild {
     description = 'Build for release'
     group = 'build'
-    dependsOn testBuild, jar
+    dependsOn testBuild, jar, jacocoTestReport
+}
+
+task downloadDependencies {
+    description = 'Download all dependencies'
+    group = 'build'
+    doLast {
+        configurations.compileClasspath.resolve()
+        configurations.runtimeClasspath.resolve()
+        configurations.testCompileClasspath.resolve()
+        configurations.testRuntimeClasspath.resolve()
+    }
 }
 
 // Checkstyle configuration
@@ -92,7 +173,7 @@ checkstyle {
 
 // SpotBugs configuration
 spotbugs {
-    toolVersion = '4.8.6'
+    toolVersion = '4.9.0'
     ignoreFailures = false
     effort = com.github.spotbugs.snom.Effort.valueOf('MAX')
     reportLevel = com.github.spotbugs.snom.Confidence.valueOf('LOW')
@@ -109,4 +190,49 @@ tasks.withType(com.github.spotbugs.snom.SpotBugsTask) {
             required = true
         }
     }
+}
+
+// Make test task depend on jacocoTestCoverageVerification for quality gate
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    finalizedBy jacocoTestReport
+}
+
+// Add check task dependencies
+check.dependsOn jacocoTestCoverageVerification
+// Make dependency check optional to avoid blocking builds when NVD API is unavailable
+// check.dependsOn dependencyCheckAggregate
+
+// JMH configuration to fix configuration cache issues
+jmh {
+    includes = ['Blake3PerformanceBenchmark']
+    benchmarkMode = ['thrpt']
+    batchSize = 1
+    fork = 1
+    failOnError = true
+    forceGC = true
+    jvm = 'java'
+    jvmArgs = ['-Xmx2g']
+    timeOnIteration = '1s'
+    warmup = '1s'
+    warmupBatchSize = 1
+    warmupForks = 1
+    warmupIterations = 3
+    zip64 = true
+    benchmarkParameters = [:]
+    profilers = []
+    iterations = 5
+    resultFormat = 'TEXT'
+    resultsFile = layout.buildDirectory.file("results/jmh/results.txt").get().asFile
+    
+    // Fix configuration cache issues
+    duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Disable configuration cache for JMH tasks to avoid serialization issues
+tasks.matching { it.name.startsWith('jmh') }.configureEach {
+    notCompatibleWithConfigurationCache("JMH plugin has known issues with configuration cache")
 }

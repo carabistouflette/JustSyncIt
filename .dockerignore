@@ -1,0 +1,45 @@
+# Gradle
+.gradle/
+build/
+!build/libs/
+gradlew
+gradlew.bat
+gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Configuration
+config/
+*.properties
+
+# Test reports
+reports/
+test-results/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp

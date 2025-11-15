@@ -77,12 +77,20 @@ public class Blake3FileHasher implements FileHasher {
         // For small files, read all at once for better performance
         if (fileSize <= BUFFER_SIZE) {
             byte[] data = Files.readAllBytes(filePath);
-            return bufferHasher.hashBuffer(data);
+            try {
+                return bufferHasher.hashBuffer(data);
+            } catch (HashingException e) {
+                throw new IOException("Failed to hash file", e);
+            }
         }
 
         // For large files, use streaming approach
         try (InputStream inputStream = Files.newInputStream(filePath)) {
-            return streamHasher.hashStream(inputStream);
+            try {
+                return streamHasher.hashStream(inputStream);
+            } catch (HashingException e) {
+                throw new IOException("Failed to hash file", e);
+            }
         }
     }
 }

@@ -31,5 +31,5 @@ public interface BufferHasher {
      * @return the hash as a hexadecimal string
      * @throws IllegalArgumentException if the data is null
      */
-    String hashBuffer(byte[] data);
+    String hashBuffer(byte[] data) throws HashingException;
 }

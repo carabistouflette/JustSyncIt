@@ -69,17 +69,17 @@ public class Blake3ServiceImpl implements Blake3Service {
     }
 
     @Override
-    public String hashBuffer(byte[] data) {
+    public String hashBuffer(byte[] data) throws HashingException {
         return bufferHasher.hashBuffer(data);
     }
 
     @Override
-    public String hashStream(InputStream inputStream) throws IOException {
+    public String hashStream(InputStream inputStream) throws IOException, HashingException {
         return streamHasher.hashStream(inputStream);
     }
 
     @Override
-    public Blake3IncrementalHasher createIncrementalHasher() {
+    public Blake3IncrementalHasher createIncrementalHasher() throws HashingException {
         return new IncrementalHasherAdapter(incrementalHasherFactory.createIncrementalHasher());
     }
 

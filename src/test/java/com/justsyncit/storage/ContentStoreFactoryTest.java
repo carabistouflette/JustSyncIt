@@ -43,7 +43,7 @@ class ContentStoreFactoryTest {
     Path tempDir;
 
     @Test
-    void testCreateFilesystemStoreWithValidParameters() throws Exception {
+    void testCreateFilesystemStoreWithValidParameters() throws java.io.IOException {
         // Arrange
         MockitoAnnotations.openMocks(this);
 
@@ -72,7 +72,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
-    void testCreateMemoryStoreWithValidVerifier() throws Exception {
+    void testCreateMemoryStoreWithValidVerifier() {
         // Arrange
         IntegrityVerifier mockVerifier = new IntegrityVerifier() {
             @Override
@@ -106,7 +106,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
-    void testCreateMemoryStoreWithValidBlake3Service() throws Exception {
+    void testCreateMemoryStoreWithValidBlake3Service() {
         // Arrange
         MockitoAnnotations.openMocks(this);
 
@@ -125,7 +125,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
-    void testCreateFilesystemStoreWithCustomComponents() throws Exception {
+    void testCreateFilesystemStoreWithCustomComponents() throws java.io.IOException {
         // Arrange
         MockitoAnnotations.openMocks(this);
         IntegrityVerifier mockVerifier = new IntegrityVerifier() {

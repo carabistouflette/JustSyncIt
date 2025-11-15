@@ -48,7 +48,7 @@ public class Blake3BufferHasher implements BufferHasher {
     }
 
     @Override
-    public String hashBuffer(byte[] data) {
+    public String hashBuffer(byte[] data) throws HashingException {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
         }
@@ -64,7 +64,7 @@ public class Blake3BufferHasher implements BufferHasher {
             return result;
         } catch (Exception e) {
             logger.error("Error hashing buffer", e);
-            throw new RuntimeException("Failed to hash buffer", e);
+            throw new HashingException("Failed to hash buffer", e);
         }
     }
 }

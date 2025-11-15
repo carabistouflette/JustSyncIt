@@ -1,0 +1,29 @@
+{
+  "name": "justsyncit",
+  "version": "1.0.0",
+  "description": "JustSyncIt - A file synchronization tool",
+  "scripts": {
+    "semantic-release": "semantic-release"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carabistouflette/justsyncit.git"
+  },
+  "keywords": [
+    "file-sync",
+    "java",
+    "blake3",
+    "synchronization"
+  ],
+  "author": "JustSyncIt Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^9.2.6",
+    "semantic-release": "^22.0.12"
+  },
+  "release": {
+    "branches": ["main"]
+  }
+}

@@ -19,6 +19,7 @@
 package com.justsyncit.storage;
 
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.hash.HashingException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,7 +89,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
-    void testStoreChunkNewChunk() throws IOException {
+    void testStoreChunkNewChunk() throws IOException, HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String expectedHash = "abcdef1234567890";
@@ -107,7 +108,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
-    void testStoreChunkExistingChunk() throws IOException {
+    void testStoreChunkExistingChunk() throws IOException, HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String expectedHash = "abcdef1234567890";
@@ -145,7 +146,11 @@ class FilesystemContentStoreTest {
         Path chunkPath = tempDir.resolve("storage").resolve("ab").resolve("cdef1234567890");
 
         when(mockChunkIndex.getChunkPath(hash)).thenReturn(chunkPath);
-        when(mockBlake3Service.hashBuffer(expectedData)).thenReturn(hash);
+        try {
+            when(mockBlake3Service.hashBuffer(expectedData)).thenReturn(hash);
+        } catch (HashingException e) {
+            // This shouldn't happen in test
+        }
 
         // Create the chunk file and parent directory
         Path parentDir = chunkPath.getParent();
@@ -161,7 +166,11 @@ class FilesystemContentStoreTest {
         assertNotNull(actualData, "Retrieved data should not be null");
         assertArrayEquals(expectedData, actualData);
         verify(mockChunkIndex).getChunkPath(hash);
-        verify(mockBlake3Service).hashBuffer(expectedData);
+        try {
+            verify(mockBlake3Service).hashBuffer(expectedData);
+        } catch (HashingException e) {
+            // This shouldn't happen in test
+        }
     }
 
     @Test
@@ -177,7 +186,11 @@ class FilesystemContentStoreTest {
         // Assert
         assertNull(result);
         verify(mockChunkIndex).getChunkPath(hash);
-        verify(mockBlake3Service, never()).hashBuffer(any());
+        try {
+            verify(mockBlake3Service, never()).hashBuffer(any());
+        } catch (HashingException e) {
+            // This shouldn't happen in test
+        }
     }
 
     @Test
@@ -188,7 +201,11 @@ class FilesystemContentStoreTest {
         Path chunkPath = tempDir.resolve("storage").resolve("ab").resolve("cdef1234567890");
 
         when(mockChunkIndex.getChunkPath(hash)).thenReturn(chunkPath);
-        when(mockBlake3Service.hashBuffer(data)).thenReturn("differenthash");
+        try {
+            when(mockBlake3Service.hashBuffer(data)).thenReturn("differenthash");
+        } catch (HashingException e) {
+            // This shouldn't happen in test
+        }
 
         // Create the chunk file and parent directory
         Path parentDir = chunkPath.getParent();
@@ -200,7 +217,11 @@ class FilesystemContentStoreTest {
         // Act & Assert
         assertThrows(StorageIntegrityException.class, () -> contentStore.retrieveChunk(hash));
         verify(mockChunkIndex).getChunkPath(hash);
-        verify(mockBlake3Service).hashBuffer(data);
+        try {
+            verify(mockBlake3Service).hashBuffer(data);
+        } catch (HashingException e) {
+            // This shouldn't happen in test
+        }
     }
 
     @Test

@@ -18,6 +18,7 @@
 
 package com.justsyncit.storage;
 
+import com.justsyncit.ServiceException;
 import java.nio.file.Path;
 
 /**
@@ -33,8 +34,9 @@ public interface ChunkPathGenerator {
      * @param hash the chunk hash
      * @return the file path for the chunk
      * @throws IllegalArgumentException if hash is null or invalid
+     * @throws ServiceException if an error occurs while generating the path
      */
-    Path generatePath(Path storageDirectory, String hash);
+    Path generatePath(Path storageDirectory, String hash) throws ServiceException;
 
     /**
      * Validates that a hash is compatible with this path generator.

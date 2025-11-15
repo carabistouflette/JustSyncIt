@@ -19,6 +19,7 @@
 package com.justsyncit.storage;
 
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.hash.HashingException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +62,7 @@ class MemoryContentStoreTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() throws IOException {
         if (contentStore != null) {
             contentStore.close();
         }
@@ -74,7 +75,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testStoreChunkWithValidData() throws Exception {
+    void testStoreChunkWithValidData() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String expectedHash = "abcdef1234567890";
@@ -102,7 +103,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testStoreDuplicateChunk() throws Exception {
+    void testStoreDuplicateChunk() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String expectedHash = "abcdef1234567890";
@@ -120,7 +121,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testRetrieveChunkWithValidHash() throws Exception {
+    void testRetrieveChunkWithValidHash() throws HashingException, IOException, StorageIntegrityException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String hash = "abcdef1234567890";
@@ -139,7 +140,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testRetrieveChunkWithNonExistentHash() throws Exception {
+    void testRetrieveChunkWithNonExistentHash() throws IOException, StorageIntegrityException {
         // Arrange
         String nonExistentHash = "nonexistent123456";
 
@@ -163,7 +164,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testExistsChunkWithExistingHash() throws Exception {
+    void testExistsChunkWithExistingHash() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String hash = "abcdef1234567890";
@@ -181,7 +182,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testExistsChunkWithNonExistentHash() throws Exception {
+    void testExistsChunkWithNonExistentHash() throws IOException {
         // Arrange
         String nonExistentHash = "nonexistent123456";
 
@@ -199,21 +200,16 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testGetChunkCountWithEmptyStore() throws Exception {
+    void testGetChunkCountWithEmptyStore() throws IOException {
         // Act
-        long result;
-        try {
-            result = contentStore.getChunkCount();
-        } catch (IOException e) {
-            throw new RuntimeException("Unexpected IOException", e);
-        }
+        long result = contentStore.getChunkCount();
 
         // Assert
         assertEquals(0L, result);
     }
 
     @Test
-    void testGetChunkCountWithStoredChunks() throws Exception {
+    void testGetChunkCountWithStoredChunks() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data2 = "data2".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -235,21 +231,16 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testGetTotalSizeWithEmptyStore() throws Exception {
+    void testGetTotalSizeWithEmptyStore() throws IOException {
         // Act
-        long result;
-        try {
-            result = contentStore.getTotalSize();
-        } catch (IOException e) {
-            throw new RuntimeException("Unexpected IOException", e);
-        }
+        long result = contentStore.getTotalSize();
 
         // Assert
         assertEquals(0L, result);
     }
 
     @Test
-    void testGetTotalSizeWithStoredChunks() throws Exception {
+    void testGetTotalSizeWithStoredChunks() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data2 = "data2".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -269,7 +260,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testGarbageCollectWithActiveHashes() throws Exception {
+    void testGarbageCollectWithActiveHashes() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data2 = "data2".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -304,7 +295,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testGetStats() throws Exception {
+    void testGetStats() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data2 = "data2".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -326,7 +317,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testClose() throws Exception {
+    void testClose() throws IOException, HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         when(mockIntegrityVerifier.calculateHash(data)).thenReturn("hash1");
@@ -351,7 +342,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testGetCurrentChunkCount() throws Exception {
+    void testGetCurrentChunkCount() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data2 = "data2".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -380,7 +371,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
-    void testIsEmptyWithStoredChunks() throws Exception {
+    void testIsEmptyWithStoredChunks() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         when(mockIntegrityVerifier.calculateHash(data)).thenReturn("hash1");

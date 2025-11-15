@@ -45,7 +45,7 @@ public interface Blake3Service {
      * @return the BLAKE3 hash as a hexadecimal string (64 characters for 256-bit hash)
      * @throws IllegalArgumentException if the data is null
      */
-    String hashBuffer(byte[] data);
+    String hashBuffer(byte[] data) throws HashingException;
 
     /**
      * Hashes the content of an InputStream using BLAKE3 algorithm.
@@ -56,14 +56,14 @@ public interface Blake3Service {
      * @throws IOException if an I/O error occurs while reading from the stream
      * @throws IllegalArgumentException if the inputStream is null
      */
-    String hashStream(InputStream inputStream) throws IOException;
+    String hashStream(InputStream inputStream) throws IOException, HashingException;
 
     /**
      * Creates a new incremental hasher for large files or streaming data.
      *
      * @return a new Blake3IncrementalHasher instance
      */
-    Blake3IncrementalHasher createIncrementalHasher();
+    Blake3IncrementalHasher createIncrementalHasher() throws HashingException;
 
     /**
      * Interface for incremental BLAKE3 hashing.
@@ -95,7 +95,7 @@ public interface Blake3Service {
          *
          * @return the BLAKE3 hash as a hexadecimal string (64 characters for 256-bit hash)
          */
-        String digest();
+        String digest() throws HashingException;
 
         /**
          * Resets the hasher to its initial state, allowing reuse.

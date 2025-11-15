@@ -48,12 +48,12 @@ class Blake3ServiceTest {
     Path tempDir;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws HashingException {
         blake3Service = TestServiceFactory.createBlake3Service();
     }
 
     @Test
-    void testHashEmptyBuffer() {
+    void testHashEmptyBuffer() throws HashingException {
         byte[] emptyData = new byte[0];
         String hash = blake3Service.hashBuffer(emptyData);
 
@@ -62,7 +62,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashSingleByte() {
+    void testHashSingleByte() throws HashingException {
         byte[] singleByte = {(byte) 0xff};
         String hash = blake3Service.hashBuffer(singleByte);
 
@@ -73,7 +73,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashKnownVector() {
+    void testHashKnownVector() throws HashingException {
         // SHA-256 test vector: "abc"
         byte[] data = "abc".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String hash = blake3Service.hashBuffer(data);
@@ -82,7 +82,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashLargeKnownVector() {
+    void testHashLargeKnownVector() throws HashingException {
         // SHA-256 test vector: 1 KB of zeros
         byte[] data = new byte[1024];
         Arrays.fill(data, (byte) 0);
@@ -95,7 +95,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashIncremental() {
+    void testHashIncremental() throws HashingException {
         // Test incremental hashing with the same result as direct hashing
         byte[] data = "The quick brown fox jumps over the lazy dog".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
@@ -109,7 +109,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashIncrementalInChunks() {
+    void testHashIncrementalInChunks() throws HashingException {
         // Test incremental hashing with multiple chunks
         String message = "The quick brown fox jumps over the lazy dog";
         byte[] data = message.getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -131,7 +131,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashStream() throws IOException {
+    void testHashStream() throws IOException, HashingException {
         byte[] data = "Hello, BLAKE3!".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
 
@@ -142,7 +142,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashFile() throws IOException {
+    void testHashFile() throws IOException, HashingException {
         // Create a temporary file with known content
         Path testFile = tempDir.resolve("test.txt");
         String content = "This is a test file for BLAKE3 hashing.";
@@ -155,7 +155,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashEmptyFile() throws IOException {
+    void testHashEmptyFile() throws IOException, HashingException {
         // Create an empty file
         Path emptyFile = tempDir.resolve("empty.txt");
         Files.createFile(emptyFile);
@@ -168,7 +168,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashLargeFile() throws IOException {
+    void testHashLargeFile() throws IOException, HashingException {
         // Create a large file (1MB)
         Path largeFile = tempDir.resolve("large.txt");
         byte[] data = new byte[1024 * 1024];
@@ -182,7 +182,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testIncrementalHasherReset() {
+    void testIncrementalHasherReset() throws HashingException {
         byte[] data1 = "First message".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data2 = "Second message".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
@@ -203,7 +203,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testIncrementalHasherStateValidation() {
+    void testIncrementalHasherStateValidation() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
 
         // Should work normally
@@ -252,7 +252,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testIncrementalHasherNullInput() {
+    void testIncrementalHasherNullInput() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -266,7 +266,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testIncrementalHasherInvalidOffsetLength() {
+    void testIncrementalHasherInvalidOffsetLength() throws HashingException {
         Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
@@ -317,7 +317,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testConsistencyAcrossMultipleCalls() {
+    void testConsistencyAcrossMultipleCalls() throws HashingException {
         byte[] data = "Consistency test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
         String hash1 = blake3Service.hashBuffer(data);
@@ -330,7 +330,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testDifferentInputsProduceDifferentHashes() {
+    void testDifferentInputsProduceDifferentHashes() throws HashingException {
         byte[] data1 = "Input 1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data2 = "Input 2".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         byte[] data3 = "Input 3".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -346,7 +346,7 @@ class Blake3ServiceTest {
     }
 
     @Test
-    void testHashLength() {
+    void testHashLength() throws HashingException {
         byte[] data = "Test data for hash length".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         String hash = blake3Service.hashBuffer(data);
 

@@ -18,6 +18,7 @@
 
 package com.justsyncit.storage;
 
+import com.justsyncit.ServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -46,7 +47,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
-    void testGeneratePathWithValidHash() {
+    void testGeneratePathWithValidHash() throws ServiceException {
         // Arrange
         String hash = "abcdef1234567890";
 
@@ -59,7 +60,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
-    void testGeneratePathWithMinimumHash() {
+    void testGeneratePathWithMinimumHash() throws ServiceException {
         // Arrange
         String hash = "abcd";
 
@@ -72,7 +73,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
-    void testGeneratePathWithLongHash() {
+    void testGeneratePathWithLongHash() throws ServiceException {
         // Arrange
         String hash = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
 
@@ -116,7 +117,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
-    void testGeneratePathCreatesDirectories() throws Exception {
+    void testGeneratePathCreatesDirectories() throws java.io.IOException, ServiceException {
         // Arrange
         String hash = "test1234567890";
 
@@ -131,7 +132,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
-    void testGeneratePathWithDifferentHashes() {
+    void testGeneratePathWithDifferentHashes() throws ServiceException {
         // Test multiple different hashes
         String[] hashes = {
             "01234567890abcdef",

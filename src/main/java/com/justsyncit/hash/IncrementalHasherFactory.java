@@ -28,8 +28,9 @@ public interface IncrementalHasherFactory {
      * Creates a new incremental hasher for large files or streaming data.
      *
      * @return a new IncrementalHasher instance
+     * @throws HashingException if hasher creation fails
      */
-    IncrementalHasher createIncrementalHasher();
+    IncrementalHasher createIncrementalHasher() throws HashingException;
 
     /**
      * Interface for incremental hashing operations.
@@ -61,7 +62,7 @@ public interface IncrementalHasherFactory {
          *
          * @return the hash as a hexadecimal string
          */
-        String digest();
+        String digest() throws HashingException;
 
         /**
          * Resets the hasher to its initial state, allowing reuse.

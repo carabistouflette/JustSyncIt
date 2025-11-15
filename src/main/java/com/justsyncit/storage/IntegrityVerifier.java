@@ -18,6 +18,8 @@
 
 package com.justsyncit.storage;
 
+import com.justsyncit.hash.HashingException;
+
 /**
  * Interface for verifying the integrity of stored chunks.
  * Different implementations can use different hashing algorithms or verification strategies.
@@ -40,8 +42,9 @@ public interface IntegrityVerifier {
      * @param data the data to hash
      * @return the hash of the data
      * @throws IllegalArgumentException if data is null
+     * @throws HashingException if hashing fails
      */
-    String calculateHash(byte[] data);
+    String calculateHash(byte[] data) throws HashingException;
 
     /**
      * Validates that a hash is compatible with this verifier.

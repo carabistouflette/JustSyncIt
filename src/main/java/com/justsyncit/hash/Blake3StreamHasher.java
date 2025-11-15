@@ -48,7 +48,7 @@ public class Blake3StreamHasher implements StreamHasher {
     }
 
     @Override
-    public String hashStream(InputStream inputStream) throws IOException {
+    public String hashStream(InputStream inputStream) throws IOException, HashingException {
         if (inputStream == null) {
             throw new IllegalArgumentException("Input stream cannot be null");
         }
@@ -68,9 +68,12 @@ public class Blake3StreamHasher implements StreamHasher {
         } catch (IOException e) {
             logger.error("Error reading from input stream", e);
             throw e;
+        } catch (HashingException e) {
+            logger.error("Error hashing stream", e);
+            throw e;
         } catch (Exception e) {
             logger.error("Error hashing stream", e);
-            throw new RuntimeException("Failed to hash stream", e);
+            throw new HashingException("Failed to hash stream", e);
         }
     }
 }

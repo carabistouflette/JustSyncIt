@@ -19,6 +19,7 @@
 package com.justsyncit.storage;
 
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.hash.HashingException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +55,12 @@ public final class Blake3IntegrityVerifier implements IntegrityVerifier {
         }
         validateHash(expectedHash);
 
-        String actualHash = calculateHash(data);
+        String actualHash;
+        try {
+            actualHash = calculateHash(data);
+        } catch (HashingException e) {
+            throw new StorageIntegrityException("Failed to calculate hash for integrity verification", e);
+        }
 
         if (!expectedHash.equals(actualHash)) {
             String message = String.format("Integrity check failed. Expected: %s, Actual: %s",
@@ -67,7 +73,7 @@ public final class Blake3IntegrityVerifier implements IntegrityVerifier {
     }
 
     @Override
-    public String calculateHash(byte[] data) {
+    public String calculateHash(byte[] data) throws HashingException {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
         }
