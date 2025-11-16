@@ -84,7 +84,7 @@ public class QuicMessageAdapter {
         } catch (Exception e) {
             logger.error("Failed to serialize message {} for QUIC stream {}",
                        message.getMessageType(), streamId, e);
-            throw new RuntimeException("Failed to serialize message for QUIC", e);
+            throw new IllegalStateException("Failed to serialize message for QUIC", e);
         }
     }
 
@@ -173,7 +173,7 @@ public class QuicMessageAdapter {
             return quicBuffer;
         } catch (Exception e) {
             logger.error("Failed to serialize raw data for QUIC stream {}", streamId, e);
-            throw new RuntimeException("Failed to serialize raw data for QUIC", e);
+            throw new IllegalStateException("Failed to serialize raw data for QUIC", e);
         }
     }
 
@@ -262,7 +262,7 @@ public class QuicMessageAdapter {
             return quicBuffer;
         } catch (Exception e) {
             logger.error("Failed to create stream control message for stream {}", streamId, e);
-            throw new RuntimeException("Failed to create stream control message", e);
+            throw new IllegalStateException("Failed to create stream control message", e);
         }
     }
 
@@ -285,7 +285,7 @@ public class QuicMessageAdapter {
             buffer.put((byte) ((value >> 8) & 0xFF));
             buffer.put((byte) (value & 0xFF));
         } else {
-            buffer.put((byte) (0xC0 | (value >> 56) & 0x3F));
+            buffer.put((byte) (0xC0 | (int) ((value >> 56) & 0x3F)));
             buffer.put((byte) ((value >> 48) & 0xFF));
             buffer.put((byte) ((value >> 40) & 0xFF));
             buffer.put((byte) ((value >> 32) & 0xFF));
@@ -321,10 +321,10 @@ public class QuicMessageAdapter {
                     | (buffer.get() & 0xFF);
         } else {
             // 8-byte encoding
-            value = ((firstByte & 0x3F) << 56)
-                    | ((buffer.get() & 0xFF) << 48)
-                    | ((buffer.get() & 0xFF) << 40)
-                    | ((buffer.get() & 0xFF) << 32)
+            value = ((long) (firstByte & 0x3F) << 56)
+                    | ((long) (buffer.get() & 0xFF) << 48)
+                    | ((long) (buffer.get() & 0xFF) << 40)
+                    | ((long) (buffer.get() & 0xFF) << 32)
                     | ((buffer.get() & 0xFF) << 24)
                     | ((buffer.get() & 0xFF) << 16)
                     | ((buffer.get() & 0xFF) << 8)

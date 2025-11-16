@@ -107,32 +107,18 @@ public final class QuicCertificateGenerator {
 
             // Create a temporary self-signed certificate using a simpler approach
             // This will be replaced with a proper implementation
-            return createMockCertificate(keyPair);
+            logger.warn("Creating mock certificate - this should be replaced with proper implementation");
+
+            // For now, we'll return null and handle this in the configuration
+            // The actual QUIC implementation should handle missing certificates gracefully
+            // or use a different approach for certificate generation
+
+            return null;
 
         } catch (Exception e) {
             logger.error("Failed to generate certificate", e);
             throw e;
         }
-    }
-
-    /**
-     * Creates a mock certificate for development purposes.
-     * This should be replaced with a proper certificate generation implementation.
-     *
-     * @param keyPair the key pair
-     * @return a mock certificate
-     */
-    private static X509Certificate createMockCertificate(KeyPair keyPair) {
-        // This is a placeholder implementation
-        // In a real scenario, you would use BouncyCastle or another proper certificate library
-
-        logger.warn("Creating mock certificate - this should be replaced with proper implementation");
-
-        // For now, we'll return null and handle this in the configuration
-        // The actual QUIC implementation should handle missing certificates gracefully
-        // or use a different approach for certificate generation
-
-        return null;
     }
 
     /**

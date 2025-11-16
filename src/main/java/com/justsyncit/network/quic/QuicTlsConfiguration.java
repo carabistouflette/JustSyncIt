@@ -42,16 +42,16 @@ public class QuicTlsConfiguration {
     public static final String DEFAULT_TLS_VERSION = "TLSv1.3";
 
     /** Default cipher suites for TLS 1.3. */
-    public static final List<String> DEFAULT_CIPHER_SUITES = Arrays.asList(
+    public static final List<String> DEFAULT_CIPHER_SUITES = Collections.unmodifiableList(Arrays.asList(
             "TLS_AES_256_GCM_SHA384",
             "TLS_AES_128_GCM_SHA256",
             "TLS_CHACHA20_POLY1305_SHA256"
-    );
+    ));
 
     /** Default application layer protocols. */
-    public static final List<String> DEFAULT_APPLICATION_PROTOCOLS = Arrays.asList(
+    public static final List<String> DEFAULT_APPLICATION_PROTOCOLS = Collections.unmodifiableList(Arrays.asList(
             "justsyncit/1.0"
-    );
+    ));
 
     /** Default session timeout. */
     public static final Duration DEFAULT_SESSION_TIMEOUT = Duration.ofHours(1);
@@ -286,7 +286,7 @@ public class QuicTlsConfiguration {
                 .trustedCertificates(Arrays.asList(certificate))
                 .build();
         } catch (CertificateGenerationException e) {
-            throw new RuntimeException("Failed to create default TLS configuration", e);
+            throw new IllegalStateException("Failed to create default TLS configuration", e);
         }
     }
 

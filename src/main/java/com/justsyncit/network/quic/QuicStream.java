@@ -206,7 +206,7 @@ public class QuicStream {
                 notifyMessageSent(message);
             } catch (Exception e) {
                 logger.error("Failed to send message on stream {}", streamId, e);
-                throw new RuntimeException("Failed to send message", e);
+                throw new IllegalStateException("Failed to send message", e);
             }
         });
     }
@@ -297,7 +297,7 @@ public class QuicStream {
                 } catch (Exception e) {
                     logger.error("Error closing stream {}", streamId, e);
                     notifyStreamClosed(e);
-                    throw new RuntimeException("Error closing stream", e);
+                    throw new IllegalStateException("Error closing stream", e);
                 }
             });
         } else {
@@ -359,9 +359,11 @@ public class QuicStream {
     }
 
     private void notifyDataReceived(ByteBuffer data) {
+        // Create a defensive copy to prevent internal representation exposure
+        ByteBuffer dataCopy = data.asReadOnlyBuffer();
         for (QuicStreamEventListener listener : listeners) {
             try {
-                listener.onDataReceived(data);
+                listener.onDataReceived(dataCopy);
             } catch (Exception e) {
                 logger.error("Error notifying listener of data received", e);
             }
