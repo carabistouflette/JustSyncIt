@@ -35,9 +35,11 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -73,7 +75,7 @@ public class QuicTcpBenchmarkTest {
     private ExecutorService executorService;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() throws IOException, ExecutionException, InterruptedException, TimeoutException {
         // Create temporary directory for test files
         tempDir = Files.createTempDirectory("benchmark-test");
 
@@ -95,7 +97,7 @@ public class QuicTcpBenchmarkTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() throws IOException, ExecutionException, InterruptedException, TimeoutException {
         if (quicServer != null) {
             quicServer.stop().get(5, TimeUnit.SECONDS);
         }
@@ -128,7 +130,7 @@ public class QuicTcpBenchmarkTest {
     @Test
     @DisplayName("Benchmark QUIC connection establishment latency")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testQuicConnectionLatencyBenchmark() throws Exception {
+    void testQuicConnectionLatencyBenchmark() throws ExecutionException, InterruptedException, TimeoutException {
         System.out.println("\n=== QUIC Connection Establishment Latency Benchmark ===");
 
         // Start server
@@ -165,7 +167,7 @@ public class QuicTcpBenchmarkTest {
     @Test
     @DisplayName("Benchmark QUIC message throughput")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testQuicMessageThroughputBenchmark() throws Exception {
+    void testQuicMessageThroughputBenchmark() throws ExecutionException, InterruptedException, TimeoutException {
         System.out.println("\n=== QUIC Message Throughput Benchmark ===");
 
         // Start server
@@ -191,7 +193,8 @@ public class QuicTcpBenchmarkTest {
     @ValueSource(ints = {1024, 10240, 102400, 1024000}) // 1KB, 10KB, 100KB, 1MB
     @DisplayName("Benchmark QUIC file transfer performance")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testQuicFileTransferBenchmark(int fileSize) throws Exception {
+    void testQuicFileTransferBenchmark(int fileSize)
+            throws ExecutionException, InterruptedException, TimeoutException, IOException {
         System.out.printf("%n=== QUIC File Transfer Benchmark (%d bytes) ===%n", fileSize);
 
         // Create test file
@@ -222,7 +225,7 @@ public class QuicTcpBenchmarkTest {
     @Test
     @DisplayName("Benchmark QUIC concurrent connection performance")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testQuicConcurrentConnectionBenchmark() throws Exception {
+    void testQuicConcurrentConnectionBenchmark() throws ExecutionException, InterruptedException, TimeoutException {
         System.out.println("\n=== QUIC Concurrent Connection Benchmark ===");
 
         // Start server
@@ -249,7 +252,7 @@ public class QuicTcpBenchmarkTest {
                 "QUIC should handle at least half of concurrent messages in benchmark");
     }
 
-    private long benchmarkQuicConnection() throws Exception {
+    private long benchmarkQuicConnection() throws ExecutionException, InterruptedException, TimeoutException {
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, QUIC_PORT);
         long startTime = System.currentTimeMillis();
 
@@ -259,7 +262,8 @@ public class QuicTcpBenchmarkTest {
         return System.currentTimeMillis() - startTime;
     }
 
-    private long benchmarkQuicThroughput(int messageCount) throws Exception {
+    private long benchmarkQuicThroughput(int messageCount)
+            throws ExecutionException, InterruptedException, TimeoutException {
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, QUIC_PORT);
         QuicConnection connection = quicClient.connect(serverAddress).get(10, TimeUnit.SECONDS);
 
@@ -275,7 +279,7 @@ public class QuicTcpBenchmarkTest {
                     stream.sendMessage(message).get(5, TimeUnit.SECONDS);
                     stream.close().get(5, TimeUnit.SECONDS);
                     sentMessages.incrementAndGet();
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     // Log but don't fail
                     System.err.println("Failed to send QUIC message " + messageId + ": " + e.getMessage());
                 }
@@ -288,7 +292,8 @@ public class QuicTcpBenchmarkTest {
         return sentMessages.get();
     }
 
-    private boolean benchmarkQuicFileTransfer(Path filePath, byte[] expectedData) throws Exception {
+    private boolean benchmarkQuicFileTransfer(Path filePath, byte[] expectedData)
+            throws ExecutionException, InterruptedException, TimeoutException {
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, QUIC_PORT);
         QuicConnection connection = quicClient.connect(serverAddress).get(10, TimeUnit.SECONDS);
 
@@ -301,7 +306,7 @@ public class QuicTcpBenchmarkTest {
             Thread.sleep(100); // Simulate transfer time
 
             stream.close().get(5, TimeUnit.SECONDS);
-        } catch (Exception e) {
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
             success = false;
         }
 
@@ -309,7 +314,8 @@ public class QuicTcpBenchmarkTest {
         return success;
     }
 
-    private int benchmarkQuicConcurrentConnections(int connectionCount, int messagesPerConnection) throws Exception {
+    private int benchmarkQuicConcurrentConnections(int connectionCount, int messagesPerConnection)
+            throws ExecutionException, InterruptedException, TimeoutException {
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, QUIC_PORT);
         AtomicInteger totalMessages = new AtomicInteger(0);
         CompletableFuture<?>[] futures = new CompletableFuture[connectionCount];
@@ -327,14 +333,14 @@ public class QuicTcpBenchmarkTest {
                             stream.sendMessage(message).get(5, TimeUnit.SECONDS);
                             stream.close().get(5, TimeUnit.SECONDS);
                             totalMessages.incrementAndGet();
-                        } catch (Exception e) {
+                        } catch (InterruptedException | ExecutionException | TimeoutException e) {
                             System.err.println("Failed to send message on QUIC connection "
                                     + connectionId + ": " + e.getMessage());
                         }
                     }
 
                     connection.close().get(5, TimeUnit.SECONDS);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     System.err.println("Failed to establish QUIC connection " + connectionId + ": " + e.getMessage());
                 }
             }, executorService);

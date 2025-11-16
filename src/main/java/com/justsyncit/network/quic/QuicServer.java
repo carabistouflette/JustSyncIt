@@ -65,7 +65,7 @@ public class QuicServer {
     /**
      * Creates a new QUIC server with specified configuration.
      *
-     * @param configuration the QUIC configuration
+     * @param configuration QUIC configuration
      */
     public QuicServer(QuicConfiguration configuration) {
         this.configuration = configuration;
@@ -83,7 +83,7 @@ public class QuicServer {
     /**
      * Starts the QUIC server on the specified port.
      *
-     * @param port the port to listen on
+     * @param port port to listen on
      * @return a CompletableFuture that completes when the server is started
      */
     public CompletableFuture<Void> start(int port) {
@@ -107,7 +107,7 @@ public class QuicServer {
     /**
      * Actually starts the server.
      *
-     * @param port the port to listen on
+     * @param port port to listen on
      * @throws IOException if starting fails
      */
     private void doStart(int port) throws IOException {
@@ -132,73 +132,10 @@ public class QuicServer {
     }
 
     /**
-     * Handles a new client connection.
-     *
-     * @param clientAddress the client address
-     * @return the created connection
-     */
-    private QuicConnection handleClientConnection(InetSocketAddress clientAddress) {
-        try {
-            logger.debug("Handling new client connection from {}", clientAddress);
-
-            // Create new connection using Kwik
-            QuicConnection connection = new QuicConnection(clientAddress, configuration, false);
-
-            // Store the connection
-            clients.put(clientAddress, connection);
-
-            logger.info("Client connected: {}", clientAddress);
-            notifyClientConnected(clientAddress, connection);
-
-            // Set up connection event handlers
-            connection.addEventListener(new QuicConnection.QuicConnectionEventListener() {
-                @Override
-                public void onStreamCreated(QuicStream stream) {
-                    notifyStreamCreated(clientAddress, stream);
-                }
-
-                @Override
-                public void onStreamClosed(long streamId, Throwable cause) {
-                    notifyStreamClosed(clientAddress, streamId, cause);
-                }
-
-                @Override
-                public void onMessageReceived(ProtocolMessage message, long streamId) {
-                    notifyMessageReceived(clientAddress, message, streamId);
-                }
-
-                @Override
-                public void onConnectionClosed(Throwable cause) {
-                    handleClientDisconnection(clientAddress, cause);
-                }
-            });
-
-            return connection;
-        } catch (Exception e) {
-            logger.error("Failed to handle client connection from {}", clientAddress, e);
-            throw new IllegalStateException("Failed to handle client connection", e);
-        }
-    }
-
-    /**
-     * Handles client disconnection.
-     *
-     * @param clientAddress the client address
-     * @param cause the reason for disconnection
-     */
-    private void handleClientDisconnection(InetSocketAddress clientAddress, Throwable cause) {
-        QuicConnection connection = clients.remove(clientAddress);
-        if (connection != null) {
-            logger.info("Client disconnected: {}", clientAddress);
-            notifyClientDisconnected(clientAddress, cause);
-        }
-    }
-
-    /**
      * Sends a message to a specific client.
      *
-     * @param message the message to send
-     * @param clientAddress the client address
+     * @param message message to send
+     * @param clientAddress client address
      * @return a CompletableFuture that completes when the message is sent
      */
     public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress clientAddress) {
@@ -215,7 +152,7 @@ public class QuicServer {
     /**
      * Broadcasts a message to all connected clients.
      *
-     * @param message the message to broadcast
+     * @param message message to broadcast
      * @return a CompletableFuture that completes when the message is sent to all clients
      */
     public CompletableFuture<Void> broadcastMessage(ProtocolMessage message) {
@@ -266,7 +203,7 @@ public class QuicServer {
     /**
      * Adds a server event listener.
      *
-     * @param listener the event listener
+     * @param listener event listener
      */
     public void addEventListener(QuicServerEventListener listener) {
         listeners.add(listener);
@@ -275,7 +212,7 @@ public class QuicServer {
     /**
      * Removes a server event listener.
      *
-     * @param listener the event listener to remove
+     * @param listener event listener to remove
      */
     public void removeEventListener(QuicServerEventListener listener) {
         listeners.remove(listener);
@@ -331,56 +268,6 @@ public class QuicServer {
     }
 
     // Event notification methods
-    private void notifyClientConnected(InetSocketAddress clientAddress, QuicConnection connection) {
-        for (QuicServerEventListener listener : listeners) {
-            try {
-                listener.onClientConnected(clientAddress, connection);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of client connection", e);
-            }
-        }
-    }
-
-    private void notifyClientDisconnected(InetSocketAddress clientAddress, Throwable cause) {
-        for (QuicServerEventListener listener : listeners) {
-            try {
-                listener.onClientDisconnected(clientAddress, cause);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of client disconnection", e);
-            }
-        }
-    }
-
-    private void notifyMessageReceived(InetSocketAddress clientAddress, ProtocolMessage message, long streamId) {
-        for (QuicServerEventListener listener : listeners) {
-            try {
-                listener.onMessageReceived(clientAddress, message, streamId);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of message received", e);
-            }
-        }
-    }
-
-    private void notifyStreamCreated(InetSocketAddress clientAddress, QuicStream stream) {
-        for (QuicServerEventListener listener : listeners) {
-            try {
-                listener.onStreamCreated(clientAddress, stream);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of stream creation", e);
-            }
-        }
-    }
-
-    private void notifyStreamClosed(InetSocketAddress clientAddress, long streamId, Throwable cause) {
-        for (QuicServerEventListener listener : listeners) {
-            try {
-                listener.onStreamClosed(clientAddress, streamId, cause);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of stream closure", e);
-            }
-        }
-    }
-
 
     /**
      * Interface for QUIC server event listeners.
@@ -390,50 +277,50 @@ public class QuicServer {
         /**
          * Called when a client connects.
          *
-         * @param clientAddress the client address
-         * @param connection the established connection
+         * @param clientAddress client address
+         * @param connection established connection
          */
         void onClientConnected(InetSocketAddress clientAddress, QuicConnection connection);
 
         /**
          * Called when a client disconnects.
          *
-         * @param clientAddress the client address
-         * @param cause the reason for disconnection (null if normal)
+         * @param clientAddress client address
+         * @param cause reason for disconnection (null if normal)
          */
         void onClientDisconnected(InetSocketAddress clientAddress, Throwable cause);
 
         /**
          * Called when a message is received from a client.
          *
-         * @param clientAddress the client address
-         * @param message the received message
-         * @param streamId the stream ID
+         * @param clientAddress client address
+         * @param message received message
+         * @param streamId stream ID
          */
         void onMessageReceived(InetSocketAddress clientAddress, ProtocolMessage message, long streamId);
 
         /**
          * Called when a new stream is created for a client.
          *
-         * @param clientAddress the client address
-         * @param stream the created stream
+         * @param clientAddress client address
+         * @param stream created stream
          */
         void onStreamCreated(InetSocketAddress clientAddress, QuicStream stream);
 
         /**
          * Called when a stream is closed for a client.
          *
-         * @param clientAddress the client address
-         * @param streamId the stream ID
-         * @param cause the reason for closure (null if normal)
+         * @param clientAddress client address
+         * @param streamId stream ID
+         * @param cause reason for closure (null if normal)
          */
         void onStreamClosed(InetSocketAddress clientAddress, long streamId, Throwable cause);
 
         /**
          * Called when an error occurs.
          *
-         * @param error the error that occurred
-         * @param context the context in which the error occurred
+         * @param error error that occurred
+         * @param context context in which the error occurred
          */
         void onError(Throwable error, String context);
     }

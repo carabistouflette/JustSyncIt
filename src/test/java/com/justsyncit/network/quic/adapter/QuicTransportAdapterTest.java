@@ -47,6 +47,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -76,23 +77,27 @@ public class QuicTransportAdapterTest {
                 return mockQuicClient;
             }
         };
+
+        // Mock the stop method to prevent NPE in tearDown
+        when(mockQuicClient.stop()).thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() throws ExecutionException, InterruptedException, TimeoutException {
         if (adapter != null) {
             try {
                 adapter.stop().get(5, TimeUnit.SECONDS);
             } catch (Exception e) {
-                // Ignore exceptions during teardown - adapter might not have been started
-                // or might already be stopped
+                // Log exceptions during teardown but don't fail the test
+                // Adapter might not have been started or might already be stopped
+                System.err.println("Exception during adapter teardown: " + e.getMessage());
             }
         }
     }
 
     @Test
     @DisplayName("Adapter should start and stop successfully")
-    void testStartStop() throws Exception {
+    void testStartStop() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -118,7 +123,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should handle connection events")
-    void testConnectionEvents() throws Exception {
+    void testConnectionEvents() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -143,7 +148,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should handle disconnection")
-    void testDisconnection() throws Exception {
+    void testDisconnection() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -166,7 +171,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should send messages")
-    void testMessageSending() throws Exception {
+    void testMessageSending() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -190,7 +195,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should send files")
-    void testFileSending() throws Exception {
+    void testFileSending() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -222,7 +227,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should create streams")
-    void testStreamCreation() throws Exception {
+    void testStreamCreation() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -251,7 +256,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should check connection status")
-    void testConnectionStatus() throws Exception {
+    void testConnectionStatus() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -273,7 +278,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should report active connections")
-    void testActiveConnectionCount() throws Exception {
+    void testActiveConnectionCount() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -306,7 +311,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should provide statistics")
-    void testStatistics() throws Exception {
+    void testStatistics() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -324,7 +329,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should handle connection errors")
-    void testConnectionErrors() throws Exception {
+    void testConnectionErrors() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -354,7 +359,7 @@ public class QuicTransportAdapterTest {
 
     @Test
     @DisplayName("Adapter should handle message sending errors")
-    void testMessageSendingErrors() throws Exception {
+    void testMessageSendingErrors() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 

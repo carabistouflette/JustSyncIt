@@ -130,11 +130,6 @@ public class QuicMessageAdapter {
             // Deserialize the standard protocol message
             ProtocolMessage message = MessageFactory.deserializeMessage(messageBuffer);
 
-            if (message == null) {
-                logger.warn("Failed to deserialize protocol message from QUIC stream {}", streamId);
-                return null;
-            }
-
             logger.debug("Deserialized message {} from QUIC stream {}",
                        message.getMessageType(), streamId);
 
@@ -191,7 +186,7 @@ public class QuicMessageAdapter {
             if (quicBuffer.remaining() < MESSAGE_HEADER_SIZE) {
                 logger.warn("Insufficient data for QUIC raw data header: {} bytes available, {} required",
                            quicBuffer.remaining(), MESSAGE_HEADER_SIZE);
-                return null;
+                return new byte[0];
             }
 
             // Read frame type
@@ -199,7 +194,7 @@ public class QuicMessageAdapter {
             if (frameType != QUIC_FRAME_TYPE_RAW_DATA) {
                 logger.debug("Unsupported QUIC frame type for raw data: 0x{}",
                            String.format("%02x", frameType));
-                return null;
+                return new byte[0];
             }
 
             // Read stream ID (not needed for raw data, but must be consumed from buffer)
@@ -211,7 +206,7 @@ public class QuicMessageAdapter {
             if (quicBuffer.remaining() < dataLength) {
                 logger.warn("Insufficient data for QUIC raw data: {} bytes available, {} required",
                            quicBuffer.remaining(), dataLength);
-                return null;
+                return new byte[0];
             }
 
             // Extract the data
@@ -222,7 +217,7 @@ public class QuicMessageAdapter {
             return data;
         } catch (Exception e) {
             logger.error("Failed to deserialize QUIC raw data", e);
-            return null;
+            return new byte[0];
         }
     }
 
@@ -253,7 +248,9 @@ public class QuicMessageAdapter {
             writeVariableLengthInteger(quicBuffer, dataSize);
 
             // Write control data if present
-            quicBuffer.put(data);
+            if (data != null) {
+                quicBuffer.put(data);
+            }
 
             quicBuffer.flip();
 
@@ -362,7 +359,7 @@ public class QuicMessageAdapter {
 
         // Peek at the frame type and length without consuming
         buffer.mark();
-        byte frameType = buffer.get();
+        buffer.get(); // Skip frame type
         readVariableLengthInteger(buffer); // Skip stream ID
         int messageLength = (int) readVariableLengthInteger(buffer);
         buffer.reset();

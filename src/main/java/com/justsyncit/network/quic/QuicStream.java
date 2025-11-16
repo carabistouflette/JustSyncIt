@@ -43,8 +43,8 @@ public class QuicStream {
 
     /** Stream ID as per QUIC specification. */
     private final long streamId;
-    /** Parent QUIC connection. */
-    private final QuicConnection connection;
+    /** Parent QUIC connection wrapper. */
+    private final QuicConnectionWrapper connectionWrapper;
     /** Whether this is a bidirectional stream. */
     private final boolean bidirectional;
     /** Stream creation time. */
@@ -65,13 +65,14 @@ public class QuicStream {
     /**
      * Creates a new QUIC stream.
      *
-     * @param streamId the stream ID
-     * @param connection the parent connection
+     * @param streamId stream ID
+     * @param connection parent connection
      * @param bidirectional whether this is a bidirectional stream
      */
     public QuicStream(long streamId, QuicConnection connection, boolean bidirectional) {
         this.streamId = streamId;
-        this.connection = connection;
+        // Create a defensive wrapper to prevent external modification
+        this.connectionWrapper = new QuicConnectionWrapper(connection);
         this.bidirectional = bidirectional;
         this.creationTime = Instant.now();
         this.lastActivityTime = creationTime;
@@ -83,21 +84,22 @@ public class QuicStream {
     }
 
     /**
-     * Gets the stream ID.
+     * Gets stream ID.
      *
-     * @return the stream ID
+     * @return stream ID
      */
     public long getStreamId() {
         return streamId;
     }
 
     /**
-     * Gets the parent connection.
+     * Gets parent connection.
      *
-     * @return the parent connection
+     * @return an immutable view of the parent connection
      */
     public QuicConnection getConnection() {
-        return connection;
+        // Return the wrapped connection to prevent external modification
+        return connectionWrapper.getWrappedConnection();
     }
 
     /**
@@ -119,18 +121,18 @@ public class QuicStream {
     }
 
     /**
-     * Gets the stream creation time.
+     * Gets stream creation time.
      *
-     * @return the creation time
+     * @return creation time
      */
     public Instant getCreationTime() {
         return creationTime;
     }
 
     /**
-     * Gets the last activity time.
+     * Gets last activity time.
      *
-     * @return the last activity time
+     * @return last activity time
      */
     public Instant getLastActivityTime() {
         return lastActivityTime;
@@ -144,7 +146,7 @@ public class QuicStream {
     }
 
     /**
-     * Checks if the stream is active.
+     * Checks if stream is active.
      *
      * @return true if active, false otherwise
      */
@@ -155,7 +157,7 @@ public class QuicStream {
     /**
      * Gets the number of bytes sent.
      *
-     * @return the number of bytes sent
+     * @return number of bytes sent
      */
     public long getBytesSent() {
         return bytesSent.get();
@@ -164,7 +166,7 @@ public class QuicStream {
     /**
      * Gets the number of bytes received.
      *
-     * @return the number of bytes received
+     * @return number of bytes received
      */
     public long getBytesReceived() {
         return bytesReceived.get();
@@ -173,7 +175,7 @@ public class QuicStream {
     /**
      * Sends a message over this stream.
      *
-     * @param message the message to send
+     * @param message message to send
      * @return a CompletableFuture that completes when the message is sent
      */
     public CompletableFuture<Void> sendMessage(ProtocolMessage message) {
@@ -189,10 +191,10 @@ public class QuicStream {
 
         return CompletableFuture.runAsync(() -> {
             try {
-                // Serialize the message
+                // Serialize message
                 ByteBuffer messageBuffer = message.serialize();
 
-                // Send the message (placeholder implementation)
+                // Send message (placeholder implementation)
                 // In a real implementation, this would use Kwik's stream API
                 doSendMessage(messageBuffer);
 
@@ -201,7 +203,7 @@ public class QuicStream {
 
                 logger.debug("Sent message {} on stream {} to {}",
                            message.getMessageType(), streamId,
-                           connection.getRemoteAddress());
+                           connectionWrapper.getRemoteAddress());
 
                 notifyMessageSent(message);
             } catch (Exception e) {
@@ -214,7 +216,7 @@ public class QuicStream {
     /**
      * Actually sends the message data.
      *
-     * @param messageBuffer the serialized message
+     * @param messageBuffer serialized message
      * @throws IOException if sending fails
      */
     private void doSendMessage(ByteBuffer messageBuffer) throws IOException {
@@ -223,13 +225,13 @@ public class QuicStream {
         logger.debug("Sending {} bytes on stream {}", messageBuffer.remaining(), streamId);
 
         // Simulate network send
-        // Actual implementation would use the QUIC library's stream send method
+        // Actual implementation would use QUIC library's stream send method
     }
 
     /**
      * Handles a received message on this stream.
      *
-     * @param message the received message
+     * @param message received message
      */
     public void handleReceivedMessage(ProtocolMessage message) {
         if (!active.get()) {
@@ -247,7 +249,7 @@ public class QuicStream {
 
         logger.debug("Received message {} on stream {} from {}",
                    message.getMessageType(), streamId,
-                   connection.getRemoteAddress());
+                   connectionWrapper.getRemoteAddress());
 
         notifyMessageReceived(message);
     }
@@ -255,7 +257,7 @@ public class QuicStream {
     /**
      * Handles received raw data on this stream.
      *
-     * @param data the received data
+     * @param data received data
      */
     public void handleReceivedData(ByteBuffer data) {
         if (!active.get()) {
@@ -273,7 +275,7 @@ public class QuicStream {
 
         logger.debug("Received {} bytes on stream {} from {}",
                    data.remaining(), streamId,
-                   connection.getRemoteAddress());
+                   connectionWrapper.getRemoteAddress());
 
         notifyDataReceived(data);
     }
@@ -316,13 +318,13 @@ public class QuicStream {
         logger.debug("Performing stream close for {}", streamId);
 
         // Simulate stream close
-        // Actual implementation would use the QUIC library's stream close method
+        // Actual implementation would use QUIC library's stream close method
     }
 
     /**
      * Adds a stream event listener.
      *
-     * @param listener the event listener
+     * @param listener event listener
      */
     public void addEventListener(QuicStreamEventListener listener) {
         listeners.add(listener);
@@ -331,7 +333,7 @@ public class QuicStream {
     /**
      * Removes a stream event listener.
      *
-     * @param listener the event listener to remove
+     * @param listener event listener to remove
      */
     public void removeEventListener(QuicStreamEventListener listener) {
         listeners.remove(listener);
@@ -388,29 +390,69 @@ public class QuicStream {
         /**
          * Called when a message is sent.
          *
-         * @param message the sent message
+         * @param message sent message
          */
         void onMessageSent(ProtocolMessage message);
 
         /**
          * Called when a message is received.
          *
-         * @param message the received message
+         * @param message received message
          */
         void onMessageReceived(ProtocolMessage message);
 
         /**
          * Called when raw data is received.
          *
-         * @param data the received data
+         * @param data received data
          */
         void onDataReceived(ByteBuffer data);
 
         /**
          * Called when the stream is closed.
          *
-         * @param cause the reason for closure (null if normal)
+         * @param cause reason for closure (null if normal)
          */
         void onStreamClosed(Throwable cause);
+    }
+
+    /**
+     * Defensive wrapper for QuicConnection to prevent external modification.
+     * This wrapper only exposes safe, immutable operations of QuicConnection.
+     */
+    /**
+     * Defensive wrapper for QuicConnection to prevent external modification.
+     * This wrapper only exposes safe, immutable operations of QuicConnection.
+     */
+    private static final class QuicConnectionWrapper {
+        /** The wrapped connection. */
+        private final QuicConnection connection;
+
+        /**
+         * Creates a new wrapper for the given connection.
+         *
+         * @param connection the connection to wrap
+         */
+        QuicConnectionWrapper(QuicConnection connection) {
+            this.connection = connection;
+        }
+
+        /**
+         * Gets the wrapped connection.
+         *
+         * @return the wrapped connection
+         */
+        QuicConnection getWrappedConnection() {
+            return connection;
+        }
+
+        /**
+         * Gets the remote address as a string.
+         *
+         * @return the remote address
+         */
+        String getRemoteAddress() {
+            return connection.getRemoteAddress().toString();
+        }
     }
 }

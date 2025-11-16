@@ -14,9 +14,11 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -51,7 +53,7 @@ public class QuicIntegrationTest {
     private ExecutorService executorService;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         // Create temporary directory for test certificates
         testCertDir = Files.createTempDirectory("quic-test-certs");
 
@@ -73,7 +75,7 @@ public class QuicIntegrationTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() throws IOException, InterruptedException, ExecutionException, TimeoutException {
         if (quicServer != null) {
             quicServer.stop().get(5, TimeUnit.SECONDS);
         }
@@ -106,7 +108,7 @@ public class QuicIntegrationTest {
     @Test
     @DisplayName("QUIC server should start and stop successfully")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testServerStartStop() throws Exception {
+    void testServerStartStop() throws ExecutionException, InterruptedException, TimeoutException {
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
 
@@ -124,7 +126,7 @@ public class QuicIntegrationTest {
     @Test
     @DisplayName("QUIC client should connect to server successfully")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testClientConnection() throws Exception {
+    void testClientConnection() throws ExecutionException, InterruptedException, TimeoutException {
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
 
@@ -150,7 +152,7 @@ public class QuicIntegrationTest {
     @Test
     @DisplayName("QUIC client and server should exchange messages")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testMessageExchange() throws Exception {
+    void testMessageExchange() throws ExecutionException, InterruptedException, TimeoutException {
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
 
@@ -178,7 +180,7 @@ public class QuicIntegrationTest {
     @Test
     @DisplayName("QUIC should support concurrent streams")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testConcurrentStreams() throws Exception {
+    void testConcurrentStreams() throws ExecutionException, InterruptedException, TimeoutException {
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
 
@@ -207,7 +209,7 @@ public class QuicIntegrationTest {
                     successCount.incrementAndGet();
 
                     stream.close().get(5, TimeUnit.SECONDS);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     // Log error but don't fail test
                     System.err.println("Stream " + streamId + " failed: " + e.getMessage());
                 } finally {
@@ -232,7 +234,7 @@ public class QuicIntegrationTest {
     @Test
     @DisplayName("QUIC should handle connection errors gracefully")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testConnectionErrorHandling() throws Exception {
+    void testConnectionErrorHandling() throws ExecutionException, InterruptedException, TimeoutException {
         // Try to connect without starting server
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, SERVER_PORT);
         assertThrows(Exception.class, () -> {
@@ -263,7 +265,7 @@ public class QuicIntegrationTest {
     @Test
     @DisplayName("QUIC transport adapter should integrate with NetworkService")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testTransportAdapterIntegration() throws Exception {
+    void testTransportAdapterIntegration() throws ExecutionException, InterruptedException, TimeoutException {
         // Create QUIC transport adapter
         QuicTransportAdapter adapter = new QuicTransportAdapter();
 
@@ -297,7 +299,7 @@ public class QuicIntegrationTest {
     @Test
     @DisplayName("QUIC should support multiple connections")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testMultipleConnections() throws Exception {
+    void testMultipleConnections() throws ExecutionException, InterruptedException, TimeoutException {
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
 
@@ -325,7 +327,7 @@ public class QuicIntegrationTest {
 
                     connection.close().get(5, TimeUnit.SECONDS);
                     client.stop().get(5, TimeUnit.SECONDS);
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     // Log error but don't fail test
                     System.err.println("Connection " + connectionId + " failed: " + e.getMessage());
                 } finally {

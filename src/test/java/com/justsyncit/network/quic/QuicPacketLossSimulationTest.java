@@ -29,9 +29,11 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -70,7 +72,7 @@ public class QuicPacketLossSimulationTest {
     private ExecutorService executorService;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() throws ExecutionException, InterruptedException, TimeoutException {
         // Create configurations with packet loss simulation enabled
         serverConfig = QuicConfiguration.builder()
                 .idleTimeout(java.time.Duration.ofSeconds(30))
@@ -101,7 +103,7 @@ public class QuicPacketLossSimulationTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() throws ExecutionException, InterruptedException, TimeoutException {
         if (quicServer != null) {
             quicServer.stop().get(5, TimeUnit.SECONDS);
         }
@@ -121,7 +123,8 @@ public class QuicPacketLossSimulationTest {
     @ValueSource(doubles = {0.0, 0.05, 0.1, 0.15, 0.2})
     @DisplayName("QUIC should maintain performance with varying packet loss rates")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testPacketLossTolerance(double packetLossRate) throws Exception {
+    void testPacketLossTolerance(double packetLossRate)
+            throws ExecutionException, InterruptedException, TimeoutException {
         // Configure packet loss simulator
         packetLossSimulator.setPacketLossRate(packetLossRate);
         packetLossSimulator.start();
@@ -164,7 +167,7 @@ public class QuicPacketLossSimulationTest {
                         .thenCompose(v -> stream.close())
                         .get(5, TimeUnit.SECONDS);
 
-            } catch (Exception e) {
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 failedMessages.incrementAndGet();
             }
         }
@@ -182,8 +185,8 @@ public class QuicPacketLossSimulationTest {
 
         // Verify results
         assertTrue(successRate >= 0.8,
-                "Success rate should be at least 80% with " + packetLossRate * 100
-                + "% packet loss, was " + successRate * 100 + "%");
+                "Success rate should be at least 80% with " + (packetLossRate * 100)
+                + "% packet loss, was " + (successRate * 100) + "%");
 
         // Log performance metrics
         System.out.printf("Packet Loss: %.1f%%, Success Rate: %.1f%%, "
@@ -200,7 +203,7 @@ public class QuicPacketLossSimulationTest {
     @Test
     @DisplayName("QUIC should handle large file transfers with packet loss")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testLargeFileTransferWithPacketLoss() throws Exception {
+    void testLargeFileTransferWithPacketLoss() throws ExecutionException, InterruptedException, TimeoutException {
         // Configure 10% packet loss
         packetLossSimulator.setPacketLossRate(0.1);
         packetLossSimulator.start();
@@ -233,7 +236,6 @@ public class QuicPacketLossSimulationTest {
 
         for (int i = 0; i < totalChunks; i++) {
             final int chunkIndex = i;
-            final int offset = i * chunkSize;
 
             assertTrue(executorService.submit(() -> {
                 try {
@@ -273,7 +275,7 @@ public class QuicPacketLossSimulationTest {
     @Test
     @DisplayName("QUIC should recover from temporary network interruptions")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testNetworkInterruptionRecovery() throws Exception {
+    void testNetworkInterruptionRecovery() throws ExecutionException, InterruptedException, TimeoutException {
         // Start with no packet loss
         packetLossSimulator.setPacketLossRate(0.0);
         packetLossSimulator.start();
@@ -310,7 +312,7 @@ public class QuicPacketLossSimulationTest {
                     .thenCompose(v -> stream2.close())
                     .get(10, TimeUnit.SECONDS);
             messageSent = true;
-        } catch (Exception e) {
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
             messageSent = false;
         }
 
@@ -328,7 +330,7 @@ public class QuicPacketLossSimulationTest {
     @Test
     @DisplayName("QUIC should maintain multiple concurrent streams with packet loss")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
-    void testConcurrentStreamsWithPacketLoss() throws Exception {
+    void testConcurrentStreamsWithPacketLoss() throws ExecutionException, InterruptedException, TimeoutException {
         // Configure 15% packet loss
         packetLossSimulator.setPacketLossRate(0.15);
         packetLossSimulator.start();
@@ -359,7 +361,7 @@ public class QuicPacketLossSimulationTest {
                     stream.close().get(5, TimeUnit.SECONDS);
 
                     successfulStreams.incrementAndGet();
-                } catch (Exception e) {
+                } catch (InterruptedException | ExecutionException | TimeoutException e) {
                     System.err.println("Stream " + streamId + " failed: " + e.getMessage());
                 }
             }, executorService);
