@@ -23,12 +23,14 @@ import com.justsyncit.network.quic.QuicClient;
 import com.justsyncit.network.quic.QuicConfiguration;
 import com.justsyncit.network.quic.QuicConnection;
 import com.justsyncit.network.quic.QuicStream;
+import com.justsyncit.network.quic.QuicTransport;
 import com.justsyncit.network.quic.message.QuicMessageAdapter;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,8 +39,9 @@ import org.slf4j.LoggerFactory;
  * Adapter that integrates QUIC transport with the existing network architecture.
  * Provides a bridge between the high-level network service and QUIC implementation,
  * enabling seamless switching between TCP and QUIC transports.
+ * Follows Adapter pattern and implements QuicTransport interface for DIP compliance.
  */
-public class QuicTransportAdapter {
+public class QuicTransportAdapter implements QuicTransport {
 
     /** Logger for QUIC transport adapter operations. */
     private static final Logger logger = LoggerFactory.getLogger(QuicTransportAdapter.class);
@@ -63,6 +66,7 @@ public class QuicTransportAdapter {
     public QuicTransportAdapter(QuicConfiguration configuration) {
         this.configuration = configuration;
         this.quicClient = createQuicClient(configuration);
+        this.transportListeners = new CopyOnWriteArrayList<>();
         
         // Set up event listeners
         setupEventListeners();
@@ -78,6 +82,9 @@ public class QuicTransportAdapter {
         return new QuicClient(configuration);
     }
 
+    /** List of transport event listeners. */
+    private final CopyOnWriteArrayList<QuicTransportEventListener> transportListeners;
+    
     /**
      * Sets up event listeners for QUIC client events.
      */
@@ -87,27 +94,27 @@ public class QuicTransportAdapter {
                 @Override
                 public void onConnected(InetSocketAddress serverAddress, QuicConnection connection) {
                     logger.info("QUIC connected to: {}", serverAddress);
-                    // Forward to higher-level listeners if needed
+                    notifyConnected(serverAddress, connection);
                 }
 
                 @Override
                 public void onDisconnected(InetSocketAddress serverAddress, Throwable cause) {
                     logger.info("QUIC disconnected from: {} - {}", serverAddress,
                                cause != null ? cause.getMessage() : "normal");
-                    // Forward to higher-level listeners if needed
+                    notifyDisconnected(serverAddress, cause);
                 }
 
                 @Override
                 public void onMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message) {
                     logger.debug("QUIC received message from {}: {}",
                                 serverAddress, message.getMessageType());
-                    // Forward to higher-level listeners if needed
+                    notifyMessageReceived(serverAddress, message);
                 }
 
                 @Override
                 public void onError(Throwable error, String context) {
                     logger.error("QUIC error in {}: {}", context, error.getMessage());
-                    // Forward to higher-level listeners if needed
+                    notifyError(error, context);
                 }
             });
         }
@@ -304,8 +311,59 @@ public class QuicTransportAdapter {
      *
      * @return the QUIC client
      */
+    @Override
+    public void addEventListener(QuicTransportEventListener listener) {
+        transportListeners.add(listener);
+    }
+    
+    @Override
+    public void removeEventListener(QuicTransportEventListener listener) {
+        transportListeners.remove(listener);
+    }
+    
     public QuicClient getQuicClient() {
         return quicClient;
+    }
+    
+    // Event notification methods for transport listeners
+    private void notifyConnected(InetSocketAddress serverAddress, QuicConnection connection) {
+        for (QuicTransportEventListener listener : transportListeners) {
+            try {
+                listener.onConnected(serverAddress, connection);
+            } catch (Exception e) {
+                logger.error("Error notifying listener of connection", e);
+            }
+        }
+    }
+    
+    private void notifyDisconnected(InetSocketAddress serverAddress, Throwable cause) {
+        for (QuicTransportEventListener listener : transportListeners) {
+            try {
+                listener.onDisconnected(serverAddress, cause);
+            } catch (Exception e) {
+                logger.error("Error notifying listener of disconnection", e);
+            }
+        }
+    }
+    
+    private void notifyMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message) {
+        for (QuicTransportEventListener listener : transportListeners) {
+            try {
+                listener.onMessageReceived(serverAddress, message);
+            } catch (Exception e) {
+                logger.error("Error notifying listener of message received", e);
+            }
+        }
+    }
+    
+    private void notifyError(Throwable error, String context) {
+        for (QuicTransportEventListener listener : transportListeners) {
+            try {
+                listener.onError(error, context);
+            } catch (Exception e) {
+                logger.error("Error notifying listener of error", e);
+            }
+        }
     }
 
     /**

@@ -27,7 +27,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-import com.justsyncit.network.quic.tls.QuicCertificateGenerator;
+import com.justsyncit.network.quic.tls.CertificateProvider;
+import com.justsyncit.network.quic.tls.DefaultCertificateProvider;
 
 /**
  * Configuration for TLS 1.3 settings used by QUIC connections.
@@ -244,11 +245,23 @@ public class QuicTlsConfiguration {
      * @return a default configuration
      */
     public static QuicTlsConfiguration defaultConfiguration() {
+        return defaultConfiguration(new DefaultCertificateProvider());
+    }
+    
+    /**
+     * Creates a default TLS configuration with the specified certificate provider.
+     *
+     * @param certificateProvider the certificate provider to use
+     * @return a default configuration
+     */
+    public static QuicTlsConfiguration defaultConfiguration(CertificateProvider certificateProvider) {
+        Objects.requireNonNull(certificateProvider, "certificateProvider cannot be null");
+        
         try {
-            KeyPair keyPair = QuicCertificateGenerator.generateKeyPair();
-            X509Certificate certificate = QuicCertificateGenerator.generateSelfSignedCertificate(keyPair);
+            KeyPair keyPair = certificateProvider.generateKeyPair();
+            X509Certificate certificate = certificateProvider.generateSelfSignedCertificate(keyPair);
             
-            // Handle the case where certificate generation returns null (mock implementation)
+            // Handle the case where certificate generation returns null
             if (certificate == null) {
                 // Create a configuration without certificates for development
                 // In production, this should be replaced with proper certificates
@@ -265,7 +278,7 @@ public class QuicTlsConfiguration {
                 .serverPrivateKey(keyPair.getPrivate())
                 .trustedCertificates(Arrays.asList(certificate))
                 .build();
-        } catch (Exception e) {
+        } catch (CertificateGenerationException e) {
             throw new RuntimeException("Failed to create default TLS configuration", e);
         }
     }

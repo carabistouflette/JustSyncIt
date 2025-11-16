@@ -32,6 +32,7 @@ import com.justsyncit.network.quic.QuicClient;
 import com.justsyncit.network.quic.QuicConnection;
 import com.justsyncit.network.quic.QuicStream;
 import com.justsyncit.network.quic.QuicConfiguration;
+import com.justsyncit.network.quic.QuicTransport;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.network.TransportType;
 
@@ -75,7 +76,7 @@ public class NetworkServiceImpl implements NetworkService {
     private final AtomicBoolean running;
     
     /** QUIC transport adapter. */
-    private final QuicTransportAdapter quicTransportAdapter;
+    private final QuicTransport quicTransport;
     /** QUIC server component. */
     private final QuicServer quicServer;
     /** QUIC configuration. */
@@ -112,10 +113,31 @@ public class NetworkServiceImpl implements NetworkService {
     public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient,
                           ConnectionManager connectionManager, FileTransferManager fileTransferManager,
                           QuicConfiguration quicConfiguration, TransportType defaultTransportType) {
+        this(tcpServer, tcpClient, connectionManager, fileTransferManager,
+             new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType);
+    }
+    
+    /**
+     * Creates a new NetworkService implementation with QUIC transport injection.
+     * Follows Dependency Inversion Principle by accepting QuicTransport interface.
+     *
+     * @param tcpServer the TCP server component
+     * @param tcpClient the TCP client component
+     * @param connectionManager the connection manager
+     * @param fileTransferManager the file transfer manager
+     * @param quicTransport the QUIC transport implementation
+     * @param quicConfiguration the QUIC configuration
+     * @param defaultTransportType the default transport type for new connections
+     */
+    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient,
+                          ConnectionManager connectionManager, FileTransferManager fileTransferManager,
+                          QuicTransport quicTransport, QuicConfiguration quicConfiguration,
+                          TransportType defaultTransportType) {
         this.tcpServer = Objects.requireNonNull(tcpServer, "tcpServer cannot be null");
         this.tcpClient = Objects.requireNonNull(tcpClient, "tcpClient cannot be null");
         this.fileTransferManager = Objects.requireNonNull(fileTransferManager, "fileTransferManager cannot be null");
         this.connectionManager = Objects.requireNonNull(connectionManager, "connectionManager cannot be null");
+        this.quicTransport = Objects.requireNonNull(quicTransport, "quicTransport cannot be null");
         this.quicConfiguration = Objects.requireNonNull(quicConfiguration, "quicConfiguration cannot be null");
         this.defaultTransportType = Objects.requireNonNull(defaultTransportType, "defaultTransportType cannot be null");
         this.statistics = new NetworkStatisticsImpl();
@@ -123,8 +145,7 @@ public class NetworkServiceImpl implements NetworkService {
         this.running = new AtomicBoolean(false);
         this.connectionTransports = new ConcurrentHashMap<>();
 
-        // Initialize QUIC components
-        this.quicTransportAdapter = new QuicTransportAdapter(quicConfiguration);
+        // Initialize QUIC server
         this.quicServer = new QuicServer(quicConfiguration);
 
         // Register event listeners with components
@@ -244,7 +265,10 @@ public class NetworkServiceImpl implements NetworkService {
         });
 
         // QUIC client event listeners
-        quicTransportAdapter.getQuicClient().addEventListener(new QuicClient.QuicClientEventListener() {
+        // Cast to QuicTransportAdapter to access the client for event setup
+        if (quicTransport instanceof QuicTransportAdapter) {
+            QuicTransportAdapter adapter = (QuicTransportAdapter) quicTransport;
+            adapter.getQuicClient().addEventListener(new QuicClient.QuicClientEventListener() {
             @Override
             public void onConnected(InetSocketAddress serverAddress, QuicConnection connection) {
                 connectionTransports.put(serverAddress, TransportType.QUIC);
@@ -321,7 +345,7 @@ public class NetworkServiceImpl implements NetworkService {
                 .thenCompose(v -> {
                     try {
                         if (transportType == TransportType.QUIC) {
-                            return quicTransportAdapter.start()
+                            return quicTransport.start()
                                 .thenCompose(v2 -> quicServer.start(port));
                         } else {
                             return tcpServer.start(port);
@@ -349,7 +373,7 @@ public class NetworkServiceImpl implements NetworkService {
             return CompletableFuture.allOf(
                 tcpServer.stop(),
                 quicServer.stop(),
-                quicTransportAdapter.stop()
+                quicTransport.stop()
             )
                 .thenRun(() -> {
                     statistics.stop();
@@ -372,7 +396,7 @@ public class NetworkServiceImpl implements NetworkService {
     @Override
     public CompletableFuture<Void> connectToNode(InetSocketAddress address, TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
-            return quicTransportAdapter.connect(address)
+            return quicTransport.connect(address)
                 .thenAccept(connection -> {
                     logger.info("Connected to node via QUIC: {}", address);
                 })
@@ -403,7 +427,7 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<Void> disconnectFromNode(InetSocketAddress address) {
         TransportType transportType = connectionTransports.get(address);
         if (transportType == TransportType.QUIC) {
-            return quicTransportAdapter.disconnect(address)
+            return quicTransport.disconnect(address)
                 .thenRun(() -> logger.info("Disconnected from node via QUIC: {}", address))
                 .exceptionally(throwable -> {
                     logger.error("Failed to disconnect from node via QUIC: {}", address, throwable);
@@ -429,9 +453,9 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
                                                ContentStore contentStore, TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
-            // For QUIC, we need to read the file data and send it via the QUIC transport adapter
+            // For QUIC, we need to read the file data and send it via the QUIC transport
             byte[] fileData = Files.readAllBytes(filePath);
-            return quicTransportAdapter.sendFile(filePath, remoteAddress, fileData)
+            return quicTransport.sendFile(filePath, remoteAddress, fileData)
                 .thenCompose(v -> {
                     // Update statistics with bytes sent for file transfer
                     try {
@@ -490,7 +514,7 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress, TransportType transportType)
                                                 throws IOException {
         if (transportType == TransportType.QUIC) {
-            return quicTransportAdapter.sendMessage(message, remoteAddress)
+            return quicTransport.sendMessage(message, remoteAddress)
                 .thenRun(() -> {
                     statistics.incrementBytesSent(message.getTotalSize());
                     logger.debug("Message sent via QUIC to {}: {}", remoteAddress, message.getMessageType());
@@ -554,7 +578,7 @@ public class NetworkServiceImpl implements NetworkService {
     public int getActiveConnectionCount() {
         // Combine TCP and QUIC connection counts
         int tcpConnections = connectionManager.getActiveConnectionCount();
-        int quicConnections = quicTransportAdapter.getActiveConnectionCount();
+        int quicConnections = quicTransport.getActiveConnectionCount();
         return tcpConnections + quicConnections;
     }
 
@@ -594,7 +618,7 @@ public class NetworkServiceImpl implements NetworkService {
         tcpClient.close();
         connectionManager.stop();
         fileTransferManager.stop();
-        quicTransportAdapter.stop();
+        quicTransport.stop();
         listeners.clear();
         connectionTransports.clear();
         logger.info("Network service closed");
