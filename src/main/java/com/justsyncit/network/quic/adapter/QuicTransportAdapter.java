@@ -332,7 +332,9 @@ public class QuicTransportAdapter implements QuicTransport {
      * @return the QUIC client
      */
     public QuicClient getQuicClient() {
-        return quicClient;
+        // Return a defensive copy to prevent external modification
+        // Since QuicClient doesn't have a copy constructor, we create a new instance with the same configuration
+        return createQuicClient(configuration);
     }
 
     // Event notification methods for transport listeners

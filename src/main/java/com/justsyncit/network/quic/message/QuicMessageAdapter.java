@@ -110,7 +110,7 @@ public class QuicMessageAdapter {
                 return null;
             }
 
-            // Read stream ID
+            // Read stream ID (used for logging only)
             long streamId = readVariableLengthInteger(quicBuffer);
 
             // Read message length
@@ -130,10 +130,13 @@ public class QuicMessageAdapter {
             // Deserialize the standard protocol message
             ProtocolMessage message = MessageFactory.deserializeMessage(messageBuffer);
 
-            if (message != null) {
-                logger.debug("Deserialized message {} from QUIC stream {}",
-                           message.getMessageType(), streamId);
+            if (message == null) {
+                logger.warn("Failed to deserialize protocol message from QUIC stream {}", streamId);
+                return null;
             }
+
+            logger.debug("Deserialized message {} from QUIC stream {}",
+                       message.getMessageType(), streamId);
 
             return message;
         } catch (Exception e) {
@@ -199,7 +202,7 @@ public class QuicMessageAdapter {
                 return null;
             }
 
-            // Read stream ID (not needed for raw data)
+            // Read stream ID (not needed for raw data, but must be consumed from buffer)
             readVariableLengthInteger(quicBuffer);
 
             // Read data length
@@ -250,9 +253,7 @@ public class QuicMessageAdapter {
             writeVariableLengthInteger(quicBuffer, dataSize);
 
             // Write control data if present
-            if (dataSize > 0) {
-                quicBuffer.put(data);
-            }
+            quicBuffer.put(data);
 
             quicBuffer.flip();
 

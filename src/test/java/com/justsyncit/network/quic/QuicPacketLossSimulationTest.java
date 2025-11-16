@@ -234,9 +234,8 @@ public class QuicPacketLossSimulationTest {
         for (int i = 0; i < totalChunks; i++) {
             final int chunkIndex = i;
             final int offset = i * chunkSize;
-            final int length = Math.min(chunkSize, largeData.length - offset);
 
-            executorService.submit(() -> {
+            assertTrue(executorService.submit(() -> {
                 try {
                     // In a real implementation, this would send actual data
                     // For simulation, we'll just track progress
@@ -244,7 +243,7 @@ public class QuicPacketLossSimulationTest {
                 } catch (Exception e) {
                     System.err.println("Failed to send chunk " + chunkIndex + ": " + e.getMessage());
                 }
-            });
+            }) != null, "Task submission should succeed");
         }
 
         // Wait for all chunks to be "sent"

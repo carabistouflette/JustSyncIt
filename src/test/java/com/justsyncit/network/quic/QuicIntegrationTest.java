@@ -196,7 +196,7 @@ public class QuicIntegrationTest {
 
         for (int i = 0; i < numStreams; i++) {
             final int streamId = i;
-            executorService.submit(() -> {
+            assertTrue(executorService.submit(() -> {
                 try {
                     QuicStream stream = connection.createStream(true).get(5, TimeUnit.SECONDS);
 
@@ -213,7 +213,7 @@ public class QuicIntegrationTest {
                 } finally {
                     latch.countDown();
                 }
-            });
+            }) != null, "Task submission should succeed");
         }
 
         // Wait for all streams to complete
@@ -311,7 +311,7 @@ public class QuicIntegrationTest {
 
         for (int i = 0; i < numConnections; i++) {
             final int connectionId = i;
-            executorService.submit(() -> {
+            assertTrue(executorService.submit(() -> {
                 try {
                     QuicClient client = new QuicClient(clientConfig);
                     client.start().get(5, TimeUnit.SECONDS);
@@ -331,7 +331,7 @@ public class QuicIntegrationTest {
                 } finally {
                     latch.countDown();
                 }
-            });
+            }) != null, "Task submission should succeed");
         }
 
         // Wait for all connections to complete

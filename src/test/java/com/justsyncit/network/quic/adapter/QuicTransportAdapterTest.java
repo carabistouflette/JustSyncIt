@@ -48,7 +48,6 @@ import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Unit tests for QuicTransportAdapter.
@@ -85,8 +84,8 @@ public class QuicTransportAdapterTest {
             try {
                 adapter.stop().get(5, TimeUnit.SECONDS);
             } catch (Exception e) {
-                // Ignore exceptions during teardown
-                System.err.println("Exception during adapter teardown: " + e.getMessage());
+                // Ignore exceptions during teardown - adapter might not have been started
+                // or might already be stopped
             }
         }
     }
@@ -120,9 +119,6 @@ public class QuicTransportAdapterTest {
     @Test
     @DisplayName("Adapter should handle connection events")
     void testConnectionEvents() throws Exception {
-        AtomicBoolean connected = new AtomicBoolean(false);
-        AtomicBoolean disconnected = new AtomicBoolean(false);
-
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -213,7 +209,7 @@ public class QuicTransportAdapterTest {
 
         // Test file sending
         Path testFile = Paths.get("test.txt");
-        byte[] testData = "Hello, QUIC World!".getBytes();
+        byte[] testData = "Hello, QUIC World!".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
         CompletableFuture<Void> sendFuture = adapter.sendFile(testFile, testAddress, testData);
         assertDoesNotThrow(() -> sendFuture.get(5, TimeUnit.SECONDS),

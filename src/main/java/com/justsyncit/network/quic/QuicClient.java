@@ -93,7 +93,7 @@ public class QuicClient {
                 } catch (Exception e) {
                     running.set(false);
                     logger.error("Failed to start QUIC client", e);
-                    throw new RuntimeException("Failed to start QUIC client", e);
+                    throw new IllegalStateException("Failed to start QUIC client", e);
                 }
             }, executorService);
         } else {
@@ -163,7 +163,7 @@ public class QuicClient {
                 return connection;
             } catch (Exception e) {
                 logger.error("Failed to connect to QUIC server: {}", address, e);
-                throw new RuntimeException("Failed to connect to QUIC server: " + address, e);
+                throw new IllegalStateException("Failed to connect to QUIC server: " + address, e);
             }
         }, executorService);
     }
@@ -303,7 +303,7 @@ public class QuicClient {
                     logger.info("QUIC client stopped");
                 } catch (Exception e) {
                     logger.error("Error stopping QUIC client", e);
-                    throw new RuntimeException("Error stopping QUIC client", e);
+                    throw new IllegalStateException("Error stopping QUIC client", e);
                 }
             }, executorService);
         } else {
@@ -332,25 +332,6 @@ public class QuicClient {
         }
     }
 
-    private void notifyMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message) {
-        for (QuicClientEventListener listener : listeners) {
-            try {
-                listener.onMessageReceived(serverAddress, message);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of message received", e);
-            }
-        }
-    }
-
-    private void notifyError(Throwable error, String context) {
-        for (QuicClientEventListener listener : listeners) {
-            try {
-                listener.onError(error, context);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of error", e);
-            }
-        }
-    }
 
     /**
      * Sets the simulated server running state for testing purposes.

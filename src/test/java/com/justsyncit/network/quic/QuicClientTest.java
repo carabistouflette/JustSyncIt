@@ -55,7 +55,8 @@ public class QuicClientTest {
     }
 
     @AfterEach
-    void tearDown() throws Exception {
+    void tearDown() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         if (quicClient != null) {
             quicClient.stop().get(5, TimeUnit.SECONDS);
         }
@@ -63,7 +64,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should start and stop successfully")
-    void testStartStop() throws Exception {
+    void testStartStop() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         // Start the client
         CompletableFuture<Void> startFuture = quicClient.start();
         assertDoesNotThrow(() -> startFuture.get(5, TimeUnit.SECONDS),
@@ -77,7 +79,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should not start twice")
-    void testStartTwice() throws Exception {
+    void testStartTwice() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         // Start the client once
         quicClient.start().get(5, TimeUnit.SECONDS);
 
@@ -89,7 +92,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should handle connection events")
-    void testConnectionEvents() throws Exception {
+    void testConnectionEvents() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         AtomicBoolean connected = new AtomicBoolean(false);
         AtomicBoolean disconnected = new AtomicBoolean(false);
 
@@ -124,7 +128,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should handle message events")
-    void testMessageEvents() throws Exception {
+    void testMessageEvents() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         AtomicInteger messageCount = new AtomicInteger(0);
 
         quicClient.addEventListener(new QuicClient.QuicClientEventListener() {
@@ -157,7 +162,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should handle error events")
-    void testErrorEvents() throws Exception {
+    void testErrorEvents() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         AtomicBoolean errorHandled = new AtomicBoolean(false);
 
         quicClient.addEventListener(new QuicClient.QuicClientEventListener() {
@@ -190,7 +196,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should report connection status correctly")
-    void testConnectionStatus() throws Exception {
+    void testConnectionStatus() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
 
         quicClient.start().get(5, TimeUnit.SECONDS);
@@ -206,7 +213,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should handle listener management")
-    void testListenerManagement() throws Exception {
+    void testListenerManagement() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         QuicClient.QuicClientEventListener listener1 = new TestEventListener();
         QuicClient.QuicClientEventListener listener2 = new TestEventListener();
 
@@ -236,7 +244,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should connect to server asynchronously")
-    void testAsyncConnection() throws Exception {
+    void testAsyncConnection() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         quicClient.start().get(5, TimeUnit.SECONDS);
 
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
@@ -248,7 +257,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should create streams asynchronously")
-    void testAsyncStreamCreation() throws Exception {
+    void testAsyncStreamCreation() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         quicClient.start().get(5, TimeUnit.SECONDS);
 
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
@@ -260,7 +270,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should send messages asynchronously")
-    void testAsyncMessageSending() throws Exception {
+    void testAsyncMessageSending() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         quicClient.start().get(5, TimeUnit.SECONDS);
 
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
@@ -273,7 +284,8 @@ public class QuicClientTest {
 
     @Test
     @DisplayName("Client should disconnect asynchronously")
-    void testAsyncDisconnection() throws Exception {
+    void testAsyncDisconnection() throws InterruptedException, java.util.concurrent.ExecutionException,
+            java.util.concurrent.TimeoutException {
         quicClient.start().get(5, TimeUnit.SECONDS);
 
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);

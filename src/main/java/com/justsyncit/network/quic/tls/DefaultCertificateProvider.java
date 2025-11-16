@@ -93,6 +93,12 @@ public class DefaultCertificateProvider implements CertificateProvider {
             // This is a simplified approach that can be enhanced later
             return createBasicSelfSignedCertificate(keyPair);
 
+        } catch (CertificateGenerationException e) {
+            // Re-throw CertificateGenerationException as-is
+            throw e;
+        } catch (RuntimeException e) {
+            logger.error("Failed to generate self-signed certificate", e);
+            throw new CertificateGenerationException("Certificate generation failed", e);
         } catch (Exception e) {
             logger.error("Failed to generate self-signed certificate", e);
             throw new CertificateGenerationException("Certificate generation failed", e);
@@ -167,7 +173,8 @@ public class DefaultCertificateProvider implements CertificateProvider {
      * @return a basic self-signed certificate
      * @throws Exception if creation fails
      */
-    private X509Certificate createBasicSelfSignedCertificate(KeyPair keyPair) throws Exception {
+    private X509Certificate createBasicSelfSignedCertificate(KeyPair keyPair)
+            throws CertificateGenerationException {
         // This is a placeholder implementation
         // In a real scenario, you would use a proper certificate library
         // For now, we'll create a minimal certificate that can be used for testing
@@ -179,6 +186,6 @@ public class DefaultCertificateProvider implements CertificateProvider {
 
         // For now, we'll return a mock certificate that can be replaced
         // The actual implementation should use proper certificate generation
-        return null; // This should be replaced with actual certificate
+        throw new CertificateGenerationException("Certificate generation not implemented");
     }
 }

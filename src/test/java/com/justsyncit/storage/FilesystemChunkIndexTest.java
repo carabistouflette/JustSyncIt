@@ -227,8 +227,8 @@ class FilesystemChunkIndexTest {
         chunkIndex.putChunk(hash3, storageDir.resolve("file3"));
 
         Set<String> activeHashes = new HashSet<>();
-        activeHashes.add(hash1);
-        activeHashes.add(hash3);
+        assertTrue(activeHashes.add(hash1));
+        assertTrue(activeHashes.add(hash3));
 
         // Act
         long removedCount = chunkIndex.retainAll(activeHashes);

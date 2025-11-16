@@ -203,7 +203,7 @@ public class QuicConnection {
                 return stream;
             } catch (Exception e) {
                 logger.error("Failed to create stream on connection to {}", remoteAddress, e);
-                throw new RuntimeException("Failed to create stream", e);
+                throw new IllegalStateException("Failed to create stream", e);
             }
         });
     }

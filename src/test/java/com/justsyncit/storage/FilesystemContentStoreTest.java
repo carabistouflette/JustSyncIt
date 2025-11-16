@@ -39,7 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
@@ -139,18 +138,14 @@ class FilesystemContentStoreTest {
     }
 
     @Test
-    void testRetrieveChunkExistingChunk() throws IOException, StorageIntegrityException {
+    void testRetrieveChunkExistingChunk() throws IOException, StorageIntegrityException, HashingException {
         // Arrange
         String hash = "abcdef1234567890";
         byte[] expectedData = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         Path chunkPath = tempDir.resolve("storage").resolve("ab").resolve("cdef1234567890");
 
         when(mockChunkIndex.getChunkPath(hash)).thenReturn(chunkPath);
-        try {
-            when(mockBlake3Service.hashBuffer(expectedData)).thenReturn(hash);
-        } catch (HashingException e) {
-            // This shouldn't happen in test
-        }
+        when(mockBlake3Service.hashBuffer(expectedData)).thenReturn(hash);
 
         // Create the chunk file and parent directory
         Path parentDir = chunkPath.getParent();
@@ -166,15 +161,11 @@ class FilesystemContentStoreTest {
         assertNotNull(actualData, "Retrieved data should not be null");
         assertArrayEquals(expectedData, actualData);
         verify(mockChunkIndex).getChunkPath(hash);
-        try {
-            verify(mockBlake3Service).hashBuffer(expectedData);
-        } catch (HashingException e) {
-            // This shouldn't happen in test
-        }
+        verify(mockBlake3Service).hashBuffer(expectedData);
     }
 
     @Test
-    void testRetrieveChunkNonExistentChunk() throws IOException, StorageIntegrityException {
+    void testRetrieveChunkNonExistentChunk() throws IOException, StorageIntegrityException, HashingException {
         // Arrange
         String hash = "nonexistent";
 
@@ -186,26 +177,18 @@ class FilesystemContentStoreTest {
         // Assert
         assertNull(result);
         verify(mockChunkIndex).getChunkPath(hash);
-        try {
-            verify(mockBlake3Service, never()).hashBuffer(any());
-        } catch (HashingException e) {
-            // This shouldn't happen in test
-        }
+        verify(mockBlake3Service, never()).hashBuffer(any());
     }
 
     @Test
-    void testRetrieveChunkIntegrityFailure() throws IOException {
+    void testRetrieveChunkIntegrityFailure() throws IOException, HashingException {
         // Arrange
         String hash = "abcdef1234567890";
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         Path chunkPath = tempDir.resolve("storage").resolve("ab").resolve("cdef1234567890");
 
         when(mockChunkIndex.getChunkPath(hash)).thenReturn(chunkPath);
-        try {
-            when(mockBlake3Service.hashBuffer(data)).thenReturn("differenthash");
-        } catch (HashingException e) {
-            // This shouldn't happen in test
-        }
+        when(mockBlake3Service.hashBuffer(data)).thenReturn("differenthash");
 
         // Create the chunk file and parent directory
         Path parentDir = chunkPath.getParent();
@@ -217,11 +200,7 @@ class FilesystemContentStoreTest {
         // Act & Assert
         assertThrows(StorageIntegrityException.class, () -> contentStore.retrieveChunk(hash));
         verify(mockChunkIndex).getChunkPath(hash);
-        try {
-            verify(mockBlake3Service).hashBuffer(data);
-        } catch (HashingException e) {
-            // This shouldn't happen in test
-        }
+        verify(mockBlake3Service).hashBuffer(data);
     }
 
     @Test
@@ -273,13 +252,13 @@ class FilesystemContentStoreTest {
     void testGarbageCollect() throws IOException {
         // Arrange
         Set<String> activeHashes = new HashSet<>();
-        activeHashes.add("hash1");
-        activeHashes.add("hash2");
+        assertTrue(activeHashes.add("hash1"));
+        assertTrue(activeHashes.add("hash2"));
 
         Set<String> allHashes = new HashSet<>();
-        allHashes.add("hash1");
-        allHashes.add("hash2");
-        allHashes.add("hash3"); // This should be garbage collected
+        assertTrue(allHashes.add("hash1"));
+        assertTrue(allHashes.add("hash2"));
+        assertTrue(allHashes.add("hash3")); // This should be garbage collected
 
         when(mockChunkIndex.getAllHashes()).thenReturn(allHashes);
         when(mockChunkIndex.getChunkPath("hash3")).thenReturn(tempDir.resolve("hash3"));
@@ -312,7 +291,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
-    void testClose() throws IOException {
+    void testClose() throws IOException, HashingException {
         // Act
         contentStore.close();
 
@@ -321,13 +300,9 @@ class FilesystemContentStoreTest {
     }
 
     @Test
-    void testOperationsAfterClose() {
+    void testOperationsAfterClose() throws IOException, HashingException {
         // Arrange
-        try {
-            contentStore.close();
-        } catch (IOException e) {
-            fail("Close should not throw exception");
-        }
+        contentStore.close();
 
         // Act & Assert
         assertThrows(IOException.class, () -> contentStore.storeChunk(

@@ -81,9 +81,9 @@ public final class QuicCertificateGenerator {
      *
      * @param keyPair the key pair to use for the certificate
      * @return a self-signed X.509 certificate
-     * @throws Exception if certificate generation fails
+     * @throws CertificateGenerationException if certificate generation fails
      */
-    public static X509Certificate generateSelfSignedCertificate(KeyPair keyPair) throws Exception {
+    public static X509Certificate generateSelfSignedCertificate(KeyPair keyPair) throws CertificateGenerationException {
         Objects.requireNonNull(keyPair, "keyPair cannot be null");
 
         logger.debug("Generating self-signed certificate");
@@ -98,8 +98,6 @@ public final class QuicCertificateGenerator {
         try {
             // Use Java's keytool to generate a self-signed certificate
             // This is a workaround for the BouncyCastle dependency issues
-            java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
-
             // For now, we'll create a mock certificate that can be replaced later
             // This allows the rest of the QUIC implementation to proceed
             logger.warn(
@@ -115,9 +113,12 @@ public final class QuicCertificateGenerator {
 
             return null;
 
+        } catch (RuntimeException e) {
+            logger.error("Failed to generate certificate", e);
+            throw new CertificateGenerationException("Certificate generation failed", e);
         } catch (Exception e) {
             logger.error("Failed to generate certificate", e);
-            throw e;
+            throw new CertificateGenerationException("Certificate generation failed", e);
         }
     }
 
@@ -127,9 +128,10 @@ public final class QuicCertificateGenerator {
      *
      * @param leafKeyPair the key pair for the leaf certificate
      * @return an array containing the leaf certificate and root certificate
-     * @throws Exception if certificate generation fails
+     * @throws CertificateGenerationException if certificate generation fails
      */
-    public static X509Certificate[] generateCertificateChain(KeyPair leafKeyPair) throws Exception {
+    public static X509Certificate[] generateCertificateChain(KeyPair leafKeyPair)
+            throws CertificateGenerationException {
         Objects.requireNonNull(leafKeyPair, "leafKeyPair cannot be null");
 
         logger.debug("Generating certificate chain");

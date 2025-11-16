@@ -166,8 +166,8 @@ class ContentStoreIntegrationTest {
         String hash3 = contentStore.storeChunk("data3".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         Set<String> activeHashes = new HashSet<>();
-        activeHashes.add(hash1);
-        activeHashes.add(hash3); // hash2 should be garbage collected
+        assertTrue(activeHashes.add(hash1));
+        assertTrue(activeHashes.add(hash3)); // hash2 should be garbage collected
 
         // Act
         long removedCount = contentStore.garbageCollect(activeHashes);
@@ -202,7 +202,7 @@ class ContentStoreIntegrationTest {
                         String hash = contentStore.storeChunk(data);
 
                         synchronized (allHashes) {
-                            allHashes.add(hash);
+                            assertTrue(allHashes.add(hash));
                         }
 
                         successCount.incrementAndGet();
@@ -262,7 +262,7 @@ class ContentStoreIntegrationTest {
                         readSuccessCount.incrementAndGet();
                         Thread.sleep(1); // Small delay to increase contention
                     }
-                } catch (Exception e) {
+                } catch (IOException | StorageIntegrityException | InterruptedException e) {
                     fail("Concurrent read failed: " + e.getMessage());
                 } finally {
                     latch.countDown();
@@ -283,7 +283,7 @@ class ContentStoreIntegrationTest {
                         writeSuccessCount.incrementAndGet();
                         Thread.sleep(1); // Small delay to increase contention
                     }
-                } catch (Exception e) {
+                } catch (IOException | InterruptedException e) {
                     fail("Concurrent write failed: " + e.getMessage());
                 } finally {
                     latch.countDown();

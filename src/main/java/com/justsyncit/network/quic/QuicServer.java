@@ -96,7 +96,7 @@ public class QuicServer {
                 } catch (Exception e) {
                     running.set(false);
                     logger.error("Failed to start QUIC server on port {}", port, e);
-                    throw new RuntimeException("Failed to start QUIC server on port " + port, e);
+                    throw new IllegalStateException("Failed to start QUIC server on port " + port, e);
                 }
             }, executorService);
         } else {
@@ -176,7 +176,7 @@ public class QuicServer {
             return connection;
         } catch (Exception e) {
             logger.error("Failed to handle client connection from {}", clientAddress, e);
-            throw new RuntimeException("Failed to handle client connection", e);
+            throw new IllegalStateException("Failed to handle client connection", e);
         }
     }
 
@@ -308,7 +308,7 @@ public class QuicServer {
                     logger.info("QUIC server stopped");
                 } catch (Exception e) {
                     logger.error("Error stopping QUIC server", e);
-                    throw new RuntimeException("Error stopping QUIC server", e);
+                    throw new IllegalStateException("Error stopping QUIC server", e);
                 }
             }, executorService);
         } else {
@@ -381,15 +381,6 @@ public class QuicServer {
         }
     }
 
-    private void notifyError(Throwable error, String context) {
-        for (QuicServerEventListener listener : listeners) {
-            try {
-                listener.onError(error, context);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of error", e);
-            }
-        }
-    }
 
     /**
      * Interface for QUIC server event listeners.
