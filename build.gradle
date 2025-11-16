@@ -32,6 +32,13 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.16'
     implementation 'ch.qos.logback:logback-classic:1.5.17'
     
+    // QUIC implementation using Kwik (pure Java)
+    implementation 'tech.kwik:kwik:0.10.3'
+    
+    // BouncyCastle for certificate generation
+    implementation 'org.bouncycastle:bcprov-jdk18on:1.78'
+    implementation 'org.bouncycastle:bcpkix-jdk18on:1.78'
+    
     // No external BLAKE3 dependency - using pure Java implementation
     
     // Performance benchmarking
