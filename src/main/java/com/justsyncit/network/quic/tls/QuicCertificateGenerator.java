@@ -18,18 +18,13 @@
 
 package com.justsyncit.network.quic.tls;
 
-import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Objects;
-
-import javax.security.auth.x500.X500Principal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * Utility class for generating self-signed certificates for QUIC TLS connections.
  * Provides methods to generate key pairs and X.509 certificates suitable for
  * TLS 1.3 with QUIC.
- * 
+ *
  * Note: This is a simplified implementation for development/testing purposes.
  * In production, you should use proper certificates from a trusted CA.
  */
@@ -49,10 +44,10 @@ public final class QuicCertificateGenerator {
 
     /** Default key algorithm. */
     private static final String DEFAULT_KEY_ALGORITHM = "EC";
-    
+
     /** Default key size for EC keys. */
     private static final int DEFAULT_EC_KEY_SIZE = 256;
-    
+
     /** Certificate validity period in days. */
     private static final int CERTIFICATE_VALIDITY_DAYS = 365;
 
@@ -69,13 +64,13 @@ public final class QuicCertificateGenerator {
      */
     public static KeyPair generateKeyPair() throws NoSuchAlgorithmException {
         logger.debug("Generating EC key pair with size {} bits", DEFAULT_EC_KEY_SIZE);
-        
+
         KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(DEFAULT_KEY_ALGORITHM);
         keyPairGenerator.initialize(DEFAULT_EC_KEY_SIZE, new SecureRandom());
-        
+
         KeyPair keyPair = keyPairGenerator.generateKeyPair();
         logger.debug("EC key pair generated successfully");
-        
+
         return keyPair;
     }
 
@@ -90,29 +85,30 @@ public final class QuicCertificateGenerator {
      */
     public static X509Certificate generateSelfSignedCertificate(KeyPair keyPair) throws Exception {
         Objects.requireNonNull(keyPair, "keyPair cannot be null");
-        
+
         logger.debug("Generating self-signed certificate");
-        
+
         // For now, we'll create a placeholder certificate
         // In a real implementation, you would use BouncyCastle or another library
         // to create proper X.509 certificates with the right extensions
-        
+
         // Create a simple certificate using Java's built-in tools
         // This is a simplified approach - in production you'd want more control
-        
+
         try {
             // Use Java's keytool to generate a self-signed certificate
             // This is a workaround for the BouncyCastle dependency issues
             java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
-            
+
             // For now, we'll create a mock certificate that can be replaced later
             // This allows the rest of the QUIC implementation to proceed
-            logger.warn("Using mock certificate implementation. Replace with proper certificate generation in production.");
-            
+            logger.warn(
+                    "Using mock certificate implementation. Replace with proper certificate generation in production.");
+
             // Create a temporary self-signed certificate using a simpler approach
             // This will be replaced with a proper implementation
             return createMockCertificate(keyPair);
-            
+
         } catch (Exception e) {
             logger.error("Failed to generate certificate", e);
             throw e;
@@ -129,13 +125,13 @@ public final class QuicCertificateGenerator {
     private static X509Certificate createMockCertificate(KeyPair keyPair) {
         // This is a placeholder implementation
         // In a real scenario, you would use BouncyCastle or another proper certificate library
-        
+
         logger.warn("Creating mock certificate - this should be replaced with proper implementation");
-        
+
         // For now, we'll return null and handle this in the configuration
         // The actual QUIC implementation should handle missing certificates gracefully
         // or use a different approach for certificate generation
-        
+
         return null;
     }
 
@@ -149,12 +145,12 @@ public final class QuicCertificateGenerator {
      */
     public static X509Certificate[] generateCertificateChain(KeyPair leafKeyPair) throws Exception {
         Objects.requireNonNull(leafKeyPair, "leafKeyPair cannot be null");
-        
+
         logger.debug("Generating certificate chain");
-        
+
         // For now, return empty array - this should be implemented properly
         logger.warn("Certificate chain generation not implemented - returning empty array");
-        
+
         return new X509Certificate[0];
     }
 
@@ -169,17 +165,17 @@ public final class QuicCertificateGenerator {
         if (certificate == null) {
             return false;
         }
-        
+
         try {
             // Check if certificate is currently valid
             Date now = new Date();
             if (now.before(certificate.getNotBefore()) || now.after(certificate.getNotAfter())) {
                 return false;
             }
-            
+
             // Check if certificate has a proper key usage (simplified check)
             // In a real implementation, you'd check for specific key usage extensions
-            
+
             return true;
         } catch (Exception e) {
             logger.debug("Certificate validation failed", e);

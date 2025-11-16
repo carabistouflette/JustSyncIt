@@ -19,7 +19,6 @@
 package com.justsyncit.network.quic;
 
 import com.justsyncit.network.protocol.HandshakeMessage;
-import com.justsyncit.network.protocol.ProtocolMessage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests QUIC performance under simulated packet loss conditions.
@@ -44,51 +44,62 @@ import static org.junit.jupiter.api.Assertions.*;
  * significant packet loss, demonstrating its advantages over TCP.
  */
 public class QuicPacketLossSimulationTest {
-    
+
+    /** Server host for testing. */
     private static final String SERVER_HOST = "127.0.0.1";
+    /** Server port for testing. */
     private static final int SERVER_PORT = 9998;
+    /** Timeout in seconds for tests. */
     private static final int TIMEOUT_SECONDS = 30;
+    /** Number of test messages to send. */
     private static final int TEST_MESSAGE_COUNT = 100;
-    private static final int LARGE_FILE_SIZE = 1024 * 1024; // 1MB
-    
+    /** Large file size for testing (1MB). */
+    private static final int LARGE_FILE_SIZE = 1024 * 1024;
+
+    /** QUIC server for testing. */
     private QuicServer quicServer;
+    /** QUIC client for testing. */
     private QuicClient quicClient;
+    /** Server configuration for testing. */
     private QuicConfiguration serverConfig;
+    /** Client configuration for testing. */
     private QuicConfiguration clientConfig;
+    /** Packet loss simulator for testing. */
     private PacketLossSimulator packetLossSimulator;
+    /** Executor service for concurrent operations. */
     private ExecutorService executorService;
-    
+
     @BeforeEach
     void setUp() throws Exception {
         // Create configurations with packet loss simulation enabled
         serverConfig = QuicConfiguration.builder()
-            .idleTimeout(java.time.Duration.ofSeconds(30))
-            .initialMaxData(10000000)
-            .initialMaxStreamData(5000000)
-            .maxBidirectionalStreams(100)
-            .build();
-        
+                .idleTimeout(java.time.Duration.ofSeconds(30))
+                .initialMaxData(10000000)
+                .initialMaxStreamData(5000000)
+                .maxBidirectionalStreams(100)
+                .build();
+
         clientConfig = QuicConfiguration.builder()
-            .idleTimeout(java.time.Duration.ofSeconds(30))
-            .initialMaxData(10000000)
-            .initialMaxStreamData(5000000)
-            .maxBidirectionalStreams(100)
-            .build();
-        
+                .idleTimeout(java.time.Duration.ofSeconds(30))
+                .initialMaxData(10000000)
+                .initialMaxStreamData(5000000)
+                .maxBidirectionalStreams(100)
+                .build();
+
         // Initialize packet loss simulator
         packetLossSimulator = new PacketLossSimulator();
-        
+
         // Initialize executor service
         executorService = Executors.newFixedThreadPool(8);
-        
+
         // Create QUIC server and client
         quicServer = new QuicServer(serverConfig);
         quicClient = new QuicClient(clientConfig);
-        
+
         // Start client
         quicClient.start().get(5, TimeUnit.SECONDS);
     }
-    
+
     @AfterEach
     void tearDown() throws Exception {
         if (quicServer != null) {
@@ -105,7 +116,7 @@ public class QuicPacketLossSimulationTest {
             packetLossSimulator.stop();
         }
     }
-    
+
     @ParameterizedTest
     @ValueSource(doubles = {0.0, 0.05, 0.1, 0.15, 0.2})
     @DisplayName("QUIC should maintain performance with varying packet loss rates")
@@ -114,76 +125,78 @@ public class QuicPacketLossSimulationTest {
         // Configure packet loss simulator
         packetLossSimulator.setPacketLossRate(packetLossRate);
         packetLossSimulator.start();
-        
+
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
-        
+
         // Simulate server running for client connection
         QuicClient.setSimulateServerRunning(true);
-        
+
         // Connect client
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, SERVER_PORT);
         QuicConnection connection = quicClient.connect(serverAddress).get(10, TimeUnit.SECONDS);
-        
+
         // Test message exchange with packet loss
         AtomicInteger successfulMessages = new AtomicInteger(0);
         AtomicInteger failedMessages = new AtomicInteger(0);
         AtomicLong totalTransferTime = new AtomicLong(0);
-        
+
         long startTime = System.currentTimeMillis();
-        
+
         for (int i = 0; i < TEST_MESSAGE_COUNT; i++) {
             final int messageId = i;
             long messageStartTime = System.currentTimeMillis();
-            
+
             try {
                 QuicStream stream = connection.createStream(true).get(5, TimeUnit.SECONDS);
                 HandshakeMessage message = new HandshakeMessage("client-" + messageId, 0x01);
-                
+
                 stream.sendMessage(message)
-                    .thenRun(() -> {
-                        long messageTime = System.currentTimeMillis() - messageStartTime;
-                        totalTransferTime.addAndGet(messageTime);
-                        successfulMessages.incrementAndGet();
-                    })
-                    .exceptionally(throwable -> {
-                        failedMessages.incrementAndGet();
-                        return null;
-                    })
-                    .thenCompose(v -> stream.close())
-                    .get(5, TimeUnit.SECONDS);
-                    
+                        .thenRun(() -> {
+                            long messageTime = System.currentTimeMillis() - messageStartTime;
+                            totalTransferTime.addAndGet(messageTime);
+                            successfulMessages.incrementAndGet();
+                        })
+                        .exceptionally(throwable -> {
+                            failedMessages.incrementAndGet();
+                            return null;
+                        })
+                        .thenCompose(v -> stream.close())
+                        .get(5, TimeUnit.SECONDS);
+
             } catch (Exception e) {
                 failedMessages.incrementAndGet();
             }
         }
-        
+
         long endTime = System.currentTimeMillis();
         long totalTime = endTime - startTime;
-        
+
         // Wait for all operations to complete
         Thread.sleep(2000);
-        
+
         // Calculate metrics
         double successRate = (double) successfulMessages.get() / TEST_MESSAGE_COUNT;
         double averageTransferTime = (double) totalTransferTime.get() / successfulMessages.get();
         double throughput = (double) successfulMessages.get() / (totalTime / 1000.0);
-        
+
         // Verify results
-        assertTrue(successRate >= 0.8, 
-                  "Success rate should be at least 80% with " + packetLossRate * 100 + "% packet loss, was " + successRate * 100 + "%");
-        
+        assertTrue(successRate >= 0.8,
+                "Success rate should be at least 80% with " + packetLossRate * 100
+                + "% packet loss, was " + successRate * 100 + "%");
+
         // Log performance metrics
-        System.out.printf("Packet Loss: %.1f%%, Success Rate: %.1f%%, Avg Transfer Time: %.2fms, Throughput: %.2f msg/s%n",
+        System.out.printf("Packet Loss: %.1f%%, Success Rate: %.1f%%, "
+                        + "Avg Transfer Time: %.2fms, Throughput: %.2f msg/s%n",
                         packetLossRate * 100, successRate * 100, averageTransferTime, throughput);
-        
+
         // Close connection
         connection.close().get(5, TimeUnit.SECONDS);
-        
+
         // Reset simulation state
         QuicClient.setSimulateServerRunning(false);
     }
-    
+
     @Test
     @DisplayName("QUIC should handle large file transfers with packet loss")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
@@ -191,38 +204,38 @@ public class QuicPacketLossSimulationTest {
         // Configure 10% packet loss
         packetLossSimulator.setPacketLossRate(0.1);
         packetLossSimulator.start();
-        
+
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
-        
+
         // Simulate server running for client connection
         QuicClient.setSimulateServerRunning(true);
-        
+
         // Connect client
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, SERVER_PORT);
         QuicConnection connection = quicClient.connect(serverAddress).get(10, TimeUnit.SECONDS);
-        
+
         // Create large data
         byte[] largeData = new byte[LARGE_FILE_SIZE];
         for (int i = 0; i < largeData.length; i++) {
             largeData[i] = (byte) (i % 256);
         }
-        
+
         // Transfer large file
         long startTime = System.currentTimeMillis();
-        
+
         QuicStream stream = connection.createStream(true).get(5, TimeUnit.SECONDS);
-        
+
         // Send data in chunks to simulate file transfer
         final int chunkSize = 64 * 1024; // 64KB chunks
         int totalChunks = (int) Math.ceil((double) largeData.length / chunkSize);
         AtomicInteger sentChunks = new AtomicInteger(0);
-        
+
         for (int i = 0; i < totalChunks; i++) {
             final int chunkIndex = i;
             final int offset = i * chunkSize;
             final int length = Math.min(chunkSize, largeData.length - offset);
-            
+
             executorService.submit(() -> {
                 try {
                     // In a real implementation, this would send actual data
@@ -233,31 +246,31 @@ public class QuicPacketLossSimulationTest {
                 }
             });
         }
-        
+
         // Wait for all chunks to be "sent"
         while (sentChunks.get() < totalChunks) {
             Thread.sleep(100);
         }
-        
+
         long endTime = System.currentTimeMillis();
         long transferTime = endTime - startTime;
         double throughput = (double) LARGE_FILE_SIZE / (transferTime / 1000.0) / (1024 * 1024); // MB/s
-        
+
         // Verify transfer completed
         assertEquals(totalChunks, sentChunks.get());
-        
+
         // Log performance metrics
         System.out.printf("Large File Transfer with 10%% packet loss: %.2f MB in %d ms (%.2f MB/s)%n",
                         LARGE_FILE_SIZE / (1024.0 * 1024.0), transferTime, throughput);
-        
+
         // Close connection
         stream.close().get(5, TimeUnit.SECONDS);
         connection.close().get(5, TimeUnit.SECONDS);
-        
+
         // Reset simulation state
         QuicClient.setSimulateServerRunning(false);
     }
-    
+
     @Test
     @DisplayName("QUIC should recover from temporary network interruptions")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
@@ -265,54 +278,54 @@ public class QuicPacketLossSimulationTest {
         // Start with no packet loss
         packetLossSimulator.setPacketLossRate(0.0);
         packetLossSimulator.start();
-        
+
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
-        
+
         // Simulate server running for client connection
         QuicClient.setSimulateServerRunning(true);
-        
+
         // Connect client
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, SERVER_PORT);
         QuicConnection connection = quicClient.connect(serverAddress).get(10, TimeUnit.SECONDS);
-        
+
         // Send initial messages
         QuicStream stream1 = connection.createStream(true).get(5, TimeUnit.SECONDS);
         HandshakeMessage message1 = new HandshakeMessage("initial-message", 0x01);
         stream1.sendMessage(message1).get(5, TimeUnit.SECONDS);
-        
+
         // Simulate network interruption (100% packet loss for 2 seconds)
         packetLossSimulator.setPacketLossRate(1.0);
         Thread.sleep(2000);
-        
+
         // Restore network
         packetLossSimulator.setPacketLossRate(0.0);
-        
+
         // Send messages after interruption
         QuicStream stream2 = connection.createStream(true).get(5, TimeUnit.SECONDS);
         HandshakeMessage message2 = new HandshakeMessage("recovery-message", 0x01);
-        
+
         boolean messageSent = false;
         try {
             stream2.sendMessage(message2)
-                .thenCompose(v -> stream2.close())
-                .get(10, TimeUnit.SECONDS);
+                    .thenCompose(v -> stream2.close())
+                    .get(10, TimeUnit.SECONDS);
             messageSent = true;
         } catch (Exception e) {
             messageSent = false;
         }
-        
+
         // Verify connection recovered and message was sent
         assertTrue(messageSent, "QUIC should recover from network interruption");
         assertTrue(connection.isActive(), "Connection should remain active after interruption");
-        
+
         // Close connection
         connection.close().get(5, TimeUnit.SECONDS);
-        
+
         // Reset simulation state
         QuicClient.setSimulateServerRunning(false);
     }
-    
+
     @Test
     @DisplayName("QUIC should maintain multiple concurrent streams with packet loss")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
@@ -320,75 +333,83 @@ public class QuicPacketLossSimulationTest {
         // Configure 15% packet loss
         packetLossSimulator.setPacketLossRate(0.15);
         packetLossSimulator.start();
-        
+
         // Start server
         quicServer.start(SERVER_PORT).get(5, TimeUnit.SECONDS);
-        
+
         // Simulate server running for client connection
         QuicClient.setSimulateServerRunning(true);
-        
+
         // Connect client
         InetSocketAddress serverAddress = new InetSocketAddress(SERVER_HOST, SERVER_PORT);
         QuicConnection connection = quicClient.connect(serverAddress).get(10, TimeUnit.SECONDS);
-        
+
         // Create multiple concurrent streams
         int numStreams = 10;
         AtomicInteger successfulStreams = new AtomicInteger(0);
         CompletableFuture<?>[] streamFutures = new CompletableFuture[numStreams];
-        
+
         for (int i = 0; i < numStreams; i++) {
             final int streamId = i;
             streamFutures[i] = CompletableFuture.runAsync(() -> {
                 try {
                     QuicStream stream = connection.createStream(true).get(5, TimeUnit.SECONDS);
                     HandshakeMessage message = new HandshakeMessage("stream-" + streamId, 0x01);
-                    
+
                     stream.sendMessage(message).get(10, TimeUnit.SECONDS);
                     stream.close().get(5, TimeUnit.SECONDS);
-                    
+
                     successfulStreams.incrementAndGet();
                 } catch (Exception e) {
                     System.err.println("Stream " + streamId + " failed: " + e.getMessage());
                 }
             }, executorService);
         }
-        
+
         // Wait for all streams to complete
         CompletableFuture.allOf(streamFutures).get(20, TimeUnit.SECONDS);
-        
+
         // Verify results
         double successRate = (double) successfulStreams.get() / numStreams;
-        assertTrue(successRate >= 0.7, 
-                  "At least 70% of concurrent streams should succeed with 15% packet loss, was " + successRate * 100 + "%");
-        
+        assertTrue(successRate >= 0.7,
+                "At least 70% of concurrent streams should succeed with 15% packet loss, was "
+                + successRate * 100 + "%");
+
         // Close connection
         connection.close().get(5, TimeUnit.SECONDS);
-        
+
         // Reset simulation state
         QuicClient.setSimulateServerRunning(false);
     }
-    
+
+    /**
+     * Simple packet loss simulator for testing.
+     * In a real implementation, this would integrate with the QUIC library
+     * to actually drop packets at the network layer.
+     */
     /**
      * Simple packet loss simulator for testing.
      * In a real implementation, this would integrate with the QUIC library
      * to actually drop packets at the network layer.
      */
     private static class PacketLossSimulator {
+        /** Packet loss rate (0.0 to 1.0). */
         private double packetLossRate = 0.0;
+        /** Whether the simulator is running. */
         private volatile boolean running = false;
-        
+
         public void setPacketLossRate(double rate) {
             this.packetLossRate = Math.max(0.0, Math.min(1.0, rate));
         }
-        
+
         public void start() {
             this.running = true;
         }
-        
+
         public void stop() {
             this.running = false;
         }
-        
+
         public boolean shouldDropPacket() {
             if (!running || packetLossRate == 0.0) {
                 return false;

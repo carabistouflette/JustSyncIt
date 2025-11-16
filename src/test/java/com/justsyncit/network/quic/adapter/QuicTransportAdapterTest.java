@@ -18,7 +18,6 @@
 
 package com.justsyncit.network.quic.adapter;
 
-import com.justsyncit.network.protocol.ProtocolMessage;
 import com.justsyncit.network.protocol.PingMessage;
 import com.justsyncit.network.quic.QuicClient;
 import com.justsyncit.network.quic.QuicConfiguration;
@@ -30,8 +29,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
@@ -40,7 +49,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Unit tests for QuicTransportAdapter.
@@ -48,17 +56,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 @DisplayName("QuicTransportAdapter Tests")
 public class QuicTransportAdapterTest {
 
+    /** Mock QUIC client for testing. */
     @Mock
     private QuicClient mockQuicClient;
-    
+
+    /** QUIC transport adapter under test. */
     private QuicTransportAdapter adapter;
+    /** QUIC configuration for testing. */
     private QuicConfiguration configuration;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
         configuration = QuicConfiguration.defaultConfiguration();
-        
+
         // Create adapter with mocked client
         adapter = new QuicTransportAdapter(configuration) {
             @Override
@@ -85,23 +96,23 @@ public class QuicTransportAdapterTest {
     void testStartStop() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         CompletableFuture<Void> startFuture = adapter.start();
-        assertDoesNotThrow(() -> startFuture.get(5, TimeUnit.SECONDS), 
-            "Adapter should start without throwing exception");
-        
+        assertDoesNotThrow(() -> startFuture.get(5, TimeUnit.SECONDS),
+                "Adapter should start without throwing exception");
+
         // Verify client start was called
         verify(mockQuicClient, times(1)).start();
-        
+
         // Mock client stop
         when(mockQuicClient.stop()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Stop adapter
         CompletableFuture<Void> stopFuture = adapter.stop();
-        assertDoesNotThrow(() -> stopFuture.get(5, TimeUnit.SECONDS), 
-            "Adapter should stop without throwing exception");
-        
+        assertDoesNotThrow(() -> stopFuture.get(5, TimeUnit.SECONDS),
+                "Adapter should stop without throwing exception");
+
         // Verify client stop was called
         verify(mockQuicClient, times(1)).stop();
     }
@@ -111,24 +122,24 @@ public class QuicTransportAdapterTest {
     void testConnectionEvents() throws Exception {
         AtomicBoolean connected = new AtomicBoolean(false);
         AtomicBoolean disconnected = new AtomicBoolean(false);
-        
+
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock connection
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         QuicConnection mockConnection = mock(QuicConnection.class);
-        
+
         when(mockQuicClient.connect(testAddress))
-            .thenReturn(CompletableFuture.completedFuture(mockConnection));
-        
+                .thenReturn(CompletableFuture.completedFuture(mockConnection));
+
         // Connect
         CompletableFuture<QuicConnection> connectionFuture = adapter.connect(testAddress);
         QuicConnection result = connectionFuture.get(5, TimeUnit.SECONDS);
-        
+
         // Verify connection was attempted
         verify(mockQuicClient, times(1)).connect(testAddress);
         assertSame(mockConnection, result, "Should return the mocked connection");
@@ -139,20 +150,20 @@ public class QuicTransportAdapterTest {
     void testDisconnection() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock disconnection
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         when(mockQuicClient.disconnect(testAddress))
-            .thenReturn(CompletableFuture.completedFuture(null));
-        
+                .thenReturn(CompletableFuture.completedFuture(null));
+
         // Disconnect
         CompletableFuture<Void> disconnectFuture = adapter.disconnect(testAddress);
-        assertDoesNotThrow(() -> disconnectFuture.get(5, TimeUnit.SECONDS), 
-            "Disconnection should complete without exception");
-        
+        assertDoesNotThrow(() -> disconnectFuture.get(5, TimeUnit.SECONDS),
+                "Disconnection should complete without exception");
+
         // Verify disconnection was attempted
         verify(mockQuicClient, times(1)).disconnect(testAddress);
     }
@@ -162,21 +173,21 @@ public class QuicTransportAdapterTest {
     void testMessageSending() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock message sending
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         PingMessage pingMessage = new PingMessage();
         when(mockQuicClient.sendMessage(pingMessage, testAddress))
-            .thenReturn(CompletableFuture.completedFuture(null));
-        
+                .thenReturn(CompletableFuture.completedFuture(null));
+
         // Send message
         CompletableFuture<Void> sendFuture = adapter.sendMessage(pingMessage, testAddress);
-        assertDoesNotThrow(() -> sendFuture.get(5, TimeUnit.SECONDS), 
-            "Message sending should complete without exception");
-        
+        assertDoesNotThrow(() -> sendFuture.get(5, TimeUnit.SECONDS),
+                "Message sending should complete without exception");
+
         // Verify message was sent
         verify(mockQuicClient, times(1)).sendMessage(pingMessage, testAddress);
     }
@@ -186,28 +197,28 @@ public class QuicTransportAdapterTest {
     void testFileSending() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock connection and stream
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         QuicConnection mockConnection = mock(QuicConnection.class);
         QuicStream mockStream = mock(QuicStream.class);
-        
+
         when(mockQuicClient.connect(testAddress))
-            .thenReturn(CompletableFuture.completedFuture(mockConnection));
+                .thenReturn(CompletableFuture.completedFuture(mockConnection));
         when(mockConnection.createStream(true))
-            .thenReturn(CompletableFuture.completedFuture(mockStream));
-        
+                .thenReturn(CompletableFuture.completedFuture(mockStream));
+
         // Test file sending
         Path testFile = Paths.get("test.txt");
         byte[] testData = "Hello, QUIC World!".getBytes();
-        
+
         CompletableFuture<Void> sendFuture = adapter.sendFile(testFile, testAddress, testData);
-        assertDoesNotThrow(() -> sendFuture.get(5, TimeUnit.SECONDS), 
-            "File sending should complete without exception");
-        
+        assertDoesNotThrow(() -> sendFuture.get(5, TimeUnit.SECONDS),
+                "File sending should complete without exception");
+
         // Verify connection and stream creation
         verify(mockQuicClient, times(1)).connect(testAddress);
         verify(mockConnection, times(1)).createStream(true);
@@ -218,24 +229,24 @@ public class QuicTransportAdapterTest {
     void testStreamCreation() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock connection and stream creation
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         QuicConnection mockConnection = mock(QuicConnection.class);
         QuicStream mockStream = mock(QuicStream.class);
-        
+
         when(mockQuicClient.connect(testAddress))
-            .thenReturn(CompletableFuture.completedFuture(mockConnection));
+                .thenReturn(CompletableFuture.completedFuture(mockConnection));
         when(mockConnection.createStream(true))
-            .thenReturn(CompletableFuture.completedFuture(mockStream));
-        
+                .thenReturn(CompletableFuture.completedFuture(mockStream));
+
         // Create stream
         CompletableFuture<QuicStream> streamFuture = adapter.createStream(testAddress, true);
         QuicStream result = streamFuture.get(5, TimeUnit.SECONDS);
-        
+
         // Verify connection and stream creation were attempted
         verify(mockQuicClient, times(1)).connect(testAddress);
         verify(mockConnection, times(1)).createStream(true);
@@ -247,19 +258,19 @@ public class QuicTransportAdapterTest {
     void testConnectionStatus() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Test connection status
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         when(mockQuicClient.isConnected(testAddress)).thenReturn(true);
-        
+
         assertTrue(adapter.isConnected(testAddress), "Should report as connected");
-        
+
         when(mockQuicClient.isConnected(testAddress)).thenReturn(false);
         assertFalse(adapter.isConnected(testAddress), "Should report as not connected");
-        
+
         // Verify status checks
         verify(mockQuicClient, times(2)).isConnected(testAddress);
     }
@@ -269,16 +280,16 @@ public class QuicTransportAdapterTest {
     void testActiveConnectionCount() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Test active connection count
         when(mockQuicClient.getActiveConnectionCount()).thenReturn(5);
-        
-        assertEquals(5, adapter.getActiveConnectionCount(), 
-            "Should report correct active connection count");
-        
+
+        assertEquals(5, adapter.getActiveConnectionCount(),
+                "Should report correct active connection count");
+
         // Verify count was retrieved
         verify(mockQuicClient, times(1)).getActiveConnectionCount();
     }
@@ -302,17 +313,17 @@ public class QuicTransportAdapterTest {
     void testStatistics() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock statistics
         when(mockQuicClient.getActiveConnectionCount()).thenReturn(3);
-        
+
         QuicTransportAdapter.QuicTransportStatistics stats = adapter.getStatistics();
         assertNotNull(stats, "Statistics should not be null");
-        assertEquals(3, stats.getActiveConnections(), 
-            "Should report correct active connection count");
+        assertEquals(3, stats.getActiveConnections(),
+                "Should report correct active connection count");
     }
 
     @Test
@@ -320,27 +331,27 @@ public class QuicTransportAdapterTest {
     void testConnectionErrors() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock connection failure
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         RuntimeException testException = new RuntimeException("Connection failed");
         when(mockQuicClient.connect(testAddress))
-            .thenReturn(CompletableFuture.failedFuture(testException));
-        
+                .thenReturn(CompletableFuture.failedFuture(testException));
+
         // Try to connect
         CompletableFuture<QuicConnection> connectionFuture = adapter.connect(testAddress);
-        
+
         // Should complete with exception
         ExecutionException exception = assertThrows(ExecutionException.class,
-            () -> connectionFuture.get(5, TimeUnit.SECONDS),
-            "Connection should fail with exception");
-        
+                () -> connectionFuture.get(5, TimeUnit.SECONDS),
+                "Connection should fail with exception");
+
         // Verify the cause is our test exception
         assertEquals(testException.getMessage(), exception.getCause().getMessage());
-        
+
         // Verify connection was attempted
         verify(mockQuicClient, times(1)).connect(testAddress);
     }
@@ -350,28 +361,28 @@ public class QuicTransportAdapterTest {
     void testMessageSendingErrors() throws Exception {
         // Mock client start
         when(mockQuicClient.start()).thenReturn(CompletableFuture.completedFuture(null));
-        
+
         // Start adapter
         adapter.start().get(5, TimeUnit.SECONDS);
-        
+
         // Mock message sending failure
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         PingMessage pingMessage = new PingMessage();
         RuntimeException testException = new RuntimeException("Send failed");
         when(mockQuicClient.sendMessage(pingMessage, testAddress))
-            .thenReturn(CompletableFuture.failedFuture(testException));
-        
+                .thenReturn(CompletableFuture.failedFuture(testException));
+
         // Try to send message
         CompletableFuture<Void> sendFuture = adapter.sendMessage(pingMessage, testAddress);
-        
+
         // Should complete with exception
         ExecutionException exception = assertThrows(ExecutionException.class,
-            () -> sendFuture.get(5, TimeUnit.SECONDS),
-            "Message sending should fail with exception");
-        
+                () -> sendFuture.get(5, TimeUnit.SECONDS),
+                "Message sending should fail with exception");
+
         // Verify the cause is our test exception
         assertEquals(testException.getMessage(), exception.getCause().getMessage());
-        
+
         // Verify message send was attempted
         verify(mockQuicClient, times(1)).sendMessage(pingMessage, testAddress);
     }

@@ -108,7 +108,7 @@ public class QuicClient {
         // Initialize Kwik client with configuration
         // This is a placeholder - actual implementation will use Kwik API
         logger.debug("Initializing QUIC client with configuration: {}", configuration);
-        
+
         // Set up event handlers
         setupEventHandlers();
     }
@@ -135,7 +135,7 @@ public class QuicClient {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 logger.debug("Connecting to QUIC server: {}", address);
-                
+
                 // Check if already connected
                 QuicConnection existingConnection = connections.get(address);
                 if (existingConnection != null && existingConnection.isActive()) {
@@ -150,16 +150,16 @@ public class QuicClient {
                 if ((address.getPort() == 9999 || address.getPort() == 9998) && !simulateServerRunning) {
                     throw new IOException("Connection refused: No server listening on port " + address.getPort());
                 }
-                
+
                 // Create new connection using Kwik
                 QuicConnection connection = createConnection(address);
-                
+
                 // Store connection
                 connections.put(address, connection);
-                
+
                 logger.info("Connected to QUIC server: {}", address);
                 notifyConnected(address, connection);
-                
+
                 return connection;
             } catch (Exception e) {
                 logger.error("Failed to connect to QUIC server: {}", address, e);
@@ -291,15 +291,15 @@ public class QuicClient {
                 try {
                     // Close all connections
                     CompletableFuture<?>[] closeFutures = connections.values().stream()
-                        .map(QuicConnection::close)
-                        .toArray(CompletableFuture[]::new);
-                    
+                            .map(QuicConnection::close)
+                            .toArray(CompletableFuture[]::new);
+
                     CompletableFuture.allOf(closeFutures).join();
                     connections.clear();
-                    
+
                     // Shutdown executor
                     executorService.shutdown();
-                    
+
                     logger.info("QUIC client stopped");
                 } catch (Exception e) {
                     logger.error("Error stopping QUIC client", e);

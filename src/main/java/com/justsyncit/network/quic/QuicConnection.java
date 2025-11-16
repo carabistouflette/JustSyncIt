@@ -191,14 +191,14 @@ public class QuicConnection {
             try {
                 long streamId = generateStreamId(bidirectional);
                 QuicStream stream = new QuicStream(streamId, this, bidirectional);
-                
+
                 streams.put(streamId, stream);
                 updateLastActivityTime();
-                
-                logger.debug("Created {} stream {} on connection to {}", 
-                           bidirectional ? "bidirectional" : "unidirectional", 
-                           streamId, remoteAddress);
-                
+
+                logger.debug("Created {} stream {} on connection to {}",
+                        bidirectional ? "bidirectional" : "unidirectional",
+                        streamId, remoteAddress);
+
                 notifyStreamCreated(stream);
                 return stream;
             } catch (Exception e) {
@@ -219,18 +219,18 @@ public class QuicConnection {
         // First bit: 0 for client-initiated, 1 for server-initiated
         // Second bit: 0 for bidirectional, 1 for unidirectional
         // Remaining bits: stream identifier
-        
+
         long baseId = streamIdCounter.getAndAdd(2); // Increment by 2 to maintain initiator bit
         long streamId = baseId;
-        
+
         if (!bidirectional) {
             streamId |= 0x02; // Set the unidirectional bit
         }
-        
+
         if (!isClient) {
             streamId |= 0x01; // Set the server-initiated bit
         }
-        
+
         return streamId;
     }
 
@@ -286,7 +286,7 @@ public class QuicConnection {
     public void handleReceivedMessage(ProtocolMessage message, long streamId) {
         updateLastActivityTime();
         bytesReceived.addAndGet(message.getTotalSize());
-        
+
         QuicStream stream = streams.get(streamId);
         if (stream != null) {
             stream.handleReceivedMessage(message);
@@ -298,7 +298,7 @@ public class QuicConnection {
             newStream.handleReceivedMessage(message);
             notifyStreamCreated(newStream);
         }
-        
+
         notifyMessageReceived(message, streamId);
     }
 
@@ -328,12 +328,12 @@ public class QuicConnection {
     public CompletableFuture<Void> close() {
         if (active.compareAndSet(true, false)) {
             logger.info("Closing QUIC connection to {}", remoteAddress);
-            
+
             // Close all streams
             CompletableFuture<?>[] closeFutures = streams.values().stream()
-                .map(QuicStream::close)
-                .toArray(CompletableFuture[]::new);
-            
+                    .map(QuicStream::close)
+                    .toArray(CompletableFuture[]::new);
+
             return CompletableFuture.allOf(closeFutures)
                 .thenRun(() -> {
                     streams.clear();

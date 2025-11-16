@@ -29,21 +29,21 @@ import java.util.concurrent.CompletableFuture;
  * Follows Dependency Inversion Principle by abstracting QUIC transport functionality.
  */
 public interface QuicTransport {
-    
+
     /**
      * Starts the QUIC transport.
      *
      * @return a CompletableFuture that completes when the transport is started
      */
     CompletableFuture<Void> start();
-    
+
     /**
      * Stops the QUIC transport.
      *
      * @return a CompletableFuture that completes when the transport is stopped
      */
     CompletableFuture<Void> stop();
-    
+
     /**
      * Connects to a remote server using QUIC.
      *
@@ -51,7 +51,7 @@ public interface QuicTransport {
      * @return a CompletableFuture that completes when connection is established
      */
     CompletableFuture<QuicConnection> connect(InetSocketAddress address);
-    
+
     /**
      * Disconnects from a remote server.
      *
@@ -59,7 +59,7 @@ public interface QuicTransport {
      * @return a CompletableFuture that completes when disconnection is complete
      */
     CompletableFuture<Void> disconnect(InetSocketAddress address);
-    
+
     /**
      * Sends a message to a remote server.
      *
@@ -68,7 +68,7 @@ public interface QuicTransport {
      * @return a CompletableFuture that completes when the message is sent
      */
     CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress);
-    
+
     /**
      * Sends a file to a remote server.
      *
@@ -78,7 +78,7 @@ public interface QuicTransport {
      * @return a CompletableFuture that completes when the file is sent
      */
     CompletableFuture<Void> sendFile(Path filePath, InetSocketAddress remoteAddress, byte[] fileData);
-    
+
     /**
      * Checks if connected to a specific server.
      *
@@ -86,33 +86,33 @@ public interface QuicTransport {
      * @return true if connected, false otherwise
      */
     boolean isConnected(InetSocketAddress serverAddress);
-    
+
     /**
      * Gets the number of active connections.
      *
      * @return the number of active connections
      */
     int getActiveConnectionCount();
-    
+
     /**
      * Adds a transport event listener.
      *
      * @param listener the event listener
      */
     void addEventListener(QuicTransportEventListener listener);
-    
+
     /**
      * Removes a transport event listener.
      *
      * @param listener the event listener to remove
      */
     void removeEventListener(QuicTransportEventListener listener);
-    
+
     /**
      * Interface for QUIC transport event listeners.
      */
     interface QuicTransportEventListener {
-        
+
         /**
          * Called when connected to server.
          *
@@ -120,7 +120,7 @@ public interface QuicTransport {
          * @param connection the established connection
          */
         void onConnected(InetSocketAddress serverAddress, QuicConnection connection);
-        
+
         /**
          * Called when disconnected from server.
          *
@@ -128,7 +128,7 @@ public interface QuicTransport {
          * @param cause the reason for disconnection (null if normal)
          */
         void onDisconnected(InetSocketAddress serverAddress, Throwable cause);
-        
+
         /**
          * Called when a message is received from server.
          *
@@ -136,7 +136,7 @@ public interface QuicTransport {
          * @param message the received message
          */
         void onMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message);
-        
+
         /**
          * Called when an error occurs.
          *

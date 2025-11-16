@@ -22,7 +22,6 @@ import com.justsyncit.ServiceException;
 import com.justsyncit.network.protocol.ProtocolMessage;
 import com.justsyncit.network.transfer.FileTransferResult;
 import com.justsyncit.storage.ContentStore;
-import com.justsyncit.network.TransportType;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -135,7 +134,8 @@ public interface NetworkService {
      * @return a CompletableFuture that completes when the message is sent
      * @throws IOException if an I/O error occurs
      */
-    CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress, TransportType transportType) throws IOException;
+    CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress,
+            TransportType transportType) throws IOException;
 
     /**
      * Registers a listener for network events.

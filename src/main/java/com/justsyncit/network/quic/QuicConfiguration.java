@@ -30,52 +30,52 @@ public class QuicConfiguration {
 
     /** Default maximum idle timeout for QUIC connections. */
     public static final Duration DEFAULT_IDLE_TIMEOUT = Duration.ofSeconds(30);
-    
+
     /** Default maximum number of bidirectional streams. */
     public static final int DEFAULT_MAX_BIDIRECTIONAL_STREAMS = 100;
-    
+
     /** Default maximum number of unidirectional streams. */
     public static final int DEFAULT_MAX_UNIDIRECTIONAL_STREAMS = 100;
-    
+
     /** Default initial maximum data for connections. */
     public static final long DEFAULT_INITIAL_MAX_DATA = 10 * 1024 * 1024; // 10MB
-    
+
     /** Default initial maximum stream data. */
     public static final long DEFAULT_INITIAL_MAX_STREAM_DATA = 1024 * 1024; // 1MB
-    
+
     /** Default maximum UDP payload size. */
     public static final int DEFAULT_MAX_UDP_PAYLOAD_SIZE = 1200;
-    
+
     /** Default connection migration support. */
     public static final boolean DEFAULT_CONNECTION_MIGRATION = false;
-    
+
     /** Default 0-RTT support. */
     public static final boolean DEFAULT_0_RTT_SUPPORT = true;
 
     /** Maximum idle timeout for connections. */
     private final Duration idleTimeout;
-    
+
     /** Maximum number of bidirectional streams per connection. */
     private final int maxBidirectionalStreams;
-    
+
     /** Maximum number of unidirectional streams per connection. */
     private final int maxUnidirectionalStreams;
-    
+
     /** Initial maximum data that can be sent on a connection. */
     private final long initialMaxData;
-    
+
     /** Initial maximum data that can be sent on a stream. */
     private final long initialMaxStreamData;
-    
+
     /** Maximum UDP payload size. */
     private final int maxUdpPayloadSize;
-    
+
     /** Whether connection migration is supported. */
     private final boolean connectionMigration;
-    
+
     /** Whether 0-RTT data is supported. */
     private final boolean zeroRttSupport;
-    
+
     /** TLS configuration. */
     private final QuicTlsConfiguration tlsConfiguration;
 
@@ -194,14 +194,23 @@ public class QuicConfiguration {
      * Builder for QuicConfiguration.
      */
     public static class Builder {
+        /** Idle timeout. */
         private Duration idleTimeout = DEFAULT_IDLE_TIMEOUT;
+        /** Maximum bidirectional streams. */
         private int maxBidirectionalStreams = DEFAULT_MAX_BIDIRECTIONAL_STREAMS;
+        /** Maximum unidirectional streams. */
         private int maxUnidirectionalStreams = DEFAULT_MAX_UNIDIRECTIONAL_STREAMS;
+        /** Initial maximum data. */
         private long initialMaxData = DEFAULT_INITIAL_MAX_DATA;
+        /** Initial maximum stream data. */
         private long initialMaxStreamData = DEFAULT_INITIAL_MAX_STREAM_DATA;
+        /** Maximum UDP payload size. */
         private int maxUdpPayloadSize = DEFAULT_MAX_UDP_PAYLOAD_SIZE;
+        /** Connection migration flag. */
         private boolean connectionMigration = DEFAULT_CONNECTION_MIGRATION;
+        /** Zero RTT support flag. */
         private boolean zeroRttSupport = DEFAULT_0_RTT_SUPPORT;
+        /** TLS configuration. */
         private QuicTlsConfiguration tlsConfiguration = QuicTlsConfiguration.defaultConfiguration();
 
         /**
@@ -333,18 +342,22 @@ public class QuicConfiguration {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         QuicConfiguration that = (QuicConfiguration) o;
-        return maxBidirectionalStreams == that.maxBidirectionalStreams &&
-               maxUnidirectionalStreams == that.maxUnidirectionalStreams &&
-               initialMaxData == that.initialMaxData &&
-               initialMaxStreamData == that.initialMaxStreamData &&
-               maxUdpPayloadSize == that.maxUdpPayloadSize &&
-               connectionMigration == that.connectionMigration &&
-               zeroRttSupport == that.zeroRttSupport &&
-               Objects.equals(idleTimeout, that.idleTimeout) &&
-               Objects.equals(tlsConfiguration, that.tlsConfiguration);
+        return maxBidirectionalStreams == that.maxBidirectionalStreams
+                && maxUnidirectionalStreams == that.maxUnidirectionalStreams
+                && initialMaxData == that.initialMaxData
+                && initialMaxStreamData == that.initialMaxStreamData
+                && maxUdpPayloadSize == that.maxUdpPayloadSize
+                && connectionMigration == that.connectionMigration
+                && zeroRttSupport == that.zeroRttSupport
+                && Objects.equals(idleTimeout, that.idleTimeout)
+                && Objects.equals(tlsConfiguration, that.tlsConfiguration);
     }
 
     @Override
@@ -356,16 +369,16 @@ public class QuicConfiguration {
 
     @Override
     public String toString() {
-        return "QuicConfiguration{" +
-               "idleTimeout=" + idleTimeout +
-               ", maxBidirectionalStreams=" + maxBidirectionalStreams +
-               ", maxUnidirectionalStreams=" + maxUnidirectionalStreams +
-               ", initialMaxData=" + initialMaxData +
-               ", initialMaxStreamData=" + initialMaxStreamData +
-               ", maxUdpPayloadSize=" + maxUdpPayloadSize +
-               ", connectionMigration=" + connectionMigration +
-               ", zeroRttSupport=" + zeroRttSupport +
-               ", tlsConfiguration=" + tlsConfiguration +
-               '}';
+        return "QuicConfiguration{"
+                + "idleTimeout=" + idleTimeout
+                + ", maxBidirectionalStreams=" + maxBidirectionalStreams
+                + ", maxUnidirectionalStreams=" + maxUnidirectionalStreams
+                + ", initialMaxData=" + initialMaxData
+                + ", initialMaxStreamData=" + initialMaxStreamData
+                + ", maxUdpPayloadSize=" + maxUdpPayloadSize
+                + ", connectionMigration=" + connectionMigration
+                + ", zeroRttSupport=" + zeroRttSupport
+                + ", tlsConfiguration=" + tlsConfiguration
+                + '}';
     }
 }

@@ -23,7 +23,7 @@ package com.justsyncit.network.quic.tls;
  * Provides specific error handling for certificate operations.
  */
 public class CertificateGenerationException extends Exception {
-    
+
     /**
      * Creates a new certificate generation exception.
      *
@@ -32,7 +32,7 @@ public class CertificateGenerationException extends Exception {
     public CertificateGenerationException(String message) {
         super(message);
     }
-    
+
     /**
      * Creates a new certificate generation exception with cause.
      *
@@ -42,7 +42,7 @@ public class CertificateGenerationException extends Exception {
     public CertificateGenerationException(String message, Throwable cause) {
         super(message, cause);
     }
-    
+
     /**
      * Creates a new certificate generation exception from cause.
      *

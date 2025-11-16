@@ -20,10 +20,8 @@ package com.justsyncit.network.quic.message;
 
 import com.justsyncit.network.protocol.ProtocolMessage;
 import com.justsyncit.network.protocol.MessageFactory;
-import com.justsyncit.network.protocol.ProtocolHeader;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,10 +38,10 @@ public class QuicMessageAdapter {
 
     /** QUIC message frame type for protocol messages. */
     public static final int QUIC_FRAME_TYPE_PROTOCOL_MESSAGE = 0x01;
-    
+
     /** QUIC message frame type for raw data. */
     public static final int QUIC_FRAME_TYPE_RAW_DATA = 0x02;
-    
+
     /** QUIC message frame type for stream control. */
     public static final int QUIC_FRAME_TYPE_STREAM_CONTROL = 0x03;
 
@@ -62,29 +60,29 @@ public class QuicMessageAdapter {
         try {
             // First serialize the standard protocol message
             ByteBuffer messageBuffer = message.serialize();
-            
+
             // Create QUIC frame header
             ByteBuffer quicBuffer = ByteBuffer.allocate(MESSAGE_HEADER_SIZE + messageBuffer.remaining());
-            
+
             // Write QUIC frame type
             quicBuffer.put((byte) QUIC_FRAME_TYPE_PROTOCOL_MESSAGE);
-            
+
             // Write stream ID (variable length encoding)
             writeVariableLengthInteger(quicBuffer, streamId);
-            
+
             // Write message length
             writeVariableLengthInteger(quicBuffer, messageBuffer.remaining());
-            
+
             // Write the actual message data
             quicBuffer.put(messageBuffer);
             quicBuffer.flip();
-            
-            logger.debug("Serialized message {} for QUIC stream {}, total size: {} bytes", 
+
+            logger.debug("Serialized message {} for QUIC stream {}, total size: {} bytes",
                        message.getMessageType(), streamId, quicBuffer.remaining());
-            
+
             return quicBuffer;
         } catch (Exception e) {
-            logger.error("Failed to serialize message {} for QUIC stream {}", 
+            logger.error("Failed to serialize message {} for QUIC stream {}",
                        message.getMessageType(), streamId, e);
             throw new RuntimeException("Failed to serialize message for QUIC", e);
         }
@@ -100,43 +98,43 @@ public class QuicMessageAdapter {
     public static ProtocolMessage deserializeFromQuic(ByteBuffer quicBuffer) {
         try {
             if (quicBuffer.remaining() < MESSAGE_HEADER_SIZE) {
-                logger.warn("Insufficient data for QUIC message header: {} bytes available, {} required", 
+                logger.warn("Insufficient data for QUIC message header: {} bytes available, {} required",
                            quicBuffer.remaining(), MESSAGE_HEADER_SIZE);
                 return null;
             }
-            
+
             // Read frame type
             byte frameType = quicBuffer.get();
             if (frameType != QUIC_FRAME_TYPE_PROTOCOL_MESSAGE) {
                 logger.debug("Unsupported QUIC frame type: 0x{}", String.format("%02x", frameType));
                 return null;
             }
-            
+
             // Read stream ID
             long streamId = readVariableLengthInteger(quicBuffer);
-            
+
             // Read message length
             int messageLength = (int) readVariableLengthInteger(quicBuffer);
-            
+
             if (quicBuffer.remaining() < messageLength) {
-                logger.warn("Insufficient data for QUIC message: {} bytes available, {} required", 
+                logger.warn("Insufficient data for QUIC message: {} bytes available, {} required",
                            quicBuffer.remaining(), messageLength);
                 return null;
             }
-            
+
             // Extract message data
             byte[] messageData = new byte[messageLength];
             quicBuffer.get(messageData);
             ByteBuffer messageBuffer = ByteBuffer.wrap(messageData);
-            
+
             // Deserialize the standard protocol message
             ProtocolMessage message = MessageFactory.deserializeMessage(messageBuffer);
-            
+
             if (message != null) {
-                logger.debug("Deserialized message {} from QUIC stream {}", 
+                logger.debug("Deserialized message {} from QUIC stream {}",
                            message.getMessageType(), streamId);
             }
-            
+
             return message;
         } catch (Exception e) {
             logger.error("Failed to deserialize QUIC message", e);
@@ -155,23 +153,23 @@ public class QuicMessageAdapter {
     public static ByteBuffer serializeRawData(byte[] data, long streamId) {
         try {
             ByteBuffer quicBuffer = ByteBuffer.allocate(MESSAGE_HEADER_SIZE + data.length);
-            
+
             // Write QUIC frame type
             quicBuffer.put((byte) QUIC_FRAME_TYPE_RAW_DATA);
-            
+
             // Write stream ID
             writeVariableLengthInteger(quicBuffer, streamId);
-            
+
             // Write data length
             writeVariableLengthInteger(quicBuffer, data.length);
-            
+
             // Write the actual data
             quicBuffer.put(data);
             quicBuffer.flip();
-            
-            logger.debug("Serialized raw data for QUIC stream {}, size: {} bytes", 
+
+            logger.debug("Serialized raw data for QUIC stream {}, size: {} bytes",
                        streamId, data.length);
-            
+
             return quicBuffer;
         } catch (Exception e) {
             logger.error("Failed to serialize raw data for QUIC stream {}", streamId, e);
@@ -188,35 +186,35 @@ public class QuicMessageAdapter {
     public static byte[] deserializeRawData(ByteBuffer quicBuffer) {
         try {
             if (quicBuffer.remaining() < MESSAGE_HEADER_SIZE) {
-                logger.warn("Insufficient data for QUIC raw data header: {} bytes available, {} required", 
+                logger.warn("Insufficient data for QUIC raw data header: {} bytes available, {} required",
                            quicBuffer.remaining(), MESSAGE_HEADER_SIZE);
                 return null;
             }
-            
+
             // Read frame type
             byte frameType = quicBuffer.get();
             if (frameType != QUIC_FRAME_TYPE_RAW_DATA) {
-                logger.debug("Unsupported QUIC frame type for raw data: 0x{}", 
+                logger.debug("Unsupported QUIC frame type for raw data: 0x{}",
                            String.format("%02x", frameType));
                 return null;
             }
-            
+
             // Read stream ID (not needed for raw data)
             readVariableLengthInteger(quicBuffer);
-            
+
             // Read data length
             int dataLength = (int) readVariableLengthInteger(quicBuffer);
-            
+
             if (quicBuffer.remaining() < dataLength) {
-                logger.warn("Insufficient data for QUIC raw data: {} bytes available, {} required", 
+                logger.warn("Insufficient data for QUIC raw data: {} bytes available, {} required",
                            quicBuffer.remaining(), dataLength);
                 return null;
             }
-            
+
             // Extract the data
             byte[] data = new byte[dataLength];
             quicBuffer.get(data);
-            
+
             logger.debug("Deserialized raw data from QUIC, size: {} bytes", dataLength);
             return data;
         } catch (Exception e) {
@@ -238,29 +236,29 @@ public class QuicMessageAdapter {
         try {
             int dataSize = data != null ? data.length : 0;
             ByteBuffer quicBuffer = ByteBuffer.allocate(MESSAGE_HEADER_SIZE + dataSize);
-            
+
             // Write QUIC frame type
             quicBuffer.put((byte) QUIC_FRAME_TYPE_STREAM_CONTROL);
-            
+
             // Write stream ID
             writeVariableLengthInteger(quicBuffer, streamId);
-            
+
             // Write control type
             writeVariableLengthInteger(quicBuffer, controlType);
-            
+
             // Write data length
             writeVariableLengthInteger(quicBuffer, dataSize);
-            
+
             // Write control data if present
             if (dataSize > 0) {
                 quicBuffer.put(data);
             }
-            
+
             quicBuffer.flip();
-            
-            logger.debug("Created stream control message for stream {}, type: {}, data size: {}", 
+
+            logger.debug("Created stream control message for stream {}, type: {}, data size: {}",
                        streamId, controlType, dataSize);
-            
+
             return quicBuffer;
         } catch (Exception e) {
             logger.error("Failed to create stream control message for stream {}", streamId, e);
@@ -308,7 +306,7 @@ public class QuicMessageAdapter {
     private static long readVariableLengthInteger(ByteBuffer buffer) {
         int firstByte = buffer.get() & 0xFF;
         long value;
-        
+
         if ((firstByte & 0xC0) == 0x00) {
             // 1-byte encoding
             value = firstByte & 0x3F;
@@ -317,22 +315,22 @@ public class QuicMessageAdapter {
             value = ((firstByte & 0x3F) << 8) | (buffer.get() & 0xFF);
         } else if ((firstByte & 0xC0) == 0x80) {
             // 4-byte encoding
-            value = ((firstByte & 0x3F) << 24) | 
-                     ((buffer.get() & 0xFF) << 16) |
-                     ((buffer.get() & 0xFF) << 8) |
-                     (buffer.get() & 0xFF);
+            value = ((firstByte & 0x3F) << 24)
+                    | ((buffer.get() & 0xFF) << 16)
+                    | ((buffer.get() & 0xFF) << 8)
+                    | (buffer.get() & 0xFF);
         } else {
             // 8-byte encoding
-            value = ((firstByte & 0x3F) << 56) |
-                     ((buffer.get() & 0xFF) << 48) |
-                     ((buffer.get() & 0xFF) << 40) |
-                     ((buffer.get() & 0xFF) << 32) |
-                     ((buffer.get() & 0xFF) << 24) |
-                     ((buffer.get() & 0xFF) << 16) |
-                     ((buffer.get() & 0xFF) << 8) |
-                     (buffer.get() & 0xFF);
+            value = ((firstByte & 0x3F) << 56)
+                    | ((buffer.get() & 0xFF) << 48)
+                    | ((buffer.get() & 0xFF) << 40)
+                    | ((buffer.get() & 0xFF) << 32)
+                    | ((buffer.get() & 0xFF) << 24)
+                    | ((buffer.get() & 0xFF) << 16)
+                    | ((buffer.get() & 0xFF) << 8)
+                    | (buffer.get() & 0xFF);
         }
-        
+
         return value;
     }
 
@@ -360,14 +358,14 @@ public class QuicMessageAdapter {
         if (buffer.remaining() < MESSAGE_HEADER_SIZE) {
             return false;
         }
-        
+
         // Peek at the frame type and length without consuming
         buffer.mark();
         byte frameType = buffer.get();
         readVariableLengthInteger(buffer); // Skip stream ID
         int messageLength = (int) readVariableLengthInteger(buffer);
         buffer.reset();
-        
+
         return buffer.remaining() >= MESSAGE_HEADER_SIZE + messageLength;
     }
 }

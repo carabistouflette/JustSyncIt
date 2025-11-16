@@ -191,18 +191,18 @@ public class QuicStream {
             try {
                 // Serialize the message
                 ByteBuffer messageBuffer = message.serialize();
-                
+
                 // Send the message (placeholder implementation)
                 // In a real implementation, this would use Kwik's stream API
                 doSendMessage(messageBuffer);
-                
+
                 bytesSent.addAndGet(message.getTotalSize());
                 updateLastActivityTime();
-                
-                logger.debug("Sent message {} on stream {} to {}", 
-                           message.getMessageType(), streamId, 
+
+                logger.debug("Sent message {} on stream {} to {}",
+                           message.getMessageType(), streamId,
                            connection.getRemoteAddress());
-                
+
                 notifyMessageSent(message);
             } catch (Exception e) {
                 logger.error("Failed to send message on stream {}", streamId, e);
@@ -221,7 +221,7 @@ public class QuicStream {
         // Placeholder for actual message sending
         // In a real implementation, this would use Kwik's stream write API
         logger.debug("Sending {} bytes on stream {}", messageBuffer.remaining(), streamId);
-        
+
         // Simulate network send
         // Actual implementation would use the QUIC library's stream send method
     }
@@ -244,11 +244,11 @@ public class QuicStream {
 
         bytesReceived.addAndGet(message.getTotalSize());
         updateLastActivityTime();
-        
-        logger.debug("Received message {} on stream {} from {}", 
-                   message.getMessageType(), streamId, 
+
+        logger.debug("Received message {} on stream {} from {}",
+                   message.getMessageType(), streamId,
                    connection.getRemoteAddress());
-        
+
         notifyMessageReceived(message);
     }
 
@@ -270,11 +270,11 @@ public class QuicStream {
 
         bytesReceived.addAndGet(data.remaining());
         updateLastActivityTime();
-        
-        logger.debug("Received {} bytes on stream {} from {}", 
-                   data.remaining(), streamId, 
+
+        logger.debug("Received {} bytes on stream {} from {}",
+                   data.remaining(), streamId,
                    connection.getRemoteAddress());
-        
+
         notifyDataReceived(data);
     }
 
@@ -286,12 +286,12 @@ public class QuicStream {
     public CompletableFuture<Void> close() {
         if (active.compareAndSet(true, false)) {
             logger.info("Closing stream {}", streamId);
-            
+
             return CompletableFuture.runAsync(() -> {
                 try {
                     // Perform stream cleanup
                     doClose();
-                    
+
                     logger.info("Stream {} closed", streamId);
                     notifyStreamClosed(null);
                 } catch (Exception e) {
@@ -314,7 +314,7 @@ public class QuicStream {
         // Placeholder for actual stream closing
         // In a real implementation, this would use Kwik's stream close API
         logger.debug("Performing stream close for {}", streamId);
-        
+
         // Simulate stream close
         // Actual implementation would use the QUIC library's stream close method
     }

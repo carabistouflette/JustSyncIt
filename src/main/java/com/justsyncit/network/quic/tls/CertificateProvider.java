@@ -26,7 +26,7 @@ import java.security.cert.X509Certificate;
  * Follows Dependency Inversion Principle by abstracting certificate generation.
  */
 public interface CertificateProvider {
-    
+
     /**
      * Generates a new key pair suitable for TLS.
      *
@@ -34,7 +34,7 @@ public interface CertificateProvider {
      * @throws CertificateGenerationException if key generation fails
      */
     KeyPair generateKeyPair() throws CertificateGenerationException;
-    
+
     /**
      * Generates a self-signed certificate for the given key pair.
      *
@@ -43,7 +43,7 @@ public interface CertificateProvider {
      * @throws CertificateGenerationException if certificate generation fails
      */
     X509Certificate generateSelfSignedCertificate(KeyPair keyPair) throws CertificateGenerationException;
-    
+
     /**
      * Generates a certificate chain with root and leaf certificates.
      *
@@ -52,7 +52,7 @@ public interface CertificateProvider {
      * @throws CertificateGenerationException if certificate generation fails
      */
     X509Certificate[] generateCertificateChain(KeyPair leafKeyPair) throws CertificateGenerationException;
-    
+
     /**
      * Validates if a certificate is suitable for QUIC/TLS use.
      *

@@ -67,11 +67,11 @@ public class QuicTransportAdapter implements QuicTransport {
         this.configuration = configuration;
         this.quicClient = createQuicClient(configuration);
         this.transportListeners = new CopyOnWriteArrayList<>();
-        
+
         // Set up event listeners
         setupEventListeners();
     }
-    
+
     /**
      * Creates a QUIC client instance. Can be overridden for testing.
      *
@@ -84,7 +84,7 @@ public class QuicTransportAdapter implements QuicTransport {
 
     /** List of transport event listeners. */
     private final CopyOnWriteArrayList<QuicTransportEventListener> transportListeners;
-    
+
     /**
      * Sets up event listeners for QUIC client events.
      */
@@ -172,7 +172,7 @@ public class QuicTransportAdapter implements QuicTransport {
      * @return a CompletableFuture that completes when the message is sent
      */
     public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress) {
-        logger.debug("Sending message {} to {} using QUIC", 
+        logger.debug("Sending message {} to {} using QUIC",
                     message.getMessageType(), remoteAddress);
         return quicClient.sendMessage(message, remoteAddress);
     }
@@ -188,7 +188,7 @@ public class QuicTransportAdapter implements QuicTransport {
     public CompletableFuture<Void> sendFile(Path filePath, InetSocketAddress remoteAddress, byte[] fileData) {
         logger.info("Sending file {} to {} using QUIC, size: {} bytes",
                    filePath.getFileName(), remoteAddress, fileData.length);
-        
+
         // Connect first, then send file
         return quicClient.connect(remoteAddress)
             .thenCompose(connection -> {
@@ -216,13 +216,13 @@ public class QuicTransportAdapter implements QuicTransport {
     private CompletableFuture<Void> sendFileMetadata(QuicStream stream, Path filePath, long fileSize) {
         // Create a file transfer request message
         // This would use the existing protocol message types
-        
+
         // For now, we'll send a simple metadata message
         // In a real implementation, this would use FileTransferRequestMessage
-        
-        logger.debug("Sending file metadata for {} ({} bytes) on stream {}", 
+
+        logger.debug("Sending file metadata for {} ({} bytes) on stream {}",
                     filePath.getFileName(), fileSize, stream.getStreamId());
-        
+
         // Simulate sending metadata
         return CompletableFuture.completedFuture(null);
     }
@@ -237,29 +237,29 @@ public class QuicTransportAdapter implements QuicTransport {
     private CompletableFuture<Void> sendFileData(QuicStream stream, byte[] fileData) {
         final int CHUNK_SIZE = 64 * 1024; // 64KB chunks
         final int totalChunks = (int) Math.ceil((double) fileData.length / CHUNK_SIZE);
-        
-        logger.debug("Sending file data in {} chunks of {} bytes each", 
+
+        logger.debug("Sending file data in {} chunks of {} bytes each",
                     totalChunks, CHUNK_SIZE);
-        
+
         CompletableFuture<Void> allChunks = CompletableFuture.completedFuture(null);
-        
+
         for (int i = 0; i < totalChunks; i++) {
             final int chunkIndex = i;
             final int offset = i * CHUNK_SIZE;
             final int length = Math.min(CHUNK_SIZE, fileData.length - offset);
             final byte[] chunk = new byte[length];
             System.arraycopy(fileData, offset, chunk, 0, length);
-            
+
             // Send chunk using QUIC message adapter
             ByteBuffer chunkBuffer = QuicMessageAdapter.serializeRawData(chunk, stream.getStreamId());
-            
+
             allChunks = allChunks.thenCompose(v -> {
                 // Send raw data directly using handleReceivedData
                 stream.handleReceivedData(chunkBuffer);
                 return CompletableFuture.completedFuture(null);
             });
         }
-        
+
         return allChunks.thenRun(() -> {
             logger.info("Completed sending {} chunks for file transfer", totalChunks);
         });
@@ -307,24 +307,34 @@ public class QuicTransportAdapter implements QuicTransport {
     }
 
     /**
-     * Gets the QUIC client instance.
+     * Adds an event listener for QUIC transport events.
      *
-     * @return the QUIC client
+     * @param listener the event listener to add
      */
     @Override
     public void addEventListener(QuicTransportEventListener listener) {
         transportListeners.add(listener);
     }
-    
+
+    /**
+     * Removes an event listener for QUIC transport events.
+     *
+     * @param listener the event listener to remove
+     */
     @Override
     public void removeEventListener(QuicTransportEventListener listener) {
         transportListeners.remove(listener);
     }
-    
+
+    /**
+     * Gets the QUIC client instance.
+     *
+     * @return the QUIC client
+     */
     public QuicClient getQuicClient() {
         return quicClient;
     }
-    
+
     // Event notification methods for transport listeners
     private void notifyConnected(InetSocketAddress serverAddress, QuicConnection connection) {
         for (QuicTransportEventListener listener : transportListeners) {
@@ -335,7 +345,7 @@ public class QuicTransportAdapter implements QuicTransport {
             }
         }
     }
-    
+
     private void notifyDisconnected(InetSocketAddress serverAddress, Throwable cause) {
         for (QuicTransportEventListener listener : transportListeners) {
             try {
@@ -345,7 +355,7 @@ public class QuicTransportAdapter implements QuicTransport {
             }
         }
     }
-    
+
     private void notifyMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message) {
         for (QuicTransportEventListener listener : transportListeners) {
             try {
@@ -355,7 +365,7 @@ public class QuicTransportAdapter implements QuicTransport {
             }
         }
     }
-    
+
     private void notifyError(Throwable error, String context) {
         for (QuicTransportEventListener listener : transportListeners) {
             try {
@@ -430,16 +440,21 @@ public class QuicTransportAdapter implements QuicTransport {
      * Performance statistics for QUIC transport.
      */
     public static class QuicTransportStatistics {
-        
+
+        /** Number of active connections. */
         private final int activeConnections;
+        /** Total bytes sent. */
         private final long totalBytesSent;
+        /** Total bytes received. */
         private final long totalBytesReceived;
+        /** Total messages sent. */
         private final long totalMessagesSent;
+        /** Total messages received. */
         private final long totalMessagesReceived;
 
-        public QuicTransportStatistics(int activeConnections, long totalBytesSent, 
-                                   long totalBytesReceived, long totalMessagesSent, 
-                                   long totalMessagesReceived) {
+        public QuicTransportStatistics(int activeConnections, long totalBytesSent,
+                                       long totalBytesReceived, long totalMessagesSent,
+                                       long totalMessagesReceived) {
             this.activeConnections = activeConnections;
             this.totalBytesSent = totalBytesSent;
             this.totalBytesReceived = totalBytesReceived;
@@ -469,13 +484,13 @@ public class QuicTransportAdapter implements QuicTransport {
 
         @Override
         public String toString() {
-            return "QuicTransportStatistics{" +
-                   "activeConnections=" + activeConnections +
-                   ", totalBytesSent=" + totalBytesSent +
-                   ", totalBytesReceived=" + totalBytesReceived +
-                   ", totalMessagesSent=" + totalMessagesSent +
-                   ", totalMessagesReceived=" + totalMessagesReceived +
-                   '}';
+            return "QuicTransportStatistics{"
+                    + "activeConnections=" + activeConnections
+                    + ", totalBytesSent=" + totalBytesSent
+                    + ", totalBytesReceived=" + totalBytesReceived
+                    + ", totalMessagesSent=" + totalMessagesSent
+                    + ", totalMessagesReceived=" + totalMessagesReceived
+                    + '}';
         }
     }
 }

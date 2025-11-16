@@ -34,7 +34,6 @@ import com.justsyncit.network.quic.QuicStream;
 import com.justsyncit.network.quic.QuicConfiguration;
 import com.justsyncit.network.quic.QuicTransport;
 import com.justsyncit.storage.ContentStore;
-import com.justsyncit.network.TransportType;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -74,7 +73,7 @@ public class NetworkServiceImpl implements NetworkService {
     private final CopyOnWriteArrayList<NetworkEventListener> listeners;
     /** Flag indicating if the service is running. */
     private final AtomicBoolean running;
-    
+
     /** QUIC transport adapter. */
     private final QuicTransport quicTransport;
     /** QUIC server component. */
@@ -97,7 +96,7 @@ public class NetworkServiceImpl implements NetworkService {
     public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient,
                           ConnectionManager connectionManager, FileTransferManager fileTransferManager) {
         this(tcpServer, tcpClient, connectionManager, fileTransferManager,
-             QuicConfiguration.defaultConfiguration(), TransportType.TCP);
+                QuicConfiguration.defaultConfiguration(), TransportType.TCP);
     }
 
     /**
@@ -114,9 +113,9 @@ public class NetworkServiceImpl implements NetworkService {
                           ConnectionManager connectionManager, FileTransferManager fileTransferManager,
                           QuicConfiguration quicConfiguration, TransportType defaultTransportType) {
         this(tcpServer, tcpClient, connectionManager, fileTransferManager,
-             new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType);
+                new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType);
     }
-    
+
     /**
      * Creates a new NetworkService implementation with QUIC transport injection.
      * Follows Dependency Inversion Principle by accepting QuicTransport interface.
@@ -156,7 +155,17 @@ public class NetworkServiceImpl implements NetworkService {
      * Sets up event listeners for all network components.
      */
     private void setupEventListeners() {
-        // Server event listeners
+        setupTcpServerEventListeners();
+        setupTcpClientEventListeners();
+        setupQuicServerEventListeners();
+        setupQuicClientEventListeners();
+        setupFileTransferEventListeners();
+    }
+
+    /**
+     * Sets up TCP server event listeners.
+     */
+    private void setupTcpServerEventListeners() {
         tcpServer.addServerEventListener(new TcpServer.ServerEventListener() {
             @Override
             public void onClientConnected(InetSocketAddress clientAddress) {
@@ -188,8 +197,12 @@ public class NetworkServiceImpl implements NetworkService {
                 logger.error("TCP server error in {}: {}", context, error);
             }
         });
+    }
 
-        // Client event listeners
+    /**
+     * Sets up TCP client event listeners.
+     */
+    private void setupTcpClientEventListeners() {
         tcpClient.addClientEventListener(new TcpClient.ClientEventListener() {
             @Override
             public void onConnected(InetSocketAddress serverAddress) {
@@ -221,8 +234,12 @@ public class NetworkServiceImpl implements NetworkService {
                 logger.error("TCP client error in {}: {}", context, error);
             }
         });
+    }
 
-        // QUIC server event listeners
+    /**
+     * Sets up QUIC server event listeners.
+     */
+    private void setupQuicServerEventListeners() {
         quicServer.addEventListener(new QuicServer.QuicServerEventListener() {
             @Override
             public void onClientConnected(InetSocketAddress clientAddress, QuicConnection connection) {
@@ -263,42 +280,51 @@ public class NetworkServiceImpl implements NetworkService {
                 logger.error("QUIC server error in {}: {}", context, error);
             }
         });
+    }
 
-        // QUIC client event listeners
-        // Cast to QuicTransportAdapter to access the client for event setup
+    /**
+     * Sets up QUIC client event listeners.
+     */
+    private void setupQuicClientEventListeners() {
+        // Cast to QuicTransportAdapter to access client for event setup
         if (quicTransport instanceof QuicTransportAdapter) {
             QuicTransportAdapter adapter = (QuicTransportAdapter) quicTransport;
             adapter.getQuicClient().addEventListener(new QuicClient.QuicClientEventListener() {
-            @Override
-            public void onConnected(InetSocketAddress serverAddress, QuicConnection connection) {
-                connectionTransports.put(serverAddress, TransportType.QUIC);
-                notifyConnectionEstablished(serverAddress);
-                statistics.incrementActiveConnections();
-                logger.info("QUIC connected to server: {}", serverAddress);
-            }
+                @Override
+                public void onConnected(InetSocketAddress serverAddress, QuicConnection connection) {
+                    connectionTransports.put(serverAddress, TransportType.QUIC);
+                    notifyConnectionEstablished(serverAddress);
+                    statistics.incrementActiveConnections();
+                    logger.info("QUIC connected to server: {}", serverAddress);
+                }
 
-            @Override
-            public void onDisconnected(InetSocketAddress serverAddress, Throwable cause) {
-                connectionTransports.remove(serverAddress);
-                notifyConnectionClosed(serverAddress, cause);
-                statistics.decrementActiveConnections();
-                logger.info("QUIC disconnected from server: {}", serverAddress, cause);
-            }
+                @Override
+                public void onDisconnected(InetSocketAddress serverAddress, Throwable cause) {
+                    connectionTransports.remove(serverAddress);
+                    notifyConnectionClosed(serverAddress, cause);
+                    statistics.decrementActiveConnections();
+                    logger.info("QUIC disconnected from server: {}", serverAddress, cause);
+                }
 
-            @Override
-            public void onMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message) {
-                notifyMessageReceived(message, serverAddress);
-                statistics.incrementBytesReceived(message.getTotalSize());
-            }
+                @Override
+                public void onMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message) {
+                    notifyMessageReceived(message, serverAddress);
+                    statistics.incrementBytesReceived(message.getTotalSize());
+                }
 
-            @Override
-            public void onError(Throwable error, String context) {
-                notifyError(error, context);
-                logger.error("QUIC client error in {}: {}", context, error);
-            }
-        });
+                @Override
+                public void onError(Throwable error, String context) {
+                    notifyError(error, context);
+                    logger.error("QUIC client error in {}: {}", context, error);
+                }
+            });
+        }
+    }
 
-        // File transfer event listeners
+    /**
+     * Sets up file transfer event listeners.
+     */
+    private void setupFileTransferEventListeners() {
         fileTransferManager.addTransferEventListener(new FileTransferManager.TransferEventListener() {
             @Override
             public void onTransferStarted(Path filePath, InetSocketAddress remoteAddress, long fileSize) {
@@ -338,7 +364,8 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     @Override
-    public CompletableFuture<Void> startServer(int port, TransportType transportType) throws IOException, ServiceException {
+    public CompletableFuture<Void> startServer(int port, TransportType transportType)
+            throws IOException, ServiceException {
         if (running.compareAndSet(false, true)) {
             statistics.start();
             return fileTransferManager.start()
@@ -394,7 +421,8 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     @Override
-    public CompletableFuture<Void> connectToNode(InetSocketAddress address, TransportType transportType) throws IOException {
+    public CompletableFuture<Void> connectToNode(InetSocketAddress address, TransportType transportType)
+            throws IOException {
         if (transportType == TransportType.QUIC) {
             return quicTransport.connect(address)
                 .thenAccept(connection -> {
@@ -445,13 +473,13 @@ public class NetworkServiceImpl implements NetworkService {
 
     @Override
     public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
-                                               ContentStore contentStore) throws IOException {
+            ContentStore contentStore) throws IOException {
         return sendFile(filePath, remoteAddress, contentStore, defaultTransportType);
     }
 
     @Override
     public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
-                                               ContentStore contentStore, TransportType transportType) throws IOException {
+            ContentStore contentStore, TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
             // For QUIC, we need to read the file data and send it via the QUIC transport
             byte[] fileData = Files.readAllBytes(filePath);
@@ -506,13 +534,13 @@ public class NetworkServiceImpl implements NetworkService {
 
     @Override
     public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress)
-                                                throws IOException {
+            throws IOException {
         return sendMessage(message, remoteAddress, defaultTransportType);
     }
 
     @Override
-    public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress, TransportType transportType)
-                                                throws IOException {
+    public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress,
+            TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
             return quicTransport.sendMessage(message, remoteAddress)
                 .thenRun(() -> {
@@ -520,7 +548,8 @@ public class NetworkServiceImpl implements NetworkService {
                     logger.debug("Message sent via QUIC to {}: {}", remoteAddress, message.getMessageType());
                 })
                 .exceptionally(throwable -> {
-                    logger.error("Failed to send message via QUIC to {}: {}", remoteAddress, message.getMessageType(), throwable);
+                    logger.error("Failed to send message via QUIC to {}: {}",
+                               remoteAddress, message.getMessageType(), throwable);
                     return null;
                 });
         } else {
@@ -537,7 +566,8 @@ public class NetworkServiceImpl implements NetworkService {
                 statistics.incrementBytesSent(message.getTotalSize());
                 logger.debug("Message sent via TCP to {}: {}", remoteAddress, message.getMessageType());
             }).exceptionally(throwable -> {
-                logger.error("Failed to send message via TCP to {}: {}", remoteAddress, message.getMessageType(), throwable);
+                logger.error("Failed to send message via TCP to {}: {}",
+                           remoteAddress, message.getMessageType(), throwable);
                 return null;
             });
         }
@@ -682,7 +712,7 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     private void notifyFileTransferProgress(Path filePath, InetSocketAddress remoteAddress,
-                                       long bytesTransferred, long totalBytes) {
+            long bytesTransferred, long totalBytes) {
         for (NetworkEventListener listener : listeners) {
             try {
                 listener.onFileTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes);
@@ -693,7 +723,7 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     private void notifyFileTransferCompleted(Path filePath, InetSocketAddress remoteAddress,
-                                        boolean success, String error) {
+            boolean success, String error) {
         for (NetworkEventListener listener : listeners) {
             try {
                 listener.onFileTransferCompleted(filePath, remoteAddress, success, error);

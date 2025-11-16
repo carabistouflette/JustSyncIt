@@ -114,10 +114,10 @@ public class QuicServer {
         // Initialize Kwik server with configuration
         // This is a placeholder - actual implementation will use Kwik API
         logger.debug("Initializing QUIC server on port {} with configuration: {}", port, configuration);
-        
+
         // Set up event handlers
         setupEventHandlers();
-        
+
         // Start listening for connections
         // Actual implementation would use Kwik's server API
         logger.info("QUIC server listening on port {}", port);
@@ -140,16 +140,16 @@ public class QuicServer {
     private QuicConnection handleClientConnection(InetSocketAddress clientAddress) {
         try {
             logger.debug("Handling new client connection from {}", clientAddress);
-            
+
             // Create new connection using Kwik
             QuicConnection connection = new QuicConnection(clientAddress, configuration, false);
-            
+
             // Store the connection
             clients.put(clientAddress, connection);
-            
+
             logger.info("Client connected: {}", clientAddress);
             notifyClientConnected(clientAddress, connection);
-            
+
             // Set up connection event handlers
             connection.addEventListener(new QuicConnection.QuicConnectionEventListener() {
                 @Override
@@ -172,7 +172,7 @@ public class QuicServer {
                     handleClientDisconnection(clientAddress, cause);
                 }
             });
-            
+
             return connection;
         } catch (Exception e) {
             logger.error("Failed to handle client connection from {}", clientAddress, e);
@@ -224,12 +224,12 @@ public class QuicServer {
         }
 
         CompletableFuture<?>[] sendFutures = clients.entrySet().stream()
-            .map(entry -> entry.getValue().sendMessage(message))
-            .toArray(CompletableFuture[]::new);
-        
+                .map(entry -> entry.getValue().sendMessage(message))
+                .toArray(CompletableFuture[]::new);
+
         return CompletableFuture.allOf(sendFutures)
-            .thenRun(() -> logger.debug("Broadcasted message {} to {} clients", 
-                                      message.getMessageType(), clients.size()))
+            .thenRun(() -> logger.debug("Broadcasted message {} to {} clients",
+                    message.getMessageType(), clients.size()))
             .exceptionally(throwable -> {
                 logger.error("Failed to broadcast message", throwable);
                 return null;
@@ -292,18 +292,18 @@ public class QuicServer {
                 try {
                     // Close all client connections
                     CompletableFuture<?>[] closeFutures = clients.values().stream()
-                        .map(QuicConnection::close)
-                        .toArray(CompletableFuture[]::new);
-                    
+                            .map(QuicConnection::close)
+                            .toArray(CompletableFuture[]::new);
+
                     CompletableFuture.allOf(closeFutures).join();
                     clients.clear();
-                    
+
                     // Shutdown server
                     doStop();
-                    
+
                     // Shutdown executor
                     executorService.shutdown();
-                    
+
                     port = -1;
                     logger.info("QUIC server stopped");
                 } catch (Exception e) {
@@ -325,7 +325,7 @@ public class QuicServer {
         // Placeholder for actual server stop
         // In a real implementation, this would use Kwik's server stop API
         logger.debug("Performing server stop");
-        
+
         // Simulate server stop
         // Actual implementation would use the QUIC library's server stop method
     }

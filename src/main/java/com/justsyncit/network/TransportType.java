@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 package com.justsyncit.network;
 
 /**
@@ -25,7 +26,7 @@ public enum TransportType {
      * TCP transport protocol - traditional reliable connection-oriented protocol.
      */
     TCP,
-    
+
     /**
      * QUIC transport protocol - modern UDP-based transport with TLS 1.3 built-in.
      */

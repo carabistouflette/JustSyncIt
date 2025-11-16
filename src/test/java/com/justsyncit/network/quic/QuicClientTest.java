@@ -24,7 +24,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
-import static org.junit.jupiter.api.Assertions.*;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
@@ -38,7 +43,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 @DisplayName("QuicClient Tests")
 public class QuicClientTest {
 
+    /** QUIC client under test. */
     private QuicClient quicClient;
+    /** QUIC configuration for testing. */
     private QuicConfiguration configuration;
 
     @BeforeEach
@@ -59,13 +66,13 @@ public class QuicClientTest {
     void testStartStop() throws Exception {
         // Start the client
         CompletableFuture<Void> startFuture = quicClient.start();
-        assertDoesNotThrow(() -> startFuture.get(5, TimeUnit.SECONDS), 
-            "Client should start without throwing exception");
-        
+        assertDoesNotThrow(() -> startFuture.get(5, TimeUnit.SECONDS),
+                "Client should start without throwing exception");
+
         // Stop the client
         CompletableFuture<Void> stopFuture = quicClient.stop();
-        assertDoesNotThrow(() -> stopFuture.get(5, TimeUnit.SECONDS), 
-            "Client should stop without throwing exception");
+        assertDoesNotThrow(() -> stopFuture.get(5, TimeUnit.SECONDS),
+                "Client should stop without throwing exception");
     }
 
     @Test
@@ -73,11 +80,11 @@ public class QuicClientTest {
     void testStartTwice() throws Exception {
         // Start the client once
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         // Try to start again - should fail
         CompletableFuture<Void> secondStart = quicClient.start();
         assertThrows(Exception.class, () -> secondStart.get(5, TimeUnit.SECONDS),
-            "Starting client twice should throw exception");
+                "Starting client twice should throw exception");
     }
 
     @Test
@@ -85,7 +92,7 @@ public class QuicClientTest {
     void testConnectionEvents() throws Exception {
         AtomicBoolean connected = new AtomicBoolean(false);
         AtomicBoolean disconnected = new AtomicBoolean(false);
-        
+
         quicClient.addEventListener(new QuicClient.QuicClientEventListener() {
             @Override
             public void onConnected(InetSocketAddress serverAddress, QuicConnection connection) {
@@ -109,7 +116,7 @@ public class QuicClientTest {
         });
 
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         // Simulate connection (in real implementation, this would be triggered by actual QUIC events)
         // For now, we just verify the listener is registered
         assertNotNull(quicClient, "Client should be initialized");
@@ -119,7 +126,7 @@ public class QuicClientTest {
     @DisplayName("Client should handle message events")
     void testMessageEvents() throws Exception {
         AtomicInteger messageCount = new AtomicInteger(0);
-        
+
         quicClient.addEventListener(new QuicClient.QuicClientEventListener() {
             @Override
             public void onConnected(InetSocketAddress serverAddress, QuicConnection connection) {
@@ -143,7 +150,7 @@ public class QuicClientTest {
         });
 
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         // Verify listener is registered
         assertNotNull(quicClient, "Client should be initialized");
     }
@@ -152,7 +159,7 @@ public class QuicClientTest {
     @DisplayName("Client should handle error events")
     void testErrorEvents() throws Exception {
         AtomicBoolean errorHandled = new AtomicBoolean(false);
-        
+
         quicClient.addEventListener(new QuicClient.QuicClientEventListener() {
             @Override
             public void onConnected(InetSocketAddress serverAddress, QuicConnection connection) {
@@ -176,7 +183,7 @@ public class QuicClientTest {
         });
 
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         // Verify listener is registered
         assertNotNull(quicClient, "Client should be initialized");
     }
@@ -185,16 +192,16 @@ public class QuicClientTest {
     @DisplayName("Client should report connection status correctly")
     void testConnectionStatus() throws Exception {
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
-        
+
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         // Initially should not be connected
-        assertFalse(quicClient.isConnected(testAddress), 
-            "Should not be connected initially");
-        
+        assertFalse(quicClient.isConnected(testAddress),
+                "Should not be connected initially");
+
         // Active connection count should be 0
-        assertEquals(0, quicClient.getActiveConnectionCount(), 
-            "Active connection count should be 0 initially");
+        assertEquals(0, quicClient.getActiveConnectionCount(),
+                "Active connection count should be 0 initially");
     }
 
     @Test
@@ -202,16 +209,16 @@ public class QuicClientTest {
     void testListenerManagement() throws Exception {
         QuicClient.QuicClientEventListener listener1 = new TestEventListener();
         QuicClient.QuicClientEventListener listener2 = new TestEventListener();
-        
+
         // Add listeners
         quicClient.addEventListener(listener1);
         quicClient.addEventListener(listener2);
-        
+
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         // Remove one listener
         quicClient.removeEventListener(listener2);
-        
+
         // Should not throw exception
         assertDoesNotThrow(() -> {
             // Verify client is still functional
@@ -222,19 +229,19 @@ public class QuicClientTest {
     @Test
     @DisplayName("Client should validate null listeners")
     void testNullListenerValidation() {
-        assertThrows(NullPointerException.class, () -> 
-            quicClient.addEventListener(null),
-            "Adding null listener should throw exception");
+        assertThrows(NullPointerException.class, () ->
+                quicClient.addEventListener(null),
+                "Adding null listener should throw exception");
     }
 
     @Test
     @DisplayName("Client should connect to server asynchronously")
     void testAsyncConnection() throws Exception {
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         CompletableFuture<QuicConnection> connectionFuture = quicClient.connect(testAddress);
-        
+
         // Should return a future (connection may fail in test environment)
         assertNotNull(connectionFuture, "Connection future should not be null");
     }
@@ -243,10 +250,10 @@ public class QuicClientTest {
     @DisplayName("Client should create streams asynchronously")
     void testAsyncStreamCreation() throws Exception {
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         CompletableFuture<QuicStream> streamFuture = quicClient.createStream(testAddress, true);
-        
+
         // Should return a future (stream creation may fail without connection)
         assertNotNull(streamFuture, "Stream future should not be null");
     }
@@ -255,11 +262,11 @@ public class QuicClientTest {
     @DisplayName("Client should send messages asynchronously")
     void testAsyncMessageSending() throws Exception {
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         PingMessage pingMessage = new PingMessage();
         CompletableFuture<Void> sendFuture = quicClient.sendMessage(pingMessage, testAddress);
-        
+
         // Should return a future (send may fail without connection)
         assertNotNull(sendFuture, "Send future should not be null");
     }
@@ -268,13 +275,13 @@ public class QuicClientTest {
     @DisplayName("Client should disconnect asynchronously")
     void testAsyncDisconnection() throws Exception {
         quicClient.start().get(5, TimeUnit.SECONDS);
-        
+
         InetSocketAddress testAddress = new InetSocketAddress("localhost", 8080);
         CompletableFuture<Void> disconnectFuture = quicClient.disconnect(testAddress);
-        
+
         // Should complete without exception even if not connected
         assertDoesNotThrow(() -> disconnectFuture.get(5, TimeUnit.SECONDS),
-            "Disconnect should complete without exception");
+                "Disconnect should complete without exception");
     }
 
     /**
