@@ -29,6 +29,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.joran.JoranConfigurator;
 import ch.qos.logback.core.joran.spi.JoranException;
 import java.io.InputStream;
+import java.util.Locale;
 
 /**
  * Refactored main application class that follows SOLID principles.
@@ -192,7 +193,7 @@ public class JustSyncItApplication {
      */
     private void applyLogLevel(String levelName) {
         try {
-            Level level = Level.toLevel(levelName.toUpperCase(), Level.INFO);
+            Level level = Level.toLevel(levelName.toUpperCase(Locale.ROOT), Level.INFO);
             LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
             loggerContext.getLogger("ROOT").setLevel(level);
             logger.info("Applied log level: {}", level);
