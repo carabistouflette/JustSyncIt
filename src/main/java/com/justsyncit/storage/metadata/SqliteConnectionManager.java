@@ -254,7 +254,8 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
                             staticSharedMemoryConnection.close();
                         }
                     } catch (SQLException e) {
-                        logger.warn("Failed to close static shared memory connection during shutdown: {}", e.getMessage());
+                        logger.warn("Failed to close static shared memory connection during shutdown: {}",
+                                e.getMessage());
                     }
                 }
 

@@ -38,9 +38,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 /**
  * Comprehensive integration tests for SQLite metadata service.
@@ -91,7 +95,6 @@ class SqliteMetadataIntegrationTest {
             int numSnapshots = 10;
             int numFilesPerSnapshot = 100;
             int numChunksPerFile = 5;
-            
             List<Snapshot> snapshots = new ArrayList<>();
             List<FileMetadata> files = new ArrayList<>();
             List<ChunkMetadata> chunks = new ArrayList<>();
@@ -122,7 +125,7 @@ class SqliteMetadataIntegrationTest {
                         String fileHash = "file-hash-" + i + "-" + j;
                         // Debug: verify file hash is not null
                         assertNotNull("File hash should not be null", fileHash);
-                        
+
                         FileMetadata file = new FileMetadata(
                                 UUID.randomUUID().toString(),
                                 snapshot.getId(),
@@ -150,7 +153,6 @@ class SqliteMetadataIntegrationTest {
 
             // Then: Queries should be fast (<100ms requirement)
             long queryStartTime = System.currentTimeMillis();
-            
             // Test snapshot queries
             for (Snapshot snapshot : snapshots) {
                 Optional<Snapshot> retrieved = metadataService.getSnapshot(snapshot.getId());
@@ -194,7 +196,6 @@ class SqliteMetadataIntegrationTest {
         void shouldMaintainPerformanceWithMillionsOfEntries() throws IOException {
             // Given: Create dataset approaching millions
             int numEntries = 100000; // 100K entries for test performance
-            
             long startTime = System.currentTimeMillis();
 
             // When: Insert entries in batches
@@ -204,7 +205,7 @@ class SqliteMetadataIntegrationTest {
                     ChunkMetadata chunk = new ChunkMetadata(
                             "chunk-" + i, 4096, Instant.now(), 1, Instant.now());
                     metadataService.upsertChunk(chunk);
-                    
+
                     // Commit in batches to avoid long transactions
                     if (i % 1000 == 0) {
                         transaction.commit();
@@ -399,7 +400,7 @@ class SqliteMetadataIntegrationTest {
                     chunkHash1, 4096, Instant.now(), 1, Instant.now());
             ChunkMetadata chunk2 = new ChunkMetadata(
                     chunkHash2, 8192, Instant.now(), 1, Instant.now());
-            
+
             metadataService.upsertChunk(chunk1);
             metadataService.upsertChunk(chunk2);
 

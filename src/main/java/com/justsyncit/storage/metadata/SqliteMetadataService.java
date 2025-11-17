@@ -255,7 +255,7 @@ public final class SqliteMetadataService implements MetadataService {
         }
 
         List<String> insertedIds = new ArrayList<>();
-        
+
         String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
                 + "VALUES (?, ?, ?, ?, ?, ?)";
 
@@ -271,7 +271,7 @@ public final class SqliteMetadataService implements MetadataService {
                     logger.debug("Adding file to batch: {} with hash: {}", file.getPath(), file.getFileHash());
                     stmt.addBatch();
                 }
-                
+
                 logger.debug("Executing batch insert for {} files", files.size());
                 int[] results = stmt.executeBatch();
                 logger.debug("Batch insert results: {}", results.length);
@@ -281,7 +281,6 @@ public final class SqliteMetadataService implements MetadataService {
                     insertedIds.add(file.getId());
                     logger.debug("Inserted file: {}", file.getPath());
                 }
-                
                 return insertedIds;
             }
         } catch (SQLException e) {
