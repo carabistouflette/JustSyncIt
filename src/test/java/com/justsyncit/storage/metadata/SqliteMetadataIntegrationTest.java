@@ -590,9 +590,12 @@ class SqliteMetadataIntegrationTest {
             // Then: Queries should be fast due to proper indexing
             // Adjusted thresholds for CI environment compatibility while maintaining performance expectations
             // These thresholds are more realistic for different environments (local vs CI)
-            assertTrue(hashQueryTime < 500, "Hash queries should be fast with primary key index, but took " + hashQueryTime + "ms");
-            assertTrue(accessUpdateTime < 1000, "Access updates should be fast with last_accessed index, but took " + accessUpdateTime + "ms");
-            assertTrue(statsQueryTime < 500, "Statistics query should be fast with proper indexing, but took " + statsQueryTime + "ms");
+            assertTrue(hashQueryTime < 500,
+                    "Hash queries should be fast with primary key index, but took " + hashQueryTime + "ms");
+            assertTrue(accessUpdateTime < 1000,
+                    "Access updates should be fast with last_accessed index, but took " + accessUpdateTime + "ms");
+            assertTrue(statsQueryTime < 500,
+                    "Statistics query should be fast with proper indexing, but took " + statsQueryTime + "ms");
             assertTrue(stats.getTotalChunks() >= numChunks);
         }
     }
