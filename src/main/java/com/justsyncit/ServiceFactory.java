@@ -80,7 +80,7 @@ public class ServiceFactory {
      * @return configured BLAKE3 service
      * @throws ServiceException if service creation fails
      */
-    private Blake3Service createBlake3Service() throws ServiceException {
+    public Blake3Service createBlake3Service() throws ServiceException {
         try {
             HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
             BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
