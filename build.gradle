@@ -3,7 +3,6 @@ plugins {
     id 'application'
     id 'checkstyle'
     id 'com.github.spotbugs' version '6.0.25'
-    id 'me.champeau.jmh' version '0.7.2'
     id 'jacoco'
     id 'org.owasp.dependencycheck' version '12.1.0'
 }
@@ -47,9 +46,6 @@ dependencies {
     // SpotBugs annotations for suppressing warnings
     implementation 'com.github.spotbugs:spotbugs-annotations:4.9.0'
     
-    // Performance benchmarking
-    testImplementation 'org.openjdk.jmh:jmh-core:1.37'
-    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
 }
 
 application {
@@ -276,38 +272,3 @@ check.dependsOn jacocoTestCoverageVerification
 // Make dependency check optional to avoid blocking builds when NVD API is unavailable
 // check.dependsOn dependencyCheckAggregate
 
-// JMH configuration to fix configuration cache issues
-jmh {
-    includes = ['.*']  // Include all benchmarks using regex pattern
-    benchmarkMode = ['thrpt']
-    batchSize = 1
-    fork = 1
-    failOnError = true
-    forceGC = true
-    jvm = 'java'
-    jvmArgs = ['-Xmx2g']
-    timeOnIteration = '1s'
-    warmup = '1s'
-    warmupBatchSize = 1
-    warmupForks = 1
-    warmupIterations = 3
-    zip64 = true
-    benchmarkParameters = [:]
-    profilers = []
-    iterations = 5
-    resultFormat = 'TEXT'
-    resultsFile = layout.buildDirectory.file("results/jmh/results.txt").get().asFile
-    
-    // Fix configuration cache issues
-    duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
-}
-
-// Disable configuration cache for JMH tasks to avoid serialization issues
-tasks.matching { it.name.startsWith('jmh') }.configureEach {
-    notCompatibleWithConfigurationCache("JMH plugin has known issues with configuration cache")
-}
-
-// Additional fix for JMH Jar task configuration cache issue
-tasks.named('jmhJar') {
-    notCompatibleWithConfigurationCache("JMH Jar task has serialization issues with configuration cache")
-}

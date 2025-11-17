@@ -78,10 +78,6 @@ jobs:
     - name: Run SpotBugs
       run: ./gradlew spotbugsMain spotbugsTest --no-daemon -PjavaVersion=${{ matrix.java-version }}
       
-    - name: Run JMH benchmarks (only on Java 21, Ubuntu)
-      if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest'
-      run: ./gradlew jmh --no-daemon -PjavaVersion=${{ matrix.java-version }}
-      
     - name: Generate test report
       uses: dorny/test-reporter@v1
       if: success() || failure()
