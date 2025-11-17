@@ -169,10 +169,10 @@ public class JustSyncItApplication {
         try {
             LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
             loggerContext.reset();
-            
+
             JoranConfigurator configurator = new JoranConfigurator();
             configurator.setContext(loggerContext);
-            
+
             InputStream configStream = getClass().getClassLoader().getResourceAsStream(configFilename);
             if (configStream != null) {
                 configurator.doConfigure(configStream);
@@ -209,15 +209,15 @@ public class JustSyncItApplication {
      */
     private String[] filterLoggingOptions(String[] args) {
         java.util.List<String> filteredArgs = new java.util.ArrayList<>();
-        
+
         for (String arg : args) {
-            if (!arg.equals("--verbose") &&
-                !arg.equals("--quiet") &&
-                !arg.startsWith("--log-level=")) {
+            if (!arg.equals("--verbose")
+                    && !arg.equals("--quiet")
+                    && !arg.startsWith("--log-level=")) {
                 filteredArgs.add(arg);
             }
         }
-        
+
         return filteredArgs.toArray(new String[0]);
     }
 
