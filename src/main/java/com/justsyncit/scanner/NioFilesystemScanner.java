@@ -55,7 +55,7 @@ public class NioFilesystemScanner implements FilesystemScanner {
                 NioFileVisitor nioVisitor = new NioFileVisitor(finalOptions, scannedFiles, errors, filesProcessed);
                 
                 Set<FileVisitOption> visitOptions = EnumSet.noneOf(FileVisitOption.class);
-                if (finalOptions.getSymlinkStrategy() == SymlinkStrategy.FOLLOW || finalOptions.isFollowLinks()) {
+                if (finalOptions.getSymlinkStrategy() == SymlinkStrategy.FOLLOW) {
                     visitOptions.add(FileVisitOption.FOLLOW_LINKS);
                 }
                 
@@ -294,14 +294,14 @@ public class NioFilesystemScanner implements FilesystemScanner {
             if (options.getIncludePattern() == null) {
                 return true;
             }
-            return options.getIncludePattern().matches(path.getFileName());
+            return options.getIncludePattern().matches(path);
         }
         
         private boolean matchesExcludePattern(Path path) {
             if (options.getExcludePattern() == null) {
                 return false;
             }
-            return options.getExcludePattern().matches(path.getFileName());
+            return options.getExcludePattern().matches(path);
         }
         
         private boolean detectSparseFile(Path file, BasicFileAttributes attrs) {
@@ -339,6 +339,48 @@ public class NioFilesystemScanner implements FilesystemScanner {
                 } catch (IllegalArgumentException e) {
                     // Block attributes not supported on this filesystem
                     logger.debug("Block attributes not supported for: {}", file);
+                }
+                
+                // Windows-specific sparse file detection
+                if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+                    try {
+                        // For Windows, we can use a heuristic approach
+                        // Check if the file has sparse characteristics by reading sample data
+                        long fileSize = attrs.size();
+                        if (fileSize > 64 * 1024) { // Only check files larger than 64KB
+                            try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file.toFile(), "r")) {
+                                // Sample different parts of the file
+                                long[] positions = {0, fileSize / 4, fileSize / 2, fileSize * 3 / 4, Math.max(fileSize - 1024, 0)};
+                                int zeroRegions = 0;
+                                
+                                for (long pos : positions) {
+                                    if (pos < fileSize) {
+                                        raf.seek(pos);
+                                        byte[] buffer = new byte[1024];
+                                        int bytesRead = raf.read(buffer);
+                                        
+                                        if (bytesRead > 0) {
+                                            boolean allZeros = true;
+                                            for (int i = 0; i < bytesRead; i++) {
+                                                if (buffer[i] != 0) {
+                                                    allZeros = false;
+                                                    break;
+                                                }
+                                            }
+                                            if (allZeros) {
+                                                zeroRegions++;
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                // If most sampled regions are zeros, likely sparse
+                                return zeroRegions >= positions.length * 0.6;
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.debug("Windows sparse detection failed for: {}", file, e);
+                    }
                 }
                 
             } catch (UnsupportedOperationException e) {

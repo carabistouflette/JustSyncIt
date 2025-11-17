@@ -52,8 +52,11 @@ class FileProcessorTest {
     void setUp() throws ServiceException, IOException {
         ServiceFactory serviceFactory = new ServiceFactory();
         blake3Service = serviceFactory.createBlake3Service();
-        contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-        metadataService = serviceFactory.createInMemoryMetadataService();
+        // Use file-based metadata service for testing to ensure proper connection sharing
+        metadataService = com.justsyncit.storage.metadata.MetadataServiceFactory.createFileBasedService(
+            tempDir.resolve("test.db").toString());
+        // Use the same metadata service for both content store and processor
+        contentStore = com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService, blake3Service);
         
         FilesystemScanner scanner = new NioFilesystemScanner();
         FileChunker chunker = new FixedSizeFileChunker(blake3Service);

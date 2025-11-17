@@ -3,10 +3,12 @@ package com.justsyncit.scanner;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
+import com.justsyncit.storage.metadata.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
@@ -31,7 +33,7 @@ public class FileProcessor {
     private final FileChunker chunker;
     private final ContentStore contentStore;
     private final MetadataService metadataService;
-    private final ExecutorService executorService;
+    private volatile ExecutorService executorService;
     
     private volatile boolean isRunning = false;
     private final AtomicInteger processedFiles = new AtomicInteger(0);
@@ -64,6 +66,19 @@ public class FileProcessor {
      */
     public CompletableFuture<ProcessingResult> processDirectory(Path directory, ScanOptions options) {
         return CompletableFuture.supplyAsync(() -> {
+            if (isRunning) {
+                throw new IllegalStateException("FileProcessor is already running");
+            }
+            
+            if (directory == null || !Files.exists(directory) || !Files.isDirectory(directory)) {
+                throw new IllegalArgumentException("Directory must exist and be a directory: " + directory);
+            }
+            
+            // Check if executor has been shut down (stopped) and don't restart
+            if (executorService.isShutdown()) {
+                throw new IllegalStateException("FileProcessor has been stopped and cannot be restarted");
+            }
+            
             isRunning = true;
             resetCounters();
             
@@ -73,12 +88,34 @@ public class FileProcessor {
             logger.info("Starting file processing for directory: {} with snapshot: {}", directory, currentSnapshotId);
             
             try {
-                // Create snapshot first
+                // Create snapshot first in a transaction to ensure visibility
+                com.justsyncit.storage.metadata.Transaction transaction = null;
                 try {
+                    transaction = metadataService.beginTransaction();
                     metadataService.createSnapshot(currentSnapshotId, "Processing session for directory: " + directory);
+                    transaction.commit();
+                    
+                    // Wait a moment to ensure the snapshot is visible to all connections
+                    Thread.sleep(50);
                 } catch (IOException e) {
-                    logger.warn("Failed to create snapshot: {}", e.getMessage());
-                    // Continue anyway, we'll handle the foreign key issue gracefully
+                    logger.error("Failed to create snapshot: {}", e.getMessage());
+                    if (transaction != null) {
+                        try {
+                            transaction.rollback();
+                        } catch (IOException rollbackEx) {
+                            logger.warn("Failed to rollback transaction: {}", rollbackEx.getMessage());
+                        }
+                    }
+                    // If snapshot creation fails, we can't proceed
+                    throw new RuntimeException("Failed to create snapshot for file processing", e);
+                } finally {
+                    if (transaction != null) {
+                        try {
+                            transaction.close();
+                        } catch (IOException e) {
+                            logger.warn("Failed to close transaction: {}", e.getMessage());
+                        }
+                    }
                 }
                 
                 // Configure scanner with file visitor that handles chunking
@@ -107,6 +144,7 @@ public class FileProcessor {
                 logger.info("File processing completed. Processed: {}, Skipped: {}, Errors: {}, Total bytes: {}",
                     result.getProcessedFiles(), result.getSkippedFiles(), result.getErrorFiles(), result.getTotalBytes());
                 
+                
                 return result;
                 
             } catch (Exception e) {
@@ -124,7 +162,9 @@ public class FileProcessor {
      */
     public void stop() {
         isRunning = false;
-        executorService.shutdown();
+        if (!executorService.isShutdown()) {
+            executorService.shutdown();
+        }
         try {
             if (!executorService.awaitTermination(30, TimeUnit.SECONDS)) {
                 executorService.shutdownNow();
@@ -233,8 +273,26 @@ public class FileProcessor {
                     result.getChunkHashes()
                 );
                 
-                // Store file metadata
-                metadataService.insertFile(fileMetadata);
+                // Store file metadata with retry for foreign key constraint
+                try {
+                    metadataService.insertFile(fileMetadata);
+                } catch (IOException e) {
+                    // If it's a foreign key constraint, the snapshot might not be visible yet
+                    // Wait a bit and retry
+                    if (e.getMessage() != null && (e.getMessage().contains("FOREIGN KEY constraint failed") ||
+                        e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY"))) {
+                        logger.warn("Foreign key constraint for file {}, retrying...", result.getFile());
+                        try {
+                            Thread.sleep(10); // Small delay to ensure snapshot is visible
+                            metadataService.insertFile(fileMetadata);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException("Interrupted while retrying file insertion", ie);
+                        }
+                    } else {
+                        throw e;
+                    }
+                }
                 
                 processedFiles.incrementAndGet();
                 processedBytes.addAndGet(result.getTotalSize());

@@ -159,9 +159,8 @@ public class ByteBufferPool implements BufferPool {
                 return;
             }
 
-            ByteBuffer buffer;
             int clearedCount = 0;
-            while ((buffer = availableBuffers.poll()) != null) {
+            while ((availableBuffers.poll()) != null) {
                 // Direct buffers don't need explicit cleanup, but we can track
                 clearedCount++;
             }
@@ -219,9 +218,8 @@ public class ByteBufferPool implements BufferPool {
             // Try to free some space by clearing available buffers
             cleanupLock.lock();
             try {
-                ByteBuffer buffer;
                 int freedCount = 0;
-                while ((buffer = availableBuffers.poll()) != null && freedCount < 4) {
+                while ((availableBuffers.poll()) != null && freedCount < 4) {
                     freedCount++;
                 }
                 logger.warn("Freed {} buffers from pool due to out of memory", freedCount);
