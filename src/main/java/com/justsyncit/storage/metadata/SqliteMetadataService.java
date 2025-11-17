@@ -421,17 +421,55 @@ public final class SqliteMetadataService implements MetadataService {
 
         String sql = "UPDATE chunks SET last_accessed = ? WHERE hash = ?";
 
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-
-            stmt.setLong(1, Instant.now().toEpochMilli());
-            stmt.setString(2, chunkHash);
-
-            stmt.executeUpdate();
+        try (Connection connection = connectionManager.getConnection()) {
+            // Disable auto-commit for better performance on single updates
+            connection.setAutoCommit(false);
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setLong(1, Instant.now().toEpochMilli());
+                stmt.setString(2, chunkHash);
+                stmt.executeUpdate();
+            }
+            connection.commit();
             logger.debug("Recorded access for chunk: {}", chunkHash);
 
         } catch (SQLException e) {
             throw new IOException("Failed to record chunk access", e);
+        }
+    }
+
+    /**
+     * Records access for multiple chunks in a single batch operation for better performance.
+     * This is an internal optimization method not exposed by the MetadataService interface.
+     *
+     * @param chunkHashes list of chunk hashes to record access for
+     * @throws IOException if the operation fails
+     */
+    private void recordChunkAccessBatch(List<String> chunkHashes) throws IOException {
+        validateNotClosed();
+        if (chunkHashes == null || chunkHashes.isEmpty()) {
+            return;
+        }
+
+        String sql = "UPDATE chunks SET last_accessed = ? WHERE hash = ?";
+        long currentTime = Instant.now().toEpochMilli();
+
+        try (Connection connection = connectionManager.getConnection()) {
+            connection.setAutoCommit(false);
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                for (String chunkHash : chunkHashes) {
+                    if (chunkHash != null && !chunkHash.trim().isEmpty()) {
+                        stmt.setLong(1, currentTime);
+                        stmt.setString(2, chunkHash);
+                        stmt.addBatch();
+                    }
+                }
+                stmt.executeBatch();
+            }
+            connection.commit();
+            logger.debug("Recorded access for {} chunks in batch", chunkHashes.size());
+
+        } catch (SQLException e) {
+            throw new IOException("Failed to record chunk access batch", e);
         }
     }
 
