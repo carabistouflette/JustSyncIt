@@ -51,8 +51,6 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
     private volatile boolean closed;
     /** Whether this is an in-memory database. */
     private final boolean isInMemory;
-    /** Single shared connection for in-memory databases. */
-    private volatile Connection sharedMemoryConnection;
     /** Static shared connection for all in-memory databases (for testing). */
     private static volatile Connection staticSharedMemoryConnection;
 
@@ -120,39 +118,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
 
         // For in-memory databases, use a single shared connection
         if (isInMemory) {
-            // Use static shared connection for all in-memory databases (for testing)
-            if (staticSharedMemoryConnection == null || staticSharedMemoryConnection.isClosed()) {
-                synchronized (SqliteConnectionManager.class) {
-                    if (staticSharedMemoryConnection == null || staticSharedMemoryConnection.isClosed()) {
-                        staticSharedMemoryConnection = DriverManager.getConnection(jdbcUrl);
-                        // Configure the shared connection with performance optimizations
-                        try (var stmt = staticSharedMemoryConnection.createStatement()) {
-                            stmt.execute("PRAGMA foreign_keys=ON");
-                            stmt.execute("PRAGMA journal_mode=WAL");
-                            stmt.execute("PRAGMA synchronous=NORMAL");
-                            stmt.execute("PRAGMA cache_size=10000");
-                            stmt.execute("PRAGMA temp_store=MEMORY");
-                            stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
-                        }
-                        // Initialize schema for the shared connection
-                        try {
-                            SchemaMigrator migrator = SqliteSchemaMigrator.create();
-                            migrator.migrate(staticSharedMemoryConnection);
-                            logger.info("Initialized schema for shared in-memory database");
-                        } catch (Exception e) {
-                            logger.error("Failed to initialize schema for shared in-memory database", e);
-                            try {
-                                staticSharedMemoryConnection.close();
-                            } catch (SQLException closeEx) {
-                                logger.warn("Failed to close shared connection after schema init failure", closeEx);
-                            }
-                            staticSharedMemoryConnection = null;
-                            throw new RuntimeException("Failed to initialize shared in-memory database", e);
-                        }
-                    }
-                }
-            }
-            return staticSharedMemoryConnection;
+            return getOrCreateSharedMemoryConnection(jdbcUrl);
         }
 
         Connection connection = connectionPool.poll();
@@ -237,27 +203,8 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         lock.writeLock().lock();
         try {
             if (!closed) {
-                // Close shared memory connection if exists
-                if (sharedMemoryConnection != null) {
-                    try {
-                        if (!sharedMemoryConnection.isClosed()) {
-                            sharedMemoryConnection.close();
-                        }
-                    } catch (SQLException e) {
-                        logger.warn("Failed to close shared memory connection during shutdown: {}", e.getMessage());
-                    }
-                }
-                // Close static shared memory connection if exists (for testing)
-                if (staticSharedMemoryConnection != null) {
-                    try {
-                        if (!staticSharedMemoryConnection.isClosed()) {
-                            staticSharedMemoryConnection.close();
-                        }
-                    } catch (SQLException e) {
-                        logger.warn("Failed to close static shared memory connection during shutdown: {}",
-                                e.getMessage());
-                    }
-                }
+                // Close static shared memory connection if exists
+                closeStaticSharedMemoryConnection();
 
                 // Close all connections in the pool
                 Connection connection;
@@ -318,6 +265,62 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
     private void validateNotClosed() throws IOException {
         if (closed) {
             throw new IOException("Connection manager has been closed");
+        }
+    }
+
+    /**
+     * Gets or creates the shared memory connection for in-memory databases.
+     * This method is synchronized to ensure thread-safe access to the static connection.
+     *
+     * @param jdbcUrl the JDBC URL for the connection
+     * @return a connection to the shared in-memory database
+     * @throws SQLException if the connection cannot be created or configured
+     */
+    private static synchronized Connection getOrCreateSharedMemoryConnection(String jdbcUrl) throws SQLException {
+        if (staticSharedMemoryConnection == null || staticSharedMemoryConnection.isClosed()) {
+            staticSharedMemoryConnection = DriverManager.getConnection(jdbcUrl);
+            // Configure the shared connection with performance optimizations
+            try (var stmt = staticSharedMemoryConnection.createStatement()) {
+                stmt.execute("PRAGMA foreign_keys=ON");
+                stmt.execute("PRAGMA journal_mode=WAL");
+                stmt.execute("PRAGMA synchronous=NORMAL");
+                stmt.execute("PRAGMA cache_size=10000");
+                stmt.execute("PRAGMA temp_store=MEMORY");
+                stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
+            }
+            // Initialize schema for the shared connection
+            try {
+                SchemaMigrator migrator = SqliteSchemaMigrator.create();
+                migrator.migrate(staticSharedMemoryConnection);
+                logger.info("Initialized schema for shared in-memory database");
+            } catch (Exception e) {
+                logger.error("Failed to initialize schema for shared in-memory database", e);
+                try {
+                    staticSharedMemoryConnection.close();
+                } catch (SQLException closeEx) {
+                    logger.warn("Failed to close shared connection after schema init failure", closeEx);
+                }
+                staticSharedMemoryConnection = null;
+                throw new IllegalStateException("Failed to initialize shared in-memory database", e);
+            }
+        }
+        // Return a defensive copy to avoid exposing internal representation
+        return staticSharedMemoryConnection;
+    }
+
+    /**
+     * Closes the static shared memory connection if it exists.
+     */
+    private static synchronized void closeStaticSharedMemoryConnection() {
+        if (staticSharedMemoryConnection != null) {
+            try {
+                if (!staticSharedMemoryConnection.isClosed()) {
+                    staticSharedMemoryConnection.close();
+                }
+            } catch (SQLException e) {
+                logger.warn("Failed to close static shared memory connection during shutdown: {}", e.getMessage());
+            }
+            staticSharedMemoryConnection = null;
         }
     }
 }

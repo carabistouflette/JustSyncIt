@@ -97,7 +97,6 @@ class SqliteMetadataIntegrationTest {
             int numChunksPerFile = 5;
             List<Snapshot> snapshots = new ArrayList<>();
             List<FileMetadata> files = new ArrayList<>();
-            List<ChunkMetadata> chunks = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
 
@@ -116,7 +115,6 @@ class SqliteMetadataIntegrationTest {
                             String chunkHash = "chunk-" + i + "-" + j + "-" + k;
                             ChunkMetadata chunk = new ChunkMetadata(
                                     chunkHash, 4096, Instant.now(), 1, Instant.now());
-                            chunks.add(chunk);
                             chunkHashes.add(chunkHash);
                             // Insert chunk into database
                             metadataService.upsertChunk(chunk);
@@ -130,7 +128,7 @@ class SqliteMetadataIntegrationTest {
                                 UUID.randomUUID().toString(),
                                 snapshot.getId(),
                                 "/path/to/file-" + i + "-" + j + ".txt",
-                                1024 * (j + 1),
+                                1024L * (j + 1),
                                 Instant.now(),
                                 fileHash,
                                 chunkHashes
@@ -145,7 +143,7 @@ class SqliteMetadataIntegrationTest {
                     transaction.commit();
                 } catch (Exception e) {
                     transaction.rollback();
-                    throw new RuntimeException("Failed to insert batch of files", e);
+                    throw new IllegalStateException("Failed to insert batch of files", e);
                 }
             }
 
@@ -187,8 +185,8 @@ class SqliteMetadataIntegrationTest {
             // Verify statistics
             MetadataStats stats = metadataService.getStats();
             assertEquals(numSnapshots, stats.getTotalSnapshots());
-            assertEquals(numFilesPerSnapshot * numSnapshots, stats.getTotalFiles());
-            assertTrue(stats.getTotalChunks() >= numChunksPerFile * numFilesPerSnapshot * numSnapshots);
+            assertEquals((long) numFilesPerSnapshot * numSnapshots, stats.getTotalFiles());
+            assertTrue(stats.getTotalChunks() >= (long) numChunksPerFile * numFilesPerSnapshot * numSnapshots);
         }
 
         @Test
@@ -238,7 +236,7 @@ class SqliteMetadataIntegrationTest {
 
         @Test
         @DisplayName("Should handle concurrent operations safely")
-        void shouldHandleConcurrentOperationsSafely() throws Exception {
+        void shouldHandleConcurrentOperationsSafely() throws IOException, InterruptedException {
             // Given: Multiple threads performing operations
             int numThreads = 10;
             int operationsPerThread = 100;
@@ -281,21 +279,26 @@ class SqliteMetadataIntegrationTest {
             }
 
             // Then: All operations should complete without exceptions
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(30, TimeUnit.SECONDS);
+            try {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        .get(30, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                // Handle exceptions from concurrent operations
+                throw new IOException("Concurrent operations failed", e);
+            }
 
             executor.shutdown();
             executor.awaitTermination(5, TimeUnit.SECONDS);
 
             // Verify data integrity
             MetadataStats finalStats = metadataService.getStats();
-            assertTrue(finalStats.getTotalSnapshots() >= numThreads * (operationsPerThread / 4));
-            assertTrue(finalStats.getTotalChunks() >= numThreads * (operationsPerThread / 4));
+            assertTrue(finalStats.getTotalSnapshots() >= (long) numThreads * (operationsPerThread / 4));
+            assertTrue(finalStats.getTotalChunks() >= (long) numThreads * (operationsPerThread / 4));
         }
 
         @Test
         @DisplayName("Should handle concurrent transactions safely")
-        void shouldHandleConcurrentTransactionsSafely() throws Exception {
+        void shouldHandleConcurrentTransactionsSafely() throws IOException, InterruptedException {
             // Given: Multiple threads with transactions
             int numThreads = 5;
             ExecutorService executor = Executors.newFixedThreadPool(numThreads);
@@ -327,15 +330,20 @@ class SqliteMetadataIntegrationTest {
             }
 
             // Then: All transactions should complete successfully
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(20, TimeUnit.SECONDS);
+            try {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        .get(20, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                // Handle exceptions from concurrent transactions
+                throw new IOException("Concurrent transactions failed", e);
+            }
 
             executor.shutdown();
             executor.awaitTermination(5, TimeUnit.SECONDS);
 
             // Verify all data was committed
             MetadataStats stats = metadataService.getStats();
-            assertTrue(stats.getTotalChunks() >= numThreads * 10);
+            assertTrue(stats.getTotalChunks() >= (long) numThreads * 10);
         }
     }
 
@@ -462,7 +470,8 @@ class SqliteMetadataIntegrationTest {
         @DisplayName("Should follow ClosableResource pattern")
         void shouldFollowClosableResourcePattern() throws IOException {
             // Given: Active metadata service
-            assertTrue(metadataService instanceof com.justsyncit.storage.ClosableResource);
+            // All MetadataService implementations should implement ClosableResource
+            assertNotNull(metadataService);
 
             // When: Perform operations
             Snapshot snapshot = metadataService.createSnapshot("close-test", "Test");
@@ -544,10 +553,10 @@ class SqliteMetadataIntegrationTest {
             for (int i = 0; i < numChunks; i++) {
                 ChunkMetadata chunk = new ChunkMetadata(
                         "index-test-chunk-" + i,
-                        4096 + (i % 1000), // Variable sizes
-                        Instant.now().minusSeconds(i * 60), // Different first seen times
+                        4096L + (i % 1000), // Variable sizes
+                        Instant.now().minusSeconds(i * 60L), // Different first seen times
                         i % 100 + 1, // Variable reference counts
-                        Instant.now().minusSeconds(i * 10) // Different last accessed times
+                        Instant.now().minusSeconds(i * 10L) // Different last accessed times
                 );
                 metadataService.upsertChunk(chunk);
             }
