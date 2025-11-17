@@ -216,7 +216,6 @@ class SqliteMetadataIntegrationTest {
                 transaction.rollback();
                 throw e;
             }
-
             long insertTime = System.currentTimeMillis() - startTime;
 
             // Then: Performance should remain acceptable
@@ -396,7 +395,6 @@ class SqliteMetadataIntegrationTest {
             // Given: Create chunks with BLAKE3-like hashes
             String chunkHash1 = "af1349b9f5f9321a9d89a3c8e6f3c1a5b5"; // 64-char BLAKE3 hash
             String chunkHash2 = "7c8835695624b7d258e1a2d5c6b6d8b4e8"; // Another BLAKE3 hash
-            
             ChunkMetadata chunk1 = new ChunkMetadata(
                     chunkHash1, 4096, Instant.now(), 1, Instant.now());
             ChunkMetadata chunk2 = new ChunkMetadata(
@@ -423,12 +421,10 @@ class SqliteMetadataIntegrationTest {
         void shouldHandleContentAddressableStoragePattern() throws IOException {
             // Given: Create file with content-addressable chunks
             Snapshot snapshot = metadataService.createSnapshot("content-addressable-test", "Test");
-            
             // Create chunks that represent content-addressable storage
             List<String> chunkHashes = Arrays.asList(
                     "hash-chunk-1", "hash-chunk-2", "hash-chunk-3"
             );
-            
             for (String chunkHash : chunkHashes) {
                 ChunkMetadata chunk = new ChunkMetadata(
                         chunkHash, 4096, Instant.now(), 1, Instant.now());
@@ -473,7 +469,6 @@ class SqliteMetadataIntegrationTest {
 
             // Then: Should close gracefully
             metadataService.close();
-            
             // Operations after close should fail
             assertThrows(IOException.class, () -> metadataService.createSnapshot("after-close", "Should fail"));
         }
@@ -510,7 +505,6 @@ class SqliteMetadataIntegrationTest {
             // Then: Should work like any other metadata service
             Snapshot snapshot = factoryMetadataService.createSnapshot("factory-test", "Created via factory");
             assertNotNull(snapshot);
-            
             factoryMetadataService.close();
         }
 
@@ -545,7 +539,6 @@ class SqliteMetadataIntegrationTest {
         void shouldHaveProperIndexingForFastQueries() throws IOException {
             // Given: Large dataset with various query patterns
             int numChunks = 10000;
-            
             // Insert chunks with different access patterns
             for (int i = 0; i < numChunks; i++) {
                 ChunkMetadata chunk = new ChunkMetadata(

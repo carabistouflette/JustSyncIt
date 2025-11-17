@@ -76,7 +76,6 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         this.lock = new ReentrantReadWriteLock();
         this.closed = false;
         this.isInMemory = ":memory:".equals(databasePath) || databasePath.startsWith("file::memory:");
-        
         // For in-memory databases, use shared cache to allow multiple connections
         if (isInMemory) {
             this.jdbcUrl = "jdbc:sqlite:file::memory:?cache=shared";
@@ -135,7 +134,6 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
                             stmt.execute("PRAGMA temp_store=MEMORY");
                             stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
                         }
-                        
                         // Initialize schema for the shared connection
                         try {
                             SchemaMigrator migrator = SqliteSchemaMigrator.create();
@@ -249,7 +247,6 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
                         logger.warn("Failed to close shared memory connection during shutdown: {}", e.getMessage());
                     }
                 }
-                
                 // Close static shared memory connection if exists (for testing)
                 if (staticSharedMemoryConnection != null) {
                     try {

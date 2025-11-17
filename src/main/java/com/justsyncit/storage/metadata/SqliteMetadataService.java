@@ -275,7 +275,6 @@ public final class SqliteMetadataService implements MetadataService {
                 logger.debug("Executing batch insert for {} files", files.size());
                 int[] results = stmt.executeBatch();
                 logger.debug("Batch insert results: {}", results.length);
-                
                 // Insert file chunks for all files
                 for (FileMetadata file : files) {
                     insertFileChunks(connection, file);
@@ -285,7 +284,6 @@ public final class SqliteMetadataService implements MetadataService {
                 
                 return insertedIds;
             }
-
         } catch (SQLException e) {
             throw new IOException("Failed to insert files", e);
         }
