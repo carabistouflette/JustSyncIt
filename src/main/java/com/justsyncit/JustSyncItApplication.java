@@ -24,6 +24,11 @@ import com.justsyncit.command.CommandRegistry;
 import com.justsyncit.hash.Blake3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.joran.JoranConfigurator;
+import ch.qos.logback.core.joran.spi.JoranException;
+import java.io.InputStream;
 
 /**
  * Refactored main application class that follows SOLID principles.
@@ -84,23 +89,26 @@ public class JustSyncItApplication {
      * @param args command line arguments
      */
     public void run(String[] args) {
+        // Process logging options first
+        String[] processedArgs = processLoggingOptions(args);
+
         logger.info("JustSyncIt is running");
 
         // Display BLAKE3 implementation info
         infoDisplay.displayBlake3Info(blake3Service);
 
         // Display application header
-        System.out.println("JustSyncIt - Backup Solution");
-        System.out.println("Version: 1.0-SNAPSHOT");
+        logger.info("JustSyncIt - Backup Solution");
+        logger.info("Version: 1.0-SNAPSHOT");
 
-        if (args.length == 0) {
+        if (processedArgs.length == 0) {
             logger.info("Running with no arguments");
             displayUsage();
             return;
         }
 
         // Process commands
-        processCommands(args);
+        processCommands(processedArgs);
     }
 
     /**
@@ -108,6 +116,111 @@ public class JustSyncItApplication {
      *
      * @param args command line arguments
      */
+    /**
+     * Processes logging options and returns remaining arguments.
+     *
+     * @param args command line arguments
+     * @return arguments without logging options
+     */
+    private String[] processLoggingOptions(String[] args) {
+        String logLevel = null;
+        String logbackConfig = null;
+        boolean verbose = false;
+        boolean quiet = false;
+
+        // First pass: identify logging options
+        for (String arg : args) {
+            if (arg.equals("--verbose")) {
+                verbose = true;
+            } else if (arg.equals("--quiet")) {
+                quiet = true;
+            } else if (arg.startsWith("--log-level=")) {
+                logLevel = arg.substring("--log-level=".length());
+            }
+        }
+
+        // Determine logging configuration
+        if (verbose) {
+            logbackConfig = "logback-verbose.xml";
+        } else if (quiet) {
+            logbackConfig = "logback-quiet.xml";
+        }
+
+        // Apply logging configuration
+        if (logbackConfig != null) {
+            applyLogbackConfiguration(logbackConfig);
+        }
+
+        // Apply log level if specified
+        if (logLevel != null) {
+            applyLogLevel(logLevel);
+        }
+
+        // Filter out logging options from arguments
+        return filterLoggingOptions(args);
+    }
+
+    /**
+     * Applies a Logback configuration file.
+     *
+     * @param configFilename the configuration filename
+     */
+    private void applyLogbackConfiguration(String configFilename) {
+        try {
+            LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+            loggerContext.reset();
+            
+            JoranConfigurator configurator = new JoranConfigurator();
+            configurator.setContext(loggerContext);
+            
+            InputStream configStream = getClass().getClassLoader().getResourceAsStream(configFilename);
+            if (configStream != null) {
+                configurator.doConfigure(configStream);
+                logger.info("Applied logging configuration: {}", configFilename);
+            } else {
+                logger.warn("Logging configuration file not found: {}", configFilename);
+            }
+        } catch (JoranException e) {
+            logger.error("Failed to apply logging configuration: {}", configFilename, e);
+        }
+    }
+
+    /**
+     * Applies a specific log level to the root logger.
+     *
+     * @param levelName the log level name
+     */
+    private void applyLogLevel(String levelName) {
+        try {
+            Level level = Level.toLevel(levelName.toUpperCase(), Level.INFO);
+            LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+            loggerContext.getLogger("ROOT").setLevel(level);
+            logger.info("Applied log level: {}", level);
+        } catch (Exception e) {
+            logger.error("Failed to apply log level: {}", levelName, e);
+        }
+    }
+
+    /**
+     * Filters out logging options from arguments.
+     *
+     * @param args original arguments
+     * @return arguments without logging options
+     */
+    private String[] filterLoggingOptions(String[] args) {
+        java.util.List<String> filteredArgs = new java.util.ArrayList<>();
+        
+        for (String arg : args) {
+            if (!arg.equals("--verbose") &&
+                !arg.equals("--quiet") &&
+                !arg.startsWith("--log-level=")) {
+                filteredArgs.add(arg);
+            }
+        }
+        
+        return filteredArgs.toArray(new String[0]);
+    }
+
     private void processCommands(String[] args) {
         logger.info("Running with {} arguments", args.length);
 
@@ -134,7 +247,7 @@ public class JustSyncItApplication {
         }
 
         if (!commandExecuted) {
-            System.out.println("No valid command found. Use --help for available commands.");
+            logger.info("No valid command found. Use --help for available commands.");
             commandRegistry.displayHelp();
         }
     }
@@ -183,7 +296,12 @@ public class JustSyncItApplication {
      * Displays usage information.
      */
     private void displayUsage() {
-        System.out.println("Usage: java -jar JustSyncIt.jar [options]");
+        logger.info("Usage: java -jar JustSyncIt.jar [options]");
+        logger.info("Logging options:");
+        logger.info("  --verbose              Enable verbose logging (DEBUG level)");
+        logger.info("  --quiet                Enable quiet logging (WARN level only)");
+        logger.info("  --log-level=<LEVEL>    Set specific log level (TRACE, DEBUG, INFO, WARN, ERROR)");
+        logger.info("");
         commandRegistry.displayHelp();
     }
 }

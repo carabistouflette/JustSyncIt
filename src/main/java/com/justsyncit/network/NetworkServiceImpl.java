@@ -173,7 +173,7 @@ public class NetworkServiceImpl implements NetworkService {
                 connectionTransports.put(clientAddress, TransportType.TCP);
                 notifyConnectionEstablished(clientAddress);
                 statistics.incrementActiveConnections();
-                logger.info("TCP client connected: {}", clientAddress);
+                logger.debug("TCP client connected: {}", clientAddress);
             }
 
             @Override
@@ -182,7 +182,7 @@ public class NetworkServiceImpl implements NetworkService {
                 connectionTransports.remove(clientAddress);
                 notifyConnectionClosed(clientAddress, cause);
                 statistics.decrementActiveConnections();
-                logger.info("TCP client disconnected: {}", clientAddress, cause);
+                logger.debug("TCP client disconnected: {}", clientAddress, cause);
             }
 
             @Override
@@ -210,7 +210,7 @@ public class NetworkServiceImpl implements NetworkService {
                 connectionTransports.put(serverAddress, TransportType.TCP);
                 notifyConnectionEstablished(serverAddress);
                 statistics.incrementActiveConnections();
-                logger.info("TCP connected to server: {}", serverAddress);
+                logger.debug("TCP connected to server: {}", serverAddress);
             }
 
             @Override
@@ -219,7 +219,7 @@ public class NetworkServiceImpl implements NetworkService {
                 connectionTransports.remove(serverAddress);
                 notifyConnectionClosed(serverAddress, cause);
                 statistics.decrementActiveConnections();
-                logger.info("TCP disconnected from server: {}", serverAddress, cause);
+                logger.debug("TCP disconnected from server: {}", serverAddress, cause);
             }
 
             @Override
@@ -246,7 +246,7 @@ public class NetworkServiceImpl implements NetworkService {
                 connectionTransports.put(clientAddress, TransportType.QUIC);
                 notifyConnectionEstablished(clientAddress);
                 statistics.incrementActiveConnections();
-                logger.info("QUIC client connected: {}", clientAddress);
+                logger.debug("QUIC client connected: {}", clientAddress);
             }
 
             @Override
@@ -254,7 +254,7 @@ public class NetworkServiceImpl implements NetworkService {
                 connectionTransports.remove(clientAddress);
                 notifyConnectionClosed(clientAddress, cause);
                 statistics.decrementActiveConnections();
-                logger.info("QUIC client disconnected: {}", clientAddress, cause);
+                logger.debug("QUIC client disconnected: {}", clientAddress, cause);
             }
 
             @Override
@@ -295,7 +295,7 @@ public class NetworkServiceImpl implements NetworkService {
                     connectionTransports.put(serverAddress, TransportType.QUIC);
                     notifyConnectionEstablished(serverAddress);
                     statistics.incrementActiveConnections();
-                    logger.info("QUIC connected to server: {}", serverAddress);
+                    logger.debug("QUIC connected to server: {}", serverAddress);
                 }
 
                 @Override
@@ -303,7 +303,7 @@ public class NetworkServiceImpl implements NetworkService {
                     connectionTransports.remove(serverAddress);
                     notifyConnectionClosed(serverAddress, cause);
                     statistics.decrementActiveConnections();
-                    logger.info("QUIC disconnected from server: {}", serverAddress, cause);
+                    logger.debug("QUIC disconnected from server: {}", serverAddress, cause);
                 }
 
                 @Override
@@ -426,7 +426,7 @@ public class NetworkServiceImpl implements NetworkService {
         if (transportType == TransportType.QUIC) {
             return quicTransport.connect(address)
                 .thenAccept(connection -> {
-                    logger.info("Connected to node via QUIC: {}", address);
+                    logger.debug("Connected to node via QUIC: {}", address);
                 })
                 .exceptionally(throwable -> {
                     logger.error("Failed to connect to node via QUIC: {}", address, throwable);
@@ -438,7 +438,7 @@ public class NetworkServiceImpl implements NetworkService {
 
             connectionFuture
                     .thenAccept(connection -> {
-                        logger.info("Connected to node via TCP: {}", address);
+                        logger.debug("Connected to node via TCP: {}", address);
                         result.complete(null);
                     })
                     .exceptionally(throwable -> {
@@ -456,14 +456,14 @@ public class NetworkServiceImpl implements NetworkService {
         TransportType transportType = connectionTransports.get(address);
         if (transportType == TransportType.QUIC) {
             return quicTransport.disconnect(address)
-                .thenRun(() -> logger.info("Disconnected from node via QUIC: {}", address))
+                .thenRun(() -> logger.debug("Disconnected from node via QUIC: {}", address))
                 .exceptionally(throwable -> {
                     logger.error("Failed to disconnect from node via QUIC: {}", address, throwable);
                     return null;
                 });
         } else {
             return tcpClient.disconnect(address)
-                .thenRun(() -> logger.info("Disconnected from node via TCP: {}", address))
+                .thenRun(() -> logger.debug("Disconnected from node via TCP: {}", address))
                 .exceptionally(throwable -> {
                     logger.error("Failed to disconnect from node via TCP: {}", address, throwable);
                     return null;
@@ -493,7 +493,7 @@ public class NetworkServiceImpl implements NetworkService {
                     } catch (IOException e) {
                         logger.warn("Could not update bytes sent statistics for file transfer", e);
                     }
-                    logger.info("File sent via QUIC: {} to {}", filePath, remoteAddress);
+                    logger.debug("File sent via QUIC: {} to {}", filePath, remoteAddress);
                     long now = System.currentTimeMillis();
                     return CompletableFuture.completedFuture(FileTransferResult.success(
                             "unknown", filePath, remoteAddress, fileData.length, fileData.length, now, now
@@ -519,7 +519,7 @@ public class NetworkServiceImpl implements NetworkService {
                                 logger.warn("Could not update bytes sent statistics for file transfer", e);
                             }
                         }
-                        logger.info("File sent via TCP: {} to {}", filePath, remoteAddress);
+                        logger.debug("File sent via TCP: {} to {}", filePath, remoteAddress);
                         return result;
                     })
                     .exceptionally(throwable -> {
@@ -545,7 +545,7 @@ public class NetworkServiceImpl implements NetworkService {
             return quicTransport.sendMessage(message, remoteAddress)
                 .thenRun(() -> {
                     statistics.incrementBytesSent(message.getTotalSize());
-                    logger.debug("Message sent via QUIC to {}: {}", remoteAddress, message.getMessageType());
+                    logger.trace("Message sent via QUIC to {}: {}", remoteAddress, message.getMessageType());
                 })
                 .exceptionally(throwable -> {
                     logger.error("Failed to send message via QUIC to {}: {}",
@@ -564,7 +564,7 @@ public class NetworkServiceImpl implements NetworkService {
 
             return future.thenRun(() -> {
                 statistics.incrementBytesSent(message.getTotalSize());
-                logger.debug("Message sent via TCP to {}: {}", remoteAddress, message.getMessageType());
+                logger.trace("Message sent via TCP to {}: {}", remoteAddress, message.getMessageType());
             }).exceptionally(throwable -> {
                 logger.error("Failed to send message via TCP to {}: {}",
                            remoteAddress, message.getMessageType(), throwable);

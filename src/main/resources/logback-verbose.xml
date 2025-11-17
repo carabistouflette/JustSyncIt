@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger with DEBUG level for detailed output -->
+    <root level="DEBUG">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Package-specific log levels for verbose components -->
+    <logger name="com.justsyncit.network" level="DEBUG" />
+    <logger name="com.justsyncit.storage" level="DEBUG" />
+    <logger name="com.justsyncit.hash" level="DEBUG" />
+    
+    <!-- Enable TRACE for very detailed debugging of specific components -->
+    <logger name="com.justsyncit.network.protocol" level="TRACE" />
+    <logger name="com.justsyncit.network.transfer" level="TRACE" />
+    <logger name="com.justsyncit.storage.metadata" level="TRACE" />
+</configuration>
