@@ -39,4 +39,28 @@
         <Bug pattern="AT_UNSAFE_RESOURCE_ACCESS_IN_THREAD" />
         <Class name="com.justsyncit.network.server.TcpServer" />
     </Match>
+    
+    <!-- Exclude SQL non-constant string warnings for SqliteSchemaMigrator -->
+    <Match>
+        <Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE" />
+        <Class name="com.justsyncit.storage.metadata.SqliteSchemaMigrator" />
+    </Match>
+    
+    <!-- Exclude JMH benchmark warnings -->
+    <Match>
+        <Class name="com.justsyncit.storage.metadata.MetadataServicePerformanceBenchmark" />
+        <Bug pattern="THROWS_METHOD_THROWS_CLAUSE_BASIC_EXCEPTION" />
+    </Match>
+    <Match>
+        <Class name="com.justsyncit.storage.metadata.MetadataServicePerformanceBenchmark" />
+        <Bug pattern="DE_MIGHT_IGNORE" />
+    </Match>
+    <Match>
+        <Class name="com.justsyncit.storage.metadata.MetadataServicePerformanceBenchmark" />
+        <Bug pattern="REC_CATCH_EXCEPTION" />
+    </Match>
+    <Match>
+        <Class name="com.justsyncit.storage.metadata.MetadataServicePerformanceBenchmark" />
+        <Bug pattern="ICAST_INTEGER_MULTIPLY_CAST_TO_LONG" />
+    </Match>
 </FindBugsFilter>

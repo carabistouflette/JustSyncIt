@@ -136,6 +136,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         try {
             if (!connection.getAutoCommit()) {
                 connection.commit();
+                connection.setAutoCommit(true);
             }
         } finally {
             returnConnection(connection);
@@ -151,6 +152,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         try {
             if (!connection.getAutoCommit()) {
                 connection.rollback();
+                connection.setAutoCommit(true);
             }
         } finally {
             returnConnection(connection);

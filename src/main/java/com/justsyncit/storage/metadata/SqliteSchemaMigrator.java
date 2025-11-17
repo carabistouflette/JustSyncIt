@@ -22,12 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 /**
  * SQLite implementation of SchemaMigrator.
@@ -54,14 +53,25 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
     }
 
     @Override
-    @SuppressFBWarnings("SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING")
     public int getCurrentVersion(Connection connection) throws SQLException {
         if (connection == null) {
             throw new IllegalArgumentException("Connection cannot be null");
         }
 
-        try (PreparedStatement stmt = connection.prepareStatement(DatabaseSchema.getVersionQuery())) {
-            ResultSet rs = stmt.executeQuery();
+        // First check if schema_version table exists
+        try (Statement stmt = connection.createStatement()) {
+            String tableCheckQuery = "SELECT name FROM sqlite_master WHERE type='table' "
+                    + "AND name='schema_version'";
+            ResultSet rs = stmt.executeQuery(tableCheckQuery);
+            if (!rs.next()) {
+                logger.debug("Schema version table not found, assuming version 0");
+                return 0;
+            }
+        }
+
+        // Table exists, query the version
+        try (Statement stmt = connection.createStatement()) {
+            ResultSet rs = stmt.executeQuery(DatabaseSchema.getVersionQuery());
             if (rs.next()) {
                 int version = rs.getInt("version");
                 logger.debug("Current database schema version: {}", version);
@@ -114,10 +124,6 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
     }
 
     @Override
-    @SuppressFBWarnings({
-        "SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE",
-        "SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING"
-    })
     public void createInitialSchema(Connection connection) throws SQLException {
         if (connection == null) {
             throw new IllegalArgumentException("Connection cannot be null");
@@ -133,10 +139,10 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
                 stmt.execute(createStatement);
             }
 
-            // Insert schema version using PreparedStatement to avoid SpotBugs warning
-            try (PreparedStatement versionStmt = connection.prepareStatement(
-                    DatabaseSchema.getInsertVersionStatement())) {
-                versionStmt.executeUpdate();
+            // Insert schema version using Statement
+            String insertVersionSql = DatabaseSchema.getInsertVersionStatement();
+            try (Statement versionStmt = connection.createStatement()) {
+                versionStmt.executeUpdate(insertVersionSql);
             }
 
             logger.info("Initial database schema created successfully");
