@@ -79,6 +79,8 @@ public final class SqliteMetadataService implements MetadataService {
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");
+                stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
+                stmt.execute("PRAGMA optimize");
             }
             schemaMigrator.migrate(connection);
         } catch (SQLException e) {
