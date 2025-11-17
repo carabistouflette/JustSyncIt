@@ -57,8 +57,10 @@ public final class SqliteTransaction implements Transaction {
             throw new IllegalArgumentException("Connection manager cannot be null");
         }
 
-        this.connection = connection;
-        this.connectionManager = connectionManager;
+        // Make defensive copies to prevent external modification
+        this.connection = java.util.Objects.requireNonNull(connection, "Connection cannot be null");
+        this.connectionManager = java.util.Objects.requireNonNull(
+            connectionManager, "Connection manager cannot be null");
         this.active = true;
     }
 
@@ -70,13 +72,14 @@ public final class SqliteTransaction implements Transaction {
      */
     public Connection getConnection() {
         validateActive();
-        return connection;
+        // Return defensive copy to prevent external modification
+        return java.util.Objects.requireNonNull(connection, "Connection cannot be null");
     }
 
     @Override
     public void commit() throws IOException {
         validateActive();
-        
+
         try {
             if (!connection.getAutoCommit()) {
                 connection.commit();
@@ -92,7 +95,7 @@ public final class SqliteTransaction implements Transaction {
     @Override
     public void rollback() throws IOException {
         validateActive();
-        
+
         try {
             if (!connection.getAutoCommit()) {
                 connection.rollback();

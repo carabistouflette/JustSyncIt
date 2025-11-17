@@ -44,6 +44,9 @@ dependencies {
     // SQLite JDBC driver for metadata management
     implementation 'org.xerial:sqlite-jdbc:3.47.1.0'
     
+    // SpotBugs annotations for suppressing warnings
+    implementation 'com.github.spotbugs:spotbugs-annotations:4.9.0'
+    
     // Performance benchmarking
     testImplementation 'org.openjdk.jmh:jmh-core:1.37'
     testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'

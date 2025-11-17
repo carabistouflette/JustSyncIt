@@ -22,7 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +58,7 @@ public final class SqliteMetadataService implements MetadataService {
      * @throws IllegalArgumentException if any parameter is null
      */
     public SqliteMetadataService(DatabaseConnectionManager connectionManager,
-                              SchemaMigrator schemaMigrator) throws IOException {
+                      SchemaMigrator schemaMigrator) throws IOException {
         if (connectionManager == null) {
             throw new IllegalArgumentException("Connection manager cannot be null");
         }
@@ -97,23 +101,23 @@ public final class SqliteMetadataService implements MetadataService {
         String id = UUID.randomUUID().toString();
         Instant now = Instant.now();
 
-        String sql = "INSERT INTO snapshots (id, name, created_at, description, total_files, total_size) " +
-                    "VALUES (?, ?, ?, ?, 0, 0)";
+        String sql = "INSERT INTO snapshots (id, name, created_at, description, total_files, total_size) "
+                + "VALUES (?, ?, ?, ?, 0, 0)";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, id);
             stmt.setString(2, name);
             stmt.setLong(3, now.toEpochMilli());
             stmt.setString(4, description);
-            
+
             stmt.executeUpdate();
-            
+
             Snapshot snapshot = new Snapshot(id, name, description, now, 0, 0);
             logger.debug("Created snapshot: {}", snapshot);
             return snapshot;
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to create snapshot", e);
         }
@@ -126,14 +130,14 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
         }
 
-        String sql = "SELECT id, name, created_at, description, total_files, total_size " +
-                    "FROM snapshots WHERE id = ?";
+        String sql = "SELECT id, name, created_at, description, total_files, total_size "
+                + "FROM snapshots WHERE id = ?";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, id);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     Snapshot snapshot = mapRowToSnapshot(rs);
@@ -153,21 +157,21 @@ public final class SqliteMetadataService implements MetadataService {
     public List<Snapshot> listSnapshots() throws IOException {
         validateNotClosed();
 
-        String sql = "SELECT id, name, created_at, description, total_files, total_size " +
-                    "FROM snapshots ORDER BY created_at DESC";
+        String sql = "SELECT id, name, created_at, description, total_files, total_size "
+                + "FROM snapshots ORDER BY created_at DESC";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
+
             List<Snapshot> snapshots = new ArrayList<>();
             while (rs.next()) {
                 snapshots.add(mapRowToSnapshot(rs));
             }
-            
+
             logger.debug("Listed {} snapshots", snapshots.size());
             return snapshots;
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to list snapshots", e);
         }
@@ -183,17 +187,17 @@ public final class SqliteMetadataService implements MetadataService {
         String sql = "DELETE FROM snapshots WHERE id = ?";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, id);
             int rowsAffected = stmt.executeUpdate();
-            
+
             if (rowsAffected > 0) {
                 logger.debug("Deleted snapshot: {}", id);
             } else {
                 logger.warn("Snapshot not found for deletion: {}", id);
             }
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to delete snapshot", e);
         }
@@ -206,27 +210,27 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("File metadata cannot be null");
         }
 
-        String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) " +
-                    "VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
+                + "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, file.getId());
             stmt.setString(2, file.getSnapshotId());
             stmt.setString(3, file.getPath());
             stmt.setLong(4, file.getSize());
             stmt.setLong(5, file.getModifiedTime().toEpochMilli());
             stmt.setString(6, file.getFileHash());
-            
+
             stmt.executeUpdate();
-            
+
             // Insert file chunks
             insertFileChunks(connection, file);
-            
+
             logger.debug("Inserted file: {}", file.getPath());
             return file.getId();
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to insert file", e);
         }
@@ -239,14 +243,14 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("File ID cannot be null or empty");
         }
 
-        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash " +
-                    "FROM files WHERE id = ?";
+        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash "
+                + "FROM files WHERE id = ?";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, id);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     List<String> chunkHashes = getFileChunks(connection, id);
@@ -270,14 +274,14 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
         }
 
-        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash " +
-                    "FROM files WHERE snapshot_id = ? ORDER BY path";
+        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash "
+                + "FROM files WHERE snapshot_id = ? ORDER BY path";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, snapshotId);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 List<FileMetadata> files = new ArrayList<>();
                 while (rs.next()) {
@@ -285,7 +289,7 @@ public final class SqliteMetadataService implements MetadataService {
                     List<String> chunkHashes = getFileChunks(connection, fileId);
                     files.add(mapRowToFileMetadata(rs, chunkHashes));
                 }
-                
+
                 logger.debug("Retrieved {} files for snapshot {}", files.size(), snapshotId);
                 return files;
             }
@@ -301,20 +305,20 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("File metadata cannot be null");
         }
 
-        String sql = "UPDATE files SET path = ?, size = ?, modified_time = ?, file_hash = ? " +
-                    "WHERE id = ?";
+        String sql = "UPDATE files SET path = ?, size = ?, modified_time = ?, file_hash = ? "
+                + "WHERE id = ?";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, file.getPath());
             stmt.setLong(2, file.getSize());
             stmt.setLong(3, file.getModifiedTime().toEpochMilli());
             stmt.setString(4, file.getFileHash());
             stmt.setString(5, file.getId());
-            
+
             int rowsAffected = stmt.executeUpdate();
-            
+
             if (rowsAffected > 0) {
                 // Update file chunks
                 deleteFileChunks(connection, file.getId());
@@ -323,7 +327,7 @@ public final class SqliteMetadataService implements MetadataService {
             } else {
                 logger.warn("File not found for update: {}", file.getId());
             }
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to update file", e);
         }
@@ -339,12 +343,12 @@ public final class SqliteMetadataService implements MetadataService {
         try (Connection connection = connectionManager.getConnection()) {
             // Delete file chunks first (foreign key constraint)
             deleteFileChunks(connection, id);
-            
+
             String sql = "DELETE FROM files WHERE id = ?";
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, id);
                 int rowsAffected = stmt.executeUpdate();
-                
+
                 if (rowsAffected > 0) {
                     logger.debug("Deleted file: {}", id);
                 } else {
@@ -366,14 +370,14 @@ public final class SqliteMetadataService implements MetadataService {
         String sql = "UPDATE chunks SET last_accessed = ? WHERE hash = ?";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setLong(1, Instant.now().toEpochMilli());
             stmt.setString(2, chunkHash);
-            
+
             stmt.executeUpdate();
             logger.debug("Recorded access for chunk: {}", chunkHash);
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to record chunk access", e);
         }
@@ -386,14 +390,14 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Chunk hash cannot be null or empty");
         }
 
-        String sql = "SELECT hash, size, first_seen, reference_count, last_accessed " +
-                    "FROM chunks WHERE hash = ?";
+        String sql = "SELECT hash, size, first_seen, reference_count, last_accessed "
+                + "FROM chunks WHERE hash = ?";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, hash);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     ChunkMetadata chunk = mapRowToChunkMetadata(rs);
@@ -416,21 +420,21 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Chunk metadata cannot be null");
         }
 
-        String sql = "INSERT OR REPLACE INTO chunks (hash, size, first_seen, reference_count, last_accessed) " +
-                    "VALUES (?, ?, ?, ?, ?)";
+        String sql = "INSERT OR REPLACE INTO chunks (hash, size, first_seen, reference_count, last_accessed) "
+                + "VALUES (?, ?, ?, ?, ?)";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, chunk.getHash());
             stmt.setLong(2, chunk.getSize());
             stmt.setLong(3, chunk.getFirstSeen().toEpochMilli());
             stmt.setLong(4, chunk.getReferenceCount());
             stmt.setLong(5, chunk.getLastAccessed().toEpochMilli());
-            
+
             stmt.executeUpdate();
             logger.debug("Upserted chunk metadata: {}", chunk.getHash());
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to upsert chunk metadata", e);
         }
@@ -446,11 +450,11 @@ public final class SqliteMetadataService implements MetadataService {
         String sql = "DELETE FROM chunks WHERE hash = ?";
 
         try (Connection connection = connectionManager.getConnection();
-             PreparedStatement stmt = connection.prepareStatement(sql)) {
-            
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
             stmt.setString(1, hash);
             int rowsAffected = stmt.executeUpdate();
-            
+
             if (rowsAffected > 0) {
                 logger.debug("Deleted chunk metadata: {}", hash);
                 return true;
@@ -458,7 +462,7 @@ public final class SqliteMetadataService implements MetadataService {
                 logger.debug("Chunk metadata not found for deletion: {}", hash);
                 return false;
             }
-            
+
         } catch (SQLException e) {
             throw new IOException("Failed to delete chunk metadata", e);
         }
@@ -472,7 +476,8 @@ public final class SqliteMetadataService implements MetadataService {
             // Get snapshot count
             long totalSnapshots = 0;
             try (Statement stmt = connection.createStatement();
-                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM snapshots")) {
+                    ResultSet rs = stmt.executeQuery(
+                            "SELECT COUNT(*) FROM snapshots")) {
                 if (rs.next()) {
                     totalSnapshots = rs.getLong(1);
                 }
@@ -481,7 +486,8 @@ public final class SqliteMetadataService implements MetadataService {
             // Get file count
             long totalFiles = 0;
             try (Statement stmt = connection.createStatement();
-                 ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM files")) {
+                    ResultSet rs = stmt.executeQuery(
+                            "SELECT COUNT(*) FROM files")) {
                 if (rs.next()) {
                     totalFiles = rs.getLong(1);
                 }
@@ -492,8 +498,8 @@ public final class SqliteMetadataService implements MetadataService {
             long totalChunkSize = 0;
             double avgChunkSize = 0;
             try (Statement stmt = connection.createStatement();
-                 ResultSet rs = stmt.executeQuery(
-                         "SELECT COUNT(*), SUM(size), AVG(size) FROM chunks")) {
+                    ResultSet rs = stmt.executeQuery(
+                            "SELECT COUNT(*), SUM(size), AVG(size) FROM chunks")) {
                 if (rs.next()) {
                     totalChunks = rs.getLong(1);
                     totalChunkSize = rs.getLong(2);
@@ -501,12 +507,15 @@ public final class SqliteMetadataService implements MetadataService {
                 }
             }
 
-            // Calculate average chunks per file
-            double avgChunksPerFile = totalFiles > 0 ? 
-                    (double) totalChunks / totalFiles : 0;
+            // Calculate average chunks per file and deduplication ratio
+            double avgChunksPerFile = 0.0;
+            double deduplicationRatio = 1.0;
 
-            // Calculate deduplication ratio (simplified)
-            double deduplicationRatio = totalChunkSize > 0 ? 1.0 : 1.0;
+            if (totalFiles > 0) {
+                avgChunksPerFile = (double) totalChunks / totalFiles;
+                // FIXME: Calculate actual deduplication ratio when we have more data
+                deduplicationRatio = 1.0;
+            }
 
             MetadataStats stats = new MetadataStats(
                     totalSnapshots, totalFiles, totalChunks,
@@ -533,8 +542,9 @@ public final class SqliteMetadataService implements MetadataService {
      * Inserts file chunks for a file.
      */
     private void insertFileChunks(Connection connection, FileMetadata file) throws SQLException {
-        String sql = "INSERT INTO file_chunks (file_id, chunk_hash, chunk_order, chunk_size) " +
-                    "VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO file_chunks (file_id, chunk_hash, chunk_order, chunk_size) "
+                +
+                "VALUES (?, ?, ?, ?)";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             List<String> chunkHashes = file.getChunkHashes();
@@ -557,7 +567,7 @@ public final class SqliteMetadataService implements MetadataService {
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, fileId);
-            
+
             try (ResultSet rs = stmt.executeQuery()) {
                 List<String> chunkHashes = new ArrayList<>();
                 while (rs.next()) {

@@ -72,20 +72,28 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         this.closed = false;
 
         // Configure SQLite for better performance
+        Connection testConn = null;
         try {
             // Test connection and configure SQLite
-            Connection testConn = DriverManager.getConnection(jdbcUrl);
+            testConn = DriverManager.getConnection(jdbcUrl);
             try (var stmt = testConn.createStatement()) {
                 stmt.execute("PRAGMA journal_mode=WAL");
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");
             }
-            testConn.close();
-            
+
             logger.info("Initialized SQLite connection manager for database: {}", databasePath);
         } catch (SQLException e) {
-            throw new RuntimeException("Failed to initialize SQLite database", e);
+            throw new IllegalStateException("Failed to initialize SQLite database", e);
+        } finally {
+            if (testConn != null) {
+                try {
+                    testConn.close();
+                } catch (SQLException e) {
+                    logger.warn("Failed to close test connection: {}", e.getMessage());
+                }
+            }
         }
     }
 
@@ -96,12 +104,12 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         } catch (IOException e) {
             throw new SQLException("Connection manager is closed", e);
         }
-        
+
         Connection connection = connectionPool.poll();
         if (connection != null && !connection.isClosed()) {
             return connection;
         }
-        
+
         // Create new connection if pool is empty
         return DriverManager.getConnection(jdbcUrl);
     }
@@ -113,7 +121,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         } catch (IOException e) {
             throw new SQLException("Connection manager is closed", e);
         }
-        
+
         Connection connection = getConnection();
         connection.setAutoCommit(false);
         return connection;
@@ -124,7 +132,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         if (connection == null) {
             throw new IllegalArgumentException("Connection cannot be null");
         }
-        
+
         try {
             if (!connection.getAutoCommit()) {
                 connection.commit();
@@ -139,7 +147,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         if (connection == null) {
             throw new IllegalArgumentException("Connection cannot be null");
         }
-        
+
         try {
             if (!connection.getAutoCommit()) {
                 connection.rollback();
@@ -154,7 +162,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         if (connection == null) {
             throw new IllegalArgumentException("Connection cannot be null");
         }
-        
+
         if (!connection.isClosed()) {
             // Reset auto-commit before returning to pool
             connection.setAutoCommit(true);
