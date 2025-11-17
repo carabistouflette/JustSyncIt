@@ -72,6 +72,14 @@ public final class SqliteMetadataService implements MetadataService {
 
         // Initialize database schema
         try (Connection connection = connectionManager.getConnection()) {
+            // Enable foreign keys and performance optimizations for this connection
+            try (var stmt = connection.createStatement()) {
+                stmt.execute("PRAGMA foreign_keys=ON");
+                stmt.execute("PRAGMA journal_mode=WAL");
+                stmt.execute("PRAGMA synchronous=NORMAL");
+                stmt.execute("PRAGMA cache_size=10000");
+                stmt.execute("PRAGMA temp_store=MEMORY");
+            }
             schemaMigrator.migrate(connection);
         } catch (SQLException e) {
             throw new IOException("Failed to initialize database schema", e);
@@ -213,26 +221,73 @@ public final class SqliteMetadataService implements MetadataService {
         String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
                 + "VALUES (?, ?, ?, ?, ?, ?)";
 
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
+        try (Connection connection = connectionManager.getConnection()) {
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                stmt.setString(1, file.getId());
+                stmt.setString(2, file.getSnapshotId());
+                stmt.setString(3, file.getPath());
+                stmt.setLong(4, file.getSize());
+                stmt.setLong(5, file.getModifiedTime().toEpochMilli());
+                stmt.setString(6, file.getFileHash());
 
-            stmt.setString(1, file.getId());
-            stmt.setString(2, file.getSnapshotId());
-            stmt.setString(3, file.getPath());
-            stmt.setLong(4, file.getSize());
-            stmt.setLong(5, file.getModifiedTime().toEpochMilli());
-            stmt.setString(6, file.getFileHash());
+                stmt.executeUpdate();
 
-            stmt.executeUpdate();
+                // Insert file chunks
+                insertFileChunks(connection, file);
 
-            // Insert file chunks
-            insertFileChunks(connection, file);
-
-            logger.debug("Inserted file: {}", file.getPath());
-            return file.getId();
+                logger.debug("Inserted file: {}", file.getPath());
+                return file.getId();
+            }
 
         } catch (SQLException e) {
             throw new IOException("Failed to insert file", e);
+        }
+    }
+
+    @Override
+    public List<String> insertFiles(List<FileMetadata> files) throws IOException {
+        validateNotClosed();
+        if (files == null || files.isEmpty()) {
+            throw new IllegalArgumentException("Files list cannot be null or empty");
+        }
+        if (files.stream().anyMatch(f -> f == null)) {
+            throw new IllegalArgumentException("Files list cannot contain null elements");
+        }
+
+        List<String> insertedIds = new ArrayList<>();
+        
+        String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
+                + "VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = connectionManager.getConnection()) {
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                for (FileMetadata file : files) {
+                    stmt.setString(1, file.getId());
+                    stmt.setString(2, file.getSnapshotId());
+                    stmt.setString(3, file.getPath());
+                    stmt.setLong(4, file.getSize());
+                    stmt.setLong(5, file.getModifiedTime().toEpochMilli());
+                    stmt.setString(6, file.getFileHash());
+                    logger.debug("Adding file to batch: {} with hash: {}", file.getPath(), file.getFileHash());
+                    stmt.addBatch();
+                }
+                
+                logger.debug("Executing batch insert for {} files", files.size());
+                int[] results = stmt.executeBatch();
+                logger.debug("Batch insert results: {}", results.length);
+                
+                // Insert file chunks for all files
+                for (FileMetadata file : files) {
+                    insertFileChunks(connection, file);
+                    insertedIds.add(file.getId());
+                    logger.debug("Inserted file: {}", file.getPath());
+                }
+                
+                return insertedIds;
+            }
+
+        } catch (SQLException e) {
+            throw new IOException("Failed to insert files", e);
         }
     }
 
@@ -552,7 +607,7 @@ public final class SqliteMetadataService implements MetadataService {
                 stmt.setString(1, file.getId());
                 stmt.setString(2, chunkHashes.get(i));
                 stmt.setInt(3, i);
-                stmt.setLong(4, 0); // Will be updated when we have chunk size info
+                stmt.setInt(4, 4096); // Default chunk size
                 stmt.addBatch();
             }
             stmt.executeBatch();

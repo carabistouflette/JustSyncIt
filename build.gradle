@@ -221,7 +221,7 @@ check.dependsOn jacocoTestCoverageVerification
 
 // JMH configuration to fix configuration cache issues
 jmh {
-    includes = ['Blake3PerformanceBenchmark']
+    includes = ['Blake3PerformanceBenchmark', 'MetadataServicePerformanceBenchmark']
     benchmarkMode = ['thrpt']
     batchSize = 1
     fork = 1

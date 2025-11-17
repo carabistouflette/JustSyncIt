@@ -92,6 +92,16 @@ public interface MetadataService extends ClosableResource {
     String insertFile(FileMetadata file) throws IOException;
 
     /**
+     * Inserts multiple files in a batch operation for better performance.
+     *
+     * @param files the list of files to insert
+     * @return the IDs of the inserted files
+     * @throws IOException if an I/O error occurs
+     * @throws IllegalArgumentException if files list is null or contains null elements
+     */
+    List<String> insertFiles(List<FileMetadata> files) throws IOException;
+
+    /**
      * Gets file metadata by its ID.
      *
      * @param id the file ID
