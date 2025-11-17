@@ -123,11 +123,30 @@ tasks.matching { it.name.startsWith('dependencyCheck') }.configureEach {
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    def javaVersion = JavaVersion.current()
     
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+    // Use Java 21 as default, but allow overriding with project property
+    if (project.hasProperty('javaVersion')) {
+        try {
+            javaVersion = JavaVersion.toVersion(project.getProperty('javaVersion'))
+        } catch (Exception e) {
+            logger.warn("Invalid Java version specified: ${project.getProperty('javaVersion')}. Using current version: ${javaVersion}")
+        }
+    } else if (javaVersion.isCompatibleWith(JavaVersion.VERSION_21)) {
+        javaVersion = JavaVersion.VERSION_21
+    } else if (javaVersion.isCompatibleWith(JavaVersion.VERSION_24)) {
+        javaVersion = JavaVersion.VERSION_24
+    }
+    
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+    
+    // Only configure toolchain if a specific version is requested
+    // This allows fallback to the current JVM if toolchain is not available
+    if (project.hasProperty('javaVersion')) {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(javaVersion.majorVersion)
+        }
     }
 }
 
@@ -225,7 +244,7 @@ check.dependsOn jacocoTestCoverageVerification
 
 // JMH configuration to fix configuration cache issues
 jmh {
-    includes = ['Blake3PerformanceBenchmark', 'MetadataServicePerformanceBenchmark']
+    includes = ['.*']  // Include all benchmarks using regex pattern
     benchmarkMode = ['thrpt']
     batchSize = 1
     fork = 1
@@ -252,4 +271,9 @@ jmh {
 // Disable configuration cache for JMH tasks to avoid serialization issues
 tasks.matching { it.name.startsWith('jmh') }.configureEach {
     notCompatibleWithConfigurationCache("JMH plugin has known issues with configuration cache")
+}
+
+// Additional fix for JMH Jar task configuration cache issue
+tasks.named('jmhJar') {
+    notCompatibleWithConfigurationCache("JMH Jar task has serialization issues with configuration cache")
 }
