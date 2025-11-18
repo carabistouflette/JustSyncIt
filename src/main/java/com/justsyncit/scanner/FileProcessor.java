@@ -58,9 +58,23 @@ public class FileProcessor {
 
     /**
      * Creates a new FileProcessor with specified dependencies.
+     * @deprecated Use {@link #create(FilesystemScanner, FileChunker, ContentStore, MetadataService)} instead.
      */
+    @Deprecated
     public FileProcessor(FilesystemScanner scanner, FileChunker chunker,
                         ContentStore contentStore, MetadataService metadataService) {
+        if (scanner == null) {
+            throw new IllegalArgumentException("Scanner cannot be null");
+        }
+        if (chunker == null) {
+            throw new IllegalArgumentException("Chunker cannot be null");
+        }
+        if (contentStore == null) {
+            throw new IllegalArgumentException("Content store cannot be null");
+        }
+        if (metadataService == null) {
+            throw new IllegalArgumentException("Metadata service cannot be null");
+        }
         this.scanner = scanner;
         this.chunker = chunker;
         this.contentStore = contentStore;
@@ -79,6 +93,33 @@ public class FileProcessor {
                 t.setDaemon(true);
                 return t;
             });
+    }
+
+    /**
+     * Creates a new FileProcessor with specified dependencies.
+     *
+     * @param scanner the filesystem scanner for discovering files
+     * @param chunker the file chunker for processing files into chunks
+     * @param contentStore the content store for storing chunks
+     * @param metadataService the metadata service for storing file and chunk metadata
+     * @return a new FileProcessor instance
+     * @throws IllegalArgumentException if any parameter is null
+     */
+    public static FileProcessor create(FilesystemScanner scanner, FileChunker chunker,
+                                      ContentStore contentStore, MetadataService metadataService) {
+        if (scanner == null) {
+            throw new IllegalArgumentException("Scanner cannot be null");
+        }
+        if (chunker == null) {
+            throw new IllegalArgumentException("Chunker cannot be null");
+        }
+        if (contentStore == null) {
+            throw new IllegalArgumentException("Content store cannot be null");
+        }
+        if (metadataService == null) {
+            throw new IllegalArgumentException("Metadata service cannot be null");
+        }
+        return new FileProcessor(scanner, chunker, contentStore, metadataService);
     }
 
     /**
@@ -137,7 +178,7 @@ public class FileProcessor {
                     }
                     logger.error("Failed to create snapshot: {}", e.getMessage());
                     // If snapshot creation fails, we can't proceed
-                    throw new RuntimeException("Failed to create snapshot for file processing", e);
+                    throw new IOException("Failed to create snapshot for file processing", e);
                 } finally {
                     if (snapshotTransaction != null) {
                         try {
@@ -160,7 +201,7 @@ public class FileProcessor {
 
                 // Wait for all async operations to complete
                 fileVisitor.waitForCompletion();
-                ProcessingResult result = new ProcessingResult(
+                ProcessingResult result = ProcessingResult.create(
                         scanResult,
                         processedFiles.get(),
                         skippedFiles.get(),
@@ -184,6 +225,7 @@ public class FileProcessor {
             }
         }, executorService);
     }
+
     /**
      * Stops the current processing operation.
      */
@@ -362,7 +404,7 @@ public class FileProcessor {
                         logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
                                 chunkHash, attempt, maxRetries);
                         try {
-                            Thread.sleep(1000 * attempt); // Exponential backoff
+                            Thread.sleep(1000L * attempt); // Exponential backoff
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             return false;
@@ -372,7 +414,7 @@ public class FileProcessor {
                     logger.warn("Failed to check if chunk exists: {}", chunkHash, e);
                     if (attempt < maxRetries) {
                         try {
-                            Thread.sleep(1000 * attempt);
+                            Thread.sleep(1000L * attempt);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             return false;
@@ -436,7 +478,7 @@ public class FileProcessor {
                             || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
                             || e.getMessage().contains("Not all chunk metadata is visible"))) {
                         if (attempt < maxRetries) {
-                            long delayMs = 2000 * attempt; // Increased backoff: 2s, 4s, 6s
+                            long delayMs = 2000L * attempt; // Increased backoff: 2s, 4s, 6s
                             logger.warn(
                                     "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
                                     result.getFile(), attempt, delayMs);
@@ -560,6 +602,11 @@ public class FileProcessor {
         /** Total bytes processed. */
         private final long processedBytes;
 
+        /**
+         * Creates a new ProcessingResult.
+         * @deprecated Use {@link #create(ScanResult, int, int, int, long, long)} instead.
+         */
+        @Deprecated
         public ProcessingResult(ScanResult scanResult, int processedFiles, int skippedFiles,
                               int errorFiles, long totalBytes, long processedBytes) {
             this.scanResult = scanResult;
@@ -570,6 +617,23 @@ public class FileProcessor {
             this.processedBytes = processedBytes;
         }
 
+        /**
+         * Creates a new ProcessingResult.
+         *
+         * @param scanResult the scan result from the filesystem scanner
+         * @param processedFiles the number of successfully processed files
+         * @param skippedFiles the number of skipped files
+         * @param errorFiles the number of files with errors
+         * @param totalBytes the total bytes in all files
+         * @param processedBytes the total bytes processed
+         * @return a new ProcessingResult instance
+         */
+        public static ProcessingResult create(ScanResult scanResult, int processedFiles, int skippedFiles,
+                                             int errorFiles, long totalBytes, long processedBytes) {
+            return new ProcessingResult(scanResult, processedFiles, skippedFiles,
+                    errorFiles, totalBytes, processedBytes);
+        }
+
         public ScanResult getScanResult() {
             return scanResult;
         }
@@ -577,6 +641,7 @@ public class FileProcessor {
         public int getProcessedFiles() {
             return processedFiles;
         }
+
         public int getSkippedFiles() {
             return skippedFiles;
         }
@@ -592,6 +657,7 @@ public class FileProcessor {
         public long getProcessedBytes() {
             return processedBytes;
         }
+
         public double getProcessingPercentage() {
             return totalBytes > 0 ? (double) processedBytes / totalBytes * 100 : 0;
         }

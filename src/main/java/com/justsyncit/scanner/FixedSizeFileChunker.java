@@ -70,10 +70,61 @@ public class FixedSizeFileChunker implements FileChunker {
      * Creates a new FixedSizeFileChunker with default settings.
      *
      * @param blake3Service BLAKE3 service for hash calculation
+     * @return a new FixedSizeFileChunker with default settings
      * @throws IllegalArgumentException if blake3Service is null
      */
+    public static FixedSizeFileChunker create(Blake3Service blake3Service) {
+        return create(blake3Service, ByteBufferPool.create(), DEFAULT_CHUNK_SIZE, null);
+    }
+
+    /**
+     * Creates a new FixedSizeFileChunker with custom settings.
+     *
+     * @param blake3Service BLAKE3 service for hash calculation
+     * @param bufferPool    buffer pool for memory management
+     * @param chunkSize    chunk size in bytes
+     * @return a new FixedSizeFileChunker with custom settings
+     * @throws IllegalArgumentException if parameters are invalid
+     */
+    public static FixedSizeFileChunker create(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize) {
+        return create(blake3Service, bufferPool, chunkSize, null);
+    }
+
+    /**
+     * Creates a new FixedSizeFileChunker with custom settings and content store.
+     *
+     * @param blake3Service BLAKE3 service for hash calculation
+     * @param bufferPool    buffer pool for memory management
+     * @param chunkSize    chunk size in bytes
+     * @param contentStore  content store for storing chunks
+     * @return a new FixedSizeFileChunker with custom settings and content store
+     * @throws IllegalArgumentException if parameters are invalid
+     */
+    public static FixedSizeFileChunker create(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize,
+                                             ContentStore contentStore) {
+        if (blake3Service == null) {
+            throw new IllegalArgumentException("BLAKE3 service cannot be null");
+        }
+        if (bufferPool == null) {
+            throw new IllegalArgumentException("Buffer pool cannot be null");
+        }
+        if (chunkSize <= 0) {
+            throw new IllegalArgumentException("Chunk size must be positive");
+        }
+
+        return new FixedSizeFileChunker(blake3Service, bufferPool, chunkSize, contentStore);
+    }
+
+    /**
+     * Creates a new FixedSizeFileChunker with default settings.
+     *
+     * @param blake3Service BLAKE3 service for hash calculation
+     * @throws IllegalArgumentException if blake3Service is null
+     * @deprecated Use {@link #create(Blake3Service)} instead
+     */
+    @Deprecated
     public FixedSizeFileChunker(Blake3Service blake3Service) {
-        this(blake3Service, new ByteBufferPool(), DEFAULT_CHUNK_SIZE, null);
+        this(blake3Service, ByteBufferPool.create(), DEFAULT_CHUNK_SIZE, null);
     }
 
     /**
@@ -83,7 +134,9 @@ public class FixedSizeFileChunker implements FileChunker {
      * @param bufferPool    buffer pool for memory management
      * @param chunkSize    chunk size in bytes
      * @throws IllegalArgumentException if parameters are invalid
+     * @deprecated Use {@link #create(Blake3Service, BufferPool, int)} instead
      */
+    @Deprecated
     public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize) {
         this(blake3Service, bufferPool, chunkSize, null);
     }
@@ -96,9 +149,12 @@ public class FixedSizeFileChunker implements FileChunker {
      * @param chunkSize    chunk size in bytes
      * @param contentStore  content store for storing chunks
      * @throws IllegalArgumentException if parameters are invalid
+     * @deprecated Use {@link #create(Blake3Service, BufferPool, int, ContentStore)} instead
      */
+    @Deprecated
     public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize,
                                 ContentStore contentStore) {
+        // Validate parameters
         if (blake3Service == null) {
             throw new IllegalArgumentException("BLAKE3 service cannot be null");
         }
@@ -149,7 +205,7 @@ public class FixedSizeFileChunker implements FileChunker {
                 return performChunking(file, finalOptions, effectiveChunkSize);
             } catch (Exception e) {
                 logger.error("Error chunking file: {}", file, e);
-                return new ChunkingResult(file, e);
+                return FileChunker.ChunkingResult.createFailed(file, e);
             }
         }, executorService);
     }
@@ -203,28 +259,27 @@ public class FixedSizeFileChunker implements FileChunker {
     /**
      * Performs the actual file chunking operation.
      */
-    private ChunkingResult performChunking(Path file, ChunkingOptions options, int effectiveChunkSize) {
+    private FileChunker.ChunkingResult performChunking(Path file, ChunkingOptions options, int effectiveChunkSize) {
         long fileSize;
         try {
             fileSize = Files.size(file);
         } catch (IOException e) {
-            return new ChunkingResult(file, e);
+            return FileChunker.ChunkingResult.createFailed(file, e);
         }
 
         // Handle empty file case
         if (fileSize == 0) {
             try {
                 String fileHash = blake3Service.hashBuffer(new byte[0]);
-                return new ChunkingResult(file, 0, 0, 0, fileHash, new ArrayList<>());
+                return new FileChunker.ChunkingResult(file, 0, 0, 0, fileHash, new ArrayList<>());
             } catch (Exception e) {
-                return new ChunkingResult(file, e);
+                return FileChunker.ChunkingResult.createFailed(file, e);
             }
         }
 
         // Calculate number of chunks
         int chunkCount = (int) Math.ceil((double) fileSize / effectiveChunkSize);
         List<String> chunkHashes = new ArrayList<>(chunkCount);
-        long sparseSize = 0;
 
         logger.debug("Chunking file {} ({} bytes) into {} chunks of {} bytes each",
                 file, fileSize, chunkCount, effectiveChunkSize);
@@ -243,7 +298,7 @@ public class FixedSizeFileChunker implements FileChunker {
     /**
      * Performs chunking using asynchronous I/O.
      */
-    private ChunkingResult performAsyncChunking(Path file, ChunkingOptions options, int chunkSize,
+    private FileChunker.ChunkingResult performAsyncChunking(Path file, ChunkingOptions options, int chunkSize,
                                              long fileSize, int chunkCount, List<String> chunkHashes) {
         AsynchronousFileChannel channel = null;
         try {
@@ -280,10 +335,11 @@ public class FixedSizeFileChunker implements FileChunker {
                 for (CompletableFuture<?> future : chunkFutures) {
                     future.cancel(true);
                 }
-                throw new RuntimeException("Chunk processing timed out after 120 seconds", e);
+                throw new java.util.concurrent.CompletionException("Chunk processing timed out after 120 seconds", e);
             }
 
-            ChunkingResult result = new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
+            FileChunker.ChunkingResult result = new FileChunker.ChunkingResult(
+                    file, chunkCount, fileSize, 0, fileHash, chunkHashes);
 
             // Close channel after all async operations complete successfully
             if (channel != null) {
@@ -305,14 +361,14 @@ public class FixedSizeFileChunker implements FileChunker {
                             closeException.getMessage());
                 }
             }
-            return new ChunkingResult(file, e);
+            return FileChunker.ChunkingResult.createFailed(file, e);
         }
     }
 
     /**
      * Performs chunking using synchronous I/O.
      */
-    private ChunkingResult performSyncChunking(Path file, ChunkingOptions options, int chunkSize,
+    private FileChunker.ChunkingResult performSyncChunking(Path file, ChunkingOptions options, int chunkSize,
                                              long fileSize, int chunkCount, List<String> chunkHashes) {
         AsynchronousFileChannel channel = null;
         try {
@@ -328,9 +384,9 @@ public class FixedSizeFileChunker implements FileChunker {
                 chunkHashes.add(chunkHash);
             }
 
-            return new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
+            return new FileChunker.ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
         } catch (Exception e) {
-            return new ChunkingResult(file, e);
+            return FileChunker.ChunkingResult.createFailed(file, e);
         } finally {
             if (channel != null) {
                 try {
@@ -352,13 +408,11 @@ public class FixedSizeFileChunker implements FileChunker {
                 return processChunkSync(channel, offset, length);
             } catch (OutOfMemoryError e) {
                 logger.error("Out of memory while processing chunk at offset {} length {}", offset, length, e);
-                // Try to free some memory and retry
-                System.gc();
-                throw new RuntimeException("Insufficient memory for chunk processing", e);
+                throw new java.util.concurrent.CompletionException("Insufficient memory for chunk processing", e);
             } catch (Exception e) {
                 logger.error("Unexpected error processing chunk at offset {} length {} chunk {}",
                         offset, length, chunkIndex, e);
-                throw new RuntimeException("Failed to process chunk " + chunkIndex, e);
+                throw new java.util.concurrent.CompletionException("Failed to process chunk " + chunkIndex, e);
             }
         }, executorService);
     }
@@ -395,7 +449,7 @@ public class FixedSizeFileChunker implements FileChunker {
             return hash;
         } catch (Exception e) {
             logger.error("Error processing chunk at offset {} length {}", offset, length, e);
-            throw new RuntimeException("Failed to process chunk", e);
+            throw new java.util.concurrent.CompletionException("Failed to process chunk", e);
         } finally {
             bufferPool.release(buffer);
         }
@@ -423,10 +477,10 @@ public class FixedSizeFileChunker implements FileChunker {
                 try {
                     int bytesRead = channel.read(buffer, 0).get();
                     buffer.flip();
-                    
+
                     byte[] fileData = new byte[bytesRead];
                     buffer.get(fileData);
-                    
+
                     return blake3Service.hashBuffer(fileData);
                 } finally {
                     bufferPool.release(buffer);
@@ -451,19 +505,19 @@ public class FixedSizeFileChunker implements FileChunker {
                             com.justsyncit.hash.Sha256HashAlgorithm.create());
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher incrementalHasher =
                     hasherFactory.createIncrementalHasher();
-            
+
             ByteBuffer buffer = bufferPool.acquire(bufferPool.getDefaultBufferSize());
             try {
                 long position = 0;
                 while (position < fileSize) {
                     buffer.clear();
-                    int bytesToRead = (int) Math.min(buffer.capacity(), fileSize - position);
+                    long bytesToRead = Math.min((long) buffer.capacity(), fileSize - position);
 
                     int bytesRead = channel.read(buffer, position).get();
                     if (bytesRead <= 0) {
                         break;
                     }
-        
+
                     buffer.flip();
                     int actualBytesRead = buffer.remaining();
                     if (actualBytesRead <= 0) {
@@ -473,7 +527,7 @@ public class FixedSizeFileChunker implements FileChunker {
                     // Create a byte array of the exact size needed
                     byte[] chunkData = new byte[actualBytesRead];
                     buffer.get(chunkData);
-                    
+
                     incrementalHasher.update(chunkData);
                     position += bytesRead;
                 }

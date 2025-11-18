@@ -68,7 +68,7 @@ public class ChunkingResult {
         this.fileSize = fileSize;
         this.sparseSize = sparseSize;
         this.fileHash = fileHash;
-        this.chunkHashes = chunkHashes;
+        this.chunkHashes = chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
         this.error = null;
         this.success = true;
     }
@@ -78,16 +78,29 @@ public class ChunkingResult {
      *
      * @param file the file that failed to chunk
      * @param error the error that occurred
+     * @deprecated Use {@link #createFailed(Path, Exception)} instead
      */
+    @Deprecated
     public ChunkingResult(Path file, Exception error) {
         this.file = file;
-        this.error = error;
+        this.error = error != null ? createExceptionCopy(error) : null;
         this.success = false;
         this.chunkCount = 0;
         this.fileSize = 0;
         this.sparseSize = 0;
         this.fileHash = null;
         this.chunkHashes = null;
+    }
+
+    /**
+     * Creates a failed chunking result.
+     *
+     * @param file the file that failed to chunk
+     * @param error the error that occurred
+     * @return a new failed ChunkingResult
+     */
+    public static ChunkingResult createFailed(Path file, Exception error) {
+        return new ChunkingResult(file, error);
     }
 
     /**
@@ -141,7 +154,7 @@ public class ChunkingResult {
      * @return immutable list of chunk hashes
      */
     public List<String> getChunkHashes() {
-        return chunkHashes;
+        return chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
     }
 
     /**
@@ -150,7 +163,7 @@ public class ChunkingResult {
      * @return the error, or null if successful
      */
     public Exception getError() {
-        return error;
+        return error != null ? createExceptionCopy(error) : null;
     }
 
     /**
@@ -169,6 +182,26 @@ public class ChunkingResult {
      */
     public boolean isSparse() {
         return sparseSize > 0;
+    }
+
+    /**
+     * Creates a copy of an exception to avoid exposing internal representation.
+     *
+     * @param original the original exception
+     * @return a copy of the exception
+     */
+    private Exception createExceptionCopy(Exception original) {
+        try {
+            return (Exception) original.getClass()
+                    .getConstructor(String.class)
+                    .newInstance(original.getMessage());
+        } catch (NoSuchMethodException
+                | InstantiationException
+                | IllegalAccessException
+                | java.lang.reflect.InvocationTargetException e) {
+            // Fallback to a generic exception if copying fails
+            return new RuntimeException(original.getMessage(), original.getCause());
+        }
     }
 
     @Override

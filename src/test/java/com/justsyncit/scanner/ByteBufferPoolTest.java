@@ -41,6 +41,7 @@ class ByteBufferPoolTest {
     void setUp() {
         pool = new ByteBufferPool();
     }
+
     @Test
     void testAcquireAndRelease() {
         ByteBuffer buffer = pool.acquire(1024);
@@ -70,12 +71,12 @@ class ByteBufferPoolTest {
         assertNotNull(buffer1);
         assertNotNull(buffer2);
         assertNotNull(buffer3);
-        
+
         // ByteBufferPool allocates at least default size (64KB) for efficiency
         assertTrue(buffer1.capacity() >= 1024);
         assertTrue(buffer2.capacity() >= 2048);
         assertTrue(buffer3.capacity() >= 1024);
-        
+
         // Release buffers
         pool.release(buffer1);
         pool.release(buffer2);
@@ -88,15 +89,15 @@ class ByteBufferPoolTest {
         // Modify buffer
         buffer1.putInt(0x12345678);
         assertEquals(4, buffer1.position());
-        
+
         // Release and acquire again
         pool.release(buffer1);
         ByteBuffer buffer2 = pool.acquire(1024);
-        
+
         // Buffer should be reset
         assertEquals(0, buffer2.position());
         assertEquals(buffer2.capacity(), buffer2.limit());
-        
+
         pool.release(buffer2);
     }
 
@@ -109,7 +110,7 @@ class ByteBufferPoolTest {
         }
         // Clear the pool
         pool.clear();
-        
+
         // After clear, the pool is closed, so acquiring should fail
         assertThrows(IllegalStateException.class, () -> pool.acquire(1024));
     }
@@ -136,10 +137,10 @@ class ByteBufferPoolTest {
         ByteBuffer buffer = pool.acquire(1024);
         // Buffers should be direct for better performance
         assertTrue(buffer.isDirect());
-        
+
         pool.release(buffer);
     }
-    
+
     @Test
     void testConcurrentAccess() throws InterruptedException {
         final int threadCount = 10;
@@ -150,21 +151,21 @@ class ByteBufferPoolTest {
                 for (int j = 0; j < operationsPerThread; j++) {
                     ByteBuffer buffer = pool.acquire(1024);
                     assertNotNull(buffer);
-                    
+
                     // Simulate some work
                     buffer.putInt(j);
                     buffer.flip();
-                    
+
                     pool.release(buffer);
                 }
             });
         }
-        
+
         // Start all threads
         for (Thread thread : threads) {
             thread.start();
         }
-        
+
         // Wait for all threads to complete
         for (Thread thread : threads) {
             thread.join();

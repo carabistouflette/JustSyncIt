@@ -22,14 +22,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -56,18 +54,18 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("file2.log"), "content2".getBytes());
         Files.write(tempDir.resolve("file3.txt"), "content3".getBytes());
         Files.write(tempDir.resolve("file4.dat"), "content4".getBytes());
-        
+
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(includePattern);
+                .withIncludePattern(includePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(2, result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify only .txt files are included
         assertTrue(result.getScannedFiles().stream()
-            .allMatch(f -> f.getPath().toString().endsWith(".txt")));
+                .allMatch(f -> f.getPath().toString().endsWith(".txt")));
     }
 
     @Test
@@ -77,18 +75,18 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("file2.tmp"), "content2".getBytes());
         Files.write(tempDir.resolve("file3.txt"), "content3".getBytes());
         Files.write(tempDir.resolve("file4.tmp"), "content4".getBytes());
-        
+
         PathMatcher excludePattern = FileSystems.getDefault().getPathMatcher("glob:*.tmp");
         ScanOptions options = new ScanOptions()
-            .withExcludePattern(excludePattern);
+                .withExcludePattern(excludePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(2, result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify .tmp files are excluded
         assertTrue(result.getScannedFiles().stream()
-            .noneMatch(f -> f.getPath().toString().endsWith(".tmp")));
+                .noneMatch(f -> f.getPath().toString().endsWith(".tmp")));
     }
 
     @Test
@@ -98,17 +96,18 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("file2.tmp"), "content2".getBytes());
         Files.write(tempDir.resolve("file3.txt"), "content3".getBytes());
         Files.write(tempDir.resolve("file4.log"), "content4".getBytes());
-        
+
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         PathMatcher excludePattern = FileSystems.getDefault().getPathMatcher("glob:file3.*");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(includePattern)
-            .withExcludePattern(excludePattern);
+                .withIncludePattern(includePattern)
+                .withExcludePattern(excludePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
-        assertEquals(1, result.getScannedFileCount()); // Only file1.txt (file3.txt excluded by exclude)
+
+        assertEquals(1, result.getScannedFileCount()); // Only file1.txt should be included
+        // (file3.txt excluded by exclude)
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify correct file is included
         assertTrue(result.getScannedFiles().stream()
                 .anyMatch(f -> f.getPath().toString().equals("file1.txt")));
@@ -121,15 +120,15 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("test456.txt"), "content2".getBytes());
         Files.write(tempDir.resolve("test789.txt"), "content3".getBytes());
         Files.write(tempDir.resolve("other.txt"), "content4".getBytes());
-        
+
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("regex:test[0-9]+\\.txt");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(includePattern);
+                .withIncludePattern(includePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(3, result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify only testXXX.txt files are included
         assertTrue(result.getScannedFiles().stream()
                 .allMatch(f -> f.getPath().getFileName().toString().matches("test[0-9]+\\.txt")));
@@ -143,21 +142,21 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("src_helper.java"), "content3".getBytes());
         Files.write(tempDir.resolve("main.java"), "content4".getBytes());
         Files.write(tempDir.resolve("test.txt"), "content5".getBytes());
-        
+
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:src_*.java");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(includePattern);
+                .withIncludePattern(includePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(3, result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify only src_*.java files are included
         assertTrue(result.getScannedFiles().stream()
                 .allMatch(f -> {
-                String name = f.getPath().getFileName().toString();
-                return name.startsWith("src_") && name.endsWith(".java");
-            }));
+                    String name = f.getPath().getFileName().toString();
+                    return name.startsWith("src_") && name.endsWith(".java");
+                }));
     }
 
     @Test
@@ -167,16 +166,16 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("file2.txt"), "content2".getBytes());
         Files.write(tempDir.resolve("File3.TXT"), "content3".getBytes());
         Files.write(tempDir.resolve("file4.txt"), "content4".getBytes());
-        
+
         // Test case-sensitive pattern
         PathMatcher caseSensitivePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(caseSensitivePattern);
+                .withIncludePattern(caseSensitivePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(2, result.getScannedFileCount()); // Only lowercase .txt files
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify only lowercase files are included
         assertTrue(result.getScannedFiles().stream()
                 .allMatch(f -> f.getPath().toString().toLowerCase().endsWith(".txt")));
@@ -189,20 +188,20 @@ class PathMatcherFilteringTest {
         Path dir2 = tempDir.resolve("dir2");
         Files.createDirectories(dir1);
         Files.createDirectories(dir2);
-        
+
         Files.write(dir1.resolve("file1.txt"), "content1".getBytes());
         Files.write(dir1.resolve("file2.log"), "content2".getBytes());
         Files.write(dir2.resolve("file3.txt"), "content3".getBytes());
         Files.write(dir2.resolve("file4.txt"), "content4".getBytes());
-        
+
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:**/*.txt");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(includePattern);
+                .withIncludePattern(includePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(3, result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify all .txt files in subdirectories are included
         assertTrue(result.getScannedFiles().stream()
                 .allMatch(f -> f.getPath().toString().endsWith(".txt")));
@@ -214,12 +213,12 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("file1.txt"), "content1".getBytes());
         Files.write(tempDir.resolve("file2.log"), "content2".getBytes());
         Files.write(tempDir.resolve("file3.dat"), "content3".getBytes());
-        
+
         // No pattern - should include all files
         ScanOptions options = new ScanOptions(); // No include/exclude pattern
-        
+
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(3, result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
     }
@@ -230,17 +229,17 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("visible.txt"), "content1".getBytes());
         Files.write(tempDir.resolve(".hidden.txt"), "content2".getBytes());
         Files.write(tempDir.resolve("visible2.txt"), "content3".getBytes());
-        
+
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(includePattern)
-            .withIncludeHiddenFiles(false);
+                .withIncludePattern(includePattern)
+                .withIncludeHiddenFiles(false);
 
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(2, result.getScannedFileCount()); // Only visible files
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify hidden files are not included
         assertTrue(result.getScannedFiles().stream()
                 .noneMatch(f -> f.getPath().getFileName().toString().startsWith(".")));
@@ -255,22 +254,22 @@ class PathMatcherFilteringTest {
         Files.createDirectories(level1);
         Files.createDirectories(level2);
         Files.createDirectories(level3);
-        
+
         Files.write(tempDir.resolve("root.txt"), "content0".getBytes());
         Files.write(level1.resolve("file1.txt"), "content1".getBytes());
         Files.write(level2.resolve("file2.txt"), "content2".getBytes());
         Files.write(level3.resolve("file3.txt"), "content3".getBytes());
-        
+
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         ScanOptions options = new ScanOptions()
-            .withIncludePattern(includePattern)
-            .withMaxDepth(2);
+                .withIncludePattern(includePattern)
+                .withMaxDepth(2);
 
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(3, result.getScannedFileCount()); // root.txt, level1/file1.txt, level2/file2.txt
         assertEquals(0, result.getErrorCount());
-        
+
         // Verify level3/file3.txt is not included due to depth limit
         assertTrue(result.getScannedFiles().stream()
                 .noneMatch(f -> f.getPath().toString().contains("level3")));

@@ -682,7 +682,11 @@ public final class SqliteMetadataService implements MetadataService {
      */
     private void setForeignKeySetting(Connection connection, boolean enabled) throws SQLException {
         try (var stmt = connection.createStatement()) {
-            stmt.execute(enabled ? "PRAGMA foreign_keys=ON" : "PRAGMA foreign_keys=OFF");
+            if (enabled) {
+                stmt.execute("PRAGMA foreign_keys=ON");
+            } else {
+                stmt.execute("PRAGMA foreign_keys=OFF");
+            }
         }
     }
 

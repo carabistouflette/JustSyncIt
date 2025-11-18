@@ -289,13 +289,14 @@ public class NioFilesystemScanner implements FilesystemScanner {
 
             return FileVisitResult.CONTINUE;
         }
-    /**
-     * Checks if path matches include pattern.
+
+        /**
+         * Checks if path matches include pattern.
      *
      * @param path the path to check
-     * @return true if matches include pattern
+         * @return true if matches include pattern
      */
-    private boolean matchesIncludePattern(Path path) {
+        private boolean matchesIncludePattern(Path path) {
             if (options.getIncludePattern() == null) {
                 return true;
             }
@@ -335,8 +336,8 @@ public class NioFilesystemScanner implements FilesystemScanner {
 
             try {
                 // On Unix systems, check for sparse file attribute
-                if (System.getProperty("os.name").toLowerCase().contains("linux")
-                        || System.getProperty("os.name").toLowerCase().contains("mac")) {
+                if (System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("linux")
+                        || System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("mac")) {
 
                     try {
                         Object sparseAttr = Files.getAttribute(file, "unix:sparse");
@@ -370,7 +371,7 @@ public class NioFilesystemScanner implements FilesystemScanner {
                     logger.debug("IO error accessing block attributes for: {}", file, e);
                 }
                 // Windows-specific sparse file detection
-                if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+                if (System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("windows")) {
                     try {
                         // For Windows, we can use a heuristic approach
                         // Check if the file has sparse characteristics by reading sample data
@@ -408,8 +409,10 @@ public class NioFilesystemScanner implements FilesystemScanner {
                                 return isSparse;
                             }
                         }
-                    } catch (Exception e) {
+                    } catch (IOException e) {
                         logger.debug("Windows sparse detection failed for: {}", file, e);
+                    } catch (SecurityException e) {
+                        logger.debug("Security exception during Windows sparse detection for: {}", file, e);
                     }
                 }
             } catch (UnsupportedOperationException e) {
@@ -420,7 +423,9 @@ public class NioFilesystemScanner implements FilesystemScanner {
             }
             // For test purposes, check if filename contains "sparse" as a fallback
             // This helps with tests on filesystems that don't support sparse files
-            String fileName = file.getFileName().toString().toLowerCase();
+            Path fileNamePath = file.getFileName();
+            String fileName = fileNamePath != null
+                    ? fileNamePath.toString().toLowerCase(java.util.Locale.ROOT) : "";
             if (fileName.contains("sparse")) {
                 logger.debug("File contains 'sparse' in name, treating as sparse for test compatibility: {}", file);
                 return true;

@@ -120,7 +120,7 @@ public final class SqliteContentStore extends AbstractContentStore {
                     } else if (attempt < maxRetries) {
                         logger.debug("Chunk metadata not yet visible for {} (attempt {}/{}), waiting...",
                                 hash, attempt, maxRetries);
-                        Thread.sleep(500 * attempt); // Linear backoff
+                        Thread.sleep(500L * attempt); // Linear backoff
                     } else {
                         logger.warn("Chunk metadata still not visible for {} after {} attempts", hash, maxRetries);
                     }
@@ -128,7 +128,7 @@ public final class SqliteContentStore extends AbstractContentStore {
                     logger.warn("Error checking chunk metadata visibility for {}: {}", hash, e.getMessage());
                     if (attempt < maxRetries) {
                         try {
-                            Thread.sleep(500 * attempt);
+                            Thread.sleep(500L * attempt);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             throw new IOException("Interrupted while waiting for chunk metadata visibility", ie);
