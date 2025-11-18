@@ -166,7 +166,6 @@ public class FileProcessor {
                 logger.info("File processing completed. Processed: {}, Skipped: {}, Errors: {}, Total bytes: {}",
                     result.getProcessedFiles(), result.getSkippedFiles(), result.getErrorFiles(), result.getTotalBytes());
                 
-                
                 return result;
                 
             } catch (Exception e) {
@@ -340,13 +339,13 @@ public class FileProcessor {
                 }
                 
                 FileMetadata fileMetadata = new FileMetadata(
-                    fileId,
-                    currentSnapshotId,
-                    result.getFile().toString(),
-                    result.getTotalSize(),
-                    Instant.now(),
-                    result.getFileHash(),
-                    chunkHashes
+                        fileId,
+                        currentSnapshotId,
+                        result.getFile().toString(),
+                        result.getTotalSize(),
+                        Instant.now(),
+                        result.getFileHash(),
+                        chunkHashes
                 );
                 
                 // Store file metadata with retry for foreign key constraint
@@ -390,18 +389,18 @@ public class FileProcessor {
                                 transaction.rollback();
                             } catch (Exception rollbackEx) {
                                 logger.warn("Failed to rollback transaction for file {}: {}",
-                                    result.getFile(), rollbackEx.getMessage());
+                                        result.getFile(), rollbackEx.getMessage());
                             }
                         }
                         // If it's a foreign key constraint or visibility issue, chunks might not be visible yet
                         if (e.getMessage() != null
-                            && (e.getMessage().contains("FOREIGN KEY constraint failed")
-                            || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
-                            || e.getMessage().contains("Not all chunk metadata is visible"))) {
+                                && (e.getMessage().contains("FOREIGN KEY constraint failed")
+                                || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
+                                || e.getMessage().contains("Not all chunk metadata is visible"))) {
                             if (attempt < maxRetries) {
                                 long delayMs = 2000 * attempt; // Increased backoff: 2s, 4s, 6s, ...
                                 logger.warn("Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
-                                    result.getFile(), attempt, delayMs);
+                                        result.getFile(), attempt, delayMs);
                                 try {
                                     Thread.sleep(delayMs);
                                 } catch (InterruptedException ie) {
@@ -410,7 +409,7 @@ public class FileProcessor {
                                 }
                             } else {
                                 logger.error("Failed to insert file metadata after {} attempts: {}",
-                                    maxRetries, result.getFile());
+                                        maxRetries, result.getFile());
                                 throw lastException;
                             }
                         } else {
@@ -423,7 +422,7 @@ public class FileProcessor {
                                 transaction.close();
                             } catch (Exception closeEx) {
                                 logger.warn("Failed to close transaction for file {}: {}",
-                                    result.getFile(), closeEx.getMessage());
+                                        result.getFile(), closeEx.getMessage());
                             }
                         }
                     }
@@ -433,7 +432,7 @@ public class FileProcessor {
                 processedBytes.addAndGet(result.getTotalSize());
                 
                 logger.debug("Completed processing file: {} ({} chunks)",
-                    result.getFile(), result.getChunkCount());
+                        result.getFile(), result.getChunkCount());
                 
             } catch (IOException e) {
                 logger.error("Error storing metadata for file: {}", result.getFile(), e);
@@ -482,8 +481,8 @@ public class FileProcessor {
         
         @Override
         public void onScanCompleted(ScanResult result) {
-            logger.info("Scan completed. Found {} files, {} errors", 
-                result.getScannedFiles().size(), result.getErrors().size());
+            logger.info("Scan completed. Found {} files, {} errors",
+                    result.getScannedFiles().size(), result.getErrors().size());
         }
         
         @Override

@@ -158,11 +158,17 @@ public class ScanResult {
      * Represents a file that was successfully scanned.
      */
     public static class ScannedFile {
+        /** Path to the scanned file. */
         private final Path path;
+        /** Size of the file in bytes. */
         private final long size;
+        /** Last modification time of the file. */
         private final Instant lastModified;
+        /** Whether the file is a symbolic link. */
         private final boolean isSymbolicLink;
+        /** Whether the file is sparse. */
         private final boolean isSparse;
+        /** Target of the symbolic link (if applicable). */
         private final Path linkTarget;
 
         /**

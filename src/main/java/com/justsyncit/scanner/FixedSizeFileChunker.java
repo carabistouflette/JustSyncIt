@@ -28,7 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
-import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -98,7 +97,8 @@ public class FixedSizeFileChunker implements FileChunker {
      * @param contentStore  content store for storing chunks
      * @throws IllegalArgumentException if parameters are invalid
      */
-    public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize, ContentStore contentStore) {
+    public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize,
+                                ContentStore contentStore) {
         if (blake3Service == null) {
             throw new IllegalArgumentException("BLAKE3 service cannot be null");
         }
@@ -141,8 +141,8 @@ public class FixedSizeFileChunker implements FileChunker {
         }
 
         final ChunkingOptions finalOptions = options != null ? options : new ChunkingOptions();
-        final int effectiveChunkSize = finalOptions.getChunkSize() > 0 ?
-                finalOptions.getChunkSize() : this.chunkSize;
+        final int effectiveChunkSize = finalOptions.getChunkSize() > 0
+                ? finalOptions.getChunkSize() : this.chunkSize;
 
         return CompletableFuture.supplyAsync(() -> {
             try {
@@ -344,7 +344,8 @@ public class FixedSizeFileChunker implements FileChunker {
     /**
      * Processes a single chunk asynchronously with enhanced error handling.
      */
-    private CompletableFuture<String> processChunkAsync(AsynchronousFileChannel channel, long offset, int length, int chunkIndex) {
+    private CompletableFuture<String> processChunkAsync(AsynchronousFileChannel channel, long offset, int length,
+                                                    int chunkIndex) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return processChunkSync(channel, offset, length);
@@ -354,7 +355,8 @@ public class FixedSizeFileChunker implements FileChunker {
                 System.gc();
                 throw new RuntimeException("Insufficient memory for chunk processing", e);
             } catch (Exception e) {
-                logger.error("Unexpected error processing chunk at offset {} length {} chunk {}", offset, length, chunkIndex, e);
+                logger.error("Unexpected error processing chunk at offset {} length {} chunk {}",
+                        offset, length, chunkIndex, e);
                 throw new RuntimeException("Failed to process chunk " + chunkIndex, e);
             }
         }, executorService);
@@ -444,9 +446,10 @@ public class FixedSizeFileChunker implements FileChunker {
     private String calculateFileHashIncrementally(AsynchronousFileChannel channel, long fileSize) throws IOException {
         try {
             com.justsyncit.hash.IncrementalHasherFactory hasherFactory =
-                new com.justsyncit.hash.Blake3IncrementalHasherFactory(com.justsyncit.hash.Sha256HashAlgorithm.create());
+                    new com.justsyncit.hash.Blake3IncrementalHasherFactory(
+                            com.justsyncit.hash.Sha256HashAlgorithm.create());
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher incrementalHasher =
-                hasherFactory.createIncrementalHasher();
+                    hasherFactory.createIncrementalHasher();
             
             ByteBuffer buffer = bufferPool.acquire(bufferPool.getDefaultBufferSize());
             try {

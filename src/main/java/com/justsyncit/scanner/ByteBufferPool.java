@@ -75,7 +75,7 @@ public class ByteBufferPool implements BufferPool {
     public ByteBufferPool(int defaultBufferSize, int maxBuffers) {
         if (defaultBufferSize < MIN_BUFFER_SIZE || defaultBufferSize > MAX_BUFFER_SIZE) {
             throw new IllegalArgumentException(
-                String.format("Buffer size must be between %d and %d bytes", 
+                String.format("Buffer size must be between %d and %d bytes",
                     MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
         }
         if (maxBuffers <= 0) {

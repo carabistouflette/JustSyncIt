@@ -67,12 +67,19 @@ public interface FileChunker extends ChunkStorage {
      * Result of a chunking operation.
      */
     class ChunkingResult {
+        /** File that was chunked. */
         private final Path file;
+        /** Number of chunks created. */
         private final int chunkCount;
+        /** Total file size in bytes. */
         private final long totalSize;
+        /** Size of sparse regions in bytes. */
         private final long sparseSize;
+        /** Hash of the entire file. */
         private final String fileHash;
+        /** List of chunk hashes in order. */
         private final java.util.List<String> chunkHashes;
+        /** Error if chunking failed. */
         private final Exception error;
 
         /**
@@ -198,10 +205,15 @@ public interface FileChunker extends ChunkStorage {
         /** Default sparse file detection. */
         public static final boolean DEFAULT_DETECT_SPARSE = true;
 
+        /** Current chunk size in bytes. */
         private int chunkSize = DEFAULT_CHUNK_SIZE;
+        /** Whether to use async I/O. */
         private boolean useAsyncIO = DEFAULT_USE_ASYNC_IO;
+        /** Number of buffers to use for chunking. */
         private int bufferCount = DEFAULT_BUFFER_COUNT;
+        /** Whether to detect sparse files. */
         private boolean detectSparseFiles = DEFAULT_DETECT_SPARSE;
+        /** Maximum number of concurrent chunks. */
         private int maxConcurrentChunks = 4;
 
         /**
