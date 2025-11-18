@@ -199,7 +199,6 @@ class MetadataServiceTest {
             ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
             metadataService.upsertChunk(chunk1);
             metadataService.upsertChunk(chunk2);
-            
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -238,7 +237,6 @@ class MetadataServiceTest {
             ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
             metadataService.upsertChunk(chunk1);
             metadataService.upsertChunk(chunk2);
-            
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -278,7 +276,6 @@ class MetadataServiceTest {
             ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 200, Instant.now(), 1, Instant.now());
             metadataService.upsertChunk(chunk1);
             metadataService.upsertChunk(chunk2);
-            
             FileMetadata file1 = new FileMetadata(
                     "file1", snapshotId, "/path1", 100, Instant.now(), "hash1",
                     Arrays.asList("chunk1"));
@@ -308,7 +305,6 @@ class MetadataServiceTest {
             metadataService.upsertChunk(chunk1);
             metadataService.upsertChunk(chunk2);
             metadataService.upsertChunk(chunk3);
-            
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -343,7 +339,6 @@ class MetadataServiceTest {
             ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
             metadataService.upsertChunk(chunk1);
             metadataService.upsertChunk(chunk2);
-            
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -379,7 +374,6 @@ class MetadataServiceTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-
             // When
             metadataService.recordChunkAccess(chunkHash);
 
@@ -520,7 +514,6 @@ class MetadataServiceTest {
             ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
             metadataService.upsertChunk(chunk1);
             metadataService.upsertChunk(chunk2);
-            
             FileMetadata file = new FileMetadata(
                     "file-id", snapshot.getId(), "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",

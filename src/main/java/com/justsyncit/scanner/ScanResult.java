@@ -214,8 +214,11 @@ public class ScanResult {
      * Represents an error that occurred during scanning.
      */
     public static class ScanError {
+        /** Path where the error occurred. */
         private final Path path;
+        /** Exception that was thrown. */
         private final Exception exception;
+        /** Descriptive error message. */
         private final String message;
 
         /**

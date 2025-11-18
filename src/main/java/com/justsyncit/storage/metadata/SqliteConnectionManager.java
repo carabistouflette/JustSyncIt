@@ -196,7 +196,6 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         if (!connection.isClosed()) {
             // Reset auto-commit before returning to pool
             connection.setAutoCommit(true);
-            
             // For in-memory databases, don't return the shared connection to pool
             // and don't close it, as it's shared across all operations
             if (isInMemory && connection == staticSharedMemoryConnection) {

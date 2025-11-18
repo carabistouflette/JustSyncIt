@@ -389,13 +389,15 @@ public class FileProcessor {
                             try {
                                 transaction.rollback();
                             } catch (Exception rollbackEx) {
-                                logger.warn("Failed to rollback transaction for file {}: {}", result.getFile(), rollbackEx.getMessage());
+                                logger.warn("Failed to rollback transaction for file {}: {}",
+                                    result.getFile(), rollbackEx.getMessage());
                             }
                         }
                         // If it's a foreign key constraint or visibility issue, chunks might not be visible yet
-                        if (e.getMessage() != null && (e.getMessage().contains("FOREIGN KEY constraint failed") ||
-                            e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY") ||
-                            e.getMessage().contains("Not all chunk metadata is visible"))) {
+                        if (e.getMessage() != null
+                            && (e.getMessage().contains("FOREIGN KEY constraint failed")
+                            || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
+                            || e.getMessage().contains("Not all chunk metadata is visible"))) {
                             if (attempt < maxRetries) {
                                 long delayMs = 2000 * attempt; // Increased backoff: 2s, 4s, 6s, ...
                                 logger.warn("Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
@@ -407,7 +409,8 @@ public class FileProcessor {
                                     throw new IOException("Interrupted while retrying file insertion", ie);
                                 }
                             } else {
-                                logger.error("Failed to insert file metadata after {} attempts: {}", maxRetries, result.getFile());
+                                logger.error("Failed to insert file metadata after {} attempts: {}",
+                                    maxRetries, result.getFile());
                                 throw lastException;
                             }
                         } else {
@@ -419,7 +422,8 @@ public class FileProcessor {
                             try {
                                 transaction.close();
                             } catch (Exception closeEx) {
-                                logger.warn("Failed to close transaction for file {}: {}", result.getFile(), closeEx.getMessage());
+                                logger.warn("Failed to close transaction for file {}: {}",
+                                    result.getFile(), closeEx.getMessage());
                             }
                         }
                     }
@@ -493,11 +497,17 @@ public class FileProcessor {
      * Result of a file processing operation.
      */
     public static class ProcessingResult {
+        /** Scan result from the filesystem scanner. */
         private final ScanResult scanResult;
+        /** Number of successfully processed files. */
         private final int processedFiles;
+        /** Number of skipped files. */
         private final int skippedFiles;
+        /** Number of files with errors. */
         private final int errorFiles;
+        /** Total bytes in all files. */
         private final long totalBytes;
+        /** Total bytes processed. */
         private final long processedBytes;
         
         public ProcessingResult(ScanResult scanResult, int processedFiles, int skippedFiles, 
@@ -510,12 +520,29 @@ public class FileProcessor {
             this.processedBytes = processedBytes;
         }
         
-        public ScanResult getScanResult() { return scanResult; }
-        public int getProcessedFiles() { return processedFiles; }
-        public int getSkippedFiles() { return skippedFiles; }
-        public int getErrorFiles() { return errorFiles; }
-        public long getTotalBytes() { return totalBytes; }
-        public long getProcessedBytes() { return processedBytes; }
+        public ScanResult getScanResult() {
+            return scanResult;
+        }
+        
+        public int getProcessedFiles() {
+            return processedFiles;
+        }
+        
+        public int getSkippedFiles() {
+            return skippedFiles;
+        }
+        
+        public int getErrorFiles() {
+            return errorFiles;
+        }
+        
+        public long getTotalBytes() {
+            return totalBytes;
+        }
+        
+        public long getProcessedBytes() {
+            return processedBytes;
+        }
         
         public double getProcessingPercentage() {
             return totalBytes > 0 ? (double) processedBytes / totalBytes * 100 : 0;

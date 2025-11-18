@@ -162,15 +162,12 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
      */
     private void migrateToVersion2(Connection connection) throws SQLException {
         logger.info("Migrating database schema from version 1 to 2");
-        
         try (Statement stmt = connection.createStatement()) {
             // SQLite doesn't support adding foreign key constraints to existing tables directly
             // We need to recreate the file_chunks table with the foreign key constraint
             logger.debug("Recreating file_chunks table with foreign key constraint");
-            
             // Drop the existing table
             stmt.execute("DROP TABLE IF EXISTS file_chunks");
-            
             // Recreate with foreign key constraint
             stmt.execute("CREATE TABLE file_chunks ("
                     + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -182,14 +179,11 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
                     + "FOREIGN KEY (chunk_hash) REFERENCES chunks(hash) ON DELETE CASCADE,"
                     + "UNIQUE(file_id, chunk_order)"
                     + ")");
-            
             // Recreate indexes
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_chunks_file_id ON file_chunks(file_id)");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_chunks_chunk_hash ON file_chunks(chunk_hash)");
-            
             // Update schema version to 2
             stmt.execute("UPDATE schema_version SET version = 2");
-            
             logger.info("Successfully migrated database schema to version 2");
         }
     }

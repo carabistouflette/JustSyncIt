@@ -57,9 +57,13 @@ public interface ChunkHandler {
      * Metadata for a chunk being processed.
      */
     class ChunkMetadata {
+        /** Offset of chunk in file. */
         private final long offset;
+        /** Size of chunk in bytes. */
         private final int size;
+        /** Whether this is a sparse chunk. */
         private final boolean isSparse;
+        /** Hash of the entire file. */
         private final String fileHash;
 
         /**

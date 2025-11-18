@@ -101,7 +101,6 @@ public final class SqliteContentStore extends AbstractContentStore {
             );
             metadataService.upsertChunk(chunkMetadata);
             transaction.commit();
-            
             // Force a delay to ensure metadata is committed and visible
             // This addresses SQLite's connection isolation issues in concurrent scenarios
             try {
@@ -110,7 +109,6 @@ public final class SqliteContentStore extends AbstractContentStore {
                 Thread.currentThread().interrupt();
                 // Don't fail the operation if interrupted
             }
-            
             // Verify: chunk metadata is actually visible before returning
             // This ensures that chunk is fully committed and visible to all connections
             int maxRetries = 10;
@@ -120,7 +118,8 @@ public final class SqliteContentStore extends AbstractContentStore {
                         logger.debug("Verified chunk metadata is visible for: {}", hash);
                         break;
                     } else if (attempt < maxRetries) {
-                        logger.debug("Chunk metadata not yet visible for {} (attempt {}/{}), waiting...", hash, attempt, maxRetries);
+                        logger.debug("Chunk metadata not yet visible for {} (attempt {}/{}), waiting...",
+                            hash, attempt, maxRetries);
                         Thread.sleep(500 * attempt); // Linear backoff
                     } else {
                         logger.warn("Chunk metadata still not visible for {} after {} attempts", hash, maxRetries);
@@ -188,13 +187,15 @@ public final class SqliteContentStore extends AbstractContentStore {
         try {
             Optional<com.justsyncit.storage.metadata.ChunkMetadata> metadata = metadataService.getChunkMetadata(hash);
             if (!metadata.isPresent()) {
-                logger.warn("Chunk {} exists in delegate store but missing from metadata service, creating metadata", hash);
+                logger.warn("Chunk {} exists in delegate store but missing from metadata service, creating metadata",
+                    hash);
                 try {
                     // Try to retrieve the chunk to get its size
                     byte[] chunkData = delegateStore.retrieveChunk(hash);
                     if (chunkData != null) {
                         // Create missing metadata
-                        com.justsyncit.storage.metadata.ChunkMetadata chunkMetadata = new com.justsyncit.storage.metadata.ChunkMetadata(
+                        com.justsyncit.storage.metadata.ChunkMetadata chunkMetadata =
+                            new com.justsyncit.storage.metadata.ChunkMetadata(
                                 hash,
                                 chunkData.length,
                                 java.time.Instant.now(),

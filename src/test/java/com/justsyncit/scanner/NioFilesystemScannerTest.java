@@ -5,20 +5,26 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
-import java.nio.file.*;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Unit tests for NioFilesystemScanner.
  */
 class NioFilesystemScannerTest {
-    
+    /** Temporary directory for test files. */
     @TempDir
     Path tempDir;
     
+    /** Filesystem scanner instance for testing. */
     private NioFilesystemScanner scanner;
     
     @BeforeEach

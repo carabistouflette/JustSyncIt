@@ -31,7 +31,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * SQLite implementation of MetadataService.
@@ -238,7 +237,6 @@ public final class SqliteMetadataService implements MetadataService {
                     }
                 }
             }
-            
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
                 stmt.setString(1, file.getId());
                 stmt.setString(2, file.getSnapshotId());
@@ -636,7 +634,6 @@ public final class SqliteMetadataService implements MetadataService {
             stmt.executeBatch();
         }
     }
-    
     /**
      * Ensures all chunks exist in the chunks table.
      * Creates missing chunks with default metadata.
@@ -645,7 +642,6 @@ public final class SqliteMetadataService implements MetadataService {
         String checkSql = "SELECT hash FROM chunks WHERE hash = ?";
         String insertSql = "INSERT OR IGNORE INTO chunks (hash, size, first_seen, reference_count, last_accessed) "
                 + "VALUES (?, ?, ?, ?, ?)";
-        
         try (PreparedStatement checkStmt = connection.prepareStatement(checkSql);
              PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
             
@@ -666,12 +662,10 @@ public final class SqliteMetadataService implements MetadataService {
                     }
                 }
             }
-            
             // Execute batch insert for missing chunks
             insertStmt.executeBatch();
         }
     }
-    
     /**
      * Gets the current foreign key setting.
      */
@@ -681,7 +675,6 @@ public final class SqliteMetadataService implements MetadataService {
             return rs.getBoolean(1);
         }
     }
-    
     /**
      * Sets the foreign key setting.
      */
@@ -690,7 +683,6 @@ public final class SqliteMetadataService implements MetadataService {
             stmt.execute(enabled ? "PRAGMA foreign_keys=ON" : "PRAGMA foreign_keys=OFF");
         }
     }
-
     /**
      * Gets chunk hashes for a file.
      */
@@ -709,7 +701,6 @@ public final class SqliteMetadataService implements MetadataService {
             }
         }
     }
-
     /**
      * Deletes file chunks for a file.
      */

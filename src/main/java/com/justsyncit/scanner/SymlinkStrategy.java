@@ -42,6 +42,7 @@ public enum SymlinkStrategy {
      */
     SKIP("Skip symbolic links entirely");
 
+    /** Human-readable description of the strategy. */
     private final String description;
 
     /**
