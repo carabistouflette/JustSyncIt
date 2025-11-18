@@ -155,16 +155,17 @@ public class FileProcessor {
                 fileVisitor.waitForCompletion();
                 
                 ProcessingResult result = new ProcessingResult(
-                    scanResult,
-                    processedFiles.get(),
-                    skippedFiles.get(),
-                    errorFiles.get(),
-                    totalBytes.get(),
-                    processedBytes.get()
+                        scanResult,
+                        processedFiles.get(),
+                        skippedFiles.get(),
+                        errorFiles.get(),
+                        totalBytes.get(),
+                        processedBytes.get()
                 );
                 
                 logger.info("File processing completed. Processed: {}, Skipped: {}, Errors: {}, Total bytes: {}",
-                    result.getProcessedFiles(), result.getSkippedFiles(), result.getErrorFiles(), result.getTotalBytes());
+                        result.getProcessedFiles(), result.getSkippedFiles(), result.getErrorFiles(),
+                        result.getTotalBytes());
                 
                 return result;
                 
@@ -215,6 +216,7 @@ public class FileProcessor {
      * File visitor that handles chunking of files during scanning.
      */
     private class ChunkingFileVisitor implements FileVisitor {
+        /** List of futures for chunking operations. */
         private final List<CompletableFuture<FileChunker.ChunkingResult>> chunkingFutures = new ArrayList<>();
         
         @Override
@@ -233,37 +235,37 @@ public class FileProcessor {
             try {
                 // Create chunking options
                 FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                    .withChunkSize(chunker.getChunkSize())
-                    .withUseAsyncIO(true)
-                    .withDetectSparseFiles(true);
+                        .withChunkSize(chunker.getChunkSize())
+                        .withUseAsyncIO(true)
+                        .withDetectSparseFiles(true);
                 
                 // Start chunking file
                 CompletableFuture<FileChunker.ChunkingResult> chunkingFuture = chunker.chunkFile(file, options)
-                    .thenCompose(result -> {
-                        return CompletableFuture.supplyAsync(() -> {
-                            if (result.isSuccess()) {
-                                // Wait a moment to ensure all chunk metadata is committed
-                                // This addresses SQLite's connection isolation issues
-                                try {
-                                    Thread.sleep(500); // Increased delay for better reliability
-                                } catch (InterruptedException ie) {
-                                    Thread.currentThread().interrupt();
-                                    // Don't fail the operation if interrupted
+                        .thenCompose(result -> {
+                            return CompletableFuture.supplyAsync(() -> {
+                                if (result.isSuccess()) {
+                                    // Wait a moment to ensure all chunk metadata is committed
+                                    // This addresses SQLite's connection isolation issues
+                                    try {
+                                        Thread.sleep(500); // Increased delay for better reliability
+                                    } catch (InterruptedException ie) {
+                                        Thread.currentThread().interrupt();
+                                        // Don't fail the operation if interrupted
+                                    }
+                                    processChunkingResult(result);
+                                } else {
+                                    logger.error("Chunking failed for file: {}", file, result.getError());
+                                    errorFiles.incrementAndGet();
                                 }
-                                processChunkingResult(result);
-                            } else {
-                                logger.error("Chunking failed for file: {}", file, result.getError());
-                                errorFiles.incrementAndGet();
-                            }
-                            return result;
-                        }, executorService);
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Error chunking file: {}", file, throwable);
-                        errorFiles.incrementAndGet();
-                        return new FileChunker.ChunkingResult(file,
-                            throwable instanceof IOException ? (IOException) throwable : new IOException(throwable));
-                    });
+                                return result;
+                            }, executorService);
+                        })
+                        .exceptionally(throwable -> {
+                            logger.error("Error chunking file: {}", file, throwable);
+                            errorFiles.incrementAndGet();
+                            return new FileChunker.ChunkingResult(file,
+                                    throwable instanceof IOException ? (IOException) throwable : new IOException(throwable));
+                        });
                 
                 chunkingFutures.add(chunkingFuture);
                 
@@ -308,32 +310,7 @@ public class FileProcessor {
                 
                 // Verify chunks exist with retries
                 for (String chunkHash : chunkHashes) {
-                    boolean chunkExists = false;
-                    int maxRetries = 10; // Increased retries
-                    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-                        try {
-                            if (contentStore.existsChunk(chunkHash)) {
-                                chunkExists = true;
-                                break;
-                            } else if (attempt < maxRetries) {
-                                logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...", chunkHash, attempt, maxRetries);
-                                Thread.sleep(1000 * attempt); // Exponential backoff
-                            }
-                        } catch (IOException e) {
-                            logger.warn("Failed to check if chunk exists: {}", chunkHash, e);
-                            if (attempt < maxRetries) {
-                                try {
-                                    Thread.sleep(1000 * attempt);
-                                } catch (InterruptedException ie) {
-                                    Thread.currentThread().interrupt();
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if (!chunkExists) {
-                        logger.error("Chunk {} does not exist in content store after all retries", chunkHash);
-                        errorFiles.incrementAndGet();
+                    if (!verifyChunkExists(chunkHash)) {
                         return;
                     }
                 }
@@ -349,84 +326,7 @@ public class FileProcessor {
                 );
                 
                 // Store file metadata with retry for foreign key constraint
-                // Use a single transaction to ensure atomicity
-                int maxRetries = 30; // Increased retries
-                IOException lastException = null;
-                
-                for (int attempt = 1; attempt <= maxRetries; attempt++) {
-                    Transaction transaction = null;
-                    try {
-                        // Begin transaction for file metadata
-                        transaction = metadataService.beginTransaction();
-                        
-                        // Ensure all chunk metadata exists before inserting file
-                        for (String chunkHash : chunkHashes) {
-                            if (!metadataService.getChunkMetadata(chunkHash).isPresent()) {
-                                // Create missing chunk metadata
-                                ChunkMetadata chunkMetadata = new ChunkMetadata(
-                                        chunkHash,
-                                        0, // Size unknown, will be updated when chunk is accessed
-                                        java.time.Instant.now(),
-                                        1, // Initial reference count
-                                        java.time.Instant.now()
-                                );
-                                metadataService.upsertChunk(chunkMetadata);
-                                logger.debug("Created missing chunk metadata for: {}", chunkHash);
-                                // Wait a bit for the chunk metadata to be committed
-                                Thread.sleep(1000);
-                            }
-                        }
-                        
-                        // Now insert file metadata
-                        metadataService.insertFile(fileMetadata);
-                        transaction.commit();
-                        // Success, break out of retry loop
-                        break;
-                    } catch (IOException e) {
-                        lastException = e;
-                        if (transaction != null) {
-                            try {
-                                transaction.rollback();
-                            } catch (Exception rollbackEx) {
-                                logger.warn("Failed to rollback transaction for file {}: {}",
-                                        result.getFile(), rollbackEx.getMessage());
-                            }
-                        }
-                        // If it's a foreign key constraint or visibility issue, chunks might not be visible yet
-                        if (e.getMessage() != null
-                                && (e.getMessage().contains("FOREIGN KEY constraint failed")
-                                || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
-                                || e.getMessage().contains("Not all chunk metadata is visible"))) {
-                            if (attempt < maxRetries) {
-                                long delayMs = 2000 * attempt; // Increased backoff: 2s, 4s, 6s, ...
-                                logger.warn("Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
-                                        result.getFile(), attempt, delayMs);
-                                try {
-                                    Thread.sleep(delayMs);
-                                } catch (InterruptedException ie) {
-                                    Thread.currentThread().interrupt();
-                                    throw new IOException("Interrupted while retrying file insertion", ie);
-                                }
-                            } else {
-                                logger.error("Failed to insert file metadata after {} attempts: {}",
-                                        maxRetries, result.getFile());
-                                throw lastException;
-                            }
-                        } else {
-                            // Not a foreign key constraint, don't retry
-                            throw e;
-                        }
-                    } finally {
-                        if (transaction != null) {
-                            try {
-                                transaction.close();
-                            } catch (Exception closeEx) {
-                                logger.warn("Failed to close transaction for file {}: {}",
-                                        result.getFile(), closeEx.getMessage());
-                            }
-                        }
-                    }
-                }
+                storeFileMetadataWithRetry(fileMetadata, chunkHashes, result);
                 
                 processedFiles.incrementAndGet();
                 processedBytes.addAndGet(result.getTotalSize());
@@ -437,10 +337,156 @@ public class FileProcessor {
             } catch (IOException e) {
                 logger.error("Error storing metadata for file: {}", result.getFile(), e);
                 errorFiles.incrementAndGet();
-            } catch (InterruptedException e) {
-                logger.warn("Processing interrupted for file: {}", result.getFile());
-                Thread.currentThread().interrupt();
+            }
+        }
+        
+        /**
+         * Verifies that a chunk exists in the content store with retries.
+         *
+         * @param chunkHash the hash of the chunk to verify
+         * @return true if the chunk exists, false otherwise
+         */
+        private boolean verifyChunkExists(String chunkHash) {
+            boolean chunkExists = false;
+            int maxRetries = 10; // Increased retries
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    if (contentStore.existsChunk(chunkHash)) {
+                        chunkExists = true;
+                        break;
+                    } else if (attempt < maxRetries) {
+                        logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
+                                chunkHash, attempt, maxRetries);
+                        try {
+                            Thread.sleep(1000 * attempt); // Exponential backoff
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            return false;
+                        }
+                    }
+                } catch (IOException e) {
+                    logger.warn("Failed to check if chunk exists: {}", chunkHash, e);
+                    if (attempt < maxRetries) {
+                        try {
+                            Thread.sleep(1000 * attempt);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            return false;
+                        }
+                    }
+                }
+            }
+            if (!chunkExists) {
+                logger.error("Chunk {} does not exist in content store after all retries", chunkHash);
                 errorFiles.incrementAndGet();
+                return false;
+            }
+            return true;
+        }
+        
+        /**
+         * Stores file metadata with retry logic for foreign key constraints.
+         *
+         * @param fileMetadata the file metadata to store
+         * @param chunkHashes the list of chunk hashes
+         * @param result the chunking result
+         * @throws IOException if storing fails after all retries
+         */
+        private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
+                FileChunker.ChunkingResult result) throws IOException {
+            int maxRetries = 30; // Increased retries
+            IOException lastException = null;
+            
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                Transaction transaction = null;
+                try {
+                    // Begin transaction for file metadata
+                    transaction = metadataService.beginTransaction();
+                    
+                    // Ensure all chunk metadata exists before inserting file
+                    try {
+                        ensureChunkMetadataExists(chunkHashes);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        throw new IOException("Interrupted while ensuring chunk metadata exists", ie);
+                    }
+                    
+                    // Now insert file metadata
+                    metadataService.insertFile(fileMetadata);
+                    transaction.commit();
+                    // Success, break out of retry loop
+                    break;
+                } catch (IOException e) {
+                    lastException = e;
+                    if (transaction != null) {
+                        try {
+                            transaction.rollback();
+                        } catch (Exception rollbackEx) {
+                            logger.warn("Failed to rollback transaction for file {}: {}",
+                                    result.getFile(), rollbackEx.getMessage());
+                        }
+                    }
+                    // If it's a foreign key constraint or visibility issue, chunks might not be visible yet
+                    if (e.getMessage() != null
+                            && (e.getMessage().contains("FOREIGN KEY constraint failed")
+                            || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
+                            || e.getMessage().contains("Not all chunk metadata is visible"))) {
+                        if (attempt < maxRetries) {
+                            long delayMs = 2000 * attempt; // Increased backoff: 2s, 4s, 6s
+                            logger.warn("Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
+                                    result.getFile(), attempt, delayMs);
+                            try {
+                                Thread.sleep(delayMs);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                throw new IOException("Interrupted while retrying file insertion", ie);
+                            }
+                        } else {
+                            logger.error("Failed to insert file metadata after {} attempts: {}",
+                                    maxRetries, result.getFile());
+                            throw lastException;
+                        }
+                    } else {
+                        // Not a foreign key constraint, don't retry
+                        throw e;
+                    }
+                } finally {
+                    if (transaction != null) {
+                        try {
+                            transaction.close();
+                        } catch (Exception closeEx) {
+                            logger.warn("Failed to close transaction for file {}: {}",
+                                    result.getFile(), closeEx.getMessage());
+                        }
+                    }
+                }
+            }
+        }
+        
+        /**
+         * Ensures that all chunk metadata exists before inserting file metadata.
+         *
+         * @param chunkHashes the list of chunk hashes to verify
+         * @throws InterruptedException if the thread is interrupted
+         * @throws IOException if there's an error creating chunk metadata
+         */
+        private void ensureChunkMetadataExists(List<String> chunkHashes)
+                throws InterruptedException, IOException {
+            for (String chunkHash : chunkHashes) {
+                if (!metadataService.getChunkMetadata(chunkHash).isPresent()) {
+                    // Create missing chunk metadata
+                    ChunkMetadata chunkMetadata = new ChunkMetadata(
+                            chunkHash,
+                            0, // Size unknown, will be updated when chunk is accessed
+                            java.time.Instant.now(),
+                            1, // Initial reference count
+                            java.time.Instant.now()
+                    );
+                    metadataService.upsertChunk(chunkMetadata);
+                    logger.debug("Created missing chunk metadata for: {}", chunkHash);
+                    // Wait a bit for the chunk metadata to be committed
+                    Thread.sleep(1000);
+                }
             }
         }
         
@@ -448,7 +494,7 @@ public class FileProcessor {
             try {
                 // Add timeout to prevent infinite hanging
                 CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0]))
-                    .get(5, java.util.concurrent.TimeUnit.MINUTES);
+                        .get(5, java.util.concurrent.TimeUnit.MINUTES);
             } catch (java.util.concurrent.TimeoutException e) {
                 logger.error("Timeout waiting for chunking completion after 5 minutes", e);
                 // Cancel any remaining futures
@@ -509,7 +555,7 @@ public class FileProcessor {
         /** Total bytes processed. */
         private final long processedBytes;
         
-        public ProcessingResult(ScanResult scanResult, int processedFiles, int skippedFiles, 
+        public ProcessingResult(ScanResult scanResult, int processedFiles, int skippedFiles,
                               int errorFiles, long totalBytes, long processedBytes) {
             this.scanResult = scanResult;
             this.processedFiles = processedFiles;
