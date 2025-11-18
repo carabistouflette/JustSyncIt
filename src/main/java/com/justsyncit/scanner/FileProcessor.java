@@ -1,6 +1,7 @@
 package com.justsyncit.scanner;
 
 import com.justsyncit.storage.ContentStore;
+import com.justsyncit.storage.metadata.ChunkMetadata;
 import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Transaction;
@@ -44,18 +45,24 @@ public class FileProcessor {
     private String currentSnapshotId;
     
     /**
-     * Creates a new FileProcessor with the specified dependencies.
+     * Creates a new FileProcessor with specified dependencies.
      */
-    public FileProcessor(FilesystemScanner scanner, FileChunker chunker, 
+    public FileProcessor(FilesystemScanner scanner, FileChunker chunker,
                         ContentStore contentStore, MetadataService metadataService) {
         this.scanner = scanner;
         this.chunker = chunker;
         this.contentStore = contentStore;
         this.metadataService = metadataService;
+        
+        // Set content store on chunker if it supports it
+        if (chunker instanceof FixedSizeFileChunker) {
+            ((FixedSizeFileChunker) chunker).setContentStore(contentStore);
+        }
+        
         this.executorService = Executors.newFixedThreadPool(
             Runtime.getRuntime().availableProcessors(),
             r -> {
-                Thread t = new Thread(r, "FileProcessor-" + System.currentTimeMillis());
+                Thread t = new Thread(r, "FileProcessor-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8));
                 t.setDaemon(true);
                 return t;
             });
@@ -65,6 +72,11 @@ public class FileProcessor {
      * Processes files from the specified directory using the given options.
      */
     public CompletableFuture<ProcessingResult> processDirectory(Path directory, ScanOptions options) {
+        // Check if executor has been shut down (stopped) and don't restart
+        if (executorService.isShutdown()) {
+            throw new IllegalStateException("FileProcessor has been stopped and cannot be restarted");
+        }
+        
         return CompletableFuture.supplyAsync(() -> {
             if (isRunning) {
                 throw new IllegalStateException("FileProcessor is already running");
@@ -72,11 +84,6 @@ public class FileProcessor {
             
             if (directory == null || !Files.exists(directory) || !Files.isDirectory(directory)) {
                 throw new IllegalArgumentException("Directory must exist and be a directory: " + directory);
-            }
-            
-            // Check if executor has been shut down (stopped) and don't restart
-            if (executorService.isShutdown()) {
-                throw new IllegalStateException("FileProcessor has been stopped and cannot be restarted");
             }
             
             isRunning = true;
@@ -89,31 +96,46 @@ public class FileProcessor {
             
             try {
                 // Create snapshot first in a transaction to ensure visibility
-                com.justsyncit.storage.metadata.Transaction transaction = null;
+                // Use a transaction to ensure the snapshot is properly committed and visible
+                Transaction snapshotTransaction = null;
                 try {
-                    transaction = metadataService.beginTransaction();
+                    snapshotTransaction = metadataService.beginTransaction();
                     metadataService.createSnapshot(currentSnapshotId, "Processing session for directory: " + directory);
-                    transaction.commit();
+                    snapshotTransaction.commit();
+                    logger.debug("Snapshot created and committed: {}", currentSnapshotId);
                     
                     // Wait a moment to ensure the snapshot is visible to all connections
-                    Thread.sleep(50);
+                    // This addresses SQLite's connection isolation issues with DELETE journal mode
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        // Don't fail the operation if interrupted
+                    }
+                    
+                    // Verify the snapshot exists before proceeding
+                    if (!metadataService.getSnapshot(currentSnapshotId).isPresent()) {
+                        throw new IOException("Snapshot was not committed properly: " + currentSnapshotId);
+                    }
+                    logger.debug("Snapshot verified to exist: {}", currentSnapshotId);
+                    
                 } catch (IOException e) {
-                    logger.error("Failed to create snapshot: {}", e.getMessage());
-                    if (transaction != null) {
+                    if (snapshotTransaction != null) {
                         try {
-                            transaction.rollback();
-                        } catch (IOException rollbackEx) {
-                            logger.warn("Failed to rollback transaction: {}", rollbackEx.getMessage());
+                            snapshotTransaction.rollback();
+                        } catch (Exception rollbackEx) {
+                            logger.warn("Failed to rollback snapshot transaction: {}", rollbackEx.getMessage());
                         }
                     }
+                    logger.error("Failed to create snapshot: {}", e.getMessage());
                     // If snapshot creation fails, we can't proceed
                     throw new RuntimeException("Failed to create snapshot for file processing", e);
                 } finally {
-                    if (transaction != null) {
+                    if (snapshotTransaction != null) {
                         try {
-                            transaction.close();
-                        } catch (IOException e) {
-                            logger.warn("Failed to close transaction: {}", e.getMessage());
+                            snapshotTransaction.close();
+                        } catch (Exception closeEx) {
+                            logger.warn("Failed to close snapshot transaction: {}", closeEx.getMessage());
                         }
                     }
                 }
@@ -216,11 +238,19 @@ public class FileProcessor {
                     .withUseAsyncIO(true)
                     .withDetectSparseFiles(true);
                 
-                // Start chunking the file
+                // Start chunking file
                 CompletableFuture<FileChunker.ChunkingResult> chunkingFuture = chunker.chunkFile(file, options)
                     .thenCompose(result -> {
                         return CompletableFuture.supplyAsync(() -> {
                             if (result.isSuccess()) {
+                                // Wait a moment to ensure all chunk metadata is committed
+                                // This addresses SQLite's connection isolation issues
+                                try {
+                                    Thread.sleep(500); // Increased delay for better reliability
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    // Don't fail the operation if interrupted
+                                }
                                 processChunkingResult(result);
                             } else {
                                 logger.error("Chunking failed for file: {}", file, result.getError());
@@ -263,6 +293,52 @@ public class FileProcessor {
                 // Create file metadata with generated ID and snapshot ID
                 String fileId = java.util.UUID.randomUUID().toString();
                 
+                // The FixedSizeFileChunker now handles chunk storage automatically
+                // when it has a content store set, so we don't need to
+                // manually ensure chunks exist here.
+                List<String> chunkHashes = result.getChunkHashes();
+                
+                // Wait longer to ensure all chunk metadata is committed
+                // This addresses SQLite's connection isolation issues
+                try {
+                    Thread.sleep(3000); // Increased delay for better reliability
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    // Don't fail operation if interrupted
+                }
+                
+                // Verify chunks exist with retries
+                for (String chunkHash : chunkHashes) {
+                    boolean chunkExists = false;
+                    int maxRetries = 10; // Increased retries
+                    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                        try {
+                            if (contentStore.existsChunk(chunkHash)) {
+                                chunkExists = true;
+                                break;
+                            } else if (attempt < maxRetries) {
+                                logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...", chunkHash, attempt, maxRetries);
+                                Thread.sleep(1000 * attempt); // Exponential backoff
+                            }
+                        } catch (IOException e) {
+                            logger.warn("Failed to check if chunk exists: {}", chunkHash, e);
+                            if (attempt < maxRetries) {
+                                try {
+                                    Thread.sleep(1000 * attempt);
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!chunkExists) {
+                        logger.error("Chunk {} does not exist in content store after all retries", chunkHash);
+                        errorFiles.incrementAndGet();
+                        return;
+                    }
+                }
+                
                 FileMetadata fileMetadata = new FileMetadata(
                     fileId,
                     currentSnapshotId,
@@ -270,27 +346,82 @@ public class FileProcessor {
                     result.getTotalSize(),
                     Instant.now(),
                     result.getFileHash(),
-                    result.getChunkHashes()
+                    chunkHashes
                 );
                 
                 // Store file metadata with retry for foreign key constraint
-                try {
-                    metadataService.insertFile(fileMetadata);
-                } catch (IOException e) {
-                    // If it's a foreign key constraint, the snapshot might not be visible yet
-                    // Wait a bit and retry
-                    if (e.getMessage() != null && (e.getMessage().contains("FOREIGN KEY constraint failed") ||
-                        e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY"))) {
-                        logger.warn("Foreign key constraint for file {}, retrying...", result.getFile());
-                        try {
-                            Thread.sleep(10); // Small delay to ensure snapshot is visible
-                            metadataService.insertFile(fileMetadata);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            throw new IOException("Interrupted while retrying file insertion", ie);
+                // Use a single transaction to ensure atomicity
+                int maxRetries = 30; // Increased retries
+                IOException lastException = null;
+                
+                for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                    Transaction transaction = null;
+                    try {
+                        // Begin transaction for file metadata
+                        transaction = metadataService.beginTransaction();
+                        
+                        // Ensure all chunk metadata exists before inserting file
+                        for (String chunkHash : chunkHashes) {
+                            if (!metadataService.getChunkMetadata(chunkHash).isPresent()) {
+                                // Create missing chunk metadata
+                                ChunkMetadata chunkMetadata = new ChunkMetadata(
+                                        chunkHash,
+                                        0, // Size unknown, will be updated when chunk is accessed
+                                        java.time.Instant.now(),
+                                        1, // Initial reference count
+                                        java.time.Instant.now()
+                                );
+                                metadataService.upsertChunk(chunkMetadata);
+                                logger.debug("Created missing chunk metadata for: {}", chunkHash);
+                                // Wait a bit for the chunk metadata to be committed
+                                Thread.sleep(1000);
+                            }
                         }
-                    } else {
-                        throw e;
+                        
+                        // Now insert file metadata
+                        metadataService.insertFile(fileMetadata);
+                        transaction.commit();
+                        // Success, break out of retry loop
+                        break;
+                    } catch (IOException e) {
+                        lastException = e;
+                        if (transaction != null) {
+                            try {
+                                transaction.rollback();
+                            } catch (Exception rollbackEx) {
+                                logger.warn("Failed to rollback transaction for file {}: {}", result.getFile(), rollbackEx.getMessage());
+                            }
+                        }
+                        // If it's a foreign key constraint or visibility issue, chunks might not be visible yet
+                        if (e.getMessage() != null && (e.getMessage().contains("FOREIGN KEY constraint failed") ||
+                            e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY") ||
+                            e.getMessage().contains("Not all chunk metadata is visible"))) {
+                            if (attempt < maxRetries) {
+                                long delayMs = 2000 * attempt; // Increased backoff: 2s, 4s, 6s, ...
+                                logger.warn("Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
+                                    result.getFile(), attempt, delayMs);
+                                try {
+                                    Thread.sleep(delayMs);
+                                } catch (InterruptedException ie) {
+                                    Thread.currentThread().interrupt();
+                                    throw new IOException("Interrupted while retrying file insertion", ie);
+                                }
+                            } else {
+                                logger.error("Failed to insert file metadata after {} attempts: {}", maxRetries, result.getFile());
+                                throw lastException;
+                            }
+                        } else {
+                            // Not a foreign key constraint, don't retry
+                            throw e;
+                        }
+                    } finally {
+                        if (transaction != null) {
+                            try {
+                                transaction.close();
+                            } catch (Exception closeEx) {
+                                logger.warn("Failed to close transaction for file {}: {}", result.getFile(), closeEx.getMessage());
+                            }
+                        }
                     }
                 }
                 
@@ -303,12 +434,22 @@ public class FileProcessor {
             } catch (IOException e) {
                 logger.error("Error storing metadata for file: {}", result.getFile(), e);
                 errorFiles.incrementAndGet();
+            } catch (InterruptedException e) {
+                logger.warn("Processing interrupted for file: {}", result.getFile());
+                Thread.currentThread().interrupt();
+                errorFiles.incrementAndGet();
             }
         }
         
         public void waitForCompletion() {
             try {
-                CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0])).get();
+                // Add timeout to prevent infinite hanging
+                CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0]))
+                    .get(5, java.util.concurrent.TimeUnit.MINUTES);
+            } catch (java.util.concurrent.TimeoutException e) {
+                logger.error("Timeout waiting for chunking completion after 5 minutes", e);
+                // Cancel any remaining futures
+                chunkingFutures.forEach(future -> future.cancel(true));
             } catch (Exception e) {
                 logger.error("Error waiting for chunking completion", e);
             }

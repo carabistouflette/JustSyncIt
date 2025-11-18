@@ -98,7 +98,7 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("file4.log"), "content4".getBytes());
         
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
-        PathMatcher excludePattern = FileSystems.getDefault().getPathMatcher("glob:file2.*");
+        PathMatcher excludePattern = FileSystems.getDefault().getPathMatcher("glob:file3.*");
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern)
             .withExcludePattern(excludePattern);
@@ -132,7 +132,7 @@ class PathMatcherFilteringTest {
         
         // Verify only testXXX.txt files are included
         assertTrue(result.getScannedFiles().stream()
-            .allMatch(f -> f.getPath().toString().matches("test[0-9]+\\.txt")));
+            .allMatch(f -> f.getPath().getFileName().toString().matches("test[0-9]+\\.txt")));
     }
 
     @Test

@@ -20,6 +20,7 @@ package com.justsyncit.scanner;
 
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.hash.HashingException;
+import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.StorageIntegrityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,6 +64,8 @@ public class FixedSizeFileChunker implements FileChunker {
     private final ExecutorService executorService;
     /** Whether the chunker has been closed. */
     private volatile boolean closed;
+    /** Content store for storing chunks. */
+    private ContentStore contentStore;
 
     /**
      * Creates a new FixedSizeFileChunker with default settings.
@@ -71,7 +74,7 @@ public class FixedSizeFileChunker implements FileChunker {
      * @throws IllegalArgumentException if blake3Service is null
      */
     public FixedSizeFileChunker(Blake3Service blake3Service) {
-        this(blake3Service, new ByteBufferPool(), DEFAULT_CHUNK_SIZE);
+        this(blake3Service, new ByteBufferPool(), DEFAULT_CHUNK_SIZE, null);
     }
 
     /**
@@ -83,6 +86,19 @@ public class FixedSizeFileChunker implements FileChunker {
      * @throws IllegalArgumentException if parameters are invalid
      */
     public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize) {
+        this(blake3Service, bufferPool, chunkSize, null);
+    }
+
+    /**
+     * Creates a new FixedSizeFileChunker with custom settings and content store.
+     *
+     * @param blake3Service BLAKE3 service for hash calculation
+     * @param bufferPool    buffer pool for memory management
+     * @param chunkSize    chunk size in bytes
+     * @param contentStore  content store for storing chunks
+     * @throws IllegalArgumentException if parameters are invalid
+     */
+    public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize, ContentStore contentStore) {
         if (blake3Service == null) {
             throw new IllegalArgumentException("BLAKE3 service cannot be null");
         }
@@ -96,11 +112,13 @@ public class FixedSizeFileChunker implements FileChunker {
         this.blake3Service = blake3Service;
         this.bufferPool = bufferPool;
         this.chunkSize = chunkSize;
+        this.contentStore = contentStore;
         this.executorService = Executors.newFixedThreadPool(DEFAULT_BUFFER_COUNT);
         this.closed = false;
 
-        logger.info("Created FixedSizeFileChunker with chunk size {} and buffer pool {}",
-                chunkSize, bufferPool.getClass().getSimpleName());
+        logger.info("Created FixedSizeFileChunker with chunk size {} and buffer pool {}{}",
+                chunkSize, bufferPool.getClass().getSimpleName(),
+                contentStore != null ? " and content store " + contentStore.getClass().getSimpleName() : "");
     }
 
     @Override
@@ -211,7 +229,11 @@ public class FixedSizeFileChunker implements FileChunker {
         logger.debug("Chunking file {} ({} bytes) into {} chunks of {} bytes each",
                 file, fileSize, chunkCount, effectiveChunkSize);
 
-        if (options.isUseAsyncIO()) {
+        // For small files (less than 1MB), use sync I/O to avoid channel closure issues
+        // Async I/O provides no benefit for small files and causes channel closure problems
+        boolean useAsyncIO = options.isUseAsyncIO() && fileSize >= 1024 * 1024;
+        
+        if (useAsyncIO) {
             return performAsyncChunking(file, options, effectiveChunkSize, fileSize, chunkCount, chunkHashes);
         } else {
             return performSyncChunking(file, options, effectiveChunkSize, fileSize, chunkCount, chunkHashes);
@@ -223,7 +245,9 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     private ChunkingResult performAsyncChunking(Path file, ChunkingOptions options, int chunkSize,
                                              long fileSize, int chunkCount, List<String> chunkHashes) {
-        try (AsynchronousFileChannel channel = AsynchronousFileChannel.open(file, StandardOpenOption.READ)) {
+        AsynchronousFileChannel channel = null;
+        try {
+            channel = AsynchronousFileChannel.open(file, StandardOpenOption.READ);
             String fileHash = calculateFileHash(channel, fileSize);
             AtomicInteger completedChunks = new AtomicInteger(0);
             CompletableFuture<Void>[] chunkFutures = new CompletableFuture[chunkCount];
@@ -247,11 +271,39 @@ public class FixedSizeFileChunker implements FileChunker {
                         });
             }
 
-            // Wait for all chunks to complete
-            CompletableFuture.allOf(chunkFutures).join();
+            // Wait for all chunks to complete with timeout
+            try {
+                CompletableFuture.allOf(chunkFutures).get(120, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (java.util.concurrent.TimeoutException e) {
+                logger.error("Timeout waiting for chunk processing after 120 seconds", e);
+                // Cancel any remaining futures
+                for (CompletableFuture<?> future : chunkFutures) {
+                    future.cancel(true);
+                }
+                throw new RuntimeException("Chunk processing timed out after 120 seconds", e);
+            }
 
-            return new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
+            ChunkingResult result = new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
+            
+            // Close channel after all async operations complete successfully
+            if (channel != null) {
+                try {
+                    channel.close();
+                } catch (IOException e) {
+                    logger.warn("Failed to close file channel: {}", e.getMessage());
+                }
+            }
+            
+            return result;
         } catch (Exception e) {
+            // Close channel on exception
+            if (channel != null) {
+                try {
+                    channel.close();
+                } catch (IOException closeException) {
+                    logger.warn("Failed to close file channel during exception handling: {}", closeException.getMessage());
+                }
+            }
             return new ChunkingResult(file, e);
         }
     }
@@ -261,7 +313,9 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     private ChunkingResult performSyncChunking(Path file, ChunkingOptions options, int chunkSize,
                                              long fileSize, int chunkCount, List<String> chunkHashes) {
-        try (AsynchronousFileChannel channel = AsynchronousFileChannel.open(file, StandardOpenOption.READ)) {
+        AsynchronousFileChannel channel = null;
+        try {
+            channel = AsynchronousFileChannel.open(file, StandardOpenOption.READ);
             String fileHash = calculateFileHash(channel, fileSize);
 
             // Process chunks sequentially
@@ -276,6 +330,14 @@ public class FixedSizeFileChunker implements FileChunker {
             return new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
         } catch (Exception e) {
             return new ChunkingResult(file, e);
+        } finally {
+            if (channel != null) {
+                try {
+                    channel.close();
+                } catch (IOException e) {
+                    logger.warn("Failed to close file channel: {}", e.getMessage());
+                }
+            }
         }
     }
 
@@ -312,7 +374,22 @@ public class FixedSizeFileChunker implements FileChunker {
             byte[] chunkData = new byte[buffer.remaining()];
             buffer.get(chunkData);
 
-            return blake3Service.hashBuffer(chunkData);
+            String hash = blake3Service.hashBuffer(chunkData);
+
+            // Store chunk if content store is available
+            if (contentStore != null) {
+                try {
+                    // Just try to store the chunk - content store should handle deduplication
+                    // This avoids the extra existsChunk check which can cause database contention
+                    contentStore.storeChunk(chunkData);
+                    logger.debug("Stored chunk {} ({} bytes)", hash, chunkData.length);
+                } catch (IOException e) {
+                    logger.warn("Failed to store chunk {}: {}", hash, e.getMessage());
+                    // Don't fail the operation - the hash is still valid
+                }
+            }
+
+            return hash;
         } catch (Exception e) {
             logger.error("Error processing chunk at offset {} length {}", offset, length, e);
             throw new RuntimeException("Failed to process chunk", e);
@@ -384,7 +461,13 @@ public class FixedSizeFileChunker implements FileChunker {
                     }
                     
                     buffer.flip();
-                    byte[] chunkData = new byte[buffer.remaining()];
+                    int actualBytesRead = buffer.remaining();
+                    if (actualBytesRead <= 0) {
+                        break;
+                    }
+                    
+                    // Create a byte array of the exact size needed
+                    byte[] chunkData = new byte[actualBytesRead];
                     buffer.get(chunkData);
                     
                     incrementalHasher.update(chunkData);
@@ -413,5 +496,15 @@ public class FixedSizeFileChunker implements FileChunker {
         executorService.shutdown();
         bufferPool.clear();
         logger.info("Closed FixedSizeFileChunker");
+    }
+
+    /**
+     * Sets the content store for storing chunks.
+     *
+     * @param contentStore the content store to use
+     */
+    public void setContentStore(ContentStore contentStore) {
+        this.contentStore = contentStore;
+        logger.debug("Set content store to {}", contentStore != null ? contentStore.getClass().getSimpleName() : "null");
     }
 }

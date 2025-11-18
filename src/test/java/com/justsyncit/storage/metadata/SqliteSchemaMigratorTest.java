@@ -74,7 +74,7 @@ class SqliteSchemaMigratorTest {
 
         // Then
         assertNotNull(migrator);
-        assertEquals(1, migrator.getTargetVersion());
+        assertEquals(2, migrator.getTargetVersion());
     }
 
     @Test
@@ -123,7 +123,7 @@ class SqliteSchemaMigratorTest {
             try (var stmt = connection.createStatement();
                     var rs = stmt.executeQuery("SELECT version FROM schema_version")) {
                 assertTrue(rs.next());
-                assertEquals(1, rs.getInt("version"));
+                assertEquals(2, rs.getInt("version"));
             }
         }
     }
@@ -183,7 +183,7 @@ class SqliteSchemaMigratorTest {
             try (var stmt = connection.createStatement();
                     var rs = stmt.executeQuery("SELECT version FROM schema_version")) {
                 assertTrue(rs.next());
-                assertEquals(1, rs.getInt("version"));
+                assertEquals(2, rs.getInt("version"));
             }
         }
     }

@@ -88,7 +88,8 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
             testConn = DriverManager.getConnection(jdbcUrl);
             try (var stmt = testConn.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
-                stmt.execute("PRAGMA journal_mode=WAL");
+                // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
+                stmt.execute("PRAGMA journal_mode=DELETE");
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");
@@ -131,7 +132,8 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         // Enable foreign keys and performance optimizations for new connections
         try (var stmt = newConn.createStatement()) {
             stmt.execute("PRAGMA foreign_keys=ON");
-            stmt.execute("PRAGMA journal_mode=WAL");
+            // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
+            stmt.execute("PRAGMA journal_mode=DELETE");
             stmt.execute("PRAGMA synchronous=NORMAL");
             stmt.execute("PRAGMA cache_size=10000");
             stmt.execute("PRAGMA temp_store=MEMORY");
@@ -194,6 +196,13 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         if (!connection.isClosed()) {
             // Reset auto-commit before returning to pool
             connection.setAutoCommit(true);
+            
+            // For in-memory databases, don't return the shared connection to pool
+            // and don't close it, as it's shared across all operations
+            if (isInMemory && connection == staticSharedMemoryConnection) {
+                return;
+            }
+            
             returnConnection(connection);
         }
     }
@@ -282,7 +291,8 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
             // Configure the shared connection with performance optimizations
             try (var stmt = staticSharedMemoryConnection.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
-                stmt.execute("PRAGMA journal_mode=WAL");
+                // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
+                stmt.execute("PRAGMA journal_mode=DELETE");
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");

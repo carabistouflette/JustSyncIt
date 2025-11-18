@@ -47,19 +47,25 @@ class FileProcessorTest {
     private Blake3Service blake3Service;
     private ContentStore contentStore;
     private MetadataService metadataService;
-    
     @BeforeEach
     void setUp() throws ServiceException, IOException {
         ServiceFactory serviceFactory = new ServiceFactory();
         blake3Service = serviceFactory.createBlake3Service();
-        // Use file-based metadata service for testing to ensure proper connection sharing
+        
+        // Create unique database directory for each test to ensure isolation
+        String uniqueId = java.util.UUID.randomUUID().toString();
+        Path dbDir = tempDir.resolve("db").resolve(uniqueId);
+        Files.createDirectories(dbDir);
+        Path dbPath = dbDir.resolve("test.db");
+        
+        // Use file-based metadata service with explicit directory creation
         metadataService = com.justsyncit.storage.metadata.MetadataServiceFactory.createFileBasedService(
-            tempDir.resolve("test.db").toString());
+            dbPath.toString());
         // Use the same metadata service for both content store and processor
         contentStore = com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService, blake3Service);
         
         FilesystemScanner scanner = new NioFilesystemScanner();
-        FileChunker chunker = new FixedSizeFileChunker(blake3Service);
+        FileChunker chunker = new FixedSizeFileChunker(blake3Service, new ByteBufferPool(), 64 * 1024, contentStore);
         
         processor = new FileProcessor(scanner, chunker, contentStore, metadataService);
     }
@@ -190,13 +196,16 @@ class FileProcessorTest {
     
     @Test
     void testProcessLargeFile() throws Exception {
-        Path largeFile = tempDir.resolve("large.txt");
+        Path largeFileDir = tempDir.resolve("large");
+        Files.createDirectories(largeFileDir);
+        
+        Path largeFile = largeFileDir.resolve("large.txt");
         // Create a file larger than default chunk size
         byte[] data = new byte[100 * 1024]; // 100KB
         Files.write(largeFile, data);
         
         ScanOptions options = new ScanOptions();
-        CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(tempDir, options);
+        CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(largeFileDir, options);
         FileProcessor.ProcessingResult result = future.get();
         
         ScanResult scanResult = result.getScanResult();
@@ -265,9 +274,7 @@ class FileProcessorTest {
             processor.stop();
             
             // Try to process again - should fail
-            CompletableFuture<FileProcessor.ProcessingResult> future2 = processor.processDirectory(testDir, options);
-            ExecutionException exception = assertThrows(ExecutionException.class, () -> future2.get());
-            assertTrue(exception.getCause() instanceof IllegalStateException);
+            IllegalStateException exception = assertThrows(IllegalStateException.class, () -> processor.processDirectory(testDir, options));
         } catch (IOException e) {
             fail("Failed to create test files: " + e.getMessage());
         }
@@ -284,6 +291,13 @@ class FileProcessorTest {
             
             ScanOptions options = new ScanOptions();
             CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
+            
+            // Give a moment for processing to start, then check if running
+            try {
+                Thread.sleep(100); // Allow async processing to start
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             
             // Should be running during processing
             assertTrue(processor.isRunning());

@@ -84,3 +84,5 @@ logs/
 data/
 backup/
 temp/
+
+storage/

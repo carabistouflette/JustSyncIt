@@ -146,7 +146,13 @@ class SymlinkHandlingTest {
         
         Files.write(fileA, "content A".getBytes());
         Files.createSymbolicLink(fileB, fileA);
+        
+        // Delete fileA before creating symlink to it to avoid FileAlreadyExistsException
+        Files.delete(fileA);
         Files.createSymbolicLink(fileA, fileB); // This creates the cycle
+        
+        // Recreate fileA content since we deleted it
+        Files.write(fileA, "content A".getBytes());
         
         ScanOptions options = new ScanOptions()
             .withSymlinkStrategy(SymlinkStrategy.FOLLOW);
