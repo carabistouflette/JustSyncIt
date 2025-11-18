@@ -126,7 +126,7 @@ public class ByteBufferPool implements BufferPool {
         int allocateSize = Math.max(size, defaultBufferSize);
         buffer = allocateBuffer(allocateSize);
         buffersInUse.incrementAndGet();
-        
+
         logger.trace("Allocated new buffer of size {} for request {}", allocateSize, size);
         return buffer;
     }
@@ -227,7 +227,7 @@ public class ByteBufferPool implements BufferPool {
             } finally {
                 cleanupLock.unlock();
             }
-            
+
             // Retry allocation
             totalBuffers.incrementAndGet();
             return ByteBuffer.allocateDirect(size);

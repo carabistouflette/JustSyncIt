@@ -201,7 +201,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
             if (isInMemory && connection == staticSharedMemoryConnection) {
                 return;
             }
-            
+
             returnConnection(connection);
         }
     }

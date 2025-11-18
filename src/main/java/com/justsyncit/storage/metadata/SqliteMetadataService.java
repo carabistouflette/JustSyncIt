@@ -232,7 +232,7 @@ public final class SqliteMetadataService implements MetadataService {
                 try (ResultSet rs = checkStmt.executeQuery()) {
                     if (!rs.next()) {
                         logger.error("Snapshot {} does not exist when trying to insert file {}",
-                            file.getSnapshotId(), file.getPath());
+                                file.getSnapshotId(), file.getPath());
                         throw new IOException("Snapshot does not exist: " + file.getSnapshotId());
                     }
                 }
@@ -613,16 +613,15 @@ public final class SqliteMetadataService implements MetadataService {
     private void insertFileChunks(Connection connection, FileMetadata file) throws SQLException {
         // First ensure all chunks exist in the chunks table
         ensureChunksExist(connection, file.getChunkHashes());
-        
+
         String sql = "INSERT INTO file_chunks (file_id, chunk_hash, chunk_order, chunk_size) "
-                +
-                "VALUES (?, ?, ?, ?)";
+                + "VALUES (?, ?, ?, ?)";
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             List<String> chunkHashes = file.getChunkHashes();
             for (int i = 0; i < chunkHashes.size(); i++) {
                 String chunkHash = chunkHashes.get(i);
-                
+
                 stmt.setString(1, file.getId());
                 stmt.setString(2, chunkHash);
                 stmt.setInt(3, i);
@@ -634,6 +633,7 @@ public final class SqliteMetadataService implements MetadataService {
             stmt.executeBatch();
         }
     }
+
     /**
      * Ensures all chunks exist in the chunks table.
      * Creates missing chunks with default metadata.
@@ -644,9 +644,9 @@ public final class SqliteMetadataService implements MetadataService {
                 + "VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement checkStmt = connection.prepareStatement(checkSql);
              PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
-            
+
             long now = System.currentTimeMillis();
-            
+
             for (String chunkHash : chunkHashes) {
                 // Check if chunk exists
                 checkStmt.setString(1, chunkHash);
@@ -666,6 +666,7 @@ public final class SqliteMetadataService implements MetadataService {
             insertStmt.executeBatch();
         }
     }
+
     /**
      * Gets the current foreign key setting.
      */
@@ -675,6 +676,7 @@ public final class SqliteMetadataService implements MetadataService {
             return rs.getBoolean(1);
         }
     }
+
     /**
      * Sets the foreign key setting.
      */
@@ -683,6 +685,7 @@ public final class SqliteMetadataService implements MetadataService {
             stmt.execute(enabled ? "PRAGMA foreign_keys=ON" : "PRAGMA foreign_keys=OFF");
         }
     }
+
     /**
      * Gets chunk hashes for a file.
      */
@@ -701,6 +704,7 @@ public final class SqliteMetadataService implements MetadataService {
             }
         }
     }
+
     /**
      * Deletes file chunks for a file.
      */

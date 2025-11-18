@@ -174,20 +174,20 @@ public class ChunkingResult {
     @Override
     public String toString() {
         if (success) {
-            return "ChunkingResult{" +
-                    "file=" + file +
-                    ", chunkCount=" + chunkCount +
-                    ", fileSize=" + fileSize +
-                    ", sparseSize=" + sparseSize +
-                    ", fileHash='" + fileHash + '\'' +
-                    ", chunkCount=" + chunkHashes.size() +
-                    '}';
+            return "ChunkingResult{"
+                    + "file=" + file
+                    + ", chunkCount=" + chunkCount
+                    + ", fileSize=" + fileSize
+                    + ", sparseSize=" + sparseSize
+                    + ", fileHash='" + fileHash + '\''
+                    + ", chunkCount=" + chunkHashes.size()
+                    + '}';
         } else {
-            return "ChunkingResult{" +
-                    "file=" + file +
-                    ", error=" + error +
-                    ", success=false" +
-                    '}';
+            return "ChunkingResult{"
+                    + "file=" + file
+                    + ", error=" + error
+                    + ", success=false"
+                    + '}';
         }
     }
 }

@@ -119,7 +119,7 @@ public final class SqliteContentStore extends AbstractContentStore {
                         break;
                     } else if (attempt < maxRetries) {
                         logger.debug("Chunk metadata not yet visible for {} (attempt {}/{}), waiting...",
-                            hash, attempt, maxRetries);
+                                hash, attempt, maxRetries);
                         Thread.sleep(500 * attempt); // Linear backoff
                     } else {
                         logger.warn("Chunk metadata still not visible for {} after {} attempts", hash, maxRetries);
@@ -136,7 +136,7 @@ public final class SqliteContentStore extends AbstractContentStore {
                     }
                 }
             }
-            
+
             logger.debug("Recorded chunk metadata for: {}", hash);
         } catch (Exception e) {
             if (transaction != null) {
@@ -188,20 +188,20 @@ public final class SqliteContentStore extends AbstractContentStore {
             Optional<com.justsyncit.storage.metadata.ChunkMetadata> metadata = metadataService.getChunkMetadata(hash);
             if (!metadata.isPresent()) {
                 logger.warn("Chunk {} exists in delegate store but missing from metadata service, creating metadata",
-                    hash);
+                        hash);
                 try {
                     // Try to retrieve the chunk to get its size
                     byte[] chunkData = delegateStore.retrieveChunk(hash);
                     if (chunkData != null) {
                         // Create missing metadata
                         com.justsyncit.storage.metadata.ChunkMetadata chunkMetadata =
-                            new com.justsyncit.storage.metadata.ChunkMetadata(
-                                hash,
-                                chunkData.length,
-                                java.time.Instant.now(),
-                                1, // Initial reference count
-                                java.time.Instant.now()
-                        );
+                                new com.justsyncit.storage.metadata.ChunkMetadata(
+                                        hash,
+                                        chunkData.length,
+                                        java.time.Instant.now(),
+                                        1, // Initial reference count
+                                        java.time.Instant.now()
+                                );
                         metadataService.upsertChunk(chunkMetadata);
                         logger.debug("Created missing metadata for chunk {}", hash);
                     } else {

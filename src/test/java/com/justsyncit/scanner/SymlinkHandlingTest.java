@@ -33,9 +33,11 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class SymlinkHandlingTest {
 
+    /** Temporary directory for test files. */
     @TempDir
     Path tempDir;
 
+    /** The filesystem scanner under test. */
     private FilesystemScanner scanner;
 
     @BeforeEach

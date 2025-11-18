@@ -232,7 +232,7 @@ public class FixedSizeFileChunker implements FileChunker {
         // For small files (less than 1MB), use sync I/O to avoid channel closure issues
         // Async I/O provides no benefit for small files and causes channel closure problems
         boolean useAsyncIO = options.isUseAsyncIO() && fileSize >= 1024 * 1024;
-        
+
         if (useAsyncIO) {
             return performAsyncChunking(file, options, effectiveChunkSize, fileSize, chunkCount, chunkHashes);
         } else {
@@ -284,7 +284,7 @@ public class FixedSizeFileChunker implements FileChunker {
             }
 
             ChunkingResult result = new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
-            
+
             // Close channel after all async operations complete successfully
             if (channel != null) {
                 try {
@@ -293,7 +293,7 @@ public class FixedSizeFileChunker implements FileChunker {
                     logger.warn("Failed to close file channel: {}", e.getMessage());
                 }
             }
-            
+
             return result;
         } catch (Exception e) {
             // Close channel on exception
@@ -301,7 +301,8 @@ public class FixedSizeFileChunker implements FileChunker {
                 try {
                     channel.close();
                 } catch (IOException closeException) {
-                    logger.warn("Failed to close file channel during exception handling: {}", closeException.getMessage());
+                    logger.warn("Failed to close file channel during exception handling: {}",
+                            closeException.getMessage());
                 }
             }
             return new ChunkingResult(file, e);
@@ -413,7 +414,7 @@ public class FixedSizeFileChunker implements FileChunker {
                 throw new IOException("Failed to calculate empty file hash", e);
             }
         }
-        
+
         try {
             // Use incremental hashing for large files to avoid memory issues
             if (fileSize <= bufferPool.getDefaultBufferSize()) {
@@ -439,7 +440,7 @@ public class FixedSizeFileChunker implements FileChunker {
             throw new IOException("Failed to calculate file hash", e);
         }
     }
-    
+
     /**
      * Calculates file hash incrementally for large files.
      */
@@ -457,18 +458,18 @@ public class FixedSizeFileChunker implements FileChunker {
                 while (position < fileSize) {
                     buffer.clear();
                     int bytesToRead = (int) Math.min(buffer.capacity(), fileSize - position);
-                    
+
                     int bytesRead = channel.read(buffer, position).get();
                     if (bytesRead <= 0) {
                         break;
                     }
-                    
+
                     buffer.flip();
                     int actualBytesRead = buffer.remaining();
                     if (actualBytesRead <= 0) {
                         break;
                     }
-                    
+
                     // Create a byte array of the exact size needed
                     byte[] chunkData = new byte[actualBytesRead];
                     buffer.get(chunkData);
@@ -476,7 +477,7 @@ public class FixedSizeFileChunker implements FileChunker {
                     incrementalHasher.update(chunkData);
                     position += bytesRead;
                 }
-                
+
                 return incrementalHasher.digest();
             } finally {
                 bufferPool.release(buffer);
@@ -508,6 +509,7 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     public void setContentStore(ContentStore contentStore) {
         this.contentStore = contentStore;
-        logger.debug("Set content store to {}", contentStore != null ? contentStore.getClass().getSimpleName() : "null");
+        logger.debug("Set content store to {}", contentStore != null
+                ? contentStore.getClass().getSimpleName() : "null");
     }
 }

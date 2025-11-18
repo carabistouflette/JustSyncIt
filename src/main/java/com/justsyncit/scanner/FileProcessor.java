@@ -28,22 +28,34 @@ import java.util.concurrent.atomic.AtomicLong;
  * Integrates with ContentStore and MetadataService to provide complete file processing.
  */
 public class FileProcessor {
+    /** Logger instance for the FileProcessor class. */
     private static final Logger logger = LoggerFactory.getLogger(FileProcessor.class);
-    
+    /** Filesystem scanner for discovering files. */
     private final FilesystemScanner scanner;
+    /** File chunker for processing files into chunks. */
     private final FileChunker chunker;
+    /** Content store for storing chunks. */
     private final ContentStore contentStore;
+    /** Metadata service for storing file and chunk metadata. */
     private final MetadataService metadataService;
+    /** Executor service for async operations. */
     private volatile ExecutorService executorService;
-    
+
+    /** Flag indicating if processing is currently running. */
     private volatile boolean isRunning = false;
+    /** Counter for processed files. */
     private final AtomicInteger processedFiles = new AtomicInteger(0);
+    /** Counter for skipped files. */
     private final AtomicInteger skippedFiles = new AtomicInteger(0);
+    /** Counter for files with errors. */
     private final AtomicInteger errorFiles = new AtomicInteger(0);
+    /** Total bytes in all files. */
     private final AtomicLong totalBytes = new AtomicLong(0);
+    /** Total bytes processed. */
     private final AtomicLong processedBytes = new AtomicLong(0);
+    /** Current snapshot ID for this processing session. */
     private String currentSnapshotId;
-    
+
     /**
      * Creates a new FileProcessor with specified dependencies.
      */
@@ -53,21 +65,22 @@ public class FileProcessor {
         this.chunker = chunker;
         this.contentStore = contentStore;
         this.metadataService = metadataService;
-        
+
         // Set content store on chunker if it supports it
         if (chunker instanceof FixedSizeFileChunker) {
             ((FixedSizeFileChunker) chunker).setContentStore(contentStore);
         }
-        
+
         this.executorService = Executors.newFixedThreadPool(
             Runtime.getRuntime().availableProcessors(),
             r -> {
-                Thread t = new Thread(r, "FileProcessor-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8));
+                Thread t = new Thread(r, "FileProcessor-" + System.currentTimeMillis() + "-"
+                        + UUID.randomUUID().toString().substring(0, 8));
                 t.setDaemon(true);
                 return t;
             });
     }
-    
+
     /**
      * Processes files from the specified directory using the given options.
      */
@@ -76,24 +89,23 @@ public class FileProcessor {
         if (executorService.isShutdown()) {
             throw new IllegalStateException("FileProcessor has been stopped and cannot be restarted");
         }
-        
+
         return CompletableFuture.supplyAsync(() -> {
             if (isRunning) {
                 throw new IllegalStateException("FileProcessor is already running");
             }
-            
+    
             if (directory == null || !Files.exists(directory) || !Files.isDirectory(directory)) {
                 throw new IllegalArgumentException("Directory must exist and be a directory: " + directory);
             }
-            
             isRunning = true;
             resetCounters();
-            
+
             // Create a single snapshot for this processing session
-            currentSnapshotId = "processing-" + System.currentTimeMillis() + "-" + UUID.randomUUID().toString().substring(0, 8);
-            
+            currentSnapshotId = "processing-" + System.currentTimeMillis() + "-"
+                    + UUID.randomUUID().toString().substring(0, 8);
             logger.info("Starting file processing for directory: {} with snapshot: {}", directory, currentSnapshotId);
-            
+
             try {
                 // Create snapshot first in a transaction to ensure visibility
                 // Use a transaction to ensure the snapshot is properly committed and visible
@@ -103,7 +115,6 @@ public class FileProcessor {
                     metadataService.createSnapshot(currentSnapshotId, "Processing session for directory: " + directory);
                     snapshotTransaction.commit();
                     logger.debug("Snapshot created and committed: {}", currentSnapshotId);
-                    
                     // Wait a moment to ensure the snapshot is visible to all connections
                     // This addresses SQLite's connection isolation issues with DELETE journal mode
                     try {
@@ -112,13 +123,11 @@ public class FileProcessor {
                         Thread.currentThread().interrupt();
                         // Don't fail the operation if interrupted
                     }
-                    
                     // Verify the snapshot exists before proceeding
                     if (!metadataService.getSnapshot(currentSnapshotId).isPresent()) {
                         throw new IOException("Snapshot was not committed properly: " + currentSnapshotId);
                     }
                     logger.debug("Snapshot verified to exist: {}", currentSnapshotId);
-                    
                 } catch (IOException e) {
                     if (snapshotTransaction != null) {
                         try {
@@ -139,21 +148,19 @@ public class FileProcessor {
                         }
                     }
                 }
-                
+
                 // Configure scanner with file visitor that handles chunking
                 ChunkingFileVisitor fileVisitor = new ChunkingFileVisitor();
                 scanner.setFileVisitor(fileVisitor);
-                
+
                 // Configure scanner with progress listener
                 scanner.setProgressListener(new ProcessingProgressListener());
-                
                 // Perform scan
                 CompletableFuture<ScanResult> scanFuture = scanner.scanDirectory(directory, options);
                 ScanResult scanResult = scanFuture.get();
-                
+
                 // Wait for all async operations to complete
                 fileVisitor.waitForCompletion();
-                
                 ProcessingResult result = new ProcessingResult(
                         scanResult,
                         processedFiles.get(),
@@ -162,13 +169,13 @@ public class FileProcessor {
                         totalBytes.get(),
                         processedBytes.get()
                 );
-                
+
                 logger.info("File processing completed. Processed: {}, Skipped: {}, Errors: {}, Total bytes: {}",
                         result.getProcessedFiles(), result.getSkippedFiles(), result.getErrorFiles(),
                         result.getTotalBytes());
-                
+
                 return result;
-                
+
             } catch (Exception e) {
                 logger.error("Error during file processing", e);
                 throw new RuntimeException("File processing failed", e);
@@ -178,7 +185,6 @@ public class FileProcessor {
             }
         }, executorService);
     }
-    
     /**
      * Stops the current processing operation.
      */
@@ -196,14 +202,14 @@ public class FileProcessor {
             Thread.currentThread().interrupt();
         }
     }
-    
+
     /**
      * Checks if processing is currently running.
      */
     public boolean isRunning() {
         return isRunning;
     }
-    
+
     private void resetCounters() {
         processedFiles.set(0);
         skippedFiles.set(0);
@@ -211,34 +217,34 @@ public class FileProcessor {
         totalBytes.set(0);
         processedBytes.set(0);
     }
-    
+
     /**
      * File visitor that handles chunking of files during scanning.
      */
     private class ChunkingFileVisitor implements FileVisitor {
         /** List of futures for chunking operations. */
         private final List<CompletableFuture<FileChunker.ChunkingResult>> chunkingFutures = new ArrayList<>();
-        
+
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
             if (!isRunning) {
                 return FileVisitResult.TERMINATE;
             }
-            
+
             // Only process regular files, skip directories and special files
             if (!attrs.isRegularFile()) {
                 logger.debug("Skipping non-regular file: {}", file);
                 skippedFiles.incrementAndGet();
                 return FileVisitResult.CONTINUE;
             }
-            
+
             try {
                 // Create chunking options
                 FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
                         .withChunkSize(chunker.getChunkSize())
                         .withUseAsyncIO(true)
                         .withDetectSparseFiles(true);
-                
+
                 // Start chunking file
                 CompletableFuture<FileChunker.ChunkingResult> chunkingFuture = chunker.chunkFile(file, options)
                         .thenCompose(result -> {
@@ -264,41 +270,42 @@ public class FileProcessor {
                             logger.error("Error chunking file: {}", file, throwable);
                             errorFiles.incrementAndGet();
                             return new FileChunker.ChunkingResult(file,
-                                    throwable instanceof IOException ? (IOException) throwable : new IOException(throwable));
+                                    throwable instanceof IOException ? (IOException) throwable
+                                            : new IOException(throwable));
                         });
-                
+
                 chunkingFutures.add(chunkingFuture);
-                
+
             } catch (Exception e) {
                 logger.error("Error starting chunking for file: {}", file, e);
                 errorFiles.incrementAndGet();
             }
-            
+
             return FileVisitResult.CONTINUE;
         }
-        
+
         @Override
         public FileVisitResult visitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
             return isRunning ? FileVisitResult.CONTINUE : FileVisitResult.TERMINATE;
         }
-        
+
         @Override
         public FileVisitResult visitFailed(Path file, IOException exc) throws IOException {
             logger.warn("Failed to visit file: {}", file, exc);
             skippedFiles.incrementAndGet();
             return FileVisitResult.CONTINUE;
         }
-        
+
         private void processChunkingResult(FileChunker.ChunkingResult result) {
             try {
                 // Create file metadata with generated ID and snapshot ID
                 String fileId = java.util.UUID.randomUUID().toString();
-                
+
                 // The FixedSizeFileChunker now handles chunk storage automatically
                 // when it has a content store set, so we don't need to
                 // manually ensure chunks exist here.
                 List<String> chunkHashes = result.getChunkHashes();
-                
+
                 // Wait longer to ensure all chunk metadata is committed
                 // This addresses SQLite's connection isolation issues
                 try {
@@ -307,14 +314,14 @@ public class FileProcessor {
                     Thread.currentThread().interrupt();
                     // Don't fail operation if interrupted
                 }
-                
+
                 // Verify chunks exist with retries
                 for (String chunkHash : chunkHashes) {
                     if (!verifyChunkExists(chunkHash)) {
                         return;
                     }
                 }
-                
+
                 FileMetadata fileMetadata = new FileMetadata(
                         fileId,
                         currentSnapshotId,
@@ -327,19 +334,18 @@ public class FileProcessor {
                 
                 // Store file metadata with retry for foreign key constraint
                 storeFileMetadataWithRetry(fileMetadata, chunkHashes, result);
-                
+
                 processedFiles.incrementAndGet();
                 processedBytes.addAndGet(result.getTotalSize());
-                
                 logger.debug("Completed processing file: {} ({} chunks)",
                         result.getFile(), result.getChunkCount());
-                
+
             } catch (IOException e) {
                 logger.error("Error storing metadata for file: {}", result.getFile(), e);
                 errorFiles.incrementAndGet();
             }
         }
-        
+
         /**
          * Verifies that a chunk exists in the content store with retries.
          *
@@ -383,7 +389,7 @@ public class FileProcessor {
             }
             return true;
         }
-        
+
         /**
          * Stores file metadata with retry logic for foreign key constraints.
          *
@@ -396,13 +402,13 @@ public class FileProcessor {
                 FileChunker.ChunkingResult result) throws IOException {
             int maxRetries = 30; // Increased retries
             IOException lastException = null;
-            
+
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 Transaction transaction = null;
                 try {
                     // Begin transaction for file metadata
                     transaction = metadataService.beginTransaction();
-                    
+
                     // Ensure all chunk metadata exists before inserting file
                     try {
                         ensureChunkMetadataExists(chunkHashes);
@@ -410,7 +416,7 @@ public class FileProcessor {
                         Thread.currentThread().interrupt();
                         throw new IOException("Interrupted while ensuring chunk metadata exists", ie);
                     }
-                    
+
                     // Now insert file metadata
                     metadataService.insertFile(fileMetadata);
                     transaction.commit();
@@ -433,7 +439,8 @@ public class FileProcessor {
                             || e.getMessage().contains("Not all chunk metadata is visible"))) {
                         if (attempt < maxRetries) {
                             long delayMs = 2000 * attempt; // Increased backoff: 2s, 4s, 6s
-                            logger.warn("Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
+                            logger.warn(
+                                    "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
                                     result.getFile(), attempt, delayMs);
                             try {
                                 Thread.sleep(delayMs);
@@ -462,7 +469,7 @@ public class FileProcessor {
                 }
             }
         }
-        
+
         /**
          * Ensures that all chunk metadata exists before inserting file metadata.
          *
@@ -489,7 +496,7 @@ public class FileProcessor {
                 }
             }
         }
-        
+
         public void waitForCompletion() {
             try {
                 // Add timeout to prevent infinite hanging
@@ -504,7 +511,7 @@ public class FileProcessor {
             }
         }
     }
-    
+
     /**
      * Progress listener for tracking scan progress.
      */
@@ -513,7 +520,7 @@ public class FileProcessor {
         public void onScanStarted(Path directory) {
             logger.info("Started scanning directory: {}", directory);
         }
-        
+
         @Override
         public void onFileProcessed(Path file, long filesProcessed, long totalFiles) {
             try {
@@ -524,20 +531,20 @@ public class FileProcessor {
                 logger.warn("Could not get size for file: {}", file, e);
             }
         }
-        
+
         @Override
         public void onScanCompleted(ScanResult result) {
             logger.info("Scan completed. Found {} files, {} errors",
                     result.getScannedFiles().size(), result.getErrors().size());
         }
-        
+
         @Override
         public void onScanError(Path path, Exception error) {
             logger.warn("Error scanning path: {}", path, error);
             skippedFiles.incrementAndGet();
         }
     }
-    
+
     /**
      * Result of a file processing operation.
      */
@@ -554,7 +561,7 @@ public class FileProcessor {
         private final long totalBytes;
         /** Total bytes processed. */
         private final long processedBytes;
-        
+
         public ProcessingResult(ScanResult scanResult, int processedFiles, int skippedFiles,
                               int errorFiles, long totalBytes, long processedBytes) {
             this.scanResult = scanResult;
@@ -564,27 +571,26 @@ public class FileProcessor {
             this.totalBytes = totalBytes;
             this.processedBytes = processedBytes;
         }
-        
+
         public ScanResult getScanResult() {
             return scanResult;
         }
-        
+
         public int getProcessedFiles() {
             return processedFiles;
         }
-        
         public int getSkippedFiles() {
             return skippedFiles;
         }
-        
+
         public int getErrorFiles() {
             return errorFiles;
         }
-        
+
         public long getTotalBytes() {
             return totalBytes;
         }
-        
+
         public long getProcessedBytes() {
             return processedBytes;
         }
