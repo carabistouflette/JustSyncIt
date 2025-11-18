@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -44,9 +43,12 @@ import static org.junit.jupiter.api.Assertions.fail;
  * Unit tests for FileProcessor.
  */
 class FileProcessorTest {
+    /** Temporary directory for tests. */
     @TempDir
     Path tempDir;
+    /** File processor for testing. */
     private FileProcessor processor;
+    /** BLAKE3 service for testing. */
     private Blake3Service blake3Service;
     /** Content store for testing. */
     private ContentStore contentStore;
@@ -64,7 +66,7 @@ class FileProcessorTest {
         Path dbPath = dbDir.resolve("test.db");
         // Use file-based metadata service with explicit directory creation
         metadataService = com.justsyncit.storage.metadata.MetadataServiceFactory.createFileBasedService(
-            dbPath.toString());
+                dbPath.toString());
         // Use the same metadata service for both content store and processor
         contentStore = com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService, blake3Service);
         FilesystemScanner scanner = new NioFilesystemScanner();
@@ -72,6 +74,7 @@ class FileProcessorTest {
         processor = new FileProcessor(scanner, chunker, contentStore, metadataService);
     }
     @Test
+
     void testProcessDirectory() throws Exception {
         // Create test directory structure
         Path testDir = tempDir.resolve("test");
@@ -104,6 +107,7 @@ class FileProcessorTest {
                 .anyMatch(f -> f.getPath().endsWith("file3.txt")));
     }
     @Test
+
     void testProcessEmptyDirectory() throws Exception {
         Path emptyDir = tempDir.resolve("empty");
         Files.createDirectories(emptyDir);
@@ -116,6 +120,7 @@ class FileProcessorTest {
         assertEquals(0, result.getProcessedFiles());
     }
     @Test
+
     void testProcessNonExistentDirectory() throws Exception {
         Path nonExistent = tempDir.resolve("nonexistent");
         ScanOptions options = new ScanOptions();
@@ -124,6 +129,7 @@ class FileProcessorTest {
         assertTrue(exception.getCause() instanceof IllegalArgumentException);
     }
     @Test
+
     void testProcessWithFileFilter() throws Exception {
         // Create test directory with different file types
         Path testDir = tempDir.resolve("filtered");
@@ -141,6 +147,7 @@ class FileProcessorTest {
         assertTrue(scanResult.getScannedFiles().get(0).getPath().endsWith("test.txt"));
     }
     @Test
+
     void testProcessWithMaxDepth() throws Exception {
         // Create nested directory structure
         Path root = tempDir.resolve("nested");
@@ -167,6 +174,7 @@ class FileProcessorTest {
                 .anyMatch(f -> f.getPath().endsWith("level3.txt")));
     }
     @Test
+
     void testProcessLargeFile() throws Exception {
         Path largeFileDir = tempDir.resolve("large");
         Files.createDirectories(largeFileDir);
@@ -184,6 +192,7 @@ class FileProcessorTest {
         assertEquals(data.length, scannedFile.getSize());
     }
     @Test
+
     void testProcessWithHiddenFiles() throws Exception {
         Path testDir = tempDir.resolve("hidden");
         Files.createDirectories(testDir);
@@ -199,6 +208,7 @@ class FileProcessorTest {
         assertTrue(scanResult.getScannedFiles().get(0).getPath().endsWith("visible.txt"));
     }
     @Test
+
     void testProgressListener() throws Exception {
         Path testDir = tempDir.resolve("progress");
         Files.createDirectories(testDir);
@@ -216,6 +226,7 @@ class FileProcessorTest {
         assertEquals(5, result.getProcessedFiles());
     }
     @Test
+
     void testStop() throws Exception {
         Path testDir = tempDir.resolve("close");
         try {
@@ -229,12 +240,14 @@ class FileProcessorTest {
             // Stop processor
             processor.stop();
             // Try to process again - should fail
-            IllegalStateException exception = assertThrows(IllegalStateException.class, () -> processor.processDirectory(testDir, options));
+            IllegalStateException exception = assertThrows(IllegalStateException.class,
+                    () -> processor.processDirectory(testDir, options));
         } catch (IOException e) {
             fail("Failed to create test files: " + e.getMessage());
         }
     }
     @Test
+
     void testIsRunning() {
         assertFalse(processor.isRunning());
         

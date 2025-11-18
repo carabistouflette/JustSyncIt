@@ -51,6 +51,7 @@ class ByteBufferPoolTest {
         assertEquals(buffer.capacity(), buffer.limit());
         pool.release(buffer);
     }
+
     @Test
     void testAcquireWithDefaultSize() {
         ByteBuffer buffer = pool.acquire(64 * 1024); // Use default 64KB size
@@ -60,6 +61,7 @@ class ByteBufferPoolTest {
         assertEquals(buffer.capacity(), buffer.limit());
         pool.release(buffer);
     }
+
     @Test
     void testMultipleBuffers() {
         ByteBuffer buffer1 = pool.acquire(1024);
@@ -79,6 +81,7 @@ class ByteBufferPoolTest {
         pool.release(buffer2);
         pool.release(buffer3);
     }
+
     @Test
     void testBufferReuse() {
         ByteBuffer buffer1 = pool.acquire(1024);
@@ -96,6 +99,7 @@ class ByteBufferPoolTest {
         
         pool.release(buffer2);
     }
+
     @Test
     void testClear() {
         // Acquire and release several buffers
@@ -109,20 +113,24 @@ class ByteBufferPoolTest {
         // After clear, the pool is closed, so acquiring should fail
         assertThrows(IllegalStateException.class, () -> pool.acquire(1024));
     }
+
     @Test
     void testGetDefaultBufferSize() {
         int defaultSize = pool.getDefaultBufferSize();
         assertEquals(64 * 1024, defaultSize);
     }
+
     @Test
     void testInvalidSize() {
         assertThrows(IllegalArgumentException.class, () -> pool.acquire(0));
         assertThrows(IllegalArgumentException.class, () -> pool.acquire(-1));
     }
+
     @Test
     void testNullBufferRelease() {
         assertThrows(IllegalArgumentException.class, () -> pool.release(null));
     }
+
     @Test
     void testDirectBuffers() {
         ByteBuffer buffer = pool.acquire(1024);

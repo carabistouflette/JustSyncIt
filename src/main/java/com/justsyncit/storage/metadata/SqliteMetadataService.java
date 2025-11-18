@@ -643,7 +643,7 @@ public final class SqliteMetadataService implements MetadataService {
         String insertSql = "INSERT OR IGNORE INTO chunks (hash, size, first_seen, reference_count, last_accessed) "
                 + "VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement checkStmt = connection.prepareStatement(checkSql);
-             PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
+                PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
 
             long now = System.currentTimeMillis();
 
@@ -672,7 +672,7 @@ public final class SqliteMetadataService implements MetadataService {
      */
     private boolean getForeignKeySetting(Connection connection) throws SQLException {
         try (var stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery("PRAGMA foreign_keys")) {
+                ResultSet rs = stmt.executeQuery("PRAGMA foreign_keys")) {
             return rs.getBoolean(1);
         }
     }

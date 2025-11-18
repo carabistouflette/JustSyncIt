@@ -28,7 +28,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for PathMatcher filtering in filesystem scanner.
@@ -58,7 +60,6 @@ class PathMatcherFilteringTest {
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern);
-            
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(2, result.getScannedFileCount());
@@ -80,7 +81,6 @@ class PathMatcherFilteringTest {
         PathMatcher excludePattern = FileSystems.getDefault().getPathMatcher("glob:*.tmp");
         ScanOptions options = new ScanOptions()
             .withExcludePattern(excludePattern);
-            
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(2, result.getScannedFileCount());
@@ -104,7 +104,6 @@ class PathMatcherFilteringTest {
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern)
             .withExcludePattern(excludePattern);
-            
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(1, result.getScannedFileCount()); // Only file1.txt (file3.txt excluded by exclude)
@@ -112,7 +111,7 @@ class PathMatcherFilteringTest {
         
         // Verify correct file is included
         assertTrue(result.getScannedFiles().stream()
-            .anyMatch(f -> f.getPath().toString().equals("file1.txt")));
+                .anyMatch(f -> f.getPath().toString().equals("file1.txt")));
     }
 
     @Test
@@ -126,7 +125,6 @@ class PathMatcherFilteringTest {
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("regex:test[0-9]+\\.txt");
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern);
-            
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(3, result.getScannedFileCount());
@@ -134,7 +132,7 @@ class PathMatcherFilteringTest {
         
         // Verify only testXXX.txt files are included
         assertTrue(result.getScannedFiles().stream()
-            .allMatch(f -> f.getPath().getFileName().toString().matches("test[0-9]+\\.txt")));
+                .allMatch(f -> f.getPath().getFileName().toString().matches("test[0-9]+\\.txt")));
     }
 
     @Test
@@ -149,7 +147,6 @@ class PathMatcherFilteringTest {
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:src_*.java");
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern);
-            
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(3, result.getScannedFileCount());
@@ -157,7 +154,7 @@ class PathMatcherFilteringTest {
         
         // Verify only src_*.java files are included
         assertTrue(result.getScannedFiles().stream()
-            .allMatch(f -> {
+                .allMatch(f -> {
                 String name = f.getPath().getFileName().toString();
                 return name.startsWith("src_") && name.endsWith(".java");
             }));
@@ -175,7 +172,6 @@ class PathMatcherFilteringTest {
         PathMatcher caseSensitivePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         ScanOptions options = new ScanOptions()
             .withIncludePattern(caseSensitivePattern);
-            
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(2, result.getScannedFileCount()); // Only lowercase .txt files
@@ -183,7 +179,7 @@ class PathMatcherFilteringTest {
         
         // Verify only lowercase files are included
         assertTrue(result.getScannedFiles().stream()
-            .allMatch(f -> f.getPath().toString().toLowerCase().endsWith(".txt")));
+                .allMatch(f -> f.getPath().toString().toLowerCase().endsWith(".txt")));
     }
 
     @Test
@@ -202,7 +198,6 @@ class PathMatcherFilteringTest {
         PathMatcher includePattern = FileSystems.getDefault().getPathMatcher("glob:**/*.txt");
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern);
-            
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(3, result.getScannedFileCount());
@@ -210,7 +205,7 @@ class PathMatcherFilteringTest {
         
         // Verify all .txt files in subdirectories are included
         assertTrue(result.getScannedFiles().stream()
-            .allMatch(f -> f.getPath().toString().endsWith(".txt")));
+                .allMatch(f -> f.getPath().toString().endsWith(".txt")));
     }
 
     @Test
@@ -240,7 +235,7 @@ class PathMatcherFilteringTest {
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern)
             .withIncludeHiddenFiles(false);
-            
+
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(2, result.getScannedFileCount()); // Only visible files
@@ -248,7 +243,7 @@ class PathMatcherFilteringTest {
         
         // Verify hidden files are not included
         assertTrue(result.getScannedFiles().stream()
-            .noneMatch(f -> f.getPath().getFileName().toString().startsWith(".")));
+                .noneMatch(f -> f.getPath().getFileName().toString().startsWith(".")));
     }
 
     @Test
@@ -270,7 +265,7 @@ class PathMatcherFilteringTest {
         ScanOptions options = new ScanOptions()
             .withIncludePattern(includePattern)
             .withMaxDepth(2);
-            
+
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
         
         assertEquals(3, result.getScannedFileCount()); // root.txt, level1/file1.txt, level2/file2.txt
@@ -278,6 +273,6 @@ class PathMatcherFilteringTest {
         
         // Verify level3/file3.txt is not included due to depth limit
         assertTrue(result.getScannedFiles().stream()
-            .noneMatch(f -> f.getPath().toString().contains("level3")));
+                .noneMatch(f -> f.getPath().toString().contains("level3")));
     }
 }

@@ -23,26 +23,26 @@ package com.justsyncit.scanner;
  * Follows Builder pattern for flexible configuration.
  */
 public class ChunkingOptions {
-    
+
     /** Default chunk size (64KB). */
     private static final int DEFAULT_CHUNK_SIZE = 64 * 1024;
-    
+
     /** Whether to use asynchronous I/O. */
     private boolean useAsyncIO = true;
-    
+
     /** Chunk size in bytes. */
     private int chunkSize = DEFAULT_CHUNK_SIZE;
-    
+
     /** Whether to detect sparse files. */
     private boolean detectSparseFiles = true;
-    
+
     /**
      * Creates a new ChunkingOptions with default settings.
      */
     public ChunkingOptions() {
         // Default constructor with sensible defaults
     }
-    
+
     /**
      * Creates a new ChunkingOptions as a copy of existing options.
      *
@@ -53,7 +53,7 @@ public class ChunkingOptions {
         this.chunkSize = other.chunkSize;
         this.detectSparseFiles = other.detectSparseFiles;
     }
-    
+
     /**
      * Sets whether to use asynchronous I/O.
      *
@@ -64,7 +64,7 @@ public class ChunkingOptions {
         this.useAsyncIO = useAsyncIO;
         return this;
     }
-    
+
     /**
      * Sets the chunk size in bytes.
      *
@@ -79,7 +79,7 @@ public class ChunkingOptions {
         this.chunkSize = chunkSize;
         return this;
     }
-    
+
     /**
      * Sets whether to detect sparse files.
      *
@@ -90,7 +90,7 @@ public class ChunkingOptions {
         this.detectSparseFiles = detectSparseFiles;
         return this;
     }
-    
+
     /**
      * Gets whether to use asynchronous I/O.
      *
@@ -99,7 +99,7 @@ public class ChunkingOptions {
     public boolean isUseAsyncIO() {
         return useAsyncIO;
     }
-    
+
     /**
      * Gets the chunk size in bytes.
      *
@@ -108,7 +108,7 @@ public class ChunkingOptions {
     public int getChunkSize() {
         return chunkSize;
     }
-    
+
     /**
      * Gets whether to detect sparse files.
      *
@@ -117,13 +117,13 @@ public class ChunkingOptions {
     public boolean isDetectSparseFiles() {
         return detectSparseFiles;
     }
-    
+
     @Override
     public String toString() {
-        return "ChunkingOptions{" +
-                "useAsyncIO=" + useAsyncIO +
-                ", chunkSize=" + chunkSize +
-                ", detectSparseFiles=" + detectSparseFiles +
-                '}';
+        return "ChunkingOptions{"
+                + "useAsyncIO=" + useAsyncIO
+                + ", chunkSize=" + chunkSize
+                + ", detectSparseFiles=" + detectSparseFiles
+                + '}';
     }
 }

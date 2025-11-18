@@ -26,31 +26,31 @@ import java.util.List;
  * Contains metadata about the chunking process and resulting chunks.
  */
 public class ChunkingResult {
-    
+
     /** The file that was chunked. */
     private final Path file;
-    
+
     /** Number of chunks created. */
     private final int chunkCount;
-    
+
     /** Total size of the file in bytes. */
     private final long fileSize;
-    
+
     /** Size of sparse regions in bytes (0 if not sparse). */
     private final long sparseSize;
-    
+
     /** Hash of the entire file. */
     private final String fileHash;
-    
+
     /** List of chunk hashes in order. */
     private final List<String> chunkHashes;
-    
+
     /** Error that occurred during chunking, if any. */
     private final Exception error;
-    
+
     /** Whether the operation was successful. */
     private final boolean success;
-    
+
     /**
      * Creates a successful chunking result.
      *
@@ -72,7 +72,7 @@ public class ChunkingResult {
         this.error = null;
         this.success = true;
     }
-    
+
     /**
      * Creates a failed chunking result.
      *
@@ -89,7 +89,7 @@ public class ChunkingResult {
         this.fileHash = null;
         this.chunkHashes = null;
     }
-    
+
     /**
      * Gets the file that was chunked.
      *
@@ -98,7 +98,7 @@ public class ChunkingResult {
     public Path getFile() {
         return file;
     }
-    
+
     /**
      * Gets the number of chunks created.
      *
@@ -107,7 +107,7 @@ public class ChunkingResult {
     public int getChunkCount() {
         return chunkCount;
     }
-    
+
     /**
      * Gets the total size of the file.
      *
@@ -116,7 +116,7 @@ public class ChunkingResult {
     public long getFileSize() {
         return fileSize;
     }
-    
+
     /**
      * Gets the size of sparse regions.
      *
@@ -125,7 +125,7 @@ public class ChunkingResult {
     public long getSparseSize() {
         return sparseSize;
     }
-    
+
     /**
      * Gets the hash of the entire file.
      *
@@ -134,7 +134,7 @@ public class ChunkingResult {
     public String getFileHash() {
         return fileHash;
     }
-    
+
     /**
      * Gets the list of chunk hashes.
      *
@@ -143,7 +143,7 @@ public class ChunkingResult {
     public List<String> getChunkHashes() {
         return chunkHashes;
     }
-    
+
     /**
      * Gets the error that occurred during chunking.
      *
@@ -152,7 +152,7 @@ public class ChunkingResult {
     public Exception getError() {
         return error;
     }
-    
+
     /**
      * Gets whether the chunking operation was successful.
      *
@@ -161,7 +161,7 @@ public class ChunkingResult {
     public boolean isSuccess() {
         return success;
     }
-    
+
     /**
      * Gets whether the file is sparse.
      *
@@ -170,7 +170,7 @@ public class ChunkingResult {
     public boolean isSparse() {
         return sparseSize > 0;
     }
-    
+
     @Override
     public String toString() {
         if (success) {

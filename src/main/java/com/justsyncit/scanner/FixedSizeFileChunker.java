@@ -463,7 +463,7 @@ public class FixedSizeFileChunker implements FileChunker {
                     if (bytesRead <= 0) {
                         break;
                     }
-
+        
                     buffer.flip();
                     int actualBytesRead = buffer.remaining();
                     if (actualBytesRead <= 0) {
@@ -477,7 +477,6 @@ public class FixedSizeFileChunker implements FileChunker {
                     incrementalHasher.update(chunkData);
                     position += bytesRead;
                 }
-
                 return incrementalHasher.digest();
             } finally {
                 bufferPool.release(buffer);

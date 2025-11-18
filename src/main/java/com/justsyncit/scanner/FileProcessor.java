@@ -94,7 +94,6 @@ public class FileProcessor {
             if (isRunning) {
                 throw new IllegalStateException("FileProcessor is already running");
             }
-    
             if (directory == null || !Files.exists(directory) || !Files.isDirectory(directory)) {
                 throw new IllegalArgumentException("Directory must exist and be a directory: " + directory);
             }
@@ -331,7 +330,6 @@ public class FileProcessor {
                         result.getFileHash(),
                         chunkHashes
                 );
-                
                 // Store file metadata with retry for foreign key constraint
                 storeFileMetadataWithRetry(fileMetadata, chunkHashes, result);
 
@@ -594,7 +592,6 @@ public class FileProcessor {
         public long getProcessedBytes() {
             return processedBytes;
         }
-        
         public double getProcessingPercentage() {
             return totalBytes > 0 ? (double) processedBytes / totalBytes * 100 : 0;
         }

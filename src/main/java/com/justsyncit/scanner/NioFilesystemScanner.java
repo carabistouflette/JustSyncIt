@@ -8,7 +8,6 @@ import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
@@ -27,6 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Provides recursive directory walking with filtering, symlink handling, and sparse file detection.
  */
 public class NioFilesystemScanner implements FilesystemScanner {
+    /** Logger for the filesystem scanner. */
     private static final Logger logger = LoggerFactory.getLogger(NioFilesystemScanner.class);
 
     /** File visitor for custom file processing. */
@@ -119,7 +119,7 @@ public class NioFilesystemScanner implements FilesystemScanner {
         /** Set of visited paths to detect cycles. */
         private final Set<Path> visitedPaths = ConcurrentHashMap.newKeySet();
 
-        public NioFileVisitor(ScanOptions options, List<ScanResult.ScannedFile> scannedFiles,
+        NioFileVisitor(ScanOptions options, List<ScanResult.ScannedFile> scannedFiles,
                 List<ScanResult.ScanError> errors, AtomicLong filesProcessed) {
             this.options = options;
             this.scannedFiles = scannedFiles;
@@ -216,6 +216,8 @@ public class NioFilesystemScanner implements FilesystemScanner {
                             case RECORD:
                                 // Record symlink but don't follow
                                 break;
+                            default:
+                                break;
                         }
                     } catch (IOException e) {
                         logger.warn("Cannot read symlink: {}", file, e);
@@ -228,7 +230,7 @@ public class NioFilesystemScanner implements FilesystemScanner {
                 boolean isSparse = detectSparseFile(file, attrs);
                 // Create scanned file record
                 ScanResult.ScannedFile scannedFile = new ScanResult.ScannedFile(
-                    file, fileSize, attrs.lastModifiedTime().toInstant(), isSymlink, isSparse, linkTarget
+                        file, fileSize, attrs.lastModifiedTime().toInstant(), isSymlink, isSparse, linkTarget
                 );
                 scannedFiles.add(scannedFile);
 
@@ -287,13 +289,13 @@ public class NioFilesystemScanner implements FilesystemScanner {
 
             return FileVisitResult.CONTINUE;
         }
-        /**
-         * Checks if path matches include pattern.
-         *
-         * @param path the path to check
-         * @return true if matches include pattern
-         */
-        private boolean matchesIncludePattern(Path path) {
+    /**
+     * Checks if path matches include pattern.
+     *
+     * @param path the path to check
+     * @return true if matches include pattern
+     */
+    private boolean matchesIncludePattern(Path path) {
             if (options.getIncludePattern() == null) {
                 return true;
             }
@@ -367,7 +369,6 @@ public class NioFilesystemScanner implements FilesystemScanner {
                     // IO error accessing attributes
                     logger.debug("IO error accessing block attributes for: {}", file, e);
                 }
-
                 // Windows-specific sparse file detection
                 if (System.getProperty("os.name").toLowerCase().contains("windows")) {
                     try {
@@ -380,7 +381,6 @@ public class NioFilesystemScanner implements FilesystemScanner {
                                 long[] positions = {0, fileSize / 4, fileSize / 2, fileSize * 3 / 4,
                                         Math.max(fileSize - 1024, 0)};
                                 int zeroRegions = 0;
-                                
                                 for (long pos : positions) {
                                     if (pos < fileSize) {
                                         raf.seek(pos);
