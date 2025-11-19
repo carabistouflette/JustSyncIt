@@ -142,8 +142,15 @@ public class NioFilesystemScanner implements FilesystemScanner {
                     }
                     visitedPaths.add(realPath);
                 } catch (IOException e) {
-                    logger.warn("Cannot resolve symlink: {}", dir, e);
-                    return FileVisitResult.SKIP_SUBTREE;
+                    logger.warn("Cannot resolve symlink directory: {}", dir, e);
+                    // For broken symlink directories, skip the subtree unless RECORD strategy
+                    if (options.getSymlinkStrategy() == SymlinkStrategy.RECORD) {
+                        // For RECORD, we still want to record the symlink directory itself
+                        // but skip traversing into it
+                        return FileVisitResult.SKIP_SUBTREE;
+                    } else {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
                 }
             }
 
@@ -184,7 +191,9 @@ public class NioFilesystemScanner implements FilesystemScanner {
                     return FileVisitResult.CONTINUE;
                 }
                 // Handle hidden files
-                if (!options.isIncludeHiddenFiles() && Files.isHidden(file)) {
+                boolean isHidden = Files.isHidden(file);
+                if (!options.isIncludeHiddenFiles() && isHidden) {
+                    logger.debug("Skipping hidden file: {}", file);
                     return FileVisitResult.CONTINUE;
                 }
                 // Check file size limits
@@ -204,14 +213,26 @@ public class NioFilesystemScanner implements FilesystemScanner {
 
                         switch (options.getSymlinkStrategy()) {
                             case SKIP:
+                                logger.debug("Skipping symlink: {}", file);
                                 return FileVisitResult.CONTINUE;
                             case FOLLOW:
-                                Path realPath = file.toRealPath();
-                                if (visitedPaths.contains(realPath)) {
-                                    logger.warn("Symlink cycle detected: {} -> {}", file, realPath);
-                                    return FileVisitResult.CONTINUE;
+                                try {
+                                    Path realPath = file.toRealPath();
+                                    if (visitedPaths.contains(realPath)) {
+                                        logger.warn("Symlink cycle detected: {} -> {}", file, realPath);
+                                        return FileVisitResult.CONTINUE;
+                                    }
+                                    visitedPaths.add(realPath);
+                                } catch (IOException e) {
+                                    logger.warn("Cannot resolve symlink target for: {}", file, e);
+                                    // For broken symlinks, we still record them if RECORD strategy, otherwise skip
+                                    if (options.getSymlinkStrategy() == SymlinkStrategy.RECORD) {
+                                        // Keep the symlink as is, don't try to follow
+                                        break;
+                                    } else {
+                                        return FileVisitResult.CONTINUE;
+                                    }
                                 }
-                                visitedPaths.add(realPath);
                                 break;
                             case RECORD:
                                 // Record symlink but don't follow
@@ -221,8 +242,14 @@ public class NioFilesystemScanner implements FilesystemScanner {
                         }
                     } catch (IOException e) {
                         logger.warn("Cannot read symlink: {}", file, e);
-                        errors.add(new ScanResult.ScanError(file, e, "Cannot read symlink"));
-                        return FileVisitResult.CONTINUE;
+                        // For RECORD strategy, we still want to record broken symlinks
+                        if (options.getSymlinkStrategy() == SymlinkStrategy.RECORD) {
+                            // Keep the symlink as broken, linkTarget will remain null
+                            // Continue to create scanned file record
+                        } else {
+                            errors.add(new ScanResult.ScanError(file, e, "Cannot read symlink"));
+                            return FileVisitResult.CONTINUE;
+                        }
                     }
                 }
 
@@ -302,8 +329,10 @@ public class NioFilesystemScanner implements FilesystemScanner {
             }
             // Try full path first, then filename if that fails
             // This handles both simple patterns (*.txt) and complex patterns (**/*.txt)
-            return options.getIncludePattern().matches(path)
+            boolean matches = options.getIncludePattern().matches(path)
                     || options.getIncludePattern().matches(path.getFileName());
+            logger.debug("Include pattern match for {}: {}", path, matches);
+            return matches;
         }
 
         /**
@@ -318,8 +347,10 @@ public class NioFilesystemScanner implements FilesystemScanner {
             }
             // Try full path first, then filename if that fails
             // This handles both simple patterns (*.tmp) and complex patterns
-            return options.getExcludePattern().matches(path)
+            boolean matches = options.getExcludePattern().matches(path)
                     || options.getExcludePattern().matches(path.getFileName());
+            logger.debug("Exclude pattern match for {}: {}", path, matches);
+            return matches;
         }
 
         /**

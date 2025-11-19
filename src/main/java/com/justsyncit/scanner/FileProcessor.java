@@ -294,21 +294,30 @@ public class FileProcessor {
                 CompletableFuture<FileChunker.ChunkingResult> chunkingFuture = chunker.chunkFile(file, options)
                         .thenCompose(result -> {
                             return CompletableFuture.supplyAsync(() -> {
-                                if (result.isSuccess()) {
-                                    // Wait a moment to ensure all chunk metadata is committed
-                                    // This addresses SQLite's connection isolation issues
-                                    try {
-                                        Thread.sleep(100); // Reduced delay for test performance
-                                    } catch (InterruptedException ie) {
-                                        Thread.currentThread().interrupt();
-                                        // Don't fail the operation if interrupted
+                                try {
+                                    if (result.isSuccess()) {
+                                        // Wait a moment to ensure all chunk metadata is committed
+                                        // This addresses SQLite's connection isolation issues
+                                        try {
+                                            Thread.sleep(100); // Reduced delay for test performance
+                                        } catch (InterruptedException ie) {
+                                            Thread.currentThread().interrupt();
+                                            // Don't fail the operation if interrupted
+                                        }
+                                        processChunkingResult(result);
+                                    } else {
+                                        logger.error("Chunking failed for file: {}", file, result.getError());
+                                        errorFiles.incrementAndGet();
                                     }
-                                    processChunkingResult(result);
-                                } else {
-                                    logger.error("Chunking failed for file: {}", file, result.getError());
+                                    return result;
+                                } catch (Exception e) {
+                                    logger.error("Error processing chunking result for file: {}", file, e);
                                     errorFiles.incrementAndGet();
+                                    IOException ioException = e instanceof IOException
+                                            ? (IOException) e
+                                            : new IOException(e);
+                                    return new FileChunker.ChunkingResult(file, ioException);
                                 }
-                                return result;
                             }, executorService);
                         })
                         .exceptionally(throwable -> {
