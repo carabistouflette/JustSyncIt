@@ -115,8 +115,10 @@ class PathMatcherFilteringTest {
 
         // Verify correct file is included
         assertTrue(result.getScannedFiles().stream()
-                .anyMatch(f -> f.getPath().getFileName() != null
-                             && f.getPath().getFileName().toString().equals("file1.txt")));
+                .anyMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().equals("file1.txt");
+                }));
     }
 
     @Test
