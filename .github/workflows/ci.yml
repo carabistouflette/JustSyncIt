@@ -105,12 +105,13 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results-${{ matrix.os }}-java${{ matrix.java-version }}
+        name: test-results-${{ matrix.os }}-java${{ matrix.java-version }}-${{ github.run_attempt }}
         path: |
           build/reports/tests/
           build/reports/checkstyle/
           build/reports/spotbugs/
           build/reports/jacoco/
+        overwrite: true
           
     - name: Run release build (only on main branch, Java 21)
       if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
@@ -120,8 +121,9 @@ jobs:
       if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
-        name: justsyncit-jar-java21
+        name: justsyncit-jar-java21-${{ github.run_attempt }}
         path: build/libs/*.jar
+        overwrite: true
 
   # Dependency check is disabled in build.gradle (skip = true)
   # Keeping this job commented out for future use if needed
