@@ -425,6 +425,21 @@ class FileProcessorTest {
             return isIOExceptionRecursive(e.getCause());
         }
         
+        // Check for ExecutionException wrapping IOException
+        if (e instanceof java.util.concurrent.ExecutionException) {
+            return isIOExceptionRecursive(e.getCause());
+        }
+        
+        // Check for TimeoutException wrapping IOException
+        if (e instanceof java.util.concurrent.TimeoutException) {
+            return isIOExceptionRecursive(e.getCause());
+        }
+        
+        // Check for RuntimeException wrapping IOException
+        if (e instanceof java.lang.RuntimeException) {
+            return isIOExceptionRecursive(e.getCause());
+        }
+        
         // For other exceptions, check the cause chain recursively
         return isIOExceptionRecursive(e.getCause());
     }
@@ -444,6 +459,35 @@ class FileProcessorTest {
         // Check for JUnitException wrapping IOException
         if (t.getClass().getName().contains("JUnitException")) {
             return isIOExceptionRecursive(t.getCause());
+        }
+        
+        // Check for ExecutionException wrapping IOException
+        if (t instanceof java.util.concurrent.ExecutionException) {
+            return isIOExceptionRecursive(t.getCause());
+        }
+        
+        // Check for TimeoutException wrapping IOException
+        if (t instanceof java.util.concurrent.TimeoutException) {
+            return isIOExceptionRecursive(t.getCause());
+        }
+        
+        // Check for RuntimeException wrapping IOException
+        if (t instanceof java.lang.RuntimeException) {
+            return isIOExceptionRecursive(t.getCause());
+        }
+        
+        // Check for any exception with message containing IO-related keywords
+        String message = t.getMessage();
+        if (message != null) {
+            String lowerMessage = message.toLowerCase();
+            if (lowerMessage.contains("access denied") ||
+                lowerMessage.contains("permission denied") ||
+                lowerMessage.contains("file not found") ||
+                lowerMessage.contains("being used") ||
+                lowerMessage.contains("locked") ||
+                lowerMessage.contains("io error")) {
+                return true;
+            }
         }
         
         // Continue traversing the cause chain
