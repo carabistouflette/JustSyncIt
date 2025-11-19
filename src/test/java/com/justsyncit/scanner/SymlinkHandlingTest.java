@@ -149,15 +149,15 @@ class SymlinkHandlingTest {
         // Create a cycle: A -> B -> A
         Path fileA = tempDir.resolve("fileA.txt");
         Path fileB = tempDir.resolve("fileB.txt");
-        
+
         // First create the real file content
         Path realFileA = tempDir.resolve("real_fileA.txt");
         Files.write(realFileA, "content A".getBytes(StandardCharsets.UTF_8));
-        
+
         // Create symlinks that form a cycle
         Files.createSymbolicLink(fileA, realFileA);
         Files.createSymbolicLink(fileB, fileA);
-        
+
         // Now modify fileA to point to fileB, creating a cycle
         Files.delete(fileA);
         Files.createSymbolicLink(fileA, fileB); // This creates the cycle: A -> B -> A

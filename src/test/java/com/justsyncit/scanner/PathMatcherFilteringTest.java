@@ -195,7 +195,7 @@ class PathMatcherFilteringTest {
         // Adjust expectations based on platform
         boolean isCaseSensitive = !System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
         int expectedCount = isCaseSensitive ? 2 : 4; // 2 lowercase on Unix, 4 total on Windows
-        
+
         assertEquals(expectedCount, result.getScannedFileCount(),
                 "Expected " + expectedCount + " files on " + System.getProperty("os.name"));
         assertEquals(0, result.getErrorCount());
