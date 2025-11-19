@@ -267,8 +267,19 @@ class PathMatcherFilteringTest {
         // Should find only visible files that match the pattern
         // The glob pattern *.txt should not match .hidden.txt because it doesn't start with .
         // However, on Windows the pattern matching might behave differently, so we check for at least 2
-        assertTrue(result.getScannedFileCount() >= 2,
-                "Expected at least 2 visible files, but found " + result.getScannedFileCount());
+        // Platform-specific behavior: Windows and Unix handle hidden files differently
+        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
+        
+        if (isWindows) {
+            // On Windows, glob pattern *.txt might match hidden files differently
+            // We expect at least the visible files to be found
+            assertTrue(result.getScannedFileCount() >= 2,
+                    "Expected at least 2 visible files on Windows, but found " + result.getScannedFileCount());
+        } else {
+            // On Unix systems, we expect exactly 2 visible files (hidden files excluded)
+            assertEquals(2, result.getScannedFileCount(),
+                    "Expected exactly 2 visible files on Unix, but found " + result.getScannedFileCount());
+        }
         assertEquals(0, result.getErrorCount());
 
         // Verify hidden files are not included - check both file name and that we have expected visible files
