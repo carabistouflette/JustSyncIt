@@ -308,7 +308,7 @@ public class FileProcessor {
                                     IOException ioException = e instanceof IOException
                                             ? (IOException) e
                                             : new IOException(e);
-                                    return new FileChunker.ChunkingResult(file, ioException);
+                                    return FileChunker.ChunkingResult.createFailed(file, ioException);
                                 }
                             }, executorService);
                         })
@@ -318,7 +318,7 @@ public class FileProcessor {
                             IOException ioException = throwable instanceof IOException
                                     ? (IOException) throwable
                                     : new IOException(throwable);
-                            return new FileChunker.ChunkingResult(file, ioException);
+                            return FileChunker.ChunkingResult.createFailed(file, ioException);
                         })
                         .handle((result, throwable) -> {
                             // Ensure we always return a valid result, even if both result and throwable are null
@@ -329,11 +329,11 @@ public class FileProcessor {
                                     IOException ioException = throwable instanceof IOException
                                             ? (IOException) throwable
                                             : new IOException(throwable);
-                                    return new FileChunker.ChunkingResult(file, ioException);
+                                    return FileChunker.ChunkingResult.createFailed(file, ioException);
                                 } else {
                                     logger.error("Both result and throwable are null for file: {}", file);
                                     errorFiles.incrementAndGet();
-                                    return new FileChunker.ChunkingResult(file,
+                                    return FileChunker.ChunkingResult.createFailed(file,
                                             new IOException("Unexpected null result without exception"));
                                 }
                             }
