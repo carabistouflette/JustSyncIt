@@ -19,6 +19,7 @@
 package com.justsyncit.scanner;
 
 import com.justsyncit.storage.ChunkStorage;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
@@ -112,6 +113,7 @@ public interface FileChunker extends ChunkStorage {
          */
         @Deprecated
         @SuppressWarnings("finalizer")
+        @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
         public ChunkingResult(Path file, Exception error) {
             this.file = file;
             this.chunkCount = 0;

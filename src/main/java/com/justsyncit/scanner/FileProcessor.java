@@ -1,6 +1,7 @@
 package com.justsyncit.scanner;
 
 import com.justsyncit.storage.ContentStore;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.justsyncit.storage.metadata.ChunkMetadata;
 import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
@@ -63,6 +64,7 @@ public class FileProcessor {
      */
     @Deprecated
     @SuppressWarnings("EI_EXPOSE_REP2")
+    @SuppressFBWarnings("EI_EXPOSE_REP2")
     public FileProcessor(FilesystemScanner scanner, FileChunker chunker,
                         ContentStore contentStore, MetadataService metadataService) {
         // No validation in constructor - use static factory method instead

@@ -18,6 +18,7 @@
 
 package com.justsyncit.storage.metadata;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -671,6 +672,7 @@ public final class SqliteMetadataService implements MetadataService {
      * Gets the current foreign key setting.
      */
     @SuppressWarnings("unused")
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
     private boolean getForeignKeySetting(Connection connection) throws SQLException {
         try (var stmt = connection.createStatement();
                 ResultSet rs = stmt.executeQuery("PRAGMA foreign_keys")) {
@@ -682,6 +684,7 @@ public final class SqliteMetadataService implements MetadataService {
      * Sets the foreign key setting.
      */
     @SuppressWarnings("unused")
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
     private void setForeignKeySetting(Connection connection, boolean enabled) throws SQLException {
         try (var stmt = connection.createStatement()) {
             if (enabled) {

@@ -18,6 +18,7 @@
 
 package com.justsyncit.scanner;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -235,6 +236,7 @@ public class ScanResult {
          * @param message a descriptive error message
          */
         @SuppressWarnings("finalizer")
+        @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
         public ScanError(Path path, Exception exception, String message) {
             // No validation in constructor - use static factory method instead
             // Note: createExceptionCopy() handles exceptions safely

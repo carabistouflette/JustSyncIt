@@ -18,6 +18,7 @@
 
 package com.justsyncit.scanner;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -82,6 +83,7 @@ public class ChunkingResult {
      */
     @Deprecated
     @SuppressWarnings("finalizer")
+    @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
     public ChunkingResult(Path file, Exception error) {
         // No validation in constructor - use static factory method instead
         // Note: createExceptionCopy() handles exceptions safely
