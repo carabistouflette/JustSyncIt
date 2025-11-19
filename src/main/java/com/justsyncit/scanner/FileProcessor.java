@@ -334,7 +334,7 @@ public class FileProcessor {
                                     logger.error("Both result and throwable are null for file: {}", file);
                                     errorFiles.incrementAndGet();
                                     return new FileChunker.ChunkingResult(file,
-                                        new IOException("Unexpected null result without exception"));
+                                            new IOException("Unexpected null result without exception"));
                                 }
                             }
                             return result;

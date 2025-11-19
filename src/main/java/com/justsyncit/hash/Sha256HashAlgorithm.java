@@ -57,7 +57,9 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
         }
-        digest.update(data);
+        synchronized (digest) {
+            digest.update(data);
+        }
     }
 
     @Override
@@ -68,17 +70,23 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
         if (offset < 0 || length < 0 || offset + length > data.length) {
             throw new IllegalArgumentException("Invalid offset or length");
         }
-        digest.update(data, offset, length);
+        synchronized (digest) {
+            digest.update(data, offset, length);
+        }
     }
 
     @Override
     public byte[] digest() {
-        return digest.digest();
+        synchronized (digest) {
+            return digest.digest();
+        }
     }
 
     @Override
     public void reset() {
-        digest.reset();
+        synchronized (digest) {
+            digest.reset();
+        }
     }
 
     @Override
