@@ -319,6 +319,18 @@ public class FileProcessor {
                                     ? (IOException) throwable
                                     : new IOException(throwable);
                             return new FileChunker.ChunkingResult(file, ioException);
+                        })
+                        .handle((result, throwable) -> {
+                            // Ensure we always return a valid result, even if both result and throwable are null
+                            if (result == null && throwable != null) {
+                                logger.error("Null result with throwable for file: {}", file, throwable);
+                                errorFiles.incrementAndGet();
+                                IOException ioException = throwable instanceof IOException
+                                        ? (IOException) throwable
+                                        : new IOException(throwable);
+                                return new FileChunker.ChunkingResult(file, ioException);
+                            }
+                            return result;
                         });
 
                 chunkingFutures.add(chunkingFuture);
