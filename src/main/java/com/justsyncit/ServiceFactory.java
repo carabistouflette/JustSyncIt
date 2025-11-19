@@ -82,9 +82,12 @@ public class ServiceFactory {
      */
     public Blake3Service createBlake3Service() throws ServiceException {
         try {
-            HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
-            BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
-            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
+            // Create separate HashAlgorithm instances for each service to ensure thread safety
+            HashAlgorithm bufferHasherAlgorithm = Sha256HashAlgorithm.create();
+            HashAlgorithm incrementalHasherAlgorithm = Sha256HashAlgorithm.create();
+            
+            BufferHasher bufferHasher = new Blake3BufferHasher(bufferHasherAlgorithm);
+            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(incrementalHasherAlgorithm);
             StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
             FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
             SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();

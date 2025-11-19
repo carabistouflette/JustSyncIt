@@ -368,7 +368,7 @@ public class FileProcessor {
                 // Wait longer to ensure all chunk metadata is committed
                 // This addresses SQLite's connection isolation issues
                 try {
-                    Thread.sleep(1000); // Increased delay to ensure chunk metadata is committed
+                    Thread.sleep(2000); // Further increased delay to ensure chunk metadata is committed
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     // Don't fail operation if interrupted
@@ -412,7 +412,7 @@ public class FileProcessor {
          */
         private boolean verifyChunkExists(String chunkHash) {
             boolean chunkExists = false;
-            int maxRetries = 5; // Increased retries for better reliability
+            int maxRetries = 8; // Further increased retries for better reliability
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     if (contentStore.existsChunk(chunkHash)) {
@@ -424,7 +424,7 @@ public class FileProcessor {
                                 chunkHash, attempt, maxRetries);
                         try {
                             // Use longer delay for better reliability
-                            long delayMs = 200L * attempt; // 200ms, 400ms, 600ms, 800ms, 1000ms
+                            long delayMs = 300L * attempt; // 300ms, 600ms, 900ms, 1200ms, 1500ms, 1800ms, 2100ms
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -436,7 +436,7 @@ public class FileProcessor {
                             chunkHash, attempt, maxRetries, e);
                     if (attempt < maxRetries) {
                         try {
-                            long delayMs = 200L * attempt;
+                            long delayMs = 300L * attempt;
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -463,7 +463,7 @@ public class FileProcessor {
          */
         private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
                 FileChunker.ChunkingResult result) throws IOException {
-            int maxRetries = 5; // Further reduced retries for test performance
+            int maxRetries = 8; // Increased retries for better reliability
             IOException lastException = null;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -501,7 +501,7 @@ public class FileProcessor {
                             || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
                             || e.getMessage().contains("Not all chunk metadata is visible"))) {
                         if (attempt < maxRetries) {
-                            long delayMs = 100L * attempt; // Further reduced backoff: 100ms, 200ms, 300ms
+                            long delayMs = 200L * attempt; // Increased backoff: 200ms, 400ms, 600ms, 800ms, 1000ms, 1200ms, 1400ms
                             logger.warn(
                                     "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
                                     result.getFile(), attempt, delayMs);
