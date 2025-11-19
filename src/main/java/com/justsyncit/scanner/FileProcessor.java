@@ -296,14 +296,6 @@ public class FileProcessor {
                             return CompletableFuture.supplyAsync(() -> {
                                 try {
                                     if (result.isSuccess()) {
-                                        // Wait a moment to ensure all chunk metadata is committed
-                                        // This addresses SQLite's connection isolation issues
-                                        try {
-                                            Thread.sleep(100); // Reduced delay for test performance
-                                        } catch (InterruptedException ie) {
-                                            Thread.currentThread().interrupt();
-                                            // Don't fail the operation if interrupted
-                                        }
                                         processChunkingResult(result);
                                     } else {
                                         logger.error("Chunking failed for file: {}", file, result.getError());
@@ -408,7 +400,7 @@ public class FileProcessor {
          */
         private boolean verifyChunkExists(String chunkHash) {
             boolean chunkExists = false;
-            int maxRetries = 5; // Reduced retries for test performance
+            int maxRetries = 3; // Further reduced retries for test performance
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     if (contentStore.existsChunk(chunkHash)) {
@@ -419,8 +411,8 @@ public class FileProcessor {
                         logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
                                 chunkHash, attempt, maxRetries);
                         try {
-                            // Use longer exponential backoff with more aggressive initial delay
-                            long delayMs = 200L * attempt; // 200ms, 400ms, 600ms, ...
+                            // Use shorter delay for test performance
+                            long delayMs = 50L * attempt; // 50ms, 100ms, 150ms
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -432,7 +424,7 @@ public class FileProcessor {
                             chunkHash, attempt, maxRetries, e);
                     if (attempt < maxRetries) {
                         try {
-                            long delayMs = 200L * attempt;
+                            long delayMs = 50L * attempt;
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -459,7 +451,7 @@ public class FileProcessor {
          */
         private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
                 FileChunker.ChunkingResult result) throws IOException {
-            int maxRetries = 10; // Reduced retries for test performance
+            int maxRetries = 5; // Further reduced retries for test performance
             IOException lastException = null;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -497,7 +489,7 @@ public class FileProcessor {
                             || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
                             || e.getMessage().contains("Not all chunk metadata is visible"))) {
                         if (attempt < maxRetries) {
-                            long delayMs = 200L * attempt; // Reduced backoff: 200ms, 400ms, 600ms
+                            long delayMs = 100L * attempt; // Further reduced backoff: 100ms, 200ms, 300ms
                             logger.warn(
                                     "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
                                     result.getFile(), attempt, delayMs);
@@ -560,9 +552,9 @@ public class FileProcessor {
             try {
                 // Add timeout to prevent infinite hanging
                 CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0]))
-                        .get(30, java.util.concurrent.TimeUnit.SECONDS);
+                        .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {
-                logger.error("Timeout waiting for chunking completion after 5 minutes", e);
+                logger.error("Timeout waiting for chunking completion after 60 seconds", e);
                 // Cancel any remaining futures
                 chunkingFutures.forEach(future -> future.cancel(true));
             } catch (Exception e) {

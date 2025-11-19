@@ -185,16 +185,22 @@ class PathMatcherFilteringTest {
         Files.write(tempDir.resolve("File3.TXT"), "content3".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("file4.txt"), "content4".getBytes(StandardCharsets.UTF_8));
 
-        // Test case-sensitive pattern
+        // Test case-sensitive pattern - glob patterns are case-sensitive on most systems
         PathMatcher caseSensitivePattern = FileSystems.getDefault().getPathMatcher("glob:*.txt");
         ScanOptions options = new ScanOptions()
                 .withIncludePattern(caseSensitivePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
 
-        assertEquals(2, result.getScannedFileCount()); // Only lowercase .txt files
+        // On Windows, glob patterns are case-insensitive, on Unix they are case-sensitive
+        // Adjust expectations based on platform
+        boolean isCaseSensitive = !System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
+        int expectedCount = isCaseSensitive ? 2 : 4; // 2 lowercase on Unix, 4 total on Windows
+        
+        assertEquals(expectedCount, result.getScannedFileCount(),
+                "Expected " + expectedCount + " files on " + System.getProperty("os.name"));
         assertEquals(0, result.getErrorCount());
 
-        // Verify only lowercase files are included
+        // Verify all files end with .txt (case-insensitive check)
         assertTrue(result.getScannedFiles().stream()
                 .allMatch(f -> f.getPath().toString().toLowerCase(Locale.ROOT).endsWith(".txt")));
     }
@@ -258,6 +264,8 @@ class PathMatcherFilteringTest {
 
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
 
+        // Should find only visible files that match the pattern
+        // The glob pattern *.txt should not match .hidden.txt because it doesn't start with .
         assertEquals(2, result.getScannedFileCount()); // Only visible files
         assertEquals(0, result.getErrorCount());
 
