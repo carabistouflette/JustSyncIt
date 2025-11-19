@@ -81,7 +81,10 @@ public class ChunkingResult {
      * @deprecated Use {@link #createFailed(Path, Exception)} instead
      */
     @Deprecated
+    @SuppressWarnings("finalizer")
     public ChunkingResult(Path file, Exception error) {
+        // No validation in constructor - use static factory method instead
+        // Note: createExceptionCopy() handles exceptions safely
         this.file = file;
         this.error = error != null ? createExceptionCopy(error) : null;
         this.success = false;

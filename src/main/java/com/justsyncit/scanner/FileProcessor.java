@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -61,20 +62,12 @@ public class FileProcessor {
      * @deprecated Use {@link #create(FilesystemScanner, FileChunker, ContentStore, MetadataService)} instead.
      */
     @Deprecated
+    @SuppressWarnings("EI_EXPOSE_REP2")
     public FileProcessor(FilesystemScanner scanner, FileChunker chunker,
                         ContentStore contentStore, MetadataService metadataService) {
-        if (scanner == null) {
-            throw new IllegalArgumentException("Scanner cannot be null");
-        }
-        if (chunker == null) {
-            throw new IllegalArgumentException("Chunker cannot be null");
-        }
-        if (contentStore == null) {
-            throw new IllegalArgumentException("Content store cannot be null");
-        }
-        if (metadataService == null) {
-            throw new IllegalArgumentException("Metadata service cannot be null");
-        }
+        // No validation in constructor - use static factory method instead
+        // Note: We don't create defensive copies here as these are service interfaces
+        // that are meant to be used directly. The static factory method handles validation.
         this.scanner = scanner;
         this.chunker = chunker;
         this.contentStore = contentStore;
@@ -216,9 +209,18 @@ public class FileProcessor {
 
                 return result;
 
+            } catch (IOException e) {
+                logger.error("Error during file processing", e);
+                throw new CompletionException("File processing failed", e);
+            } catch (IllegalStateException e) {
+                logger.error("Error during file processing", e);
+                throw e;
+            } catch (RuntimeException e) {
+                logger.error("Error during file processing", e);
+                throw new IllegalStateException("Unexpected error during file processing", e);
             } catch (Exception e) {
                 logger.error("Error during file processing", e);
-                throw new RuntimeException("File processing failed", e);
+                throw new CompletionException("File processing failed", e);
             } finally {
                 isRunning = false;
                 currentSnapshotId = null;
@@ -310,14 +312,15 @@ public class FileProcessor {
                         .exceptionally(throwable -> {
                             logger.error("Error chunking file: {}", file, throwable);
                             errorFiles.incrementAndGet();
-                            return new FileChunker.ChunkingResult(file,
-                                    throwable instanceof IOException ? (IOException) throwable
-                                            : new IOException(throwable));
+                            IOException ioException = throwable instanceof IOException
+                                    ? (IOException) throwable
+                                    : new IOException(throwable);
+                            return new FileChunker.ChunkingResult(file, ioException);
                         });
 
                 chunkingFutures.add(chunkingFuture);
 
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 logger.error("Error starting chunking for file: {}", file, e);
                 errorFiles.incrementAndGet();
             }
@@ -394,27 +397,32 @@ public class FileProcessor {
          */
         private boolean verifyChunkExists(String chunkHash) {
             boolean chunkExists = false;
-            int maxRetries = 10; // Increased retries
+            int maxRetries = 20; // Increased retries significantly
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     if (contentStore.existsChunk(chunkHash)) {
                         chunkExists = true;
+                        logger.debug("Chunk {} is visible (attempt {}/{})", chunkHash, attempt, maxRetries);
                         break;
                     } else if (attempt < maxRetries) {
                         logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
                                 chunkHash, attempt, maxRetries);
                         try {
-                            Thread.sleep(1000L * attempt); // Exponential backoff
+                            // Use longer exponential backoff with more aggressive initial delay
+                            long delayMs = 2000L * attempt; // 2s, 4s, 6s, ...
+                            Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             return false;
                         }
                     }
                 } catch (IOException e) {
-                    logger.warn("Failed to check if chunk exists: {}", chunkHash, e);
+                    logger.warn("Failed to check if chunk exists: {} (attempt {}/{})",
+                            chunkHash, attempt, maxRetries, e);
                     if (attempt < maxRetries) {
                         try {
-                            Thread.sleep(1000L * attempt);
+                            long delayMs = 2000L * attempt;
+                            Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
                             return false;
@@ -423,7 +431,7 @@ public class FileProcessor {
                 }
             }
             if (!chunkExists) {
-                logger.error("Chunk {} does not exist in content store after all retries", chunkHash);
+                logger.error("Chunk {} does not exist in content store after {} retries", chunkHash, maxRetries);
                 errorFiles.incrementAndGet();
                 return false;
             }

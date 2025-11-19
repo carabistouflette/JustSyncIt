@@ -111,6 +111,7 @@ public interface FileChunker extends ChunkStorage {
          * @deprecated Use {@link #createFailed(Path, Exception)} instead
          */
         @Deprecated
+        @SuppressWarnings("finalizer")
         public ChunkingResult(Path file, Exception error) {
             this.file = file;
             this.chunkCount = 0;

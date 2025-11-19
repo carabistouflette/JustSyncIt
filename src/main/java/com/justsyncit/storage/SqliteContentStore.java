@@ -138,7 +138,17 @@ public final class SqliteContentStore extends AbstractContentStore {
             }
 
             logger.debug("Recorded chunk metadata for: {}", hash);
-        } catch (Exception e) {
+        } catch (IOException e) {
+            if (transaction != null) {
+                try {
+                    transaction.rollback();
+                } catch (Exception rollbackEx) {
+                    logger.warn("Failed to rollback transaction for chunk {}: {}", hash, rollbackEx.getMessage());
+                }
+            }
+            logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
+            // Don't fail the operation if metadata recording fails
+        } catch (RuntimeException e) {
             if (transaction != null) {
                 try {
                     transaction.rollback();
@@ -216,7 +226,11 @@ public final class SqliteContentStore extends AbstractContentStore {
                 }
             }
             return true;
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.warn("Failed to check chunk metadata for {}: {}", hash, e.getMessage());
+            // Fall back to delegate store result
+            return true;
+        } catch (RuntimeException e) {
             logger.warn("Failed to check chunk metadata for {}: {}", hash, e.getMessage());
             // Fall back to delegate store result
             return true;
@@ -228,7 +242,10 @@ public final class SqliteContentStore extends AbstractContentStore {
         // Use metadata service for more accurate count
         try {
             return metadataService.getStats().getTotalChunks();
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.warn("Failed to get chunk count from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getChunkCount();
+        } catch (RuntimeException e) {
             logger.warn("Failed to get chunk count from metadata, falling back to delegate: {}", e.getMessage());
             return delegateStore.getChunkCount();
         }
@@ -239,7 +256,10 @@ public final class SqliteContentStore extends AbstractContentStore {
         // Use metadata service for more accurate size
         try {
             return metadataService.getStats().getTotalChunkSize();
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.warn("Failed to get total size from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getTotalSize();
+        } catch (RuntimeException e) {
             logger.warn("Failed to get total size from metadata, falling back to delegate: {}", e.getMessage());
             return delegateStore.getTotalSize();
         }
@@ -272,7 +292,10 @@ public final class SqliteContentStore extends AbstractContentStore {
                     // Calculate orphaned chunks from metadata
                     Math.max(0, delegateStats.getTotalChunks() - metadataStats.getTotalChunks())
             );
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.warn("Failed to enhance stats with metadata, using delegate stats: {}", e.getMessage());
+            return delegateStats;
+        } catch (RuntimeException e) {
             logger.warn("Failed to enhance stats with metadata, using delegate stats: {}", e.getMessage());
             return delegateStats;
         }

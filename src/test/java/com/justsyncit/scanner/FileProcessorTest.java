@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +38,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Unit tests for FileProcessor.
@@ -77,19 +77,19 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessDirectory() throws Exception {
+    void testProcessDirectory() throws IOException, ExecutionException, InterruptedException {
         // Create test directory structure
         Path testDir = tempDir.resolve("test");
         Files.createDirectories(testDir);
         Path file1 = testDir.resolve("file1.txt");
-        Files.write(file1, "Hello, World!".getBytes());
+        Files.write(file1, "Hello, World!".getBytes(StandardCharsets.UTF_8));
         Path file2 = testDir.resolve("file2.txt");
-        Files.write(file2, "Another file content".getBytes());
+        Files.write(file2, "Another file content".getBytes(StandardCharsets.UTF_8));
         // Create subdirectory
         Path subDir = testDir.resolve("subdir");
         Files.createDirectories(subDir);
         Path file3 = subDir.resolve("file3.txt");
-        Files.write(file3, "Subdirectory file".getBytes());
+        Files.write(file3, "Subdirectory file".getBytes(StandardCharsets.UTF_8));
         // Process directory
         ScanOptions options = new ScanOptions()
                 .withMaxDepth(10);
@@ -110,7 +110,7 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessEmptyDirectory() throws Exception {
+    void testProcessEmptyDirectory() throws IOException, ExecutionException, InterruptedException {
         Path emptyDir = tempDir.resolve("empty");
         Files.createDirectories(emptyDir);
         ScanOptions options = new ScanOptions();
@@ -123,7 +123,7 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessNonExistentDirectory() throws Exception {
+    void testProcessNonExistentDirectory() throws IOException, ExecutionException, InterruptedException {
         Path nonExistent = tempDir.resolve("nonexistent");
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(nonExistent, options);
@@ -132,13 +132,13 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessWithFileFilter() throws Exception {
+    void testProcessWithFileFilter() throws IOException, ExecutionException, InterruptedException {
         // Create test directory with different file types
         Path testDir = tempDir.resolve("filtered");
         Files.createDirectories(testDir);
-        Files.write(testDir.resolve("test.txt"), "text file".getBytes());
-        Files.write(testDir.resolve("test.java"), "java file".getBytes());
-        Files.write(testDir.resolve("test.md"), "markdown file".getBytes());
+        Files.write(testDir.resolve("test.txt"), "text file".getBytes(StandardCharsets.UTF_8));
+        Files.write(testDir.resolve("test.java"), "java file".getBytes(StandardCharsets.UTF_8));
+        Files.write(testDir.resolve("test.md"), "markdown file".getBytes(StandardCharsets.UTF_8));
         // Process with include pattern for .txt files only
         ScanOptions options = new ScanOptions()
                 .withIncludePattern(tempDir.getFileSystem().getPathMatcher("glob:**/*.txt"));
@@ -150,7 +150,7 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessWithMaxDepth() throws Exception {
+    void testProcessWithMaxDepth() throws IOException, ExecutionException, InterruptedException {
         // Create nested directory structure
         Path root = tempDir.resolve("nested");
         Files.createDirectories(root);
@@ -160,10 +160,10 @@ class FileProcessorTest {
         Files.createDirectories(level2);
         Path level3 = level2.resolve("level3");
         Files.createDirectories(level3);
-        Files.write(root.resolve("root.txt"), "root".getBytes());
-        Files.write(level1.resolve("level1.txt"), "level1".getBytes());
-        Files.write(level2.resolve("level2.txt"), "level2".getBytes());
-        Files.write(level3.resolve("level3.txt"), "level3".getBytes());
+        Files.write(root.resolve("root.txt"), "root".getBytes(StandardCharsets.UTF_8));
+        Files.write(level1.resolve("level1.txt"), "level1".getBytes(StandardCharsets.UTF_8));
+        Files.write(level2.resolve("level2.txt"), "level2".getBytes(StandardCharsets.UTF_8));
+        Files.write(level3.resolve("level3.txt"), "level3".getBytes(StandardCharsets.UTF_8));
         // Process with max depth 2
         ScanOptions options = new ScanOptions()
                 .withMaxDepth(2);
@@ -177,7 +177,7 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessLargeFile() throws Exception {
+    void testProcessLargeFile() throws IOException, ExecutionException, InterruptedException {
         Path largeFileDir = tempDir.resolve("large");
         Files.createDirectories(largeFileDir);
         Path largeFile = largeFileDir.resolve("large.txt");
@@ -195,11 +195,11 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessWithHiddenFiles() throws Exception {
+    void testProcessWithHiddenFiles() throws IOException, ExecutionException, InterruptedException {
         Path testDir = tempDir.resolve("hidden");
         Files.createDirectories(testDir);
-        Files.write(testDir.resolve("visible.txt"), "visible".getBytes());
-        Files.write(testDir.resolve(".hidden.txt"), "hidden".getBytes());
+        Files.write(testDir.resolve("visible.txt"), "visible".getBytes(StandardCharsets.UTF_8));
+        Files.write(testDir.resolve(".hidden.txt"), "hidden".getBytes(StandardCharsets.UTF_8));
         // Process without hidden files
         ScanOptions options = new ScanOptions()
                 .withIncludeHiddenFiles(false);
@@ -211,12 +211,12 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProgressListener() throws Exception {
+    void testProgressListener() throws IOException, ExecutionException, InterruptedException {
         Path testDir = tempDir.resolve("progress");
         Files.createDirectories(testDir);
         // Create multiple files to track progress
         for (int i = 0; i < 5; i++) {
-            Files.write(testDir.resolve("file" + i + ".txt"), ("content " + i).getBytes());
+            Files.write(testDir.resolve("file" + i + ".txt"), ("content " + i).getBytes(StandardCharsets.UTF_8));
         }
         // Note: FileProcessor doesn't expose progress listener configuration directly
         // This test would need to be implemented differently or the feature added
@@ -229,54 +229,48 @@ class FileProcessorTest {
     }
 
     @Test
-    void testStop() throws Exception {
+    void testStop() throws IOException, ExecutionException, InterruptedException {
         Path testDir = tempDir.resolve("close");
-        try {
-            Files.createDirectories(testDir);
-            Files.write(testDir.resolve("test.txt"), "test".getBytes());
-            // Process successfully first
-            ScanOptions options = new ScanOptions();
-            CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-            FileProcessor.ProcessingResult result = future.get();
-            assertEquals(1, result.getProcessedFiles());
-            // Stop processor
-            processor.stop();
-            // Try to process again - should fail
-            IllegalStateException exception = assertThrows(IllegalStateException.class,
-                    () -> processor.processDirectory(testDir, options));
-        } catch (IOException e) {
-            fail("Failed to create test files: " + e.getMessage());
-        }
+        Files.createDirectories(testDir);
+        Files.write(testDir.resolve("test.txt"), "test".getBytes(StandardCharsets.UTF_8));
+        // Process successfully first
+        ScanOptions options = new ScanOptions();
+        CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
+        FileProcessor.ProcessingResult result = future.get();
+        assertEquals(1, result.getProcessedFiles());
+        // Stop processor
+        processor.stop();
+        // Try to process again - should fail
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> processor.processDirectory(testDir, options));
     }
 
     @Test
-    void testIsRunning() {
+    void testIsRunning() throws IOException {
         assertFalse(processor.isRunning());
 
         Path testDir = tempDir.resolve("running");
+        Files.createDirectories(testDir);
+        Files.write(testDir.resolve("test.txt"), "test".getBytes(StandardCharsets.UTF_8));
+        ScanOptions options = new ScanOptions();
+        CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
+        // Give a moment for processing to start, then check if running
         try {
-            Files.createDirectories(testDir);
-            Files.write(testDir.resolve("test.txt"), "test".getBytes());
-            ScanOptions options = new ScanOptions();
-            CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-            // Give a moment for processing to start, then check if running
-            try {
-                Thread.sleep(100); // Allow async processing to start
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            // Should be running during processing
-            assertTrue(processor.isRunning());
-            try {
-                future.get();
-            } catch (Exception e) {
-                // Ignore for this test
-            }
-
-            // Should not be running after completion
-            assertFalse(processor.isRunning());
-        } catch (IOException e) {
-            fail("Failed to create test files: " + e.getMessage());
+            Thread.sleep(100); // Allow async processing to start
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
+        // Should be running during processing
+        assertTrue(processor.isRunning());
+        try {
+            future.get();
+        } catch (ExecutionException e) {
+            // Ignore for this test
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // Should not be running after completion
+        assertFalse(processor.isRunning());
     }
 }

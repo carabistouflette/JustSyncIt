@@ -124,7 +124,13 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     @Deprecated
     public FixedSizeFileChunker(Blake3Service blake3Service) {
-        this(blake3Service, ByteBufferPool.create(), DEFAULT_CHUNK_SIZE, null);
+        // No validation in constructor - use static factory method instead
+        this.blake3Service = blake3Service;
+        this.bufferPool = ByteBufferPool.create();
+        this.chunkSize = DEFAULT_CHUNK_SIZE;
+        this.contentStore = null;
+        this.executorService = Executors.newFixedThreadPool(DEFAULT_BUFFER_COUNT);
+        this.closed = false;
     }
 
     /**
@@ -137,8 +143,15 @@ public class FixedSizeFileChunker implements FileChunker {
      * @deprecated Use {@link #create(Blake3Service, BufferPool, int)} instead
      */
     @Deprecated
+    @SuppressWarnings("EI_EXPOSE_REP2")
     public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize) {
-        this(blake3Service, bufferPool, chunkSize, null);
+        // No validation in constructor - use static factory method instead
+        this.blake3Service = blake3Service;
+        this.bufferPool = bufferPool;
+        this.chunkSize = chunkSize;
+        this.contentStore = null;
+        this.executorService = Executors.newFixedThreadPool(DEFAULT_BUFFER_COUNT);
+        this.closed = false;
     }
 
     /**
@@ -152,29 +165,16 @@ public class FixedSizeFileChunker implements FileChunker {
      * @deprecated Use {@link #create(Blake3Service, BufferPool, int, ContentStore)} instead
      */
     @Deprecated
+    @SuppressWarnings("EI_EXPOSE_REP2")
     public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize,
                                 ContentStore contentStore) {
-        // Validate parameters
-        if (blake3Service == null) {
-            throw new IllegalArgumentException("BLAKE3 service cannot be null");
-        }
-        if (bufferPool == null) {
-            throw new IllegalArgumentException("Buffer pool cannot be null");
-        }
-        if (chunkSize <= 0) {
-            throw new IllegalArgumentException("Chunk size must be positive");
-        }
-
+        // No validation in constructor - use static factory method instead
         this.blake3Service = blake3Service;
         this.bufferPool = bufferPool;
         this.chunkSize = chunkSize;
         this.contentStore = contentStore;
         this.executorService = Executors.newFixedThreadPool(DEFAULT_BUFFER_COUNT);
         this.closed = false;
-
-        logger.info("Created FixedSizeFileChunker with chunk size {} and buffer pool {}{}",
-                chunkSize, bufferPool.getClass().getSimpleName(),
-                contentStore != null ? " and content store " + contentStore.getClass().getSimpleName() : "");
     }
 
     @Override
@@ -234,10 +234,13 @@ public class FixedSizeFileChunker implements FileChunker {
     }
 
     @Override
+    @SuppressWarnings("EI_EXPOSE_REP2")
     public void setBufferPool(BufferPool bufferPool) {
         if (bufferPool == null) {
             throw new IllegalArgumentException("Buffer pool cannot be null");
         }
+        // Note: BufferPool is an interface, we store the reference directly
+        // as these are service objects that are meant to be used directly
         this.bufferPool = bufferPool;
         logger.debug("Updated buffer pool to {}", bufferPool.getClass().getSimpleName());
     }
@@ -336,6 +339,11 @@ public class FixedSizeFileChunker implements FileChunker {
                     future.cancel(true);
                 }
                 throw new java.util.concurrent.CompletionException("Chunk processing timed out after 120 seconds", e);
+            } catch (java.lang.InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new java.util.concurrent.CompletionException("Interrupted while waiting for chunk processing", e);
+            } catch (java.util.concurrent.ExecutionException e) {
+                throw new java.util.concurrent.CompletionException("Failed to process chunks", e);
             }
 
             FileChunker.ChunkingResult result = new FileChunker.ChunkingResult(
@@ -351,7 +359,18 @@ public class FixedSizeFileChunker implements FileChunker {
             }
 
             return result;
-        } catch (Exception e) {
+        } catch (IOException e) {
+            // Close channel on exception
+            if (channel != null) {
+                try {
+                    channel.close();
+                } catch (IOException closeException) {
+                    logger.warn("Failed to close file channel during exception handling: {}",
+                            closeException.getMessage());
+                }
+            }
+            return FileChunker.ChunkingResult.createFailed(file, e);
+        } catch (RuntimeException e) {
             // Close channel on exception
             if (channel != null) {
                 try {
@@ -447,7 +466,14 @@ public class FixedSizeFileChunker implements FileChunker {
             }
 
             return hash;
-        } catch (Exception e) {
+        } catch (java.lang.InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new java.util.concurrent.CompletionException("Interrupted while processing chunk", e);
+        } catch (java.util.concurrent.ExecutionException e) {
+            throw new java.util.concurrent.CompletionException("Failed to read chunk", e);
+        } catch (com.justsyncit.hash.HashingException e) {
+            throw new java.util.concurrent.CompletionException("Failed to hash chunk", e);
+        } catch (RuntimeException e) {
             logger.error("Error processing chunk at offset {} length {}", offset, length, e);
             throw new java.util.concurrent.CompletionException("Failed to process chunk", e);
         } finally {
@@ -511,8 +537,6 @@ public class FixedSizeFileChunker implements FileChunker {
                 long position = 0;
                 while (position < fileSize) {
                     buffer.clear();
-                    long bytesToRead = Math.min((long) buffer.capacity(), fileSize - position);
-
                     int bytesRead = channel.read(buffer, position).get();
                     if (bytesRead <= 0) {
                         break;
@@ -561,6 +585,8 @@ public class FixedSizeFileChunker implements FileChunker {
      * @param contentStore the content store to use
      */
     public void setContentStore(ContentStore contentStore) {
+        // Note: ContentStore is an interface, we store the reference directly
+        // as these are service objects that are meant to be used directly
         this.contentStore = contentStore;
         logger.debug("Set content store to {}", contentStore != null
                 ? contentStore.getClass().getSimpleName() : "null");

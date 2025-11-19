@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.ExecutionException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,7 +54,7 @@ class SparseFileHandlingTest {
     }
 
     @Test
-    void testDetectSparseFileWithHoles() throws Exception {
+    void testDetectSparseFileWithHoles() throws IOException, ExecutionException, InterruptedException {
         // Create a sparse file with holes
         Path sparseFile = createSparseFileWithHoles("sparse_test.dat", 1024 * 1024); // 1MB with holes
 
@@ -69,7 +70,7 @@ class SparseFileHandlingTest {
     }
 
     @Test
-    void testDetectNonSparseFile() throws Exception {
+    void testDetectNonSparseFile() throws IOException, ExecutionException, InterruptedException {
         // Create a regular (non-sparse) file
         Path regularFile = createRegularFile("regular_test.dat", 1024 * 1024); // 1MB
 
@@ -85,7 +86,8 @@ class SparseFileHandlingTest {
     }
 
     @Test
-    void testSparseFileChunking() throws Exception {
+    void testSparseFileChunking() throws IOException, ExecutionException, InterruptedException,
+            com.justsyncit.ServiceException {
         ServiceFactory serviceFactory = new ServiceFactory();
         com.justsyncit.hash.Blake3Service blake3Service = serviceFactory.createBlake3Service();
         FileChunker chunker = new FixedSizeFileChunker(blake3Service);
@@ -108,7 +110,7 @@ class SparseFileHandlingTest {
     }
 
     @Test
-    void testSparseFileDetectionDisabled() throws Exception {
+    void testSparseFileDetectionDisabled() throws IOException, ExecutionException, InterruptedException {
         // Create a sparse file but disable sparse detection
         ScanOptions disabledOptions = new ScanOptions().withDetectSparseFiles(false);
         Path sparseFile = createSparseFileWithHoles("sparse_disabled_test.dat", 1024 * 1024);
@@ -124,7 +126,7 @@ class SparseFileHandlingTest {
     }
 
     @Test
-    void testLargeSparseFile() throws Exception {
+    void testLargeSparseFile() throws IOException, ExecutionException, InterruptedException {
         // Create a large sparse file (10MB logical size, small actual size)
         Path largeSparseFile = createSparseFileWithHoles("large_sparse_test.dat", 10 * 1024 * 1024);
 

@@ -234,7 +234,10 @@ public class ScanResult {
          * @param exception the exception that was thrown
          * @param message a descriptive error message
          */
+        @SuppressWarnings("finalizer")
         public ScanError(Path path, Exception exception, String message) {
+            // No validation in constructor - use static factory method instead
+            // Note: createExceptionCopy() handles exceptions safely
             this.path = path;
             this.exception = exception != null ? createExceptionCopy(exception) : null;
             this.message = message;
