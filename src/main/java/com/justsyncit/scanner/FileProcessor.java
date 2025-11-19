@@ -368,7 +368,7 @@ public class FileProcessor {
                 // Wait longer to ensure all chunk metadata is committed
                 // This addresses SQLite's connection isolation issues
                 try {
-                    Thread.sleep(500); // Reduced delay for test performance
+                    Thread.sleep(1000); // Increased delay to ensure chunk metadata is committed
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     // Don't fail operation if interrupted
@@ -412,7 +412,7 @@ public class FileProcessor {
          */
         private boolean verifyChunkExists(String chunkHash) {
             boolean chunkExists = false;
-            int maxRetries = 3; // Further reduced retries for test performance
+            int maxRetries = 5; // Increased retries for better reliability
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     if (contentStore.existsChunk(chunkHash)) {
@@ -423,8 +423,8 @@ public class FileProcessor {
                         logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
                                 chunkHash, attempt, maxRetries);
                         try {
-                            // Use shorter delay for test performance
-                            long delayMs = 50L * attempt; // 50ms, 100ms, 150ms
+                            // Use longer delay for better reliability
+                            long delayMs = 200L * attempt; // 200ms, 400ms, 600ms, 800ms, 1000ms
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -436,7 +436,7 @@ public class FileProcessor {
                             chunkHash, attempt, maxRetries, e);
                     if (attempt < maxRetries) {
                         try {
-                            long delayMs = 50L * attempt;
+                            long delayMs = 200L * attempt;
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -555,7 +555,7 @@ public class FileProcessor {
                     metadataService.upsertChunk(chunkMetadata);
                     logger.debug("Created missing chunk metadata for: {}", chunkHash);
                     // Wait a bit for the chunk metadata to be committed
-                    Thread.sleep(200);
+                    Thread.sleep(500);
                 }
             }
         }
