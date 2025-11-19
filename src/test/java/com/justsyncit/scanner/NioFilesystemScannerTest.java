@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.concurrent.CompletableFuture;
 
@@ -33,7 +32,8 @@ class NioFilesystemScannerTest {
     }
 
     @Test
-    void testScanEmptyDirectory() throws Exception {
+    void testScanEmptyDirectory()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         ScanResult result = scanner.scanDirectory(tempDir, new ScanOptions()).get();
 
         assertTrue(result.getScannedFiles().isEmpty());
@@ -42,55 +42,68 @@ class NioFilesystemScannerTest {
     }
 
     @Test
-    void testScanDirectoryWithFiles() throws Exception {
+    void testScanDirectoryWithFiles()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.createFile(tempDir.resolve("file1.txt"));
         Files.createFile(tempDir.resolve("file2.txt"));
         Files.createDirectories(tempDir.resolve("subdir"));
         Files.createFile(tempDir.resolve("subdir/file3.txt"));
 
-        ScanResult result = scanner.scanDirectory(tempDir, new ScanOptions()).get();
+        ScanResult result = scanner.scanDirectory(tempDir, new ScanOptions())
+                .get();
 
         assertEquals(3, result.getScannedFileCount());
         assertTrue(result.getErrors().isEmpty());
     }
 
     @Test
-    void testScanWithIncludePattern() throws Exception {
+    void testScanWithIncludePattern()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.createFile(tempDir.resolve("file1.txt"));
         Files.createFile(tempDir.resolve("file2.log"));
         Files.createFile(tempDir.resolve("file3.txt"));
 
         ScanOptions options = new ScanOptions()
-                .withIncludePattern(FileSystems.getDefault().getPathMatcher("glob:*.txt"));
+                .withIncludePattern(FileSystems.getDefault()
+                        .getPathMatcher("glob:*.txt"));
 
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
 
         assertEquals(2, result.getScannedFileCount());
         assertTrue(result.getScannedFiles().stream()
-                .allMatch(f -> f.getPath().getFileName().toString().endsWith(".txt")));
+                .allMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().endsWith(".txt");
+                }));
     }
 
     @Test
-    void testScanWithExcludePattern() throws Exception {
+    void testScanWithExcludePattern()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.createFile(tempDir.resolve("file1.txt"));
         Files.createFile(tempDir.resolve("file2.tmp"));
         Files.createFile(tempDir.resolve("file3.txt"));
 
         ScanOptions options = new ScanOptions()
-                .withExcludePattern(FileSystems.getDefault().getPathMatcher("glob:*.tmp"));
+                .withExcludePattern(FileSystems.getDefault()
+                        .getPathMatcher("glob:*.tmp"));
 
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
 
         assertEquals(2, result.getScannedFileCount());
         assertTrue(result.getScannedFiles().stream()
-                .noneMatch(f -> f.getPath().getFileName().toString().endsWith(".tmp")));
+                .noneMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().endsWith(".tmp");
+                }));
     }
 
     @Test
-    void testScanWithMaxDepth() throws Exception {
+    void testScanWithMaxDepth()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create directory structure
         Files.createDirectories(tempDir.resolve("level1/level2/level3"));
         Files.createFile(tempDir.resolve("file1.txt"));
@@ -109,12 +122,13 @@ class NioFilesystemScannerTest {
     }
 
     @Test
-    void testScanWithFileSizeLimits() throws Exception {
+    void testScanWithFileSizeLimits()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create files of different sizes
         Path smallFile = tempDir.resolve("small.txt");
         Path largeFile = tempDir.resolve("large.txt");
 
-        Files.write(smallFile, "small".getBytes());
+        Files.write(smallFile, "small".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         byte[] largeData = new byte[10000];
         Files.write(largeFile, largeData);
 
@@ -128,11 +142,13 @@ class NioFilesystemScannerTest {
     }
 
     @Test
-    void testScanWithSymlinkStrategy() throws Exception {
+    void testScanWithSymlinkStrategy()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file completely outside the temp directory
         Path targetFile = Files.createTempFile("target", ".txt");
         targetFile.toFile().deleteOnExit();
-        Files.write(targetFile, "content".getBytes());
+        Files.write(targetFile, "content".getBytes(
+                java.nio.charset.StandardCharsets.UTF_8));
 
         // Create symlink in the scan directory pointing to outside target
         Path symlinkFile = tempDir.resolve("symlink.txt");
@@ -156,21 +172,23 @@ class NioFilesystemScannerTest {
 
     @Test
     void testScanInvalidDirectory() {
-        Path invalidPath = Paths.get("/nonexistent/directory");
+        Path invalidPath = tempDir.resolve("nonexistent");
         CompletableFuture<ScanResult> future = scanner.scanDirectory(invalidPath, new ScanOptions());
 
         assertThrows(java.util.concurrent.ExecutionException.class, () -> future.get());
     }
 
     @Test
-    void testProgressListener() throws Exception {
+    void testProgressListener()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test file
         Files.createFile(tempDir.resolve("test.txt"));
 
         TestProgressListener listener = new TestProgressListener();
         scanner.setProgressListener(listener);
 
-        ScanResult result = scanner.scanDirectory(tempDir, new ScanOptions()).get();
+        ScanResult result = scanner.scanDirectory(tempDir, new ScanOptions())
+                .get();
 
         assertTrue(listener.scanStartedCalled);
         assertTrue(listener.fileProcessedCalled);
@@ -179,7 +197,8 @@ class NioFilesystemScannerTest {
     }
 
     @Test
-    void testCustomFileVisitor() throws Exception {
+    void testCustomFileVisitor()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.createFile(tempDir.resolve("file1.txt"));
         Files.createFile(tempDir.resolve("file2.txt"));
@@ -187,7 +206,7 @@ class NioFilesystemScannerTest {
         TestFileVisitor visitor = new TestFileVisitor();
         scanner.setFileVisitor(visitor);
 
-        ScanResult result = scanner.scanDirectory(tempDir, new ScanOptions()).get();
+        scanner.scanDirectory(tempDir, new ScanOptions()).get();
 
         assertEquals(2, visitor.visitedFiles.size());
         assertTrue(visitor.visitedFiles.contains(tempDir.resolve("file1.txt")));

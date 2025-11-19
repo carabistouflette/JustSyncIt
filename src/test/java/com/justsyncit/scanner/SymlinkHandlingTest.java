@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,7 +49,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testSkipSymlinks() throws Exception {
+    void testSkipSymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file
         Path targetFile = tempDir.resolve("target.txt");
         Files.write(targetFile, "target content".getBytes(StandardCharsets.UTF_8));
@@ -72,7 +73,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testRecordSymlinks() throws Exception {
+    void testRecordSymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file
         Path targetFile = tempDir.resolve("target.txt");
         Files.write(targetFile, "target content".getBytes(StandardCharsets.UTF_8));
@@ -101,7 +102,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testFollowSymlinks() throws Exception {
+    void testFollowSymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file
         Path targetFile = tempDir.resolve("target.txt");
         Files.write(targetFile, "target content".getBytes(StandardCharsets.UTF_8));
@@ -121,7 +122,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testBrokenSymlink() throws Exception {
+    void testBrokenSymlink() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create symlink to non-existent target
         Path symlinkFile = tempDir.resolve("broken_symlink.txt");
         Path nonExistentTarget = tempDir.resolve("non_existent.txt");
@@ -143,7 +144,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testSymlinkCycle() throws Exception {
+    void testSymlinkCycle() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create a cycle: A -> B -> A
         Path fileA = tempDir.resolve("fileA.txt");
         Path fileB = tempDir.resolve("fileB.txt");
@@ -179,7 +180,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testDirectorySymlinks() throws Exception {
+    void testDirectorySymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target directory
         Path targetDir = tempDir.resolve("target_dir");
         Files.createDirectories(targetDir);
@@ -201,7 +202,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testDeepSymlinkStructure() throws Exception {
+    void testDeepSymlinkStructure() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create nested structure with symlinks
         Path level1 = tempDir.resolve("level1");
         Path level2 = tempDir.resolve("level2");
@@ -230,7 +231,8 @@ class SymlinkHandlingTest {
     }
 
     @Test
-    void testSymlinkWithDifferentStrategies() throws Exception {
+    void testSymlinkWithDifferentStrategies()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file and symlink
         Path targetFile = tempDir.resolve("target.txt");
         Files.write(targetFile, "target content".getBytes(StandardCharsets.UTF_8));
@@ -241,7 +243,8 @@ class SymlinkHandlingTest {
         // Test SKIP strategy
         ScanOptions skipOptions = new ScanOptions()
                 .withSymlinkStrategy(SymlinkStrategy.SKIP);
-        ScanResult skipResult = scanner.scanDirectory(tempDir, skipOptions).get();
+        ScanResult skipResult = scanner.scanDirectory(tempDir, skipOptions)
+                .get();
 
         assertEquals(1, skipResult.getScannedFileCount());
         assertTrue(skipResult.getScannedFiles().stream()

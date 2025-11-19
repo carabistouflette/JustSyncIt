@@ -33,6 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -77,7 +78,7 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProcessDirectory() throws IOException, ExecutionException, InterruptedException {
+    void testProcessDirectory() throws IOException, ExecutionException, InterruptedException, TimeoutException {
         // Create test directory structure
         Path testDir = tempDir.resolve("test");
         Files.createDirectories(testDir);
@@ -94,7 +95,8 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions()
                 .withMaxDepth(10);
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        FileProcessor.ProcessingResult result = future.get();
+        // Use shorter timeout to avoid test hanging
+        FileProcessor.ProcessingResult result = future.get(30, java.util.concurrent.TimeUnit.SECONDS);
         // Verify results
         ScanResult scanResult = result.getScanResult();
         assertEquals(3, scanResult.getScannedFiles().size());
@@ -211,7 +213,7 @@ class FileProcessorTest {
     }
 
     @Test
-    void testProgressListener() throws IOException, ExecutionException, InterruptedException {
+    void testProgressListener() throws IOException, ExecutionException, InterruptedException, TimeoutException {
         Path testDir = tempDir.resolve("progress");
         Files.createDirectories(testDir);
         // Create multiple files to track progress
@@ -222,7 +224,8 @@ class FileProcessorTest {
         // This test would need to be implemented differently or the feature added
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        FileProcessor.ProcessingResult result = future.get();
+        // Use shorter timeout to avoid test hanging
+        FileProcessor.ProcessingResult result = future.get(30, java.util.concurrent.TimeUnit.SECONDS);
         ScanResult scanResult = result.getScanResult();
         assertEquals(5, scanResult.getScannedFiles().size());
         assertEquals(5, result.getProcessedFiles());
@@ -241,7 +244,7 @@ class FileProcessorTest {
         // Stop processor
         processor.stop();
         // Try to process again - should fail
-        IllegalStateException exception = assertThrows(IllegalStateException.class,
+        assertThrows(IllegalStateException.class,
                 () -> processor.processDirectory(testDir, options));
     }
 

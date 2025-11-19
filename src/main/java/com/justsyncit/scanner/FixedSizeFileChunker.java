@@ -19,7 +19,6 @@
 package com.justsyncit.scanner;
 
 import com.justsyncit.hash.Blake3Service;
-import com.justsyncit.hash.HashingException;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.StorageIntegrityException;
 import org.slf4j.Logger;
@@ -212,13 +211,9 @@ public class FixedSizeFileChunker implements FileChunker {
 
     @Override
     public String storeChunk(byte[] data) throws IOException {
-        // Delegate to existing chunk storage implementation
-        // This would integrate with ContentStore in a real implementation
-        try {
-            return blake3Service.hashBuffer(data);
-        } catch (HashingException e) {
-            throw new IOException("Failed to hash chunk", e);
-        }
+        // This method is not implemented in FileChunker
+        // Chunk storage should be handled by ContentStore
+        throw new UnsupportedOperationException("storeChunk not implemented in FileChunker");
     }
 
     @Override

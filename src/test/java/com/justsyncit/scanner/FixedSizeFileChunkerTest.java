@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
@@ -53,11 +54,11 @@ class FixedSizeFileChunkerTest {
     void setUp() throws ServiceException {
         ServiceFactory serviceFactory = new ServiceFactory();
         blake3Service = serviceFactory.createBlake3Service();
-        chunker = new FixedSizeFileChunker(blake3Service);
+        chunker = FixedSizeFileChunker.create(blake3Service);
     }
 
     @Test
-    void testChunkEmptyFile() throws Exception {
+    void testChunkEmptyFile() throws IOException, InterruptedException, ExecutionException {
         Path emptyFile = tempDir.resolve("empty.txt");
         Files.createFile(emptyFile);
 
@@ -72,9 +73,9 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testChunkSmallFile() throws Exception {
+    void testChunkSmallFile() throws IOException, InterruptedException, ExecutionException {
         Path smallFile = tempDir.resolve("small.txt");
-        byte[] data = "Hello, World!".getBytes();
+        byte[] data = "Hello, World!".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         Files.write(smallFile, data);
 
         FileChunker.ChunkingResult result = chunker.chunkFile(smallFile, new FileChunker.ChunkingOptions()).get();
@@ -88,7 +89,7 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testChunkLargeFile() throws Exception {
+    void testChunkLargeFile() throws IOException, InterruptedException, ExecutionException {
         Path largeFile = tempDir.resolve("large.txt");
         // Create file larger than default chunk size (64KB)
         byte[] data = new byte[100 * 1024]; // 100KB
@@ -105,7 +106,7 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testChunkWithCustomChunkSize() throws Exception {
+    void testChunkWithCustomChunkSize() throws IOException, InterruptedException, ExecutionException {
         Path file = tempDir.resolve("custom.txt");
         byte[] data = new byte[32 * 1024]; // 32KB
         Files.write(file, data);
@@ -122,7 +123,7 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testChunkWithAsyncIO() throws Exception {
+    void testChunkWithAsyncIO() throws IOException, InterruptedException, ExecutionException {
         Path file = tempDir.resolve("async.txt");
         byte[] data = new byte[64 * 1024]; // Exactly 64KB
         Files.write(file, data);
@@ -139,7 +140,7 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testChunkWithSyncIO() throws Exception {
+    void testChunkWithSyncIO() throws IOException, InterruptedException, ExecutionException {
         Path file = tempDir.resolve("sync.txt");
         byte[] data = new byte[64 * 1024]; // Exactly 64KB
         Files.write(file, data);
@@ -156,7 +157,7 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testChunkNonExistentFile() throws Exception {
+    void testChunkNonExistentFile() throws IOException, InterruptedException, ExecutionException {
         Path nonExistentFile = tempDir.resolve("nonexistent.txt");
 
         CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFile(nonExistentFile,
@@ -167,7 +168,7 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testChunkDirectory() throws Exception {
+    void testChunkDirectory() throws IOException, InterruptedException, ExecutionException {
         Path dir = tempDir.resolve("directory");
         Files.createDirectories(dir);
 
@@ -179,13 +180,11 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testStoreChunk() throws Exception {
-        byte[] data = "test data".getBytes();
+    void testStoreChunk() {
+        byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
 
-        String hash = chunker.storeChunk(data);
-
-        assertNotNull(hash);
-        assertFalse(hash.isEmpty());
+        assertThrows(UnsupportedOperationException.class,
+                () -> chunker.storeChunk(data));
     }
 
     @Test
@@ -232,9 +231,9 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testClose() throws Exception {
+    void testClose() throws IOException, InterruptedException, ExecutionException {
         Path file = tempDir.resolve("close.txt");
-        Files.write(file, "test".getBytes());
+        Files.write(file, "test".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         // Chunk file successfully
         FileChunker.ChunkingResult result = chunker.chunkFile(file, new FileChunker.ChunkingOptions()).get();

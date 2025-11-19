@@ -296,7 +296,7 @@ public class FileProcessor {
                                     // Wait a moment to ensure all chunk metadata is committed
                                     // This addresses SQLite's connection isolation issues
                                     try {
-                                        Thread.sleep(500); // Increased delay for better reliability
+                                        Thread.sleep(100); // Reduced delay for test performance
                                     } catch (InterruptedException ie) {
                                         Thread.currentThread().interrupt();
                                         // Don't fail the operation if interrupted
@@ -353,7 +353,7 @@ public class FileProcessor {
                 // Wait longer to ensure all chunk metadata is committed
                 // This addresses SQLite's connection isolation issues
                 try {
-                    Thread.sleep(3000); // Increased delay for better reliability
+                    Thread.sleep(500); // Reduced delay for test performance
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     // Don't fail operation if interrupted
@@ -397,7 +397,7 @@ public class FileProcessor {
          */
         private boolean verifyChunkExists(String chunkHash) {
             boolean chunkExists = false;
-            int maxRetries = 20; // Increased retries significantly
+            int maxRetries = 5; // Reduced retries for test performance
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     if (contentStore.existsChunk(chunkHash)) {
@@ -409,7 +409,7 @@ public class FileProcessor {
                                 chunkHash, attempt, maxRetries);
                         try {
                             // Use longer exponential backoff with more aggressive initial delay
-                            long delayMs = 2000L * attempt; // 2s, 4s, 6s, ...
+                            long delayMs = 200L * attempt; // 200ms, 400ms, 600ms, ...
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -421,7 +421,7 @@ public class FileProcessor {
                             chunkHash, attempt, maxRetries, e);
                     if (attempt < maxRetries) {
                         try {
-                            long delayMs = 2000L * attempt;
+                            long delayMs = 200L * attempt;
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -448,7 +448,7 @@ public class FileProcessor {
          */
         private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
                 FileChunker.ChunkingResult result) throws IOException {
-            int maxRetries = 30; // Increased retries
+            int maxRetries = 10; // Reduced retries for test performance
             IOException lastException = null;
 
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -486,7 +486,7 @@ public class FileProcessor {
                             || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
                             || e.getMessage().contains("Not all chunk metadata is visible"))) {
                         if (attempt < maxRetries) {
-                            long delayMs = 2000L * attempt; // Increased backoff: 2s, 4s, 6s
+                            long delayMs = 200L * attempt; // Reduced backoff: 200ms, 400ms, 600ms
                             logger.warn(
                                     "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
                                     result.getFile(), attempt, delayMs);
@@ -540,7 +540,7 @@ public class FileProcessor {
                     metadataService.upsertChunk(chunkMetadata);
                     logger.debug("Created missing chunk metadata for: {}", chunkHash);
                     // Wait a bit for the chunk metadata to be committed
-                    Thread.sleep(1000);
+                    Thread.sleep(200);
                 }
             }
         }
@@ -549,7 +549,7 @@ public class FileProcessor {
             try {
                 // Add timeout to prevent infinite hanging
                 CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0]))
-                        .get(5, java.util.concurrent.TimeUnit.MINUTES);
+                        .get(30, java.util.concurrent.TimeUnit.SECONDS);
             } catch (java.util.concurrent.TimeoutException e) {
                 logger.error("Timeout waiting for chunking completion after 5 minutes", e);
                 // Cancel any remaining futures

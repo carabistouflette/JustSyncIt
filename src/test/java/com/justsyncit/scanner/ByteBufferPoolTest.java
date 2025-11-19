@@ -39,7 +39,7 @@ class ByteBufferPoolTest {
 
     @BeforeEach
     void setUp() {
-        pool = new ByteBufferPool();
+        pool = ByteBufferPool.create();
     }
 
     @Test

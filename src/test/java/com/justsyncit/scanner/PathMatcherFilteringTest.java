@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -50,7 +51,7 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testIncludePatternGlob() throws Exception {
+    void testIncludePatternGlob() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.write(tempDir.resolve("file1.txt"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("file2.log"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -71,7 +72,7 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testExcludePatternGlob() throws Exception {
+    void testExcludePatternGlob() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.write(tempDir.resolve("file1.txt"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("file2.tmp"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -92,7 +93,8 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testIncludeAndExcludePatterns() throws Exception {
+    void testIncludeAndExcludePatterns()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.write(tempDir.resolve("file1.txt"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("file2.tmp"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -104,7 +106,8 @@ class PathMatcherFilteringTest {
         ScanOptions options = new ScanOptions()
                 .withIncludePattern(includePattern)
                 .withExcludePattern(excludePattern);
-        ScanResult result = scanner.scanDirectory(tempDir, options).get();
+        ScanResult result = scanner.scanDirectory(tempDir, options)
+                .get();
 
         assertEquals(1, result.getScannedFileCount()); // Only file1.txt should be included
         // (file3.txt excluded by exclude)
@@ -117,7 +120,8 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testRegexPattern() throws Exception {
+    void testRegexPattern()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.write(tempDir.resolve("test123.txt"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("test456.txt"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -134,12 +138,15 @@ class PathMatcherFilteringTest {
 
         // Verify only testXXX.txt files are included
         assertTrue(result.getScannedFiles().stream()
-                .allMatch(f -> f.getPath().getFileName() != null
-                             && f.getPath().getFileName().toString().matches("test[0-9]+\\.txt")));
+                .allMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().matches("test[0-9]+\\.txt");
+                }));
     }
 
     @Test
-    void testComplexGlobPattern() throws Exception {
+    void testComplexGlobPattern()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.write(tempDir.resolve("src_main.java"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("src_test.java"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -168,7 +175,8 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testPatternCaseSensitivity() throws Exception {
+    void testPatternCaseSensitivity()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.write(tempDir.resolve("FILE1.TXT"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("file2.txt"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -190,7 +198,8 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testPatternWithDirectories() throws Exception {
+    void testPatternWithDirectories()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create directory structure
         Path dir1 = tempDir.resolve("dir1");
         Path dir2 = tempDir.resolve("dir2");
@@ -216,7 +225,8 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testNoPattern() throws Exception {
+    void testNoPattern()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files
         Files.write(tempDir.resolve("file1.txt"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve("file2.log"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -232,7 +242,8 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testPatternMatchingWithHiddenFiles() throws Exception {
+    void testPatternMatchingWithHiddenFiles()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create test files including hidden ones
         Files.write(tempDir.resolve("visible.txt"), "content1".getBytes(StandardCharsets.UTF_8));
         Files.write(tempDir.resolve(".hidden.txt"), "content2".getBytes(StandardCharsets.UTF_8));
@@ -257,7 +268,8 @@ class PathMatcherFilteringTest {
     }
 
     @Test
-    void testPatternWithMaxDepth() throws Exception {
+    void testPatternWithMaxDepth()
+            throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create nested directory structure
         Path level1 = tempDir.resolve("level1");
         Path level2 = level1.resolve("level2");
