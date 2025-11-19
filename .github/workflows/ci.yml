@@ -28,28 +28,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         java-version: [21, 24]
+        run-quality-checks: [false]
         include:
           # Only run code quality checks on Ubuntu with Java 21
           - os: ubuntu-latest
             java-version: 21
             run-quality-checks: true
-        exclude:
-          # Skip quality checks on other configurations
-          - os: windows-latest
-            java-version: 21
-            run-quality-checks: false
-          - os: macos-latest
-            java-version: 21
-            run-quality-checks: false
-          - os: ubuntu-latest
-            java-version: 24
-            run-quality-checks: false
-          - os: windows-latest
-            java-version: 24
-            run-quality-checks: false
-          - os: macos-latest
-            java-version: 24
-            run-quality-checks: false
     
     steps:
     - name: Checkout code
