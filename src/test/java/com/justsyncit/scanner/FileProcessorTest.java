@@ -411,19 +411,42 @@ class FileProcessorTest {
     /**
      * Helper method to check if an exception (or any of its causes) is an IOException.
      * This handles multiple levels of exception wrapping that can occur on Windows.
+     * Enhanced to catch JUnitException wrapping and deeper nesting.
      */
     private boolean isIOException(Exception e) {
+        // First check if the exception itself is an IOException
         if (e instanceof java.io.IOException) {
             return true;
         }
-        // Check cause chain for IOException
-        Throwable cause = e.getCause();
-        while (cause != null) {
-            if (cause instanceof java.io.IOException) {
-                return true;
-            }
-            cause = cause.getCause();
+        
+        // Check for JUnitException wrapping IOException (common in test failures)
+        if (e.getClass().getName().contains("JUnitException")) {
+            // Recursively check the cause chain for IOException
+            return isIOExceptionRecursive(e.getCause());
         }
-        return false;
+        
+        // For other exceptions, check the cause chain recursively
+        return isIOExceptionRecursive(e.getCause());
+    }
+    
+    /**
+     * Recursive helper to check the entire cause chain for IOException.
+     */
+    private boolean isIOExceptionRecursive(Throwable t) {
+        if (t == null) {
+            return false;
+        }
+        
+        if (t instanceof java.io.IOException) {
+            return true;
+        }
+        
+        // Check for JUnitException wrapping IOException
+        if (t.getClass().getName().contains("JUnitException")) {
+            return isIOExceptionRecursive(t.getCause());
+        }
+        
+        // Continue traversing the cause chain
+        return isIOExceptionRecursive(t.getCause());
     }
 }
