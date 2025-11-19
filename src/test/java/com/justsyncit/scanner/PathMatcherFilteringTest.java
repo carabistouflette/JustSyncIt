@@ -271,12 +271,29 @@ class PathMatcherFilteringTest {
                 "Expected at least 2 visible files, but found " + result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
 
-        // Verify hidden files are not included
+        // Verify hidden files are not included - check both file name and that we have expected visible files
         assertTrue(result.getScannedFiles().stream()
                 .noneMatch(f -> {
                     Path fileName = f.getPath().getFileName();
                     return fileName != null && fileName.toString().startsWith(".");
-                }));
+                }),
+                "Found hidden files in results: " + result.getScannedFiles().stream()
+                        .map(f -> f.getPath().getFileName() != null ? f.getPath().getFileName().toString() : "null")
+                        .toList());
+        
+        // Also verify we have the expected visible files
+        assertTrue(result.getScannedFiles().stream()
+                .anyMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().equals("visible.txt");
+                }),
+                "visible.txt not found in results");
+        assertTrue(result.getScannedFiles().stream()
+                .anyMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().equals("visible2.txt");
+                }),
+                "visible2.txt not found in results");
     }
 
     @Test

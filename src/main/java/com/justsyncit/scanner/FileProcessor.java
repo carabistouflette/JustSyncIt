@@ -601,11 +601,13 @@ public class FileProcessor {
                 logger.error("Timeout waiting for chunking completion after 60 seconds", e);
                 // Cancel any remaining futures
                 synchronized (chunkingFuturesLock) {
-                    chunkingFutures.forEach(future -> {
-                        if (future != null) {
+                    // Create a copy to avoid concurrent modification
+                    List<CompletableFuture<FileChunker.ChunkingResult>> futuresCopy = new ArrayList<>(chunkingFutures);
+                    for (CompletableFuture<FileChunker.ChunkingResult> future : futuresCopy) {
+                        if (future != null && !future.isDone()) {
                             future.cancel(true);
                         }
-                    });
+                    }
                 }
             } catch (Exception e) {
                 logger.error("Error waiting for chunking completion", e);
