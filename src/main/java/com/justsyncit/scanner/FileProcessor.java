@@ -269,6 +269,8 @@ public class FileProcessor {
     private class ChunkingFileVisitor implements FileVisitor {
         /** List of futures for chunking operations. */
         private final List<CompletableFuture<FileChunker.ChunkingResult>> chunkingFutures = new ArrayList<>();
+        /** Lock for synchronizing access to chunkingFutures list. */
+        private final Object chunkingFuturesLock = new Object();
 
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -340,7 +342,9 @@ public class FileProcessor {
                             return result;
                         });
 
-                chunkingFutures.add(chunkingFuture);
+                synchronized (chunkingFuturesLock) {
+                    chunkingFutures.add(chunkingFuture);
+                }
 
             } catch (RuntimeException e) {
                 logger.error("Error starting chunking for file: {}", file, e);
@@ -573,13 +577,19 @@ public class FileProcessor {
 
         public void waitForCompletion() {
             try {
+                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray;
+                synchronized (chunkingFuturesLock) {
+                    futuresArray = chunkingFutures.toArray(new CompletableFuture[0]);
+                }
                 // Add timeout to prevent infinite hanging
-                CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0]))
+                CompletableFuture.allOf(futuresArray)
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {
                 logger.error("Timeout waiting for chunking completion after 60 seconds", e);
                 // Cancel any remaining futures
-                chunkingFutures.forEach(future -> future.cancel(true));
+                synchronized (chunkingFuturesLock) {
+                    chunkingFutures.forEach(future -> future.cancel(true));
+                }
             } catch (Exception e) {
                 logger.error("Error waiting for chunking completion", e);
             }
