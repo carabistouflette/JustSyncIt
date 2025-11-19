@@ -186,14 +186,15 @@ public class NioFilesystemScanner implements FilesystemScanner {
                 return FileVisitResult.TERMINATE;
             }
             try {
-                // Apply filtering
-                if (!matchesIncludePattern(file) || matchesExcludePattern(file)) {
-                    return FileVisitResult.CONTINUE;
-                }
-                // Handle hidden files
+                // Handle hidden files first - this should be checked before pattern matching
+                // to ensure hidden files are properly filtered out when includeHiddenFiles is false
                 boolean isHidden = Files.isHidden(file);
                 if (!options.isIncludeHiddenFiles() && isHidden) {
                     logger.debug("Skipping hidden file: {}", file);
+                    return FileVisitResult.CONTINUE;
+                }
+                // Apply filtering
+                if (!matchesIncludePattern(file) || matchesExcludePattern(file)) {
                     return FileVisitResult.CONTINUE;
                 }
                 // Check file size limits

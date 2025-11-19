@@ -581,14 +581,31 @@ public class FileProcessor {
                 synchronized (chunkingFuturesLock) {
                     futuresArray = chunkingFutures.toArray(new CompletableFuture[0]);
                 }
+                // Filter out null futures to avoid ForEachOps issues
+                List<CompletableFuture<FileChunker.ChunkingResult>> validFutures = new ArrayList<>();
+                for (CompletableFuture<FileChunker.ChunkingResult> future : futuresArray) {
+                    if (future != null) {
+                        validFutures.add(future);
+                    }
+                }
+                
+                if (validFutures.isEmpty()) {
+                    logger.debug("No valid futures to wait for");
+                    return;
+                }
+                
                 // Add timeout to prevent infinite hanging
-                CompletableFuture.allOf(futuresArray)
+                CompletableFuture.allOf(validFutures.toArray(new CompletableFuture[0]))
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {
                 logger.error("Timeout waiting for chunking completion after 60 seconds", e);
                 // Cancel any remaining futures
                 synchronized (chunkingFuturesLock) {
-                    chunkingFutures.forEach(future -> future.cancel(true));
+                    chunkingFutures.forEach(future -> {
+                        if (future != null) {
+                            future.cancel(true);
+                        }
+                    });
                 }
             } catch (Exception e) {
                 logger.error("Error waiting for chunking completion", e);
