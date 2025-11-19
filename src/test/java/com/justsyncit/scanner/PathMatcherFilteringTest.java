@@ -278,7 +278,10 @@ class PathMatcherFilteringTest {
                     return fileName != null && fileName.toString().startsWith(".");
                 }),
                 "Found hidden files in results: " + result.getScannedFiles().stream()
-                        .map(f -> f.getPath().getFileName() != null ? f.getPath().getFileName().toString() : "null")
+                        .map(f -> {
+                            Path fileName = f.getPath().getFileName();
+                            return fileName != null ? fileName.toString() : "null";
+                        })
                         .toList());
 
         // Also verify we have the expected visible files
