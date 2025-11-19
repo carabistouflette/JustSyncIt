@@ -588,12 +588,12 @@ public class FileProcessor {
                         validFutures.add(future);
                     }
                 }
-                
+
                 if (validFutures.isEmpty()) {
                     logger.debug("No valid futures to wait for");
                     return;
                 }
-                
+
                 // Add timeout to prevent infinite hanging
                 CompletableFuture.allOf(validFutures.toArray(new CompletableFuture[0]))
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
