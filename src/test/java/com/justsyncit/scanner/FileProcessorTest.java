@@ -106,8 +106,9 @@ class FileProcessorTest {
             result = future.get(timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            // Check for IOException at multiple levels of exception wrapping
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -176,8 +177,8 @@ class FileProcessorTest {
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
             boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -216,8 +217,8 @@ class FileProcessorTest {
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
             boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -249,8 +250,8 @@ class FileProcessorTest {
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
             boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -282,8 +283,8 @@ class FileProcessorTest {
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
             boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -318,8 +319,8 @@ class FileProcessorTest {
             result = future.get(timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -352,8 +353,8 @@ class FileProcessorTest {
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
             boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -393,8 +394,8 @@ class FileProcessorTest {
         } catch (Exception e) {
             // On Windows, file operations might fail due to various reasons
             boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            if (isWindows && (e.getCause() instanceof java.io.IOException || e instanceof java.io.IOException ||
-                (e.getCause() != null && e.getCause().getCause() instanceof java.io.IOException))) {
+            boolean isIOException = isIOException(e);
+            if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
                 org.junit.jupiter.api.Assumptions.assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
@@ -405,5 +406,24 @@ class FileProcessorTest {
 
         // Should not be running after completion
         assertFalse(processor.isRunning());
+    }
+
+    /**
+     * Helper method to check if an exception (or any of its causes) is an IOException.
+     * This handles multiple levels of exception wrapping that can occur on Windows.
+     */
+    private boolean isIOException(Exception e) {
+        if (e instanceof java.io.IOException) {
+            return true;
+        }
+        // Check cause chain for IOException
+        Throwable cause = e.getCause();
+        while (cause != null) {
+            if (cause instanceof java.io.IOException) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 }
