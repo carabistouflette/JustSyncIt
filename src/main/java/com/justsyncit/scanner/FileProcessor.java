@@ -322,13 +322,20 @@ public class FileProcessor {
                         })
                         .handle((result, throwable) -> {
                             // Ensure we always return a valid result, even if both result and throwable are null
-                            if (result == null && throwable != null) {
-                                logger.error("Null result with throwable for file: {}", file, throwable);
-                                errorFiles.incrementAndGet();
-                                IOException ioException = throwable instanceof IOException
-                                        ? (IOException) throwable
-                                        : new IOException(throwable);
-                                return new FileChunker.ChunkingResult(file, ioException);
+                            if (result == null) {
+                                if (throwable != null) {
+                                    logger.error("Null result with throwable for file: {}", file, throwable);
+                                    errorFiles.incrementAndGet();
+                                    IOException ioException = throwable instanceof IOException
+                                            ? (IOException) throwable
+                                            : new IOException(throwable);
+                                    return new FileChunker.ChunkingResult(file, ioException);
+                                } else {
+                                    logger.error("Both result and throwable are null for file: {}", file);
+                                    errorFiles.incrementAndGet();
+                                    return new FileChunker.ChunkingResult(file,
+                                        new IOException("Unexpected null result without exception"));
+                                }
                             }
                             return result;
                         });
@@ -424,7 +431,9 @@ public class FileProcessor {
                                 chunkHash, attempt, maxRetries);
                         try {
                             // Use longer delay for better reliability
-                            long delayMs = 500L * attempt; // 500ms, 1000ms, 1500ms, 2000ms, 2500ms, 3000ms, 3500ms, 4000ms, 4500ms, 5000ms, 5500ms, 6000ms
+                            // 500ms, 1000ms, 1500ms, 2000ms, 2500ms, 3000ms,
+                            // 3500ms, 4000ms, 4500ms, 5000ms, 5500ms, 6000ms
+                            long delayMs = 500L * attempt;
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -501,7 +510,9 @@ public class FileProcessor {
                             || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
                             || e.getMessage().contains("Not all chunk metadata is visible"))) {
                         if (attempt < maxRetries) {
-                            long delayMs = 400L * attempt; // Increased backoff: 400ms, 800ms, 1200ms, 1600ms, 2000ms, 2400ms, 2800ms, 3200ms, 3600ms, 4000ms, 4400ms, 4800ms
+                            // Increased backoff: 400ms, 800ms, 1200ms, 1600ms, 2000ms, 2400ms,
+                            // 2800ms, 3200ms, 3600ms, 4000ms, 4400ms, 4800ms
+                            long delayMs = 400L * attempt;
                             logger.warn(
                                     "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
                                     result.getFile(), attempt, delayMs);

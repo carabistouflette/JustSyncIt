@@ -85,9 +85,11 @@ public class ServiceFactory {
             // Create separate HashAlgorithm instances for each service to ensure thread safety
             HashAlgorithm bufferHasherAlgorithm = Sha256HashAlgorithm.create();
             HashAlgorithm incrementalHasherAlgorithm = Sha256HashAlgorithm.create();
-            
+
             BufferHasher bufferHasher = new Blake3BufferHasher(bufferHasherAlgorithm);
-            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(incrementalHasherAlgorithm);
+            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(
+                    incrementalHasherAlgorithm
+                );
             StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
             FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
             SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();

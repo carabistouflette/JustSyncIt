@@ -104,7 +104,9 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
                 throw new IllegalArgumentException("Data cannot be null");
             }
             if (offset < 0 || length < 0 || offset > data.length || offset + length > data.length) {
-                throw new IllegalArgumentException("Invalid offset or length: offset=" + offset + ", length=" + length + ", data.length=" + data.length);
+                throw new IllegalArgumentException(
+                    "Invalid offset or length: offset=" + offset + ", length=" + length + ", data.length=" + data.length
+                    );
             }
 
             hasher.update(data, offset, length);
