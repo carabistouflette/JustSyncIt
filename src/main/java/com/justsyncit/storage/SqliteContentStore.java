@@ -44,6 +44,8 @@ public final class SqliteContentStore extends AbstractContentStore {
     private final ContentStore delegateStore;
     /** The metadata service for managing backup metadata. */
     private final MetadataService metadataService;
+    /** The integrity verifier for hash verification. */
+    private final IntegrityVerifier integrityVerifier;
 
     /**
      * Creates a new SqliteContentStore.
@@ -63,6 +65,29 @@ public final class SqliteContentStore extends AbstractContentStore {
         this.delegateStore = delegateStore;
         // Make defensive copy to prevent external modification
         this.metadataService = java.util.Objects.requireNonNull(metadataService, "Metadata service cannot be null");
+        // Extract integrity verifier from delegate store if it's a FilesystemContentStore
+        IntegrityVerifier verifier = null;
+        if (delegateStore instanceof FilesystemContentStore) {
+            // Use reflection to access the private integrityVerifier field
+            try {
+                java.lang.reflect.Field field = FilesystemContentStore.class.getDeclaredField("integrityVerifier");
+                field.setAccessible(true);
+                verifier = (IntegrityVerifier) field.get(delegateStore);
+            } catch (Exception e) {
+                logger.warn("Failed to extract integrity verifier from delegate store: {}", e.getMessage());
+            }
+        }
+
+        // Create a new one as fallback or if extraction failed
+        if (verifier == null) {
+            try {
+                verifier = new Blake3IntegrityVerifier(new com.justsyncit.ServiceFactory().createBlake3Service());
+            } catch (com.justsyncit.ServiceException e) {
+                throw new IllegalArgumentException("Failed to create integrity verifier", e);
+            }
+        }
+
+        this.integrityVerifier = verifier;
     }
 
     /**
