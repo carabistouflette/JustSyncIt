@@ -417,7 +417,7 @@ class FileProcessorTest {
             boolean isIOException = isIOException(e);
             if (isWindows && isIOException) {
                 // Skip this test on Windows if it's an IO issue
-                org.junit.jupiter.api.Assumptions.assumeTrue(false,
+                assumeTrue(false,
                     "Skipping test on Windows due to IO issues: " + e.getMessage());
                 return; // This won't be reached due to assumeTrue
             }
