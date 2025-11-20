@@ -26,9 +26,20 @@ import java.util.Map;
  * Follows Open/Closed Principle by allowing new commands to be registered without modification.
  */
 public class CommandRegistry {
-
+    
     /** Map of registered commands. */
     private final Map<String, Command> commands = new HashMap<>();
+    
+    /**
+     * Initializes the command registry with default commands.
+     */
+    public CommandRegistry() {
+        // Register existing commands
+        register(new com.justsyncit.command.HashCommand(null)); // Will be injected properly
+        register(new com.justsyncit.command.VerifyCommand(null)); // Will be injected properly
+        register(new com.justsyncit.command.BackupCommand(null)); // Will be injected properly
+        register(new com.justsyncit.command.RestoreCommand(null)); // Will be injected properly
+    }
 
     /**
      * Registers a command with the registry.

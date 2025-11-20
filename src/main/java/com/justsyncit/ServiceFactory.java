@@ -187,6 +187,72 @@ public class ServiceFactory {
     }
 
     /**
+     * Creates a backup service with all dependencies.
+     *
+     * @param contentStore content store for storing chunks
+     * @param metadataService metadata service for snapshot management
+     * @param blake3Service BLAKE3 service for integrity verification
+     * @return a configured BackupService instance
+     * @throws ServiceException if service creation fails
+     */
+    public com.justsyncit.backup.BackupService createBackupService(ContentStore contentStore, MetadataService metadataService,
+                                              Blake3Service blake3Service) throws ServiceException {
+        try {
+            return new com.justsyncit.backup.BackupService(contentStore, metadataService, blake3Service);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create backup service", e);
+        }
+    }
+    
+    /**
+     * Creates a restore service with all dependencies.
+     *
+     * @param contentStore content store for retrieving chunks
+     * @param metadataService metadata service for snapshot management
+     * @param blake3Service BLAKE3 service for integrity verification
+     * @return a configured RestoreService instance
+     * @throws ServiceException if service creation fails
+     */
+    public com.justsyncit.restore.RestoreService createRestoreService(ContentStore contentStore, MetadataService metadataService,
+                                              Blake3Service blake3Service) throws ServiceException {
+        try {
+            return new com.justsyncit.restore.RestoreService(contentStore, metadataService, blake3Service);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create restore service", e);
+        }
+    }
+    
+    /**
+     * Creates a backup command with dependency injection.
+     *
+     * @param backupService backup service
+     * @return a configured BackupCommand instance
+     * @throws ServiceException if command creation fails
+     */
+    public com.justsyncit.command.BackupCommand createBackupCommand(com.justsyncit.backup.BackupService backupService) throws ServiceException {
+        try {
+            return new com.justsyncit.command.BackupCommand(backupService);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create backup command", e);
+        }
+    }
+    
+    /**
+     * Creates a restore command with dependency injection.
+     *
+     * @param restoreService restore service
+     * @return a configured RestoreCommand instance
+     * @throws ServiceException if command creation fails
+     */
+    public com.justsyncit.command.RestoreCommand createRestoreCommand(com.justsyncit.restore.RestoreService restoreService) throws ServiceException {
+        try {
+            return new com.justsyncit.command.RestoreCommand(restoreService);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create restore command", e);
+        }
+    }
+
+    /**
      * Creates a metadata service with file-based database.
      *
      * @param databasePath path to SQLite database file

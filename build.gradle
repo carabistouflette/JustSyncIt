@@ -10,7 +10,7 @@ plugins {
 import org.gradle.api.file.DuplicatesStrategy
 
 group = 'com.justsyncit'
-version = '1.0-SNAPSHOT'
+version = '0.1.0'
 
 repositories {
     mavenCentral()
