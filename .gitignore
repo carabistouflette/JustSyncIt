@@ -82,7 +82,8 @@ Desktop.ini
 # Application specific
 logs/
 data/
-backup/
 temp/
-
 /storage/
+
+# Only ignore top-level backup directories, not backup packages
+/backup/
