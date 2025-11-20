@@ -149,11 +149,14 @@ public class BackupCommand implements Command {
 
         // Create services if not provided
         BackupService service = backupService;
+        ContentStore contentStore = null;
+        MetadataService metadataService = null;
+
         if (service == null) {
             try {
                 Blake3Service blake3Service = serviceFactory.createBlake3Service();
-                ContentStore contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-                MetadataService metadataService = serviceFactory.createMetadataService();
+                contentStore = serviceFactory.createSqliteContentStore(blake3Service);
+                metadataService = serviceFactory.createMetadataService();
                 service = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
             } catch (ServiceException e) {
                 System.err.println("Error: Failed to initialize backup service: " + e.getMessage());
@@ -183,9 +186,27 @@ public class BackupCommand implements Command {
                 System.err.println("Cause: " + e.getCause().getMessage());
             }
             return false;
+        } finally {
+            // Clean up resources if we created them
+            if (contentStore != null) {
+                try {
+                    contentStore.close();
+                } catch (Exception e) {
+                    System.err.println("Warning: Failed to close content store: " + e.getMessage());
+                }
+            }
+            if (metadataService != null) {
+                try {
+                    metadataService.close();
+                } catch (Exception e) {
+                    System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
+                }
+            }
         }
 
-        return true;
+        // Force JVM exit to prevent hanging due to background threads
+        System.exit(0);
+        return true; // This line won't be reached but keeps compiler happy
     }
 
     /**

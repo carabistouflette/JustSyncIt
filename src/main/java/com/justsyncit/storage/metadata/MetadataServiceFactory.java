@@ -130,7 +130,7 @@ public final class MetadataServiceFactory {
             synchronized (MetadataServiceFactory.class) {
                 if (sharedInMemoryConnectionManager == null) {
                     sharedInMemoryConnectionManager = new SqliteConnectionManager("file::memory:?cache=shared", maxConnections);
-                    
+
                     // Get the shared connection to ensure it's initialized
                     try {
                         Connection sharedConnection = sharedInMemoryConnectionManager.getConnection();

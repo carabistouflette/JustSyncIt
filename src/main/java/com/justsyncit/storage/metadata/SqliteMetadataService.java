@@ -83,7 +83,7 @@ public final class SqliteMetadataService implements MetadataService {
                 stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
                 stmt.execute("PRAGMA optimize");
             }
-            
+
             // Only migrate if not already up to date to avoid redundant migrations
             int currentVersion = schemaMigrator.getCurrentVersion(connection);
             int targetVersion = schemaMigrator.getTargetVersion();
