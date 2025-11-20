@@ -25,7 +25,7 @@ package com.justsyncit.storage.metadata;
 public final class DatabaseSchema {
 
     /** Current version of the database schema. */
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
 
     /** Private constructor to prevent instantiation. */
     private DatabaseSchema() {
@@ -69,6 +69,7 @@ public final class DatabaseSchema {
                         + "chunk_order INTEGER NOT NULL,"
                         + "chunk_size INTEGER NOT NULL,"
                         + "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,"
+                        + "FOREIGN KEY (chunk_hash) REFERENCES chunks(hash) ON DELETE CASCADE,"
                         + "UNIQUE(file_id, chunk_order)"
                         + ")",
 

@@ -18,6 +18,7 @@
 
 package com.justsyncit.scanner;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -55,11 +56,11 @@ public class ScanResult {
     public ScanResult(Path rootDirectory, List<ScannedFile> scannedFiles, List<ScanError> errors,
                    Instant startTime, Instant endTime, Map<String, Object> metadata) {
         this.rootDirectory = rootDirectory;
-        this.scannedFiles = scannedFiles;
-        this.errors = errors;
+        this.scannedFiles = scannedFiles != null ? new java.util.ArrayList<>(scannedFiles) : null;
+        this.errors = errors != null ? new java.util.ArrayList<>(errors) : null;
         this.startTime = startTime;
         this.endTime = endTime;
-        this.metadata = metadata;
+        this.metadata = metadata != null ? new java.util.HashMap<>(metadata) : null;
     }
 
     /**
@@ -77,7 +78,7 @@ public class ScanResult {
      * @return immutable list of scanned files
      */
     public List<ScannedFile> getScannedFiles() {
-        return scannedFiles;
+        return scannedFiles != null ? new java.util.ArrayList<>(scannedFiles) : null;
     }
 
     /**
@@ -86,7 +87,7 @@ public class ScanResult {
      * @return immutable list of scan errors
      */
     public List<ScanError> getErrors() {
-        return errors;
+        return errors != null ? new java.util.ArrayList<>(errors) : null;
     }
 
     /**
@@ -151,18 +152,24 @@ public class ScanResult {
      * @return the metadata map
      */
     public Map<String, Object> getMetadata() {
-        return metadata;
+        return metadata != null ? new java.util.HashMap<>(metadata) : null;
     }
 
     /**
      * Represents a file that was successfully scanned.
      */
     public static class ScannedFile {
+        /** Path to the scanned file. */
         private final Path path;
+        /** Size of the file in bytes. */
         private final long size;
+        /** Last modification time of the file. */
         private final Instant lastModified;
+        /** Whether the file is a symbolic link. */
         private final boolean isSymbolicLink;
+        /** Whether the file is sparse. */
         private final boolean isSparse;
+        /** Target of the symbolic link (if applicable). */
         private final Path linkTarget;
 
         /**
@@ -214,8 +221,11 @@ public class ScanResult {
      * Represents an error that occurred during scanning.
      */
     public static class ScanError {
+        /** Path where the error occurred. */
         private final Path path;
+        /** Exception that was thrown. */
         private final Exception exception;
+        /** Descriptive error message. */
         private final String message;
 
         /**
@@ -225,9 +235,13 @@ public class ScanResult {
          * @param exception the exception that was thrown
          * @param message a descriptive error message
          */
+        @SuppressWarnings("finalizer")
+        @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
         public ScanError(Path path, Exception exception, String message) {
+            // No validation in constructor - use static factory method instead
+            // Note: createExceptionCopy() handles exceptions safely
             this.path = path;
-            this.exception = exception;
+            this.exception = exception != null ? createExceptionCopy(exception) : null;
             this.message = message;
         }
 
@@ -236,7 +250,27 @@ public class ScanResult {
         }
 
         public Exception getException() {
-            return exception;
+            return exception != null ? createExceptionCopy(exception) : null;
+        }
+
+        /**
+         * Creates a copy of an exception to avoid exposing internal representation.
+         *
+         * @param original the original exception
+         * @return a copy of the exception
+         */
+        private Exception createExceptionCopy(Exception original) {
+            try {
+                return (Exception) original.getClass()
+                        .getConstructor(String.class)
+                        .newInstance(original.getMessage());
+            } catch (NoSuchMethodException
+                    | InstantiationException
+                    | IllegalAccessException
+                    | java.lang.reflect.InvocationTargetException e) {
+                // Fallback to a generic exception if copying fails
+                return new RuntimeException(original.getMessage(), original.getCause());
+            }
         }
 
         public String getMessage() {

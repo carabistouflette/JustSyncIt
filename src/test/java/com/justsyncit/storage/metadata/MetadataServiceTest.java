@@ -194,6 +194,11 @@ class MetadataServiceTest {
         @DisplayName("Should insert file successfully")
         void shouldInsertFile() throws IOException {
             // Given
+            // Create chunks first to satisfy foreign key constraint
+            ChunkMetadata chunk1 = new ChunkMetadata("chunk1", 512, Instant.now(), 1, Instant.now());
+            ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
+            metadataService.upsertChunk(chunk1);
+            metadataService.upsertChunk(chunk2);
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -227,6 +232,11 @@ class MetadataServiceTest {
         @DisplayName("Should retrieve existing file")
         void shouldRetrieveExistingFile() throws IOException {
             // Given
+            // Create chunks first to satisfy foreign key constraint
+            ChunkMetadata chunk1 = new ChunkMetadata("chunk1", 512, Instant.now(), 1, Instant.now());
+            ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
+            metadataService.upsertChunk(chunk1);
+            metadataService.upsertChunk(chunk2);
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -261,6 +271,11 @@ class MetadataServiceTest {
         @DisplayName("Should list files in snapshot")
         void shouldListFilesInSnapshot() throws IOException {
             // Given
+            // Create chunks first to satisfy foreign key constraint
+            ChunkMetadata chunk1 = new ChunkMetadata("chunk1", 100, Instant.now(), 1, Instant.now());
+            ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 200, Instant.now(), 1, Instant.now());
+            metadataService.upsertChunk(chunk1);
+            metadataService.upsertChunk(chunk2);
             FileMetadata file1 = new FileMetadata(
                     "file1", snapshotId, "/path1", 100, Instant.now(), "hash1",
                     Arrays.asList("chunk1"));
@@ -283,6 +298,13 @@ class MetadataServiceTest {
         @DisplayName("Should update file successfully")
         void shouldUpdateFile() throws IOException {
             // Given
+            // Create chunks first to satisfy foreign key constraint
+            ChunkMetadata chunk1 = new ChunkMetadata("chunk1", 512, Instant.now(), 1, Instant.now());
+            ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
+            ChunkMetadata chunk3 = new ChunkMetadata("chunk3", 1024, Instant.now(), 1, Instant.now());
+            metadataService.upsertChunk(chunk1);
+            metadataService.upsertChunk(chunk2);
+            metadataService.upsertChunk(chunk3);
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -312,6 +334,11 @@ class MetadataServiceTest {
         @DisplayName("Should delete file successfully")
         void shouldDeleteFile() throws IOException {
             // Given
+            // Create chunks first to satisfy foreign key constraint
+            ChunkMetadata chunk1 = new ChunkMetadata("chunk1", 512, Instant.now(), 1, Instant.now());
+            ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
+            metadataService.upsertChunk(chunk1);
+            metadataService.upsertChunk(chunk2);
             FileMetadata file = new FileMetadata(
                     "file-id", snapshotId, "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
@@ -347,7 +374,6 @@ class MetadataServiceTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-
             // When
             metadataService.recordChunkAccess(chunkHash);
 
@@ -483,14 +509,16 @@ class MetadataServiceTest {
         void shouldGetMetadataStatistics() throws IOException {
             // Given
             Snapshot snapshot = metadataService.createSnapshot("test", "description");
+            // Create chunks first to satisfy foreign key constraint
+            ChunkMetadata chunk1 = new ChunkMetadata("chunk1", 512, Instant.now(), 1, Instant.now());
+            ChunkMetadata chunk2 = new ChunkMetadata("chunk2", 512, Instant.now(), 1, Instant.now());
+            metadataService.upsertChunk(chunk1);
+            metadataService.upsertChunk(chunk2);
             FileMetadata file = new FileMetadata(
                     "file-id", snapshot.getId(), "/path/to/file.txt",
                     1024, Instant.now(), "file-hash",
                     Arrays.asList("chunk1", "chunk2"));
             metadataService.insertFile(file);
-            ChunkMetadata chunk = new ChunkMetadata(
-                    "chunk1", 512, Instant.now(), 1, Instant.now());
-            metadataService.upsertChunk(chunk);
 
             // When
             MetadataStats stats = metadataService.getStats();
@@ -498,10 +526,10 @@ class MetadataServiceTest {
             // Then
             assertEquals(1, stats.getTotalSnapshots());
             assertEquals(1, stats.getTotalFiles());
-            assertEquals(1, stats.getTotalChunks());
-            assertEquals(512, stats.getTotalChunkSize());
-            assertEquals(1.0, stats.getAvgChunksPerFile());
-            assertEquals(512.0, stats.getAvgChunkSize());
+            assertEquals(2, stats.getTotalChunks()); // We created chunk1 and chunk2
+            assertEquals(1024, stats.getTotalChunkSize()); // 512 + 512
+            assertEquals(2.0, stats.getAvgChunksPerFile()); // 2 chunks / 1 file
+            assertEquals(512.0, stats.getAvgChunkSize()); // 1024 / 2 chunks
             assertEquals(1.0, stats.getDeduplicationRatio());
         }
     }

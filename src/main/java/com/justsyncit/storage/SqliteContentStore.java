@@ -21,6 +21,7 @@ package com.justsyncit.storage;
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.storage.metadata.ChunkMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
+import com.justsyncit.storage.metadata.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,6 +44,8 @@ public final class SqliteContentStore extends AbstractContentStore {
     private final ContentStore delegateStore;
     /** The metadata service for managing backup metadata. */
     private final MetadataService metadataService;
+    /** The integrity verifier for hash verification. */
+    private final IntegrityVerifier integrityVerifier;
 
     /**
      * Creates a new SqliteContentStore.
@@ -62,6 +65,29 @@ public final class SqliteContentStore extends AbstractContentStore {
         this.delegateStore = delegateStore;
         // Make defensive copy to prevent external modification
         this.metadataService = java.util.Objects.requireNonNull(metadataService, "Metadata service cannot be null");
+        // Extract integrity verifier from delegate store if it's a FilesystemContentStore
+        IntegrityVerifier verifier = null;
+        if (delegateStore instanceof FilesystemContentStore) {
+            // Use reflection to access the private integrityVerifier field
+            try {
+                java.lang.reflect.Field field = FilesystemContentStore.class.getDeclaredField("integrityVerifier");
+                field.setAccessible(true);
+                verifier = (IntegrityVerifier) field.get(delegateStore);
+            } catch (Exception e) {
+                logger.warn("Failed to extract integrity verifier from delegate store: {}", e.getMessage());
+            }
+        }
+
+        // Create a new one as fallback or if extraction failed
+        if (verifier == null) {
+            try {
+                verifier = new Blake3IntegrityVerifier(new com.justsyncit.ServiceFactory().createBlake3Service());
+            } catch (com.justsyncit.ServiceException e) {
+                throw new IllegalArgumentException("Failed to create integrity verifier", e);
+            }
+        }
+
+        this.integrityVerifier = verifier;
     }
 
     /**
@@ -86,8 +112,11 @@ public final class SqliteContentStore extends AbstractContentStore {
         // Store chunk using delegate store
         String hash = delegateStore.storeChunk(data);
 
-        // Record chunk metadata
+        // Record chunk metadata with explicit commit to ensure visibility
+        // Use a transaction to ensure atomicity and visibility
+        Transaction transaction = null;
         try {
+            transaction = metadataService.beginTransaction();
             ChunkMetadata chunkMetadata = new ChunkMetadata(
                     hash,
                     data.length,
@@ -96,9 +125,72 @@ public final class SqliteContentStore extends AbstractContentStore {
                     Instant.now()
             );
             metadataService.upsertChunk(chunkMetadata);
-        } catch (Exception e) {
+            transaction.commit();
+            // Force a delay to ensure metadata is committed and visible
+            // This addresses SQLite's connection isolation issues in concurrent scenarios
+            try {
+                Thread.sleep(2000); // Increased delay for better reliability
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                // Don't fail the operation if interrupted
+            }
+            // Verify: chunk metadata is actually visible before returning
+            // This ensures that chunk is fully committed and visible to all connections
+            int maxRetries = 10;
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    if (metadataService.getChunkMetadata(hash).isPresent()) {
+                        logger.debug("Verified chunk metadata is visible for: {}", hash);
+                        break;
+                    } else if (attempt < maxRetries) {
+                        logger.debug("Chunk metadata not yet visible for {} (attempt {}/{}), waiting...",
+                                hash, attempt, maxRetries);
+                        Thread.sleep(500L * attempt); // Linear backoff
+                    } else {
+                        logger.warn("Chunk metadata still not visible for {} after {} attempts", hash, maxRetries);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Error checking chunk metadata visibility for {}: {}", hash, e.getMessage());
+                    if (attempt < maxRetries) {
+                        try {
+                            Thread.sleep(500L * attempt);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException("Interrupted while waiting for chunk metadata visibility", ie);
+                        }
+                    }
+                }
+            }
+
+            logger.debug("Recorded chunk metadata for: {}", hash);
+        } catch (IOException e) {
+            if (transaction != null) {
+                try {
+                    transaction.rollback();
+                } catch (Exception rollbackEx) {
+                    logger.warn("Failed to rollback transaction for chunk {}: {}", hash, rollbackEx.getMessage());
+                }
+            }
             logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
             // Don't fail the operation if metadata recording fails
+        } catch (RuntimeException e) {
+            if (transaction != null) {
+                try {
+                    transaction.rollback();
+                } catch (Exception rollbackEx) {
+                    logger.warn("Failed to rollback transaction for chunk {}: {}", hash, rollbackEx.getMessage());
+                }
+            }
+            logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
+            // Don't fail the operation if metadata recording fails
+        } finally {
+            if (transaction != null) {
+                try {
+                    transaction.close();
+                } catch (Exception closeEx) {
+                    logger.warn("Failed to close transaction for chunk {}: {}", hash, closeEx.getMessage());
+                }
+            }
         }
 
         return hash;
@@ -120,15 +212,50 @@ public final class SqliteContentStore extends AbstractContentStore {
 
     @Override
     protected boolean doExistsChunk(String hash) throws IOException {
-        // Check delegate store first
+        // Check delegate store first - this is the authoritative source for chunk existence
         if (!delegateStore.existsChunk(hash)) {
             return false;
         }
 
-        // Also check metadata service for consistency
+        // If chunk exists in delegate store, ensure it exists in metadata service
+        // This handles the case where chunk was stored but metadata recording failed
         try {
-            return metadataService.getChunkMetadata(hash).isPresent();
-        } catch (Exception e) {
+            Optional<com.justsyncit.storage.metadata.ChunkMetadata> metadata = metadataService.getChunkMetadata(hash);
+            if (!metadata.isPresent()) {
+                logger.warn("Chunk {} exists in delegate store but missing from metadata service, creating metadata",
+                        hash);
+                try {
+                    // Try to retrieve the chunk to get its size
+                    byte[] chunkData = delegateStore.retrieveChunk(hash);
+                    if (chunkData != null) {
+                        // Create missing metadata
+                        com.justsyncit.storage.metadata.ChunkMetadata chunkMetadata =
+                                new com.justsyncit.storage.metadata.ChunkMetadata(
+                                        hash,
+                                        chunkData.length,
+                                        java.time.Instant.now(),
+                                        1, // Initial reference count
+                                        java.time.Instant.now()
+                                );
+                        metadataService.upsertChunk(chunkMetadata);
+                        logger.debug("Created missing metadata for chunk {}", hash);
+                    } else {
+                        // Chunk exists in index but not actually retrievable - consider it missing
+                        logger.warn("Chunk {} exists in index but not retrievable, considering missing", hash);
+                        return false;
+                    }
+                } catch (Exception e) {
+                    logger.error("Failed to create missing metadata for chunk {}: {}", hash, e.getMessage());
+                    // Don't consider the chunk as existing if we can't create metadata
+                    throw new IOException("Failed to create metadata for chunk: " + hash, e);
+                }
+            }
+            return true;
+        } catch (IOException e) {
+            logger.warn("Failed to check chunk metadata for {}: {}", hash, e.getMessage());
+            // Fall back to delegate store result
+            return true;
+        } catch (RuntimeException e) {
             logger.warn("Failed to check chunk metadata for {}: {}", hash, e.getMessage());
             // Fall back to delegate store result
             return true;
@@ -140,7 +267,10 @@ public final class SqliteContentStore extends AbstractContentStore {
         // Use metadata service for more accurate count
         try {
             return metadataService.getStats().getTotalChunks();
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.warn("Failed to get chunk count from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getChunkCount();
+        } catch (RuntimeException e) {
             logger.warn("Failed to get chunk count from metadata, falling back to delegate: {}", e.getMessage());
             return delegateStore.getChunkCount();
         }
@@ -151,7 +281,10 @@ public final class SqliteContentStore extends AbstractContentStore {
         // Use metadata service for more accurate size
         try {
             return metadataService.getStats().getTotalChunkSize();
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.warn("Failed to get total size from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getTotalSize();
+        } catch (RuntimeException e) {
             logger.warn("Failed to get total size from metadata, falling back to delegate: {}", e.getMessage());
             return delegateStore.getTotalSize();
         }
@@ -184,7 +317,10 @@ public final class SqliteContentStore extends AbstractContentStore {
                     // Calculate orphaned chunks from metadata
                     Math.max(0, delegateStats.getTotalChunks() - metadataStats.getTotalChunks())
             );
-        } catch (Exception e) {
+        } catch (IOException e) {
+            logger.warn("Failed to enhance stats with metadata, using delegate stats: {}", e.getMessage());
+            return delegateStats;
+        } catch (RuntimeException e) {
             logger.warn("Failed to enhance stats with metadata, using delegate stats: {}", e.getMessage());
             return delegateStats;
         }

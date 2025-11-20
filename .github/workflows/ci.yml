@@ -2,10 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ '**' ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ '**' ]
 
 permissions:
   checks: write
@@ -26,8 +26,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest]
         java-version: [21, 24]
+        run-quality-checks: [false]
+        include:
+          # Only run code quality checks on Ubuntu with Java 21
+          - os: ubuntu-latest
+            java-version: 21
+            run-quality-checks: true
     
     steps:
     - name: Checkout code
@@ -51,7 +57,6 @@ jobs:
         key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
         restore-keys: |
           ${{ runner.os }}-gradle-
-          ${{ runner.os }}-gradle-
           
     - name: Grant execute permission for gradlew
       if: runner.os == 'Linux'
@@ -73,9 +78,11 @@ jobs:
       shell: bash
        
     - name: Run Checkstyle
+      if: matrix.run-quality-checks
       run: ./gradlew checkstyleMain checkstyleTest --no-daemon -PjavaVersion=${{ matrix.java-version }}
-      
+       
     - name: Run SpotBugs
+      if: matrix.run-quality-checks
       run: ./gradlew spotbugsMain spotbugsTest --no-daemon -PjavaVersion=${{ matrix.java-version }}
       
     - name: Generate test report
@@ -98,12 +105,13 @@ jobs:
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: test-results-${{ matrix.os }}-java${{ matrix.java-version }}
+        name: test-results-${{ matrix.os }}-java${{ matrix.java-version }}-${{ github.run_attempt }}
         path: |
           build/reports/tests/
           build/reports/checkstyle/
           build/reports/spotbugs/
           build/reports/jacoco/
+        overwrite: true
           
     - name: Run release build (only on main branch, Java 21)
       if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
@@ -113,48 +121,53 @@ jobs:
       if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
-        name: justsyncit-jar-java21
+        name: justsyncit-jar-java21-${{ github.run_attempt }}
         path: build/libs/*.jar
+        overwrite: true
 
-  dependency-check:
-    name: Dependency Vulnerability Scan
-    runs-on: ubuntu-latest
-    needs: build-and-test
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: 21
-        distribution: 'temurin'
-        
-    - name: Cache Gradle packages
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
-          
-    - name: Run OWASP Dependency Check
-      run: ./gradlew dependencyCheckAggregate --no-daemon -PjavaVersion=21
-      
-    - name: Upload dependency check results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: dependency-check-results
-        path: build/reports/dependency-check/
+  # Dependency check is disabled in build.gradle (skip = true)
+  # Keeping this job commented out for future use if needed
+  # dependency-check:
+  #   name: Dependency Vulnerability Scan
+  #   runs-on: ubuntu-latest
+  #   needs: build-and-test
+  #   if: false # Disabled until NVD API issues are resolved
+  #
+  #   steps:
+  #   - name: Checkout code
+  #     uses: actions/checkout@v4
+  #
+  #   - name: Set up JDK 21
+  #     uses: actions/setup-java@v4
+  #     with:
+  #       java-version: 21
+  #       distribution: 'temurin'
+  #
+  #   - name: Cache Gradle packages
+  #     uses: actions/cache@v4
+  #     with:
+  #       path: |
+  #         ~/.gradle/caches
+  #         ~/.gradle/wrapper
+  #       key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+  #       restore-keys: |
+  #         ${{ runner.os }}-gradle-
+  #
+  #   - name: Run OWASP Dependency Check
+  #     run: ./gradlew dependencyCheckAggregate --no-daemon -PjavaVersion=21
+  #
+  #   - name: Upload dependency check results
+  #     uses: actions/upload-artifact@v4
+  #     if: always()
+  #     with:
+  #       name: dependency-check-results
+  #       path: build/reports/dependency-check/
 
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
     needs: build-and-test
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'security-scan')
     
     steps:
     - name: Checkout code

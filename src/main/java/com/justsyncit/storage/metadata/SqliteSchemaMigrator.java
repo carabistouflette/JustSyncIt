@@ -110,14 +110,18 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
 
         logger.info("Migrating database schema from version {} to {}", currentVersion, targetVersion);
 
-        // For now, we only support creating initial schema
+        // Handle schema migrations
         if (currentVersion == 0) {
             createInitialSchema(connection);
-        } else {
+            // createInitialSchema already inserts the target version, so no need to update
+        } else if (currentVersion == 1 && targetVersion >= 2) {
+            // Migration from version 1 to 2: Add foreign key constraint to file_chunks table
+            migrateToVersion2(connection);
+        } else if (currentVersion > 1) {
             // Future migrations would be handled here
             throw new SQLException(
-                String.format("Migration from version %d to %d is not supported",
-                currentVersion, targetVersion));
+                    String.format("Migration from version %d to %d is not supported",
+                            currentVersion, targetVersion));
         }
 
         logger.info("Database schema migration completed successfully");
@@ -146,6 +150,41 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
             }
 
             logger.info("Initial database schema created successfully");
+        }
+    }
+
+    /**
+     * Migrates database schema from version 1 to 2.
+     * Adds foreign key constraint to file_chunks table.
+     *
+     * @param connection database connection
+     * @throws SQLException if migration fails
+     */
+    private void migrateToVersion2(Connection connection) throws SQLException {
+        logger.info("Migrating database schema from version 1 to 2");
+        try (Statement stmt = connection.createStatement()) {
+            // SQLite doesn't support adding foreign key constraints to existing tables directly
+            // We need to recreate the file_chunks table with the foreign key constraint
+            logger.debug("Recreating file_chunks table with foreign key constraint");
+            // Drop the existing table
+            stmt.execute("DROP TABLE IF EXISTS file_chunks");
+            // Recreate with foreign key constraint
+            stmt.execute("CREATE TABLE file_chunks ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + "file_id TEXT NOT NULL,"
+                    + "chunk_hash TEXT NOT NULL,"
+                    + "chunk_order INTEGER NOT NULL,"
+                    + "chunk_size INTEGER NOT NULL,"
+                    + "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,"
+                    + "FOREIGN KEY (chunk_hash) REFERENCES chunks(hash) ON DELETE CASCADE,"
+                    + "UNIQUE(file_id, chunk_order)"
+                    + ")");
+            // Recreate indexes
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_chunks_file_id ON file_chunks(file_id)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_chunks_chunk_hash ON file_chunks(chunk_hash)");
+            // Update schema version to 2
+            stmt.execute("UPDATE schema_version SET version = 2");
+            logger.info("Successfully migrated database schema to version 2");
         }
     }
 

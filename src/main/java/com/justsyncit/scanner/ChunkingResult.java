@@ -18,6 +18,7 @@
 
 package com.justsyncit.scanner;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -26,31 +27,31 @@ import java.util.List;
  * Contains metadata about the chunking process and resulting chunks.
  */
 public class ChunkingResult {
-    
+
     /** The file that was chunked. */
     private final Path file;
-    
+
     /** Number of chunks created. */
     private final int chunkCount;
-    
+
     /** Total size of the file in bytes. */
     private final long fileSize;
-    
+
     /** Size of sparse regions in bytes (0 if not sparse). */
     private final long sparseSize;
-    
+
     /** Hash of the entire file. */
     private final String fileHash;
-    
+
     /** List of chunk hashes in order. */
     private final List<String> chunkHashes;
-    
+
     /** Error that occurred during chunking, if any. */
     private final Exception error;
-    
+
     /** Whether the operation was successful. */
     private final boolean success;
-    
+
     /**
      * Creates a successful chunking result.
      *
@@ -68,20 +69,26 @@ public class ChunkingResult {
         this.fileSize = fileSize;
         this.sparseSize = sparseSize;
         this.fileHash = fileHash;
-        this.chunkHashes = chunkHashes;
+        this.chunkHashes = chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
         this.error = null;
         this.success = true;
     }
-    
+
     /**
      * Creates a failed chunking result.
      *
      * @param file the file that failed to chunk
      * @param error the error that occurred
+     * @deprecated Use {@link #createFailed(Path, Exception)} instead
      */
+    @Deprecated
+    @SuppressWarnings("finalizer")
+    @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
     public ChunkingResult(Path file, Exception error) {
+        // No validation in constructor - use static factory method instead
+        // Note: createExceptionCopy() handles exceptions safely
         this.file = file;
-        this.error = error;
+        this.error = error != null ? createExceptionCopy(error) : null;
         this.success = false;
         this.chunkCount = 0;
         this.fileSize = 0;
@@ -89,7 +96,18 @@ public class ChunkingResult {
         this.fileHash = null;
         this.chunkHashes = null;
     }
-    
+
+    /**
+     * Creates a failed chunking result.
+     *
+     * @param file the file that failed to chunk
+     * @param error the error that occurred
+     * @return a new failed ChunkingResult
+     */
+    public static ChunkingResult createFailed(Path file, Exception error) {
+        return new ChunkingResult(file, error);
+    }
+
     /**
      * Gets the file that was chunked.
      *
@@ -98,7 +116,7 @@ public class ChunkingResult {
     public Path getFile() {
         return file;
     }
-    
+
     /**
      * Gets the number of chunks created.
      *
@@ -107,7 +125,7 @@ public class ChunkingResult {
     public int getChunkCount() {
         return chunkCount;
     }
-    
+
     /**
      * Gets the total size of the file.
      *
@@ -116,7 +134,7 @@ public class ChunkingResult {
     public long getFileSize() {
         return fileSize;
     }
-    
+
     /**
      * Gets the size of sparse regions.
      *
@@ -125,7 +143,7 @@ public class ChunkingResult {
     public long getSparseSize() {
         return sparseSize;
     }
-    
+
     /**
      * Gets the hash of the entire file.
      *
@@ -134,25 +152,25 @@ public class ChunkingResult {
     public String getFileHash() {
         return fileHash;
     }
-    
+
     /**
      * Gets the list of chunk hashes.
      *
      * @return immutable list of chunk hashes
      */
     public List<String> getChunkHashes() {
-        return chunkHashes;
+        return chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
     }
-    
+
     /**
      * Gets the error that occurred during chunking.
      *
      * @return the error, or null if successful
      */
     public Exception getError() {
-        return error;
+        return error != null ? createExceptionCopy(error) : null;
     }
-    
+
     /**
      * Gets whether the chunking operation was successful.
      *
@@ -161,7 +179,7 @@ public class ChunkingResult {
     public boolean isSuccess() {
         return success;
     }
-    
+
     /**
      * Gets whether the file is sparse.
      *
@@ -170,24 +188,44 @@ public class ChunkingResult {
     public boolean isSparse() {
         return sparseSize > 0;
     }
-    
+
+    /**
+     * Creates a copy of an exception to avoid exposing internal representation.
+     *
+     * @param original the original exception
+     * @return a copy of the exception
+     */
+    private Exception createExceptionCopy(Exception original) {
+        try {
+            return (Exception) original.getClass()
+                    .getConstructor(String.class)
+                    .newInstance(original.getMessage());
+        } catch (NoSuchMethodException
+                | InstantiationException
+                | IllegalAccessException
+                | java.lang.reflect.InvocationTargetException e) {
+            // Fallback to a generic exception if copying fails
+            return new RuntimeException(original.getMessage(), original.getCause());
+        }
+    }
+
     @Override
     public String toString() {
         if (success) {
-            return "ChunkingResult{" +
-                    "file=" + file +
-                    ", chunkCount=" + chunkCount +
-                    ", fileSize=" + fileSize +
-                    ", sparseSize=" + sparseSize +
-                    ", fileHash='" + fileHash + '\'' +
-                    ", chunkCount=" + chunkHashes.size() +
-                    '}';
+            return "ChunkingResult{"
+                    + "file=" + file
+                    + ", chunkCount=" + chunkCount
+                    + ", fileSize=" + fileSize
+                    + ", sparseSize=" + sparseSize
+                    + ", fileHash='" + fileHash + '\''
+                    + ", chunkCount=" + chunkHashes.size()
+                    + '}';
         } else {
-            return "ChunkingResult{" +
-                    "file=" + file +
-                    ", error=" + error +
-                    ", success=false" +
-                    '}';
+            return "ChunkingResult{"
+                    + "file=" + file
+                    + ", error=" + error
+                    + ", success=false"
+                    + '}';
         }
     }
 }

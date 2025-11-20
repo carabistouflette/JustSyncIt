@@ -19,6 +19,7 @@
 package com.justsyncit.scanner;
 
 import com.justsyncit.storage.ChunkStorage;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
@@ -67,12 +68,19 @@ public interface FileChunker extends ChunkStorage {
      * Result of a chunking operation.
      */
     class ChunkingResult {
+        /** File that was chunked. */
         private final Path file;
+        /** Number of chunks created. */
         private final int chunkCount;
+        /** Total file size in bytes. */
         private final long totalSize;
+        /** Size of sparse regions in bytes. */
         private final long sparseSize;
+        /** Hash of the entire file. */
         private final String fileHash;
+        /** List of chunk hashes in order. */
         private final java.util.List<String> chunkHashes;
+        /** Error if chunking failed. */
         private final Exception error;
 
         /**
@@ -92,7 +100,7 @@ public interface FileChunker extends ChunkStorage {
             this.totalSize = totalSize;
             this.sparseSize = sparseSize;
             this.fileHash = fileHash;
-            this.chunkHashes = chunkHashes;
+            this.chunkHashes = chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
             this.error = null;
         }
 
@@ -101,7 +109,11 @@ public interface FileChunker extends ChunkStorage {
          *
          * @param file the file that failed to chunk
          * @param error the exception that occurred
+         * @deprecated Use {@link #createFailed(Path, Exception)} instead
          */
+        @Deprecated
+        @SuppressWarnings("finalizer")
+        @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
         public ChunkingResult(Path file, Exception error) {
             this.file = file;
             this.chunkCount = 0;
@@ -109,7 +121,18 @@ public interface FileChunker extends ChunkStorage {
             this.sparseSize = 0;
             this.fileHash = null;
             this.chunkHashes = java.util.Collections.emptyList();
-            this.error = error;
+            this.error = error != null ? createExceptionCopy(error) : null;
+        }
+
+        /**
+         * Creates a failed ChunkingResult.
+         *
+         * @param file the file that failed to chunk
+         * @param error the exception that occurred
+         * @return a new failed ChunkingResult
+         */
+        public static ChunkingResult createFailed(Path file, Exception error) {
+            return new ChunkingResult(file, error);
         }
 
         /**
@@ -163,7 +186,7 @@ public interface FileChunker extends ChunkStorage {
          * @return immutable list of chunk hashes
          */
         public java.util.List<String> getChunkHashes() {
-            return chunkHashes;
+            return chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
         }
 
         /**
@@ -172,7 +195,27 @@ public interface FileChunker extends ChunkStorage {
          * @return the error, or null if successful
          */
         public Exception getError() {
-            return error;
+            return error != null ? createExceptionCopy(error) : null;
+        }
+
+        /**
+         * Creates a copy of an exception to avoid exposing internal representation.
+         *
+         * @param original the original exception
+         * @return a copy of the exception
+         */
+        private Exception createExceptionCopy(Exception original) {
+            try {
+                return (Exception) original.getClass()
+                        .getConstructor(String.class)
+                        .newInstance(original.getMessage());
+            } catch (NoSuchMethodException
+                    | InstantiationException
+                    | IllegalAccessException
+                    | java.lang.reflect.InvocationTargetException e) {
+                // Fallback to a generic exception if copying fails
+                return new RuntimeException(original.getMessage(), original.getCause());
+            }
         }
 
         /**
@@ -198,10 +241,15 @@ public interface FileChunker extends ChunkStorage {
         /** Default sparse file detection. */
         public static final boolean DEFAULT_DETECT_SPARSE = true;
 
+        /** Current chunk size in bytes. */
         private int chunkSize = DEFAULT_CHUNK_SIZE;
+        /** Whether to use async I/O. */
         private boolean useAsyncIO = DEFAULT_USE_ASYNC_IO;
+        /** Number of buffers to use for chunking. */
         private int bufferCount = DEFAULT_BUFFER_COUNT;
+        /** Whether to detect sparse files. */
         private boolean detectSparseFiles = DEFAULT_DETECT_SPARSE;
+        /** Maximum number of concurrent chunks. */
         private int maxConcurrentChunks = 4;
 
         /**

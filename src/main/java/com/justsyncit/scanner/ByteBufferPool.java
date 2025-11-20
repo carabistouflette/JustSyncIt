@@ -60,7 +60,40 @@ public class ByteBufferPool implements BufferPool {
 
     /**
      * Creates a new ByteBufferPool with default settings.
+     *
+     * @return a new ByteBufferPool with default settings
+     * @throws IllegalArgumentException if default settings are invalid
      */
+    public static ByteBufferPool create() {
+        return create(DEFAULT_BUFFER_SIZE, DEFAULT_MAX_BUFFERS);
+    }
+
+    /**
+     * Creates a new ByteBufferPool with specified settings.
+     *
+     * @param defaultBufferSize default buffer size
+     * @param maxBuffers maximum number of buffers
+     * @return a new ByteBufferPool with specified settings
+     * @throws IllegalArgumentException if parameters are invalid
+     */
+    public static ByteBufferPool create(int defaultBufferSize, int maxBuffers) {
+        if (defaultBufferSize < MIN_BUFFER_SIZE || defaultBufferSize > MAX_BUFFER_SIZE) {
+            throw new IllegalArgumentException(
+                String.format("Buffer size must be between %d and %d bytes",
+                    MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
+        }
+        if (maxBuffers <= 0) {
+            throw new IllegalArgumentException("Max buffers must be positive");
+        }
+
+        return new ByteBufferPool(defaultBufferSize, maxBuffers);
+    }
+
+    /**
+     * Creates a new ByteBufferPool with default settings.
+     * @deprecated Use {@link #create()} instead
+     */
+    @Deprecated
     public ByteBufferPool() {
         this(DEFAULT_BUFFER_SIZE, DEFAULT_MAX_BUFFERS);
     }
@@ -71,17 +104,11 @@ public class ByteBufferPool implements BufferPool {
      * @param defaultBufferSize the default buffer size
      * @param maxBuffers maximum number of buffers
      * @throws IllegalArgumentException if parameters are invalid
+     * @deprecated Use {@link #create(int, int)} instead
      */
+    @Deprecated
     public ByteBufferPool(int defaultBufferSize, int maxBuffers) {
-        if (defaultBufferSize < MIN_BUFFER_SIZE || defaultBufferSize > MAX_BUFFER_SIZE) {
-            throw new IllegalArgumentException(
-                String.format("Buffer size must be between %d and %d bytes", 
-                    MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
-        }
-        if (maxBuffers <= 0) {
-            throw new IllegalArgumentException("Max buffers must be positive");
-        }
-
+        // Parameters are assumed to be validated by static factory methods
         this.defaultBufferSize = defaultBufferSize;
         this.availableBuffers = new ConcurrentLinkedQueue<>();
         this.totalBuffers = new AtomicInteger(0);
@@ -126,7 +153,7 @@ public class ByteBufferPool implements BufferPool {
         int allocateSize = Math.max(size, defaultBufferSize);
         buffer = allocateBuffer(allocateSize);
         buffersInUse.incrementAndGet();
-        
+
         logger.trace("Allocated new buffer of size {} for request {}", allocateSize, size);
         return buffer;
     }
@@ -159,9 +186,8 @@ public class ByteBufferPool implements BufferPool {
                 return;
             }
 
-            ByteBuffer buffer;
             int clearedCount = 0;
-            while ((buffer = availableBuffers.poll()) != null) {
+            while ((availableBuffers.poll()) != null) {
                 // Direct buffers don't need explicit cleanup, but we can track
                 clearedCount++;
             }
@@ -219,9 +245,8 @@ public class ByteBufferPool implements BufferPool {
             // Try to free some space by clearing available buffers
             cleanupLock.lock();
             try {
-                ByteBuffer buffer;
                 int freedCount = 0;
-                while ((buffer = availableBuffers.poll()) != null && freedCount < 4) {
+                while ((availableBuffers.poll()) != null && freedCount < 4) {
                     freedCount++;
                 }
                 logger.warn("Freed {} buffers from pool due to out of memory", freedCount);
@@ -229,7 +254,7 @@ public class ByteBufferPool implements BufferPool {
             } finally {
                 cleanupLock.unlock();
             }
-            
+
             // Retry allocation
             totalBuffers.incrementAndGet();
             return ByteBuffer.allocateDirect(size);

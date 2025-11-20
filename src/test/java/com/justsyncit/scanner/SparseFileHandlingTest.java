@@ -27,18 +27,24 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.ExecutionException;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for sparse file handling in filesystem scanner and chunking system.
  */
 class SparseFileHandlingTest {
 
+    /** Temporary directory for test files. */
     @TempDir
     Path tempDir;
 
+    /** The filesystem scanner under test. */
     private FilesystemScanner scanner;
+    /** Scan options with sparse file detection enabled. */
     private ScanOptions options;
 
     @BeforeEach
@@ -48,88 +54,89 @@ class SparseFileHandlingTest {
     }
 
     @Test
-    void testDetectSparseFileWithHoles() throws Exception {
+    void testDetectSparseFileWithHoles() throws IOException, ExecutionException, InterruptedException {
         // Create a sparse file with holes
         Path sparseFile = createSparseFileWithHoles("sparse_test.dat", 1024 * 1024); // 1MB with holes
-        
+
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(1, result.getScannedFileCount());
         ScanResult.ScannedFile scannedFile = result.getScannedFiles().get(0);
         assertTrue(scannedFile.isSparse(), "File should be detected as sparse");
         assertEquals(1024 * 1024, scannedFile.getSize());
-        
+
         // Clean up
         Files.deleteIfExists(sparseFile);
     }
 
     @Test
-    void testDetectNonSparseFile() throws Exception {
+    void testDetectNonSparseFile() throws IOException, ExecutionException, InterruptedException {
         // Create a regular (non-sparse) file
         Path regularFile = createRegularFile("regular_test.dat", 1024 * 1024); // 1MB
-        
+
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(1, result.getScannedFileCount());
         ScanResult.ScannedFile scannedFile = result.getScannedFiles().get(0);
         assertFalse(scannedFile.isSparse(), "Regular file should not be detected as sparse");
         assertEquals(1024 * 1024, scannedFile.getSize());
-        
+
         // Clean up
         Files.deleteIfExists(regularFile);
     }
 
     @Test
-    void testSparseFileChunking() throws Exception {
+    void testSparseFileChunking() throws IOException, ExecutionException, InterruptedException,
+            com.justsyncit.ServiceException {
         ServiceFactory serviceFactory = new ServiceFactory();
         com.justsyncit.hash.Blake3Service blake3Service = serviceFactory.createBlake3Service();
         FileChunker chunker = new FixedSizeFileChunker(blake3Service);
-        
+
         // Create a sparse file
         Path sparseFile = createSparseFileWithHoles("chunk_sparse_test.dat", 2 * 1024 * 1024); // 2MB
-        
+
         FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
-            .withDetectSparseFiles(true)
-            .withUseAsyncIO(true);
-            
+                .withDetectSparseFiles(true)
+                .withUseAsyncIO(true);
+
         FileChunker.ChunkingResult result = chunker.chunkFile(sparseFile, chunkingOptions).get();
-        
+
         assertTrue(result.isSuccess(), "Chunking sparse file should succeed");
         assertTrue(result.getChunkCount() > 0, "Should create chunks");
         assertEquals(2 * 1024 * 1024, result.getTotalSize());
-        
+
         // Clean up
         Files.deleteIfExists(sparseFile);
     }
 
     @Test
-    void testSparseFileDetectionDisabled() throws Exception {
+    void testSparseFileDetectionDisabled() throws IOException, ExecutionException, InterruptedException {
         // Create a sparse file but disable sparse detection
         ScanOptions disabledOptions = new ScanOptions().withDetectSparseFiles(false);
         Path sparseFile = createSparseFileWithHoles("sparse_disabled_test.dat", 1024 * 1024);
-        
+
         ScanResult result = scanner.scanDirectory(tempDir, disabledOptions).get();
-        
+
         assertEquals(1, result.getScannedFileCount());
         ScanResult.ScannedFile scannedFile = result.getScannedFiles().get(0);
         assertFalse(scannedFile.isSparse(), "Sparse detection disabled - should not be marked as sparse");
-        
+
         // Clean up
         Files.deleteIfExists(sparseFile);
     }
 
     @Test
-    void testLargeSparseFile() throws Exception {
+    void testLargeSparseFile() throws IOException, ExecutionException, InterruptedException {
         // Create a large sparse file (10MB logical size, small actual size)
         Path largeSparseFile = createSparseFileWithHoles("large_sparse_test.dat", 10 * 1024 * 1024);
-        
+
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
-        
+
         assertEquals(1, result.getScannedFileCount());
         ScanResult.ScannedFile scannedFile = result.getScannedFiles().get(0);
         assertTrue(scannedFile.isSparse(), "Large sparse file should be detected as sparse");
         assertEquals(10 * 1024 * 1024, scannedFile.getSize());
-        
+
         // Clean up
         Files.deleteIfExists(largeSparseFile);
     }
@@ -139,23 +146,23 @@ class SparseFileHandlingTest {
      */
     private Path createSparseFileWithHoles(String fileName, int logicalSize) throws IOException {
         Path file = tempDir.resolve(fileName);
-        
+
         try (RandomAccessFile raf = new RandomAccessFile(file.toFile(), "rw")) {
             // Write data at the beginning
             raf.write(new byte[4096]); // 4KB at start
-            
+
             // Create a hole by seeking forward
             raf.seek(64 * 1024); // Seek to 64KB
             raf.write(new byte[4096]); // Write 4KB at 64KB
-            
+
             // Create another hole
             raf.seek(512 * 1024); // Seek to 512KB
             raf.write(new byte[4096]); // Write 4KB at 512KB
-            
+
             // Set the file length to create sparse regions
             raf.setLength(logicalSize);
         }
-        
+
         return file;
     }
 
