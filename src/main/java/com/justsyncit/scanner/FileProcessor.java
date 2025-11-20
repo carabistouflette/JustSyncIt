@@ -595,7 +595,10 @@ public class FileProcessor {
 
                 // Add timeout to prevent infinite hanging
                 // Use the filtered list to create the array for allOf()
-                CompletableFuture.allOf(validFutures.toArray(new CompletableFuture[0]))
+                // Ensure no null elements in array to prevent ForEachOps issues on Windows
+                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = validFutures.toArray(
+                    new CompletableFuture[validFutures.size()]);
+                CompletableFuture.allOf(futuresArray)
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {
                 logger.error("Timeout waiting for chunking completion after 60 seconds", e);
