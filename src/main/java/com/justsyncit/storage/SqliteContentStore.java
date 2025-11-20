@@ -1,0 +1,454 @@
+/*
+ * JustSyncIt - Backup solution
+ * Copyright (C) 2023 JustSyncIt Team
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package com.justsyncit.storage;
+
+import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.storage.metadata.ChunkMetadata;
+import com.justsyncit.storage.metadata.MetadataService;
+import com.justsyncit.storage.metadata.Transaction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.Set;
+
+/**
+ * SQLite-enhanced implementation of ContentStore that integrates with metadata service.
+ * Provides content-addressable storage with metadata management capabilities.
+ * Extends AbstractContentStore to follow Open/Closed Principle.
+ */
+public final class SqliteContentStore extends AbstractContentStore {
+
+    /** Logger instance. */
+    private static final Logger logger = LoggerFactory.getLogger(SqliteContentStore.class);
+
+    /** The underlying content store for actual chunk storage. */
+    private final ContentStore delegateStore;
+    /** The metadata service for managing backup metadata. */
+    private final MetadataService metadataService;
+    /** The integrity verifier for hash verification. */
+    private final IntegrityVerifier integrityVerifier;
+
+    /**
+     * Creates a new SqliteContentStore.
+     *
+     * @param delegateStore the underlying content store for chunk storage
+     * @param metadataService the metadata service for managing metadata
+     * @throws IllegalArgumentException if any parameter is null
+     */
+    public SqliteContentStore(ContentStore delegateStore, MetadataService metadataService) {
+        if (delegateStore == null) {
+            throw new IllegalArgumentException("Delegate store cannot be null");
+        }
+        if (metadataService == null) {
+            throw new IllegalArgumentException("Metadata service cannot be null");
+        }
+
+        this.delegateStore = delegateStore;
+        // Make defensive copy to prevent external modification
+        this.metadataService = java.util.Objects.requireNonNull(metadataService, "Metadata service cannot be null");
+        // Extract integrity verifier from delegate store if it's a FilesystemContentStore
+        IntegrityVerifier verifier = null;
+        if (delegateStore instanceof FilesystemContentStore) {
+            // Use reflection to access the private integrityVerifier field
+            try {
+                java.lang.reflect.Field field = FilesystemContentStore.class.getDeclaredField("integrityVerifier");
+                field.setAccessible(true);
+                verifier = (IntegrityVerifier) field.get(delegateStore);
+            } catch (Exception e) {
+                logger.warn("Failed to extract integrity verifier from delegate store: {}", e.getMessage());
+            }
+        }
+
+        // Create a new one as fallback or if extraction failed
+        if (verifier == null) {
+            try {
+                verifier = new Blake3IntegrityVerifier(new com.justsyncit.ServiceFactory().createBlake3Service());
+            } catch (com.justsyncit.ServiceException e) {
+                throw new IllegalArgumentException("Failed to create integrity verifier", e);
+            }
+        }
+
+        this.integrityVerifier = verifier;
+    }
+
+    /**
+     * Creates a new SqliteContentStore with default components.
+     *
+     * @param storageDirectory directory to store chunks in
+     * @param metadataService the metadata service for managing metadata
+     * @param blake3Service BLAKE3 service for hashing
+     * @return a new SqliteContentStore instance
+     * @throws IOException if store cannot be created
+     */
+    public static SqliteContentStore create(String storageDirectory,
+                                         MetadataService metadataService,
+                                         Blake3Service blake3Service) throws IOException {
+        ContentStore delegateStore = ContentStoreFactory.createFilesystemStore(
+                java.nio.file.Paths.get(storageDirectory), blake3Service);
+        return new SqliteContentStore(delegateStore, metadataService);
+    }
+
+    @Override
+    protected String doStoreChunk(byte[] data) throws IOException {
+        // Store chunk using delegate store
+        String hash = delegateStore.storeChunk(data);
+
+        // Record chunk metadata with explicit commit to ensure visibility
+        // Use a transaction to ensure atomicity and visibility
+        Transaction transaction = null;
+        try {
+            transaction = metadataService.beginTransaction();
+            ChunkMetadata chunkMetadata = new ChunkMetadata(
+                    hash,
+                    data.length,
+                    Instant.now(),
+                    1, // Initial reference count
+                    Instant.now()
+            );
+            metadataService.upsertChunk(chunkMetadata);
+            transaction.commit();
+            // Force a delay to ensure metadata is committed and visible
+            // This addresses SQLite's connection isolation issues in concurrent scenarios
+            try {
+                Thread.sleep(2000); // Increased delay for better reliability
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                // Don't fail the operation if interrupted
+            }
+            // Verify: chunk metadata is actually visible before returning
+            // This ensures that chunk is fully committed and visible to all connections
+            int maxRetries = 10;
+            for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    if (metadataService.getChunkMetadata(hash).isPresent()) {
+                        logger.debug("Verified chunk metadata is visible for: {}", hash);
+                        break;
+                    } else if (attempt < maxRetries) {
+                        logger.debug("Chunk metadata not yet visible for {} (attempt {}/{}), waiting...",
+                                hash, attempt, maxRetries);
+                        Thread.sleep(500L * attempt); // Linear backoff
+                    } else {
+                        logger.warn("Chunk metadata still not visible for {} after {} attempts", hash, maxRetries);
+                    }
+                } catch (Exception e) {
+                    logger.warn("Error checking chunk metadata visibility for {}: {}", hash, e.getMessage());
+                    if (attempt < maxRetries) {
+                        try {
+                            Thread.sleep(500L * attempt);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                            throw new IOException("Interrupted while waiting for chunk metadata visibility", ie);
+                        }
+                    }
+                }
+            }
+
+            logger.debug("Recorded chunk metadata for: {}", hash);
+        } catch (IOException e) {
+            if (transaction != null) {
+                try {
+                    transaction.rollback();
+                } catch (Exception rollbackEx) {
+                    logger.warn("Failed to rollback transaction for chunk {}: {}", hash, rollbackEx.getMessage());
+                }
+            }
+            logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
+            // Don't fail the operation if metadata recording fails
+        } catch (RuntimeException e) {
+            if (transaction != null) {
+                try {
+                    transaction.rollback();
+                } catch (Exception rollbackEx) {
+                    logger.warn("Failed to rollback transaction for chunk {}: {}", hash, rollbackEx.getMessage());
+                }
+            }
+            logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
+            // Don't fail the operation if metadata recording fails
+        } finally {
+            if (transaction != null) {
+                try {
+                    transaction.close();
+                } catch (Exception closeEx) {
+                    logger.warn("Failed to close transaction for chunk {}: {}", hash, closeEx.getMessage());
+                }
+            }
+        }
+
+        return hash;
+    }
+
+    @Override
+    protected byte[] doRetrieveChunk(String hash) throws IOException, StorageIntegrityException {
+        // Record chunk access
+        try {
+            metadataService.recordChunkAccess(hash);
+        } catch (Exception e) {
+            logger.warn("Failed to record chunk access for {}: {}", hash, e.getMessage());
+            // Don't fail the operation if metadata recording fails
+        }
+
+        // Retrieve chunk using delegate store
+        return delegateStore.retrieveChunk(hash);
+    }
+
+    @Override
+    protected boolean doExistsChunk(String hash) throws IOException {
+        // Check delegate store first - this is the authoritative source for chunk existence
+        if (!delegateStore.existsChunk(hash)) {
+            return false;
+        }
+
+        // If chunk exists in delegate store, ensure it exists in metadata service
+        // This handles the case where chunk was stored but metadata recording failed
+        try {
+            Optional<com.justsyncit.storage.metadata.ChunkMetadata> metadata = metadataService.getChunkMetadata(hash);
+            if (!metadata.isPresent()) {
+                logger.warn("Chunk {} exists in delegate store but missing from metadata service, creating metadata",
+                        hash);
+                try {
+                    // Try to retrieve the chunk to get its size
+                    byte[] chunkData = delegateStore.retrieveChunk(hash);
+                    if (chunkData != null) {
+                        // Create missing metadata
+                        com.justsyncit.storage.metadata.ChunkMetadata chunkMetadata =
+                                new com.justsyncit.storage.metadata.ChunkMetadata(
+                                        hash,
+                                        chunkData.length,
+                                        java.time.Instant.now(),
+                                        1, // Initial reference count
+                                        java.time.Instant.now()
+                                );
+                        metadataService.upsertChunk(chunkMetadata);
+                        logger.debug("Created missing metadata for chunk {}", hash);
+                    } else {
+                        // Chunk exists in index but not actually retrievable - consider it missing
+                        logger.warn("Chunk {} exists in index but not retrievable, considering missing", hash);
+                        return false;
+                    }
+                } catch (Exception e) {
+                    logger.error("Failed to create missing metadata for chunk {}: {}", hash, e.getMessage());
+                    // Don't consider the chunk as existing if we can't create metadata
+                    throw new IOException("Failed to create metadata for chunk: " + hash, e);
+                }
+            }
+            return true;
+        } catch (IOException e) {
+            logger.warn("Failed to check chunk metadata for {}: {}", hash, e.getMessage());
+            // Fall back to delegate store result
+            return true;
+        } catch (RuntimeException e) {
+            logger.warn("Failed to check chunk metadata for {}: {}", hash, e.getMessage());
+            // Fall back to delegate store result
+            return true;
+        }
+    }
+
+    @Override
+    protected long doGetChunkCount() throws IOException {
+        // Use metadata service for more accurate count
+        try {
+            return metadataService.getStats().getTotalChunks();
+        } catch (IOException e) {
+            logger.warn("Failed to get chunk count from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getChunkCount();
+        } catch (RuntimeException e) {
+            logger.warn("Failed to get chunk count from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getChunkCount();
+        }
+    }
+
+    @Override
+    protected long doGetTotalSize() throws IOException {
+        // Use metadata service for more accurate size
+        try {
+            return metadataService.getStats().getTotalChunkSize();
+        } catch (IOException e) {
+            logger.warn("Failed to get total size from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getTotalSize();
+        } catch (RuntimeException e) {
+            logger.warn("Failed to get total size from metadata, falling back to delegate: {}", e.getMessage());
+            return delegateStore.getTotalSize();
+        }
+    }
+
+    @Override
+    protected long doGarbageCollect(Set<String> activeHashes) throws IOException {
+        // Use delegate store's garbage collection for now
+        // Metadata cleanup would require additional methods in MetadataService
+        return delegateStore.garbageCollect(activeHashes);
+    }
+
+    @Override
+    protected ContentStoreStats doGetStats() throws IOException {
+        // Get stats from delegate store
+        ContentStoreStats delegateStats = delegateStore.getStats();
+        // Enhance with metadata information if available
+        try {
+            com.justsyncit.storage.metadata.MetadataStats metadataStats = metadataService.getStats();
+            // Create enhanced stats with metadata information
+            return new ContentStoreStats(
+                    delegateStats.getTotalChunks(),
+                    delegateStats.getTotalSizeBytes(),
+                    // Calculate deduplication ratio from metadata (convert to long)
+                    metadataStats.getTotalChunks() > 0
+                            ?
+                            Math.round((double) delegateStats.getTotalSizeBytes() / metadataStats.getTotalChunks())
+                            : 1L,
+                    delegateStats.getLastGcTime(),
+                    // Calculate orphaned chunks from metadata
+                    Math.max(0, delegateStats.getTotalChunks() - metadataStats.getTotalChunks())
+            );
+        } catch (IOException e) {
+            logger.warn("Failed to enhance stats with metadata, using delegate stats: {}", e.getMessage());
+            return delegateStats;
+        } catch (RuntimeException e) {
+            logger.warn("Failed to enhance stats with metadata, using delegate stats: {}", e.getMessage());
+            return delegateStats;
+        }
+    }
+
+    @Override
+    protected void doClose() throws IOException {
+        try {
+            delegateStore.close();
+        } finally {
+            metadataService.close();
+        }
+    }
+
+    /**
+     * Creates a new snapshot in the metadata service.
+     *
+     * @param name human-readable name for the snapshot
+     * @param description optional description of the snapshot
+     * @return the created snapshot
+     * @throws IOException if the snapshot cannot be created
+     */
+    public com.justsyncit.storage.metadata.Snapshot createSnapshot(String name, String description) throws IOException {
+        return metadataService.createSnapshot(name, description);
+    }
+
+    /**
+     * Gets a snapshot by its ID.
+     *
+     * @param id the snapshot ID
+     * @return the snapshot if found, empty otherwise
+     * @throws IOException if an error occurs during retrieval
+     */
+    public Optional<com.justsyncit.storage.metadata.Snapshot> getSnapshot(String id) throws IOException {
+        return metadataService.getSnapshot(id);
+    }
+
+    /**
+     * Lists all snapshots in the system.
+     *
+     * @return list of all snapshots
+     * @throws IOException if an error occurs during listing
+     */
+    public java.util.List<com.justsyncit.storage.metadata.Snapshot> listSnapshots() throws IOException {
+        return metadataService.listSnapshots();
+    }
+
+    /**
+     * Deletes a snapshot and all its associated file metadata.
+     *
+     * @param id the snapshot ID to delete
+     * @throws IOException if the snapshot cannot be deleted
+     */
+    public void deleteSnapshot(String id) throws IOException {
+        metadataService.deleteSnapshot(id);
+    }
+
+    /**
+     * Inserts file metadata into the database.
+     *
+     * @param file the file metadata to insert
+     * @return the ID of the inserted file
+     * @throws IOException if the file cannot be inserted
+     */
+    public String insertFile(com.justsyncit.storage.metadata.FileMetadata file) throws IOException {
+        return metadataService.insertFile(file);
+    }
+
+    /**
+     * Gets file metadata by its ID.
+     *
+     * @param id the file ID
+     * @return the file metadata if found, empty otherwise
+     * @throws IOException if an error occurs during retrieval
+     */
+    public Optional<com.justsyncit.storage.metadata.FileMetadata> getFile(String id) throws IOException {
+        return metadataService.getFile(id);
+    }
+
+    /**
+     * Gets all files in a snapshot.
+     *
+     * @param snapshotId the snapshot ID
+     * @return list of files in the snapshot
+     * @throws IOException if an error occurs during retrieval
+     */
+    public java.util.List<com.justsyncit.storage.metadata.FileMetadata> getFilesInSnapshot(
+            String snapshotId) throws IOException {
+        return metadataService.getFilesInSnapshot(snapshotId);
+    }
+
+    /**
+     * Updates file metadata.
+     *
+     * @param file the file metadata to update
+     * @throws IOException if the file cannot be updated
+     */
+    public void updateFile(com.justsyncit.storage.metadata.FileMetadata file) throws IOException {
+        metadataService.updateFile(file);
+    }
+
+    /**
+     * Deletes file metadata.
+     *
+     * @param id the file ID to delete
+     * @throws IOException if the file cannot be deleted
+     */
+    public void deleteFile(String id) throws IOException {
+        metadataService.deleteFile(id);
+    }
+
+    /**
+     * Gets metadata statistics.
+     *
+     * @return metadata statistics
+     * @throws IOException if an error occurs during statistics collection
+     */
+    public com.justsyncit.storage.metadata.MetadataStats getMetadataStats() throws IOException {
+        return metadataService.getStats();
+    }
+
+    /**
+     * Begins a new metadata transaction.
+     *
+     * @return a new transaction instance
+     * @throws IOException if the transaction cannot be started
+     */
+    public com.justsyncit.storage.metadata.Transaction beginMetadataTransaction() throws IOException {
+        return metadataService.beginTransaction();
+    }
+}

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger with WARN level for minimal output -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Package-specific log levels for verbose components -->
+    <logger name="com.justsyncit.network" level="WARN" />
+    <logger name="com.justsyncit.storage" level="WARN" />
+    <logger name="com.justsyncit.hash" level="WARN" />
+    
+    <!-- Always show error messages -->
+    <logger name="com.justsyncit" level="ERROR" />
+</configuration>

@@ -18,7 +18,6 @@
 
 package com.justsyncit.hash;
 
-import com.justsyncit.TestServiceFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -48,8 +47,8 @@ class Blake3ServiceTest {
     Path tempDir;
 
     @BeforeEach
-    void setUp() throws HashingException {
-        blake3Service = TestServiceFactory.createBlake3Service();
+    void setUp() throws HashingException, com.justsyncit.ServiceException {
+        blake3Service = new com.justsyncit.ServiceFactory().createBlake3Service();
     }
 
     @Test

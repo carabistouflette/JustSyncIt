@@ -25,11 +25,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Command for verifying file integrity.
  * Follows Single Responsibility Principle by focusing only on file verification.
  */
 public class VerifyCommand implements Command {
+
+    /** Logger for verify command operations. */
+    private static final Logger logger = LoggerFactory.getLogger(VerifyCommand.class);
 
     /** BLAKE3 service instance. */
     private final Blake3Service blake3Service;
@@ -46,7 +52,7 @@ public class VerifyCommand implements Command {
     @Override
     public boolean execute(String[] args, CommandContext context) {
         if (args.length < 3) {
-            System.err.println("Error: --verify command requires a file path and expected hash");
+            logger.error("--verify command requires a file path and expected hash");
             return false;
         }
 
@@ -82,17 +88,17 @@ public class VerifyCommand implements Command {
             Path path = Paths.get(filePath);
 
             if (!Files.exists(path)) {
-                System.err.println("Error: File does not exist: " + filePath);
+                logger.error("File does not exist: {}", filePath);
                 return false;
             }
 
             if (!Files.isRegularFile(path)) {
-                System.err.println("Error: Path is not a regular file: " + filePath);
+                logger.error("Path is not a regular file: {}", filePath);
                 return false;
             }
 
-            System.out.println("Verifying integrity of: " + filePath);
-            System.out.println("Expected hash: " + expectedHash);
+            logger.info("Verifying integrity of: {}", filePath);
+            logger.info("Expected hash: {}", expectedHash);
 
             long startTime = System.currentTimeMillis();
             String actualHash = blake3Service.hashFile(path);
@@ -100,20 +106,20 @@ public class VerifyCommand implements Command {
 
             boolean isValid = expectedHash.equals(actualHash);
 
-            System.out.println("Actual hash:   " + actualHash);
-            System.out.println("Result: " + (isValid ? "VALID" : "INVALID"));
-            System.out.println("Time: " + (endTime - startTime) + " ms");
+            logger.info("Actual hash:   {}", actualHash);
+            logger.info("Result: {}", isValid ? "VALID" : "INVALID");
+            logger.info("Time: {} ms", (endTime - startTime));
 
             if (isValid) {
-                System.out.println("✓ File integrity is intact");
+                logger.info("✓ File integrity is intact");
                 return true;
             } else {
-                System.out.println("✗ File integrity check FAILED - file may be corrupted");
+                logger.warn("✗ File integrity check FAILED - file may be corrupted");
                 return false;
             }
 
         } catch (IOException e) {
-            System.err.println("Error verifying file: " + e.getMessage());
+            logger.error("Error verifying file: {}", e.getMessage(), e);
             return false;
         }
     }

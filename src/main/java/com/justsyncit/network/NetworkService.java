@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 public interface NetworkService {
 
     /**
-     * Starts the network server for accepting incoming connections.
+     * Starts the network server for accepting incoming connections using TCP.
      *
      * @param port the port to listen on
      * @return a CompletableFuture that completes when the server is started
@@ -46,6 +46,17 @@ public interface NetworkService {
     CompletableFuture<Void> startServer(int port) throws IOException, ServiceException;
 
     /**
+     * Starts the network server for accepting incoming connections using the specified transport.
+     *
+     * @param port the port to listen on
+     * @param transportType the transport protocol to use
+     * @return a CompletableFuture that completes when the server is started
+     * @throws IOException if an I/O error occurs
+     * @throws ServiceException if a service error occurs
+     */
+    CompletableFuture<Void> startServer(int port, TransportType transportType) throws IOException, ServiceException;
+
+    /**
      * Stops the network server and closes all connections.
      *
      * @return a CompletableFuture that completes when the server is stopped
@@ -53,13 +64,23 @@ public interface NetworkService {
     CompletableFuture<Void> stopServer();
 
     /**
-     * Connects to a remote JustSyncIt node.
+     * Connects to a remote JustSyncIt node using TCP.
      *
      * @param address the remote address
      * @return a CompletableFuture that completes when the connection is established
      * @throws IOException if an I/O error occurs
      */
     CompletableFuture<Void> connectToNode(InetSocketAddress address) throws IOException;
+
+    /**
+     * Connects to a remote JustSyncIt node using the specified transport.
+     *
+     * @param address the remote address
+     * @param transportType the transport protocol to use
+     * @return a CompletableFuture that completes when the connection is established
+     * @throws IOException if an I/O error occurs
+     */
+    CompletableFuture<Void> connectToNode(InetSocketAddress address, TransportType transportType) throws IOException;
 
     /**
      * Disconnects from a remote node.
@@ -70,7 +91,7 @@ public interface NetworkService {
     CompletableFuture<Void> disconnectFromNode(InetSocketAddress address);
 
     /**
-     * Sends a file to a remote node.
+     * Sends a file to a remote node using the default transport.
      *
      * @param filePath the path to the file to send
      * @param remoteAddress the remote node address
@@ -82,7 +103,20 @@ public interface NetworkService {
             ContentStore contentStore) throws IOException;
 
     /**
-     * Sends a protocol message to a remote node.
+     * Sends a file to a remote node using the specified transport.
+     *
+     * @param filePath the path to the file to send
+     * @param remoteAddress the remote node address
+     * @param contentStore the content store for chunk access
+     * @param transportType the transport protocol to use
+     * @return a CompletableFuture that completes when the file transfer is complete
+     * @throws IOException if an I/O error occurs
+     */
+    CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
+            ContentStore contentStore, TransportType transportType) throws IOException;
+
+    /**
+     * Sends a protocol message to a remote node using the default transport.
      *
      * @param message the message to send
      * @param remoteAddress the remote node address
@@ -90,6 +124,18 @@ public interface NetworkService {
      * @throws IOException if an I/O error occurs
      */
     CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress) throws IOException;
+
+    /**
+     * Sends a protocol message to a remote node using the specified transport.
+     *
+     * @param message the message to send
+     * @param remoteAddress the remote node address
+     * @param transportType the transport protocol to use
+     * @return a CompletableFuture that completes when the message is sent
+     * @throws IOException if an I/O error occurs
+     */
+    CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress,
+            TransportType transportType) throws IOException;
 
     /**
      * Registers a listener for network events.
@@ -181,6 +227,28 @@ public interface NetworkService {
      * @throws IOException if an I/O error occurs
      */
     void close() throws IOException;
+
+    /**
+     * Gets the transport type used for a specific connection.
+     *
+     * @param remoteAddress the remote address
+     * @return the transport type, or null if not connected
+     */
+    TransportType getConnectionTransportType(InetSocketAddress remoteAddress);
+
+    /**
+     * Gets the default transport type for new connections.
+     *
+     * @return the default transport type
+     */
+    TransportType getDefaultTransportType();
+
+    /**
+     * Sets the default transport type for new connections.
+     *
+     * @param transportType the default transport type
+     */
+    void setDefaultTransportType(TransportType transportType);
 
     /**
      * Interface for network event listeners.

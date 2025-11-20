@@ -25,11 +25,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Command for hashing files.
  * Follows Single Responsibility Principle by focusing only on file hashing.
  */
 public class HashCommand implements Command {
+
+    /** Logger for hash command operations. */
+    private static final Logger logger = LoggerFactory.getLogger(HashCommand.class);
 
     /** BLAKE3 service instance. */
     private final Blake3Service blake3Service;
@@ -46,7 +52,7 @@ public class HashCommand implements Command {
     @Override
     public boolean execute(String[] args, CommandContext context) {
         if (args.length < 2) {
-            System.err.println("Error: --hash command requires a file path");
+            logger.error("--hash command requires a file path");
             return false;
         }
 
@@ -80,12 +86,12 @@ public class HashCommand implements Command {
             Path path = Paths.get(filePath);
 
             if (!Files.exists(path)) {
-                System.err.println("Error: File does not exist: " + filePath);
+                logger.error("File does not exist: {}", filePath);
                 return false;
             }
 
             if (!Files.isRegularFile(path)) {
-                System.err.println("Error: Path is not a regular file: " + filePath);
+                logger.error("Path is not a regular file: {}", filePath);
                 return false;
             }
 
@@ -93,15 +99,15 @@ public class HashCommand implements Command {
             String hash = blake3Service.hashFile(path);
             long endTime = System.currentTimeMillis();
 
-            System.out.println("File: " + filePath);
-            System.out.println("Size: " + Files.size(path) + " bytes");
-            System.out.println("BLAKE3 Hash: " + hash);
-            System.out.println("Time: " + (endTime - startTime) + " ms");
+            logger.info("File: {}", filePath);
+            logger.info("Size: {} bytes", Files.size(path));
+            logger.info("BLAKE3 Hash: {}", hash);
+            logger.info("Time: {} ms", (endTime - startTime));
 
             return true;
 
         } catch (IOException e) {
-            System.err.println("Error hashing file: " + e.getMessage());
+            logger.error("Error hashing file: {}", e.getMessage(), e);
             return false;
         }
     }

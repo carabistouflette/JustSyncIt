@@ -57,13 +57,6 @@ This guide covers various ways to install JustSyncIt on different platforms.
 
 ## Platform-Specific Instructions
 
-### Windows
-
-1. Download and install [Java 21](https://adoptium.net/)
-2. Download the latest JustSyncIt release
-3. Create a shortcut to run the JAR file
-4. Optional: Add JustSyncIt to PATH for easy access
-
 ### macOS
 
 1. Install Java 21 using [Homebrew](https://brew.sh/):
@@ -111,7 +104,6 @@ You should see the version information displayed.
 
 The first time you run JustSyncIt, it will create a configuration directory:
 
-- **Windows**: `%APPDATA%/JustSyncIt`
 - **macOS**: `~/Library/Application Support/JustSyncIt`
 - **Linux**: `~/.config/justsyncit`
 

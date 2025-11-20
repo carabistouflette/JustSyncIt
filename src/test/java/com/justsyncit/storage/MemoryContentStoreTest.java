@@ -275,8 +275,8 @@ class MemoryContentStoreTest {
         contentStore.storeChunk(data3);
 
         Set<String> activeHashes = new HashSet<>();
-        activeHashes.add("hash1");
-        activeHashes.add("hash3"); // hash2 should be garbage collected
+        assertTrue(activeHashes.add("hash1"));
+        assertTrue(activeHashes.add("hash3")); // hash2 should be garbage collected
 
         // Act
         long result = contentStore.garbageCollect(activeHashes);

@@ -47,6 +47,8 @@ import com.justsyncit.network.transfer.FileTransferManagerImpl;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.FilesystemChunkIndex;
 import com.justsyncit.storage.FilesystemContentStore;
+import com.justsyncit.storage.metadata.MetadataService;
+import com.justsyncit.storage.metadata.MetadataServiceFactory;
 
 import java.io.IOException;
 
@@ -78,11 +80,16 @@ public class ServiceFactory {
      * @return configured BLAKE3 service
      * @throws ServiceException if service creation fails
      */
-    private Blake3Service createBlake3Service() throws ServiceException {
+    public Blake3Service createBlake3Service() throws ServiceException {
         try {
-            HashAlgorithm hashAlgorithm = Sha256HashAlgorithm.create();
-            BufferHasher bufferHasher = new Blake3BufferHasher(hashAlgorithm);
-            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(hashAlgorithm);
+            // Create separate HashAlgorithm instances for each service to ensure thread safety
+            HashAlgorithm bufferHasherAlgorithm = Sha256HashAlgorithm.create();
+            HashAlgorithm incrementalHasherAlgorithm = Sha256HashAlgorithm.create();
+
+            BufferHasher bufferHasher = new Blake3BufferHasher(bufferHasherAlgorithm);
+            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(
+                    incrementalHasherAlgorithm
+                );
             StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
             FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
             SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();
@@ -163,6 +170,65 @@ public class ServiceFactory {
         }
 
         return registry;
+    }
+
+    /**
+     * Creates a metadata service with default configuration.
+     *
+     * @return a metadata service instance
+     * @throws ServiceException if service creation fails
+     */
+    public MetadataService createMetadataService() throws ServiceException {
+        try {
+            return MetadataServiceFactory.createDefaultService();
+        } catch (IOException e) {
+            throw new ServiceException("Failed to create metadata service", e);
+        }
+    }
+
+    /**
+     * Creates a metadata service with file-based database.
+     *
+     * @param databasePath path to SQLite database file
+     * @return a metadata service instance
+     * @throws ServiceException if service creation fails
+     */
+    public MetadataService createMetadataService(String databasePath) throws ServiceException {
+        try {
+            return MetadataServiceFactory.createFileBasedService(databasePath);
+        } catch (IOException e) {
+            throw new ServiceException("Failed to create metadata service", e);
+        }
+    }
+
+    /**
+     * Creates a metadata service with in-memory database for testing.
+     *
+     * @return a metadata service instance
+     * @throws ServiceException if service creation fails
+     */
+    public MetadataService createInMemoryMetadataService() throws ServiceException {
+        try {
+            return MetadataServiceFactory.createInMemoryService();
+        } catch (IOException e) {
+            throw new ServiceException("Failed to create in-memory metadata service", e);
+        }
+    }
+
+    /**
+     * Creates a SQLite-enhanced content store with metadata service.
+     *
+     * @param blake3Service BLAKE3 service for hashing
+     * @return a SQLite-enhanced content store instance
+     * @throws ServiceException if store creation fails
+     */
+    public ContentStore createSqliteContentStore(Blake3Service blake3Service) throws ServiceException {
+        try {
+            MetadataService metadataService = createMetadataService();
+            return com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService, blake3Service);
+        } catch (IOException e) {
+            throw new ServiceException("Failed to create SQLite content store", e);
+        }
     }
 
     /**

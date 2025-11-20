@@ -161,4 +161,49 @@ public final class ContentStoreFactory {
             throw new IllegalArgumentException("Path generator cannot be null");
         }
     }
+
+    /**
+     * Creates a SQLite-enhanced content store with metadata management.
+     *
+     * @param storageDirectory directory to store chunks in
+     * @param metadataService metadata service for managing metadata
+     * @param blake3Service BLAKE3 service for hashing
+     * @return a new SqliteContentStore instance
+     * @throws IOException if store cannot be created
+     * @throws IllegalArgumentException if any parameter is null
+     */
+    public static ContentStore createSqliteStore(String storageDirectory,
+                                            com.justsyncit.storage.metadata.MetadataService metadataService,
+                                            Blake3Service blake3Service) throws IOException {
+        if (storageDirectory == null || storageDirectory.trim().isEmpty()) {
+            throw new IllegalArgumentException("Storage directory cannot be null or empty");
+        }
+        if (metadataService == null) {
+            throw new IllegalArgumentException("Metadata service cannot be null");
+        }
+        if (blake3Service == null) {
+            throw new IllegalArgumentException("BLAKE3 service cannot be null");
+        }
+
+        logger.info("Creating SQLite-enhanced content store at {}", storageDirectory);
+
+        return SqliteContentStore.create(storageDirectory, metadataService, blake3Service);
+    }
+
+    /**
+     * Creates a SQLite-enhanced content store with metadata service and default storage directory.
+     *
+     * @param metadataService metadata service for managing metadata
+     * @param blake3Service BLAKE3 service for hashing
+     * @return a new SqliteContentStore instance
+     * @throws IOException if store cannot be created
+     * @throws IllegalArgumentException if any parameter is null
+     */
+    public static ContentStore createDefaultSqliteStore(
+                                            com.justsyncit.storage.metadata.MetadataService metadataService,
+                                            Blake3Service blake3Service) throws IOException {
+        // Use default storage directory
+        String defaultStorageDir = "storage/chunks";
+        return createSqliteStore(defaultStorageDir, metadataService, blake3Service);
+    }
 }

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger with INFO level for moderate verbosity -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+
+    <!-- Package-specific log levels for verbose components -->
+    <logger name="com.justsyncit.network" level="INFO" />
+    <logger name="com.justsyncit.storage" level="INFO" />
+    <logger name="com.justsyncit.hash" level="INFO" />
+</configuration>

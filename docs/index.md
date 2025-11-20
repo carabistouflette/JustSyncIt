@@ -24,7 +24,7 @@ JustSyncIt is a high-performance file synchronization tool built with Java 21+, 
 - **Network Synchronization**: Secure file transfer over TCP
 - **Chunked Storage**: Efficient content-addressable storage
 - **SIMD Optimization**: Hardware-accelerated hashing
-- **Cross-Platform**: Runs on Windows, macOS, and Linux
+- **Cross-Platform**: Runs on macOS and Linux
 
 ## Getting Started
 
