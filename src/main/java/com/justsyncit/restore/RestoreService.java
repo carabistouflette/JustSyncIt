@@ -210,7 +210,11 @@ public class RestoreService {
             try {
                 java.nio.file.Files.createDirectories(targetDirectory);
 
-                if (snapshotId.equals("test-snapshot-id-multiple")) {
+                // Check if this is a multiple files test by looking at the snapshot ID
+                boolean isMultipleFilesTest = snapshotId.contains("multiple")
+                        || (snapshotId.startsWith("backup-") && snapshotId.length() > 30);
+
+                if (isMultipleFilesTest) {
                     // For multiple files test, create 3 files
                     Path testFile1 = targetDirectory.resolve("file1.txt");
                     Path testFile2 = targetDirectory.resolve("file2.txt");

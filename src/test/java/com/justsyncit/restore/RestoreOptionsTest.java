@@ -41,7 +41,6 @@ public class RestoreOptionsTest {
     @Test
     void testDefaultOptions() {
         RestoreOptions options = builder.build();
-        
         assertFalse(options.isOverwriteExisting());
         assertFalse(options.isBackupExisting());
         assertTrue(options.isVerifyIntegrity());
@@ -96,7 +95,6 @@ public class RestoreOptionsTest {
                 .includePattern("*.java")
                 .excludePattern("*.class")
                 .build();
-        
         assertTrue(options.isOverwriteExisting());
         assertFalse(options.isBackupExisting());
         assertFalse(options.isVerifyIntegrity());
@@ -108,10 +106,9 @@ public class RestoreOptionsTest {
     @Test
     void testToString() {
         RestoreOptions options = builder
-            .overwriteExisting(true)
-            .includePattern("*.txt")
-            .build();
-        
+                .overwriteExisting(true)
+                .includePattern("*.txt")
+                .build();
         String result = options.toString();
         assertNotNull(result);
         assertTrue(result.contains("overwriteExisting=true"));

@@ -54,10 +54,10 @@ public class ProtocolMessageTest {
     void testMessageType() {
         assertEquals("HANDSHAKE", MessageType.HANDSHAKE.name());
         assertEquals(1, MessageType.HANDSHAKE.ordinal());
-        
+
         assertEquals("CHUNK_DATA", MessageType.CHUNK_DATA.name());
         assertEquals(2, MessageType.CHUNK_DATA.ordinal());
-        
+
         assertEquals("CHUNK_ACK", MessageType.CHUNK_ACK.name());
         assertEquals(3, MessageType.CHUNK_ACK.ordinal());
     }
@@ -75,7 +75,7 @@ public class ProtocolMessageTest {
     void testProtocolHeaderSerialization() {
         ByteBuffer serialized = header.serialize();
         ProtocolHeader deserialized = ProtocolHeader.deserialize(serialized);
-        
+
         assertEquals(header, deserialized);
     }
 
@@ -110,7 +110,7 @@ public class ProtocolMessageTest {
     @Test
     void testAbstractProtocolMessage() {
         TestProtocolMessage message = new TestProtocolMessage(MessageType.HANDSHAKE, testData);
-        
+
         assertEquals(MessageType.HANDSHAKE, message.getMessageType());
         assertEquals(ProtocolConstants.Flags.NONE, message.getFlags());
         assertTrue(message.isValid());
@@ -120,12 +120,12 @@ public class ProtocolMessageTest {
     @Test
     void testProtocolMessageImplementation() {
         TestProtocolMessage message = new TestProtocolMessage(MessageType.HANDSHAKE, testData);
-        
+
         assertEquals(MessageType.HANDSHAKE, message.getMessageType());
         assertEquals(ProtocolConstants.Flags.NONE, message.getFlags());
         assertTrue(message.isValid());
         assertEquals(testData.length, message.getPayloadSize());
-        
+
         // Test serialization
         ByteBuffer payload = message.serializePayload();
         assertNotNull(payload);
@@ -138,16 +138,16 @@ public class ProtocolMessageTest {
     private static class TestProtocolMessage extends AbstractProtocolMessage {
         private final byte[] data;
 
-        public TestProtocolMessage(MessageType messageType, byte[] data) {
+        TestProtocolMessage(MessageType messageType, byte[] data) {
             super(messageType);
             this.data = data;
         }
-        
+
         @Override
         public ByteBuffer serializePayload() {
             return ByteBuffer.wrap(data);
         }
-        
+
         @Override
         public int getPayloadSize() {
             return data.length;

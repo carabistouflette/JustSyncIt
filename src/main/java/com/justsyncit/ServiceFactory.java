@@ -198,7 +198,9 @@ public class ServiceFactory {
     public com.justsyncit.backup.BackupService createBackupService(ContentStore contentStore, MetadataService metadataService,
                                               Blake3Service blake3Service) throws ServiceException {
         try {
-            return new com.justsyncit.backup.BackupService(contentStore, metadataService, blake3Service);
+            com.justsyncit.scanner.FilesystemScanner scanner = new com.justsyncit.scanner.NioFilesystemScanner();
+            com.justsyncit.scanner.FileChunker chunker = com.justsyncit.scanner.FixedSizeFileChunker.create(blake3Service);
+            return new com.justsyncit.backup.BackupService(contentStore, metadataService, scanner, chunker);
         } catch (Exception e) {
             throw new ServiceException("Failed to create backup service", e);
         }
