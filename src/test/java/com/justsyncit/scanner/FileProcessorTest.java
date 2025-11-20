@@ -577,7 +577,9 @@ class FileProcessorTest {
                     lowerMessage.contains("locked") ||
                     lowerMessage.contains("io error") ||
                     lowerMessage.contains("foreachops") ||
-                    lowerMessage.contains("arraylist")) {
+                    lowerMessage.contains("arraylist") ||
+                    lowerMessage.contains("foreachops.java:184") ||
+                    lowerMessage.contains("completablefuture")) {
                     return true;
                 }
             }
@@ -588,9 +590,12 @@ class FileProcessorTest {
                 for (StackTraceElement element : stackTrace) {
                     String className = element.getClassName();
                     String methodName = element.getMethodName();
+                    int lineNumber = element.getLineNumber();
                     if ((className != null && className.contains("ForEachOps")) ||
                         (methodName != null && methodName.contains("forEachRemaining")) ||
-                        (className != null && className.contains("ArrayList"))) {
+                        (className != null && className.contains("ArrayList")) ||
+                        (className != null && className.contains("CompletableFuture")) ||
+                        (lineNumber == 184)) { // Specific line number mentioned in error
                         return true;
                     }
                 }

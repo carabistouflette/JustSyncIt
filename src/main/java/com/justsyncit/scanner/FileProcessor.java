@@ -577,15 +577,14 @@ public class FileProcessor {
 
         public void waitForCompletion() {
             try {
-                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray;
-                synchronized (chunkingFuturesLock) {
-                    futuresArray = chunkingFutures.toArray(new CompletableFuture[0]);
-                }
                 // Filter out null futures to avoid ForEachOps issues
-                List<CompletableFuture<FileChunker.ChunkingResult>> validFutures = new ArrayList<>();
-                for (CompletableFuture<FileChunker.ChunkingResult> future : futuresArray) {
-                    if (future != null) {
-                        validFutures.add(future);
+                List<CompletableFuture<FileChunker.ChunkingResult>> validFutures;
+                synchronized (chunkingFuturesLock) {
+                    validFutures = new ArrayList<>();
+                    for (CompletableFuture<FileChunker.ChunkingResult> future : chunkingFutures) {
+                        if (future != null) {
+                            validFutures.add(future);
+                        }
                     }
                 }
 
