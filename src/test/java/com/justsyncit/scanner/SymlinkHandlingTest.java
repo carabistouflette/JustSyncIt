@@ -140,29 +140,13 @@ class SymlinkHandlingTest {
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
 
         // Should record the broken symlink - allow for platform differences
-        // Platform-specific behavior for broken symlinks
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-        
-        if (isWindows) {
-            // Windows may handle broken symlinks differently
-            assertTrue(result.getScannedFileCount() >= 0,
-                    "Expected at least 0 scanned files on Windows, but found " + result.getScannedFileCount());
-        } else {
-            // Unix systems should record broken symlinks
-            assertTrue(result.getScannedFileCount() >= 1,
-                    "Expected at least 1 scanned file (the broken symlink), but found " + result.getScannedFileCount());
-        }
+        // Unix systems should record broken symlinks
+        assertTrue(result.getScannedFileCount() >= 1,
+                "Expected at least 1 scanned file (the broken symlink), but found " + result.getScannedFileCount());
         // May have errors due to broken symlink, but should still record it
         assertTrue(result.getErrorCount() >= 0);
 
         // Find the symlink file in results
-        // Additional platform-specific handling for broken symlinks
-        if (isWindows && result.getScannedFileCount() == 0) {
-            // On Windows, broken symlinks might not be recorded
-            org.junit.jupiter.api.Assumptions.assumeTrue(false,
-                "Skipping symlink verification on Windows as broken symlink was not recorded");
-            return;
-        }
         
         ScanResult.ScannedFile scannedFile = result.getScannedFiles().stream()
                 .filter(f -> f.isSymbolicLink())

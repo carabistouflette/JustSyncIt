@@ -18,7 +18,7 @@ JustSyncIt is a comprehensive backup solution designed to provide reliable and e
 - **Network Synchronization**: Secure file transfer over TCP with custom protocol
 - **Chunked Storage**: Efficient content-addressable storage with deduplication
 - **SIMD Optimization**: Hardware-accelerated hashing on supported platforms
-- **Linux compatibility** - Optimized for Linux environments
+- **Linux compatibility** - Built specifically for Linux environments
 - **Incremental backups** - Only backup changed files to save time and space
 - **Encryption support** - Optional encryption for sensitive data
 - **Scheduling** - Automated backup scheduling
@@ -265,7 +265,7 @@ This project takes security seriously:
 ./gradlew javadoc
 ```
 
-**Note**: This project is designed for Linux environments. Development and testing should be performed on Linux systems to ensure compatibility.
+**Note**: This project is designed and optimized exclusively for Linux environments. All development, testing, and deployment should be performed on Linux systems to ensure full compatibility.
 
 ## License
 

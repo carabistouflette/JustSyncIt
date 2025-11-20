@@ -402,51 +402,6 @@ public class NioFilesystemScanner implements FilesystemScanner {
                     // IO error accessing attributes
                     logger.debug("IO error accessing block attributes for: {}", file, e);
                 }
-                // Windows-specific sparse file detection
-                if (System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("windows")) {
-                    try {
-                        // For Windows, we can use a heuristic approach
-                        // Check if the file has sparse characteristics by reading sample data
-                        long fileSize = attrs.size();
-                        if (fileSize > 64 * 1024) { // Only check files larger than 64KB
-                            try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file.toFile(), "r")) {
-                                // Sample different parts of the file
-                                long[] positions = {0, fileSize / 4, fileSize / 2, fileSize * 3 / 4,
-                                        Math.max(fileSize - 1024, 0)};
-                                int zeroRegions = 0;
-                                for (long pos : positions) {
-                                    if (pos < fileSize) {
-                                        raf.seek(pos);
-                                        byte[] buffer = new byte[1024];
-                                        int bytesRead = raf.read(buffer);
-
-                                        if (bytesRead > 0) {
-                                            boolean allZeros = true;
-                                            for (int i = 0; i < bytesRead; i++) {
-                                                if (buffer[i] != 0) {
-                                                    allZeros = false;
-                                                    break;
-                                                }
-                                            }
-                                            if (allZeros) {
-                                                zeroRegions++;
-                                            }
-                                        }
-                                    }
-                                }
-                                // If most sampled regions are zeros, likely sparse
-                                boolean isSparse = zeroRegions >= positions.length * 0.6;
-                                logger.debug("Windows sparse detection for {}: sampled={}, zeroRegions={}, isSparse={}",
-                                        file, positions.length, zeroRegions, isSparse);
-                                return isSparse;
-                            }
-                        }
-                    } catch (IOException e) {
-                        logger.debug("Windows sparse detection failed for: {}", file, e);
-                    } catch (SecurityException e) {
-                        logger.debug("Security exception during Windows sparse detection for: {}", file, e);
-                    }
-                }
             } catch (UnsupportedOperationException e) {
                 // Attribute not supported on this platform
                 logger.debug("Sparse file detection not supported for: {}", file);

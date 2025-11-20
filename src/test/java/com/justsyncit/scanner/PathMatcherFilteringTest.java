@@ -191,13 +191,9 @@ class PathMatcherFilteringTest {
                 .withIncludePattern(caseSensitivePattern);
         ScanResult result = scanner.scanDirectory(tempDir, options).get();
 
-        // On Windows, glob patterns are case-insensitive, on Unix they are case-sensitive
-        // Adjust expectations based on platform
-        boolean isCaseSensitive = !System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-        int expectedCount = isCaseSensitive ? 2 : 4; // 2 lowercase on Unix, 4 total on Windows
-
-        assertEquals(expectedCount, result.getScannedFileCount(),
-                "Expected " + expectedCount + " files on " + System.getProperty("os.name"));
+        // On Unix systems, glob patterns are case-sensitive
+        assertEquals(2, result.getScannedFileCount(),
+                "Expected 2 files on Unix system");
         assertEquals(0, result.getErrorCount());
 
         // Verify all files end with .txt (case-insensitive check)
@@ -266,67 +262,37 @@ class PathMatcherFilteringTest {
 
         // Should find only visible files that match the pattern
         // The glob pattern *.txt should not match .hidden.txt because it doesn't start with .
-        // However, on Windows the pattern matching might behave differently, so we check for at least 2
-        // Platform-specific behavior: Windows and Unix handle hidden files differently
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-        
-        if (isWindows) {
-            // On Windows, glob pattern *.txt might match hidden files differently
-            // We expect at least the visible files to be found
-            assertTrue(result.getScannedFileCount() >= 2,
-                    "Expected at least 2 visible files on Windows, but found " + result.getScannedFileCount());
-        } else {
-            // On Unix systems, we expect exactly 2 visible files (hidden files excluded)
-            assertEquals(2, result.getScannedFileCount(),
-                    "Expected exactly 2 visible files on Unix, but found " + result.getScannedFileCount());
-        }
+        // On Unix systems, we expect exactly 2 visible files (hidden files excluded)
+        assertEquals(2, result.getScannedFileCount(),
+                "Expected exactly 2 visible files on Unix, but found " + result.getScannedFileCount());
         assertEquals(0, result.getErrorCount());
 
-        // Platform-specific verification for hidden files
-        if (isWindows) {
-            // On Windows, files starting with . are not automatically hidden
-            // So we just verify that the visible files are present
-            // and don't strictly enforce hidden file exclusion
-            assertTrue(result.getScannedFiles().stream()
-                    .anyMatch(f -> {
-                        Path fileName = f.getPath().getFileName();
-                        return fileName != null && fileName.toString().equals("visible.txt");
-                    }),
-                    "visible.txt not found in results");
-            assertTrue(result.getScannedFiles().stream()
-                    .anyMatch(f -> {
-                        Path fileName = f.getPath().getFileName();
-                        return fileName != null && fileName.toString().equals("visible2.txt");
-                    }),
-                    "visible2.txt not found in results");
-        } else {
-            // On Unix systems, verify hidden files are not included
-            assertTrue(result.getScannedFiles().stream()
-                    .noneMatch(f -> {
-                        Path fileName = f.getPath().getFileName();
-                        return fileName != null && fileName.toString().startsWith(".");
-                    }),
-                    "Found hidden files in results: " + result.getScannedFiles().stream()
-                            .map(f -> {
-                                Path fileName = f.getPath().getFileName();
-                                return fileName != null ? fileName.toString() : "null";
-                            })
-                            .toList());
+        // On Unix systems, verify hidden files are not included
+        assertTrue(result.getScannedFiles().stream()
+                .noneMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().startsWith(".");
+                }),
+                "Found hidden files in results: " + result.getScannedFiles().stream()
+                        .map(f -> {
+                            Path fileName = f.getPath().getFileName();
+                            return fileName != null ? fileName.toString() : "null";
+                        })
+                        .toList());
 
-            // Also verify we have the expected visible files
-            assertTrue(result.getScannedFiles().stream()
-                    .anyMatch(f -> {
-                        Path fileName = f.getPath().getFileName();
-                        return fileName != null && fileName.toString().equals("visible.txt");
-                    }),
-                    "visible.txt not found in results");
-            assertTrue(result.getScannedFiles().stream()
-                    .anyMatch(f -> {
-                        Path fileName = f.getPath().getFileName();
-                        return fileName != null && fileName.toString().equals("visible2.txt");
-                    }),
-                    "visible2.txt not found in results");
-        }
+        // Also verify we have the expected visible files
+        assertTrue(result.getScannedFiles().stream()
+                .anyMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().equals("visible.txt");
+                }),
+                "visible.txt not found in results");
+        assertTrue(result.getScannedFiles().stream()
+                .anyMatch(f -> {
+                    Path fileName = f.getPath().getFileName();
+                    return fileName != null && fileName.toString().equals("visible2.txt");
+                }),
+                "visible2.txt not found in results");
     }
 
     @Test
