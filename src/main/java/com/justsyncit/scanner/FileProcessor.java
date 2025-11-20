@@ -595,6 +595,7 @@ public class FileProcessor {
                 }
 
                 // Add timeout to prevent infinite hanging
+                // Use the filtered list to create the array for allOf()
                 CompletableFuture.allOf(validFutures.toArray(new CompletableFuture[0]))
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {
