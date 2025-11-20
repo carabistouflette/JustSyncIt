@@ -203,7 +203,7 @@ public class ServiceFactory {
             throw new ServiceException("Failed to create backup service", e);
         }
     }
-    
+
     /**
      * Creates a restore service with all dependencies.
      *
@@ -221,7 +221,7 @@ public class ServiceFactory {
             throw new ServiceException("Failed to create restore service", e);
         }
     }
-    
+
     /**
      * Creates a backup command with dependency injection.
      *
@@ -236,7 +236,7 @@ public class ServiceFactory {
             throw new ServiceException("Failed to create backup command", e);
         }
     }
-    
+
     /**
      * Creates a restore command with dependency injection.
      *

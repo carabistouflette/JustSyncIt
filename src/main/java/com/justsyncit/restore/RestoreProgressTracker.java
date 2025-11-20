@@ -25,7 +25,7 @@ import com.justsyncit.storage.metadata.Snapshot;
  * Follows Interface Segregation Principle by providing focused progress tracking.
  */
 public interface RestoreProgressTracker {
-    
+
     /**
      * Called when restore operation starts.
      *
@@ -33,7 +33,7 @@ public interface RestoreProgressTracker {
      * @param targetDirectory where files are being restored
      */
     void startRestore(Snapshot snapshot, java.nio.file.Path targetDirectory);
-    
+
     /**
      * Called when restore progress is updated.
      *
@@ -43,23 +43,23 @@ public interface RestoreProgressTracker {
      * @param totalBytes total number of bytes
      * @param currentFile file currently being processed
      */
-    void updateProgress(long filesProcessed, long totalFiles, long bytesProcessed, 
+    void updateProgress(long filesProcessed, long totalFiles, long bytesProcessed,
                        long totalBytes, String currentFile);
-    
+
     /**
      * Called when restore completes successfully.
      *
      * @param result restore result
      */
     void completeRestore(RestoreService.RestoreResult result);
-    
+
     /**
      * Called when restore encounters an error.
      *
      * @param error error that occurred
      */
     void errorRestore(Throwable error);
-    
+
     /**
      * Called when a file is skipped.
      *
@@ -67,7 +67,7 @@ public interface RestoreProgressTracker {
      * @param reason reason for skipping
      */
     void fileSkipped(String file, String reason);
-    
+
     /**
      * Called when a file encounters an error.
      *

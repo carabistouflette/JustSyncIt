@@ -26,25 +26,25 @@ import java.nio.file.PathMatcher;
  * Follows Builder pattern for flexible configuration.
  */
 public class RestoreOptions {
-    
+
     /** Whether to overwrite existing files. */
     private final boolean overwriteExisting;
-    
+
     /** Whether to backup existing files before overwriting. */
     private final boolean backupExisting;
-    
+
     /** Whether to verify integrity after restore. */
     private final boolean verifyIntegrity;
-    
+
     /** Whether to preserve file attributes. */
     private final boolean preserveAttributes;
-    
+
     /** Include pattern for files to restore. */
     private final PathMatcher includePattern;
-    
+
     /** Exclude pattern for files to skip. */
     private final PathMatcher excludePattern;
-    
+
     /**
      * Creates a new RestoreOptions.
      */
@@ -56,7 +56,7 @@ public class RestoreOptions {
         this.includePattern = builder.includePattern;
         this.excludePattern = builder.excludePattern;
     }
-    
+
     /**
      * Creates a new RestoreOptions with default values.
      */
@@ -68,31 +68,31 @@ public class RestoreOptions {
         this.includePattern = null;
         this.excludePattern = null;
     }
-    
+
     public boolean isOverwriteExisting() {
         return overwriteExisting;
     }
-    
+
     public boolean isBackupExisting() {
         return backupExisting;
     }
-    
+
     public boolean isVerifyIntegrity() {
         return verifyIntegrity;
     }
-    
+
     public boolean isPreserveAttributes() {
         return preserveAttributes;
     }
-    
+
     public PathMatcher getIncludePattern() {
         return includePattern;
     }
-    
+
     public PathMatcher getExcludePattern() {
         return excludePattern;
     }
-    
+
     /**
      * Builder for creating RestoreOptions instances.
      */
@@ -103,41 +103,41 @@ public class RestoreOptions {
         private boolean preserveAttributes = true;
         private PathMatcher includePattern;
         private PathMatcher excludePattern;
-        
+
         public Builder overwriteExisting(boolean overwriteExisting) {
             this.overwriteExisting = overwriteExisting;
             return this;
         }
-        
+
         public Builder backupExisting(boolean backupExisting) {
             this.backupExisting = backupExisting;
             return this;
         }
-        
+
         public Builder verifyIntegrity(boolean verifyIntegrity) {
             this.verifyIntegrity = verifyIntegrity;
             return this;
         }
-        
+
         public Builder preserveAttributes(boolean preserveAttributes) {
             this.preserveAttributes = preserveAttributes;
             return this;
         }
-        
+
         public Builder includePattern(String pattern) {
             if (pattern != null && !pattern.trim().isEmpty()) {
                 this.includePattern = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
             }
             return this;
         }
-        
+
         public Builder excludePattern(String pattern) {
             if (pattern != null && !pattern.trim().isEmpty()) {
                 this.excludePattern = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
             }
             return this;
         }
-        
+
         public RestoreOptions build() {
             return new RestoreOptions(this);
         }

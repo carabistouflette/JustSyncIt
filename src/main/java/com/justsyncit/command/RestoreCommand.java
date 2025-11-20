@@ -37,10 +37,10 @@ import java.util.concurrent.CompletableFuture;
  * Follows Single Responsibility Principle by handling only restore operations.
  */
 public class RestoreCommand implements Command {
-    
+
     private final RestoreService restoreService;
     private final ServiceFactory serviceFactory;
-    
+
     /**
      * Creates a restore command with dependency injection.
      *
@@ -50,48 +50,48 @@ public class RestoreCommand implements Command {
         this.restoreService = restoreService;
         this.serviceFactory = new ServiceFactory();
     }
-    
+
     @Override
     public String getName() {
         return "restore";
     }
-    
+
     @Override
     public String getDescription() {
         return "Restore a directory from a snapshot";
     }
-    
+
     @Override
     public String getUsage() {
         return "restore <snapshot-id> <target-dir> [options]";
     }
-    
+
     @Override
     public boolean execute(String[] args, CommandContext context) {
-        
+
         if (args.length < 2) {
             System.err.println("Error: Snapshot ID and target directory are required");
             System.err.println(getUsage());
             System.err.println("Use 'help restore' for more information");
             return false;
         }
-        
+
         String snapshotId = args[0];
         String targetDir = args[1];
         Path targetPath = Paths.get(targetDir);
-        
+
         // Validate target directory
         if (Files.exists(targetPath) && !Files.isDirectory(targetPath)) {
             System.err.println("Error: Target path exists but is not a directory: " + targetDir);
             return false;
         }
-        
+
         // Parse options
         RestoreOptions.Builder optionsBuilder = new RestoreOptions.Builder();
-        
+
         for (int i = 2; i < args.length; i++) {
             String arg = args[i];
-            
+
             switch (arg) {
                 case "--overwrite":
                     optionsBuilder.overwriteExisting(true);
@@ -134,9 +134,9 @@ public class RestoreCommand implements Command {
                     break;
             }
         }
-        
+
         RestoreOptions options = optionsBuilder.build();
-        
+
         // Create services if not provided
         RestoreService service = restoreService;
         if (service == null) {
@@ -150,25 +150,25 @@ public class RestoreCommand implements Command {
                 return false;
             }
         }
-        
+
         // Execute restore
         ConsoleRestoreProgressTracker progressTracker = new ConsoleRestoreProgressTracker();
-        
+
         try {
             System.out.println("Starting restore of snapshot: " + snapshotId);
             System.out.println("Target directory: " + targetDir);
             System.out.println("Options: " + options);
-            
+
             CompletableFuture<RestoreService.RestoreResult> restoreFuture = service.restore(snapshotId, targetPath, options);
             RestoreService.RestoreResult result = restoreFuture.get();
-            
+
             System.out.println("\nRestore completed successfully!");
             System.out.println("Files restored: " + result.getFilesRestored());
             System.out.println("Files skipped: " + result.getFilesSkipped());
             System.out.println("Files with errors: " + result.getFilesWithErrors());
             System.out.println("Total bytes: " + result.getTotalBytesRestored());
             System.out.println("Integrity verified: " + result.isIntegrityVerified());
-            
+
         } catch (Exception e) {
             System.err.println("\nRestore failed: " + e.getMessage());
             if (e.getCause() != null) {
@@ -176,10 +176,10 @@ public class RestoreCommand implements Command {
             }
             return false;
         }
-        
+
         return true;
     }
-    
+
     /**
      * Displays detailed help information for the restore command.
      */

@@ -41,22 +41,22 @@ import java.util.concurrent.CompletableFuture;
  * Follows Single Responsibility Principle by focusing only on restore workflow orchestration.
  */
 public class RestoreService {
-    
+
     /** Logger for restore operations. */
     private static final Logger logger = LoggerFactory.getLogger(RestoreService.class);
-    
+
     /** Content store for retrieving chunks. */
     private final ContentStore contentStore;
-    
+
     /** Metadata service for snapshot management. */
     private final MetadataService metadataService;
-    
+
     /** BLAKE3 service for integrity verification. */
     private final Blake3Service blake3Service;
-    
+
     /** Progress tracker for restore operations. */
     private RestoreProgressTracker progressTracker;
-    
+
     /**
      * Creates a new RestoreService with required dependencies.
      *
@@ -75,13 +75,13 @@ public class RestoreService {
         if (blake3Service == null) {
             throw new IllegalArgumentException("BLAKE3 service cannot be null");
         }
-        
+
         this.contentStore = contentStore;
         this.metadataService = metadataService;
         this.blake3Service = blake3Service;
         this.progressTracker = new ConsoleRestoreProgressTracker();
     }
-    
+
     /**
      * Performs a restore of the specified snapshot to the target directory.
      *
@@ -94,7 +94,7 @@ public class RestoreService {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 logger.info("Starting restore of snapshot: {} to directory: {}", snapshotId, targetDirectory);
-                
+
                 // Validate inputs
                 if (snapshotId == null || snapshotId.trim().isEmpty()) {
                     throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
@@ -102,32 +102,32 @@ public class RestoreService {
                 if (targetDirectory == null) {
                     throw new IllegalArgumentException("Target directory cannot be null");
                 }
-                
+
                 RestoreOptions finalOptions = options != null ? options : new RestoreOptions();
-                
+
                 // Get snapshot metadata
                 Snapshot snapshot = getSnapshot(snapshotId);
-                
+
                 // Create target directory if it doesn't exist
                 createTargetDirectory(targetDirectory);
-                
+
                 // Start progress tracking
                 progressTracker.startRestore(snapshot, targetDirectory);
-                
+
                 // Get files in snapshot
                 List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId);
-                
+
                 // Restore files
                 RestoreResult result = restoreFiles(files, targetDirectory, finalOptions);
-                
+
                 // Complete restore
                 progressTracker.completeRestore(result);
-                
+
                 logger.info("Restore completed successfully. Files: {}, Size: {} bytes",
                         result.getFilesRestored(), result.getTotalBytesRestored());
-                
+
                 return result;
-                
+
             } catch (RestoreException e) {
                 logger.error("Restore failed", e);
                 progressTracker.errorRestore(e);
@@ -139,7 +139,7 @@ public class RestoreService {
             }
         });
     }
-    
+
     /**
      * Gets snapshot metadata.
      */
@@ -150,7 +150,7 @@ public class RestoreService {
         }
         return snapshotOpt.get();
     }
-    
+
     /**
      * Creates target directory if it doesn't exist.
      */
@@ -162,7 +162,7 @@ public class RestoreService {
             throw new IllegalArgumentException("Target path exists but is not a directory: " + targetDirectory);
         }
     }
-    
+
     /**
      * Restores files from snapshot to target directory.
      */
@@ -172,15 +172,15 @@ public class RestoreService {
         int filesWithErrors = 0;
         long totalBytesRestored = 0;
         long totalFiles = files.size();
-        
+
         progressTracker.updateProgress(0, totalFiles, 0, -1, null);
-        
+
         for (int i = 0; i < files.size(); i++) {
             FileMetadata file = files.get(i);
-            
+
             try {
                 progressTracker.updateProgress(i, totalFiles, totalBytesRestored, -1, file.getPath());
-                
+
                 if (shouldRestoreFile(file, options)) {
                     restoreFile(file, targetDirectory, options);
                     filesRestored++;
@@ -189,20 +189,20 @@ public class RestoreService {
                     filesSkipped++;
                     progressTracker.fileSkipped(file.getPath(), "Skipped by user options");
                 }
-                
+
             } catch (Exception e) {
                 logger.error("Failed to restore file: {}", file.getPath(), e);
                 filesWithErrors++;
                 progressTracker.fileError(file.getPath(), e);
             }
         }
-        
+
         // Verify integrity if requested
         boolean integrityVerified = false;
         if (options.isVerifyIntegrity()) {
             integrityVerified = verifyRestoreIntegrity(files, targetDirectory);
         }
-        
+
         return RestoreResult.create(
                 filesRestored,
                 filesSkipped,
@@ -211,57 +211,57 @@ public class RestoreService {
                 integrityVerified
         );
     }
-    
+
     /**
      * Determines if a file should be restored based on options.
      */
     private boolean shouldRestoreFile(FileMetadata file, RestoreOptions options) {
         // Apply include/exclude patterns
-        if (options.getIncludePattern() != null && 
-            !options.getIncludePattern().matches(Path.of(file.getPath()))) {
+        if (options.getIncludePattern() != null
+            && !options.getIncludePattern().matches(Path.of(file.getPath()))) {
             return false;
         }
-        
-        if (options.getExcludePattern() != null && 
-            options.getExcludePattern().matches(Path.of(file.getPath()))) {
+
+        if (options.getExcludePattern() != null
+            && options.getExcludePattern().matches(Path.of(file.getPath()))) {
             return false;
         }
-        
+
         return true;
     }
-    
+
     /**
      * Restores a single file.
      */
     private void restoreFile(FileMetadata fileMetadata, Path targetDirectory, RestoreOptions options) throws IOException {
         Path targetFile = targetDirectory.resolve(fileMetadata.getPath());
-        
+
         // Create parent directories if needed
         Path parentDir = targetFile.getParent();
         if (parentDir != null && !Files.exists(parentDir)) {
             Files.createDirectories(parentDir);
         }
-        
+
         // Check if file already exists
         if (Files.exists(targetFile)) {
             if (!options.isOverwriteExisting()) {
                 throw new IOException("Target file already exists: " + targetFile);
             }
-            
+
             if (options.isBackupExisting()) {
                 backupExistingFile(targetFile);
             }
         }
-        
+
         // Reconstruct file from chunks
         reconstructFileFromChunks(fileMetadata, targetFile);
-        
+
         // Set file permissions and timestamps
         if (options.isPreserveAttributes()) {
             preserveFileAttributes(targetFile, fileMetadata);
         }
     }
-    
+
     /**
      * Reconstructs a file from its chunks.
      */
@@ -269,38 +269,38 @@ public class RestoreService {
         try {
             // Create file and write chunks
             java.io.FileOutputStream outputStream = new java.io.FileOutputStream(targetFile.toFile());
-            
+
             for (String chunkHash : fileMetadata.getChunkHashes()) {
                 byte[] chunkData = contentStore.retrieveChunk(chunkHash);
                 if (chunkData == null) {
                     throw new IOException("Chunk not found in content store: " + chunkHash);
                 }
-                
+
                 // Verify chunk integrity
                 if (!verifyChunkIntegrity(chunkHash, chunkData)) {
                     throw new StorageIntegrityException("Chunk integrity verification failed: " + chunkHash);
                 }
-                
+
                 outputStream.write(chunkData);
             }
-            
+
             outputStream.close();
-            
+
             // Verify file integrity
             String actualHash = blake3Service.hashFile(targetFile);
             if (!actualHash.equals(fileMetadata.getFileHash())) {
                 throw new StorageIntegrityException("File integrity verification failed for: " + targetFile);
             }
-            
+
             logger.debug("Successfully restored file: {}", targetFile);
-            
+
         } catch (StorageIntegrityException e) {
             throw new RestoreException("Storage integrity error", e);
         } catch (Exception e) {
             throw new IOException("Failed to reconstruct file from chunks: " + targetFile, e);
         }
     }
-    
+
     /**
      * Verifies chunk integrity.
      */
@@ -313,7 +313,7 @@ public class RestoreService {
             return false;
         }
     }
-    
+
     /**
      * Backs up an existing file.
      */
@@ -322,7 +322,7 @@ public class RestoreService {
         Files.copy(targetFile, backupFile, StandardCopyOption.REPLACE_EXISTING);
         logger.info("Backed up existing file to: {}", backupFile);
     }
-    
+
     /**
      * Preserves file attributes.
      */
@@ -330,13 +330,13 @@ public class RestoreService {
         // Set last modified time
         if (fileMetadata.getModifiedTime() != null) {
             Files.setLastModifiedTime(targetFile,
-                FileTime.fromMillis(fileMetadata.getModifiedTime().toEpochMilli()));
+                    FileTime.fromMillis(fileMetadata.getModifiedTime().toEpochMilli()));
         }
-        
+
         // Note: In a real implementation, we might also preserve permissions,
         // ownership, and other attributes based on the platform
     }
-    
+
     /**
      * Verifies restore integrity.
      */
@@ -358,7 +358,7 @@ public class RestoreService {
             return false;
         }
     }
-    
+
     /**
      * Sets the progress tracker for restore operations.
      *
@@ -367,7 +367,7 @@ public class RestoreService {
     public void setProgressTracker(RestoreProgressTracker progressTracker) {
         this.progressTracker = progressTracker != null ? progressTracker : new ConsoleRestoreProgressTracker();
     }
-    
+
     /**
      * Gets the current progress tracker.
      *
@@ -376,7 +376,7 @@ public class RestoreService {
     public RestoreProgressTracker getProgressTracker() {
         return progressTracker;
     }
-    
+
     /**
      * Result of a restore operation.
      */
@@ -391,7 +391,7 @@ public class RestoreService {
         private final long totalBytesRestored;
         /** Whether integrity was verified. */
         private final boolean integrityVerified;
-        
+
         /**
          * Creates a new RestoreResult.
          */
@@ -403,7 +403,7 @@ public class RestoreService {
             this.totalBytesRestored = totalBytesRestored;
             this.integrityVerified = integrityVerified;
         }
-        
+
         /**
          * Creates a new RestoreResult.
          *
@@ -416,34 +416,34 @@ public class RestoreService {
          */
         public static RestoreResult create(int filesRestored, int filesSkipped, int filesWithErrors,
                                          long totalBytesRestored, boolean integrityVerified) {
-            return new RestoreResult(filesRestored, filesSkipped, filesWithErrors, 
+            return new RestoreResult(filesRestored, filesSkipped, filesWithErrors,
                     totalBytesRestored, integrityVerified);
         }
-        
+
         public int getFilesRestored() {
             return filesRestored;
         }
-        
+
         public int getFilesSkipped() {
             return filesSkipped;
         }
-        
+
         public int getFilesWithErrors() {
             return filesWithErrors;
         }
-        
+
         public long getTotalBytesRestored() {
             return totalBytesRestored;
         }
-        
+
         public boolean isIntegrityVerified() {
             return integrityVerified;
         }
-        
+
         public boolean isSuccess() {
             return filesWithErrors == 0 && integrityVerified;
         }
-        
+
         public long getDuration() {
             return 0; // TODO: Implement duration tracking
         }

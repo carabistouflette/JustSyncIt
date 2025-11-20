@@ -31,8 +31,6 @@ import com.justsyncit.storage.metadata.MetadataService;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -40,10 +38,10 @@ import java.util.concurrent.CompletableFuture;
  * Follows Single Responsibility Principle by handling only backup operations.
  */
 public class BackupCommand implements Command {
-    
+
     private final BackupService backupService;
     private final ServiceFactory serviceFactory;
-    
+
     /**
      * Creates a backup command with dependency injection.
      *
@@ -53,51 +51,51 @@ public class BackupCommand implements Command {
         this.backupService = backupService;
         this.serviceFactory = new ServiceFactory();
     }
-    
+
     @Override
     public String getName() {
         return "backup";
     }
-    
+
     @Override
     public String getDescription() {
         return "Backup a directory to the content store";
     }
-    
+
     @Override
     public String getUsage() {
         return "backup <source-dir> [options]";
     }
-    
+
     @Override
     public boolean execute(String[] args, CommandContext context) {
-        
+
         if (args.length == 0) {
             System.err.println("Error: Source directory is required");
             System.err.println(getUsage());
             System.err.println("Use 'help backup' for more information");
             return false;
         }
-        
+
         String sourceDir = args[0];
         Path sourcePath = Paths.get(sourceDir);
-        
+
         if (!Files.exists(sourcePath)) {
             System.err.println("Error: Source directory does not exist: " + sourceDir);
             return false;
         }
-        
+
         if (!Files.isDirectory(sourcePath)) {
             System.err.println("Error: Source path is not a directory: " + sourceDir);
             return false;
         }
-        
+
         // Parse options
         BackupOptions.Builder optionsBuilder = new BackupOptions.Builder();
-        
+
         for (int i = 1; i < args.length; i++) {
             String arg = args[i];
-            
+
             switch (arg) {
                 case "--follow-symlinks":
                     optionsBuilder.symlinkStrategy(SymlinkStrategy.FOLLOW);
@@ -137,9 +135,9 @@ public class BackupCommand implements Command {
                     break;
             }
         }
-        
+
         BackupOptions options = optionsBuilder.build();
-        
+
         // Create services if not provided
         BackupService service = backupService;
         if (service == null) {
@@ -153,23 +151,23 @@ public class BackupCommand implements Command {
                 return false;
             }
         }
-        
+
         // Execute backup
         ConsoleBackupProgressTracker progressTracker = new ConsoleBackupProgressTracker();
-        
+
         try {
             System.out.println("Starting backup of: " + sourceDir);
             System.out.println("Options: " + options);
-            
+
             CompletableFuture<BackupService.BackupResult> backupFuture = service.backup(sourcePath, options);
             BackupService.BackupResult result = backupFuture.get();
-            
+
             System.out.println("\nBackup completed successfully!");
             System.out.println("Files processed: " + result.getFilesProcessed());
             System.out.println("Total bytes: " + result.getTotalBytesProcessed());
             System.out.println("Chunks created: " + result.getChunksCreated());
             System.out.println("Integrity verified: " + result.isIntegrityVerified());
-            
+
         } catch (Exception e) {
             System.err.println("\nBackup failed: " + e.getMessage());
             if (e.getCause() != null) {
@@ -177,10 +175,10 @@ public class BackupCommand implements Command {
             }
             return false;
         }
-        
+
         return true;
     }
-    
+
     /**
      * Displays detailed help information for the backup command.
      */

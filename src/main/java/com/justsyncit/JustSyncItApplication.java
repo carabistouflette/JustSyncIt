@@ -100,7 +100,7 @@ public class JustSyncItApplication {
 
         // Display application header
         logger.info("JustSyncIt - Backup Solution");
-        logger.info("Version: 1.0-SNAPSHOT");
+        logger.info("Version: 0.1.0");
 
         if (processedArgs.length == 0) {
             logger.info("Running with no arguments");

@@ -52,7 +52,7 @@ public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
     public void startRestore(Snapshot snapshot, java.nio.file.Path targetDirectory) {
         startTime = System.currentTimeMillis();
         lastUpdate = startTime;
-        
+
         out.println();
         out.println("Starting restore operation...");
         out.println("  Source snapshot: " + snapshot.getId());
@@ -63,25 +63,25 @@ public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
     }
 
     @Override
-    public void updateProgress(long filesProcessed, long totalFiles, long bytesProcessed, 
+    public void updateProgress(long filesProcessed, long totalFiles, long bytesProcessed,
                               long totalBytes, String currentFile) {
         long now = System.currentTimeMillis();
-        
+
         // Update progress every 500ms to avoid console spam
         if (now - lastUpdate < 500 && filesProcessed < totalFiles) {
             return;
         }
-        
+
         lastUpdate = now;
-        
+
         // Calculate progress percentages
         double fileProgress = totalFiles > 0 ? (double) filesProcessed / totalFiles : 0.0;
         double byteProgress = totalBytes > 0 ? (double) bytesProcessed / totalBytes : 0.0;
-        
+
         // Calculate estimated time remaining
         long elapsed = now - startTime;
         long eta = filesProcessed > 0 ? (long) ((elapsed / (double) filesProcessed) * (totalFiles - filesProcessed)) : 0;
-        
+
         // Build progress bar
         int barWidth = 40;
         int filled = (int) (fileProgress * barWidth);
@@ -90,7 +90,7 @@ public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
             bar.append(i < filled ? "=" : i == filled ? ">" : " ");
         }
         bar.append("]");
-        
+
         // Print progress
         out.printf("\r%s %d/%d files (%.1f%%) %s %s/%s (%.1f%%) ETA: %s",
                 bar,
@@ -98,7 +98,7 @@ public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
                 currentFile != null ? "Current: " + currentFile : "",
                 formatBytes(bytesProcessed), formatBytes(totalBytes), byteProgress * 100,
                 formatDuration(eta));
-        
+
         out.flush();
     }
 

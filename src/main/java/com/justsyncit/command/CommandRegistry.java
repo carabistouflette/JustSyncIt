@@ -26,10 +26,10 @@ import java.util.Map;
  * Follows Open/Closed Principle by allowing new commands to be registered without modification.
  */
 public class CommandRegistry {
-    
+
     /** Map of registered commands. */
     private final Map<String, Command> commands = new HashMap<>();
-    
+
     /**
      * Initializes the command registry with default commands.
      */
