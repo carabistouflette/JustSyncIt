@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.sql.Connection;
 
 /**
  * Factory for creating metadata service instances.
@@ -38,6 +39,9 @@ public final class MetadataServiceFactory {
 
     /** Default maximum number of database connections in the pool. */
     private static final int DEFAULT_MAX_CONNECTIONS = 10;
+
+    /** Shared connection manager for in-memory databases (for testing). */
+    private static volatile DatabaseConnectionManager sharedInMemoryConnectionManager;
 
     /** Private constructor to prevent instantiation. */
     private MetadataServiceFactory() {
@@ -120,10 +124,28 @@ public final class MetadataServiceFactory {
 
         logger.info("Creating in-memory metadata service");
 
-        DatabaseConnectionManager connectionManager = new SqliteConnectionManager(":memory:", maxConnections);
+        // Use shared connection manager for in-memory databases to ensure all operations
+        // use the same database instance
+        if (sharedInMemoryConnectionManager == null) {
+            synchronized (MetadataServiceFactory.class) {
+                if (sharedInMemoryConnectionManager == null) {
+                    sharedInMemoryConnectionManager = new SqliteConnectionManager("file::memory:?cache=shared", maxConnections);
+                    
+                    // Get the shared connection to ensure it's initialized
+                    try {
+                        Connection sharedConnection = sharedInMemoryConnectionManager.getConnection();
+                        logger.info("Pre-initialized shared in-memory database connection");
+                    } catch (Exception e) {
+                        logger.error("Failed to pre-initialize shared in-memory database", e);
+                        throw new IOException("Failed to initialize shared in-memory database", e);
+                    }
+                }
+            }
+        }
+
         SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
 
-        return new SqliteMetadataService(connectionManager, schemaMigrator);
+        return new SqliteMetadataService(sharedInMemoryConnectionManager, schemaMigrator);
     }
 
     /**

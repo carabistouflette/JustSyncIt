@@ -83,7 +83,15 @@ public final class SqliteMetadataService implements MetadataService {
                 stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
                 stmt.execute("PRAGMA optimize");
             }
-            schemaMigrator.migrate(connection);
+            
+            // Only migrate if not already up to date to avoid redundant migrations
+            int currentVersion = schemaMigrator.getCurrentVersion(connection);
+            int targetVersion = schemaMigrator.getTargetVersion();
+            if (currentVersion < targetVersion) {
+                schemaMigrator.migrate(connection);
+            } else {
+                logger.debug("Database schema is already up to date, skipping migration");
+            }
         } catch (SQLException e) {
             throw new IOException("Failed to initialize database schema", e);
         }

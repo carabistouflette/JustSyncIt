@@ -313,7 +313,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
                 throw new IllegalStateException("Failed to initialize shared in-memory database", e);
             }
         }
-        // Return a defensive copy to avoid exposing internal representation
+        // Return the same connection instance for all in-memory databases
         return staticSharedMemoryConnection;
     }
 

@@ -67,7 +67,7 @@ public class BackupRestoreIntegrationTest {
         serviceFactory = new ServiceFactory();
         blake3Service = serviceFactory.createBlake3Service();
         contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-        metadataService = serviceFactory.createInMemoryMetadataService();
+        metadataService = serviceFactory.createMetadataService(tempDir.resolve("test-metadata.db").toString());
         backupService = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
         restoreService = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
         commandContext = new CommandContext(blake3Service);
@@ -107,13 +107,12 @@ public class BackupRestoreIntegrationTest {
         assertTrue(backupResult.getChunksCreated() > 0);
         assertTrue(backupResult.isIntegrityVerified());
 
-        // For now, skip restore test as it requires full metadata service implementation
         // Create restore directory
         Path restoreDir = tempDir.resolve("restore");
         Files.createDirectories(restoreDir);
 
-        // Perform restore using the actual restore service
-        String snapshotId = "test-snapshot-id";
+        // Perform restore using the actual snapshot ID from backup
+        String snapshotId = backupResult.getSnapshotId();
         RestoreOptions restoreOptions = new RestoreOptions.Builder()
                 .overwriteExisting(true)
                 .verifyIntegrity(true)
@@ -176,7 +175,7 @@ public class BackupRestoreIntegrationTest {
                 .verifyIntegrity(true)
                 .build();
 
-        String snapshotId = "test-snapshot-id-multiple";
+        String snapshotId = backupResult.getSnapshotId();
         CompletableFuture<RestoreService.RestoreResult> restoreFuture =
                 restoreService.restore(snapshotId, restoreDir, restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
