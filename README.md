@@ -18,7 +18,7 @@ JustSyncIt is a comprehensive backup solution designed to provide reliable and e
 - **Network Synchronization**: Secure file transfer over TCP with custom protocol
 - **Chunked Storage**: Efficient content-addressable storage with deduplication
 - **SIMD Optimization**: Hardware-accelerated hashing on supported platforms
-- **Cross-platform compatibility** - Runs on Windows, macOS, and Linux
+- **Linux compatibility** - Optimized for Linux environments
 - **Incremental backups** - Only backup changed files to save time and space
 - **Encryption support** - Optional encryption for sensitive data
 - **Scheduling** - Automated backup scheduling
@@ -31,6 +31,7 @@ JustSyncIt is a comprehensive backup solution designed to provide reliable and e
 ## Requirements
 
 - Java 21 or higher
+- Linux operating system (Ubuntu 20.04+, CentOS 8+, or equivalent)
 - Gradle 9.2+ (for development)
 - Git (for version control)
 - Docker (optional, for containerized deployment)
@@ -39,10 +40,18 @@ JustSyncIt is a comprehensive backup solution designed to provide reliable and e
 
 ### Prerequisites
 
-Ensure you have Java 21+ installed:
+Ensure you have Java 21+ installed on Linux:
 
 ```bash
+# Check Java version
 java -version
+
+# Install Java 21 on Ubuntu/Debian if needed
+sudo apt update
+sudo apt install openjdk-21-jdk
+
+# Install Java 21 on CentOS/RHEL if needed
+sudo yum install java-21-openjdk-devel
 ```
 
 ### Building the Project
@@ -86,6 +95,7 @@ docker run -p 8080:8080 justsyncit/app:latest
 1. Clone the repository as shown above
 2. Import the project into your favorite IDE (IntelliJ IDEA, Eclipse, VS Code)
 3. The project uses Gradle for dependency management and building
+4. **Important**: This project is optimized for Linux environments. Use a Linux development environment for best compatibility.
 
 ## Build Commands
 
@@ -114,8 +124,8 @@ This project maintains high code quality standards:
 
 This project includes a comprehensive CI/CD pipeline:
 
-- **Multi-platform builds**: Linux, Windows, macOS
-- **Multi-version testing**: Java 17, 21, 22
+- **Linux builds**: Optimized for Linux environments
+- **Multi-version testing**: Java 21, 22
 - **Code quality**: Checkstyle, SpotBugs analysis
 - **Security scanning**: OWASP Dependency Check, Trivy vulnerability scanner
 - **Automated releases**: Semantic versioning with GitHub releases
@@ -254,6 +264,8 @@ This project takes security seriously:
 # Generate documentation
 ./gradlew javadoc
 ```
+
+**Note**: This project is designed for Linux environments. Development and testing should be performed on Linux systems to ensure compatibility.
 
 ## License
 

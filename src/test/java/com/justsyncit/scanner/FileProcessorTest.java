@@ -26,15 +26,11 @@ import com.justsyncit.storage.metadata.MetadataService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.extension.ExtensionContext;
-import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -43,12 +39,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Unit tests for FileProcessor.
+ * Note: This test suite is Linux-only due to platform-specific file system behavior.
  */
-@ExtendWith(FileProcessorTest.WindowsExceptionHandler.class)
 class FileProcessorTest {
     /** Temporary directory for tests. */
     @TempDir
@@ -102,25 +97,7 @@ class FileProcessorTest {
                 .withMaxDepth(10);
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
         
-        // Platform-specific timeout and error handling
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-        int timeoutSeconds = isWindows ? 180 : 120; // Longer timeout for Windows
-        
-        FileProcessor.ProcessingResult result;
-        try {
-            result = future.get(timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            // Check for IOException at multiple levels of exception wrapping
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            throw e;
-        }
+        FileProcessor.ProcessingResult result = future.get(120, java.util.concurrent.TimeUnit.SECONDS);
         
         // Verify results
         ScanResult scanResult = result.getScanResult();
@@ -176,21 +153,7 @@ class FileProcessorTest {
                 .withIncludePattern(tempDir.getFileSystem().getPathMatcher("glob:**/*.txt"));
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
         
-        FileProcessor.ProcessingResult result;
-        try {
-            result = future.get();
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            throw e;
-        }
+        FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
         assertEquals(1, scanResult.getScannedFiles().size());
         assertTrue(scanResult.getScannedFiles().get(0).getPath().endsWith("test.txt"));
@@ -216,21 +179,7 @@ class FileProcessorTest {
                 .withMaxDepth(2);
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(root, options);
         
-        FileProcessor.ProcessingResult result;
-        try {
-            result = future.get();
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            throw e;
-        }
+        FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
         assertEquals(3, scanResult.getScannedFiles().size()); // root.txt, level1.txt, level2.txt
         // level3.txt should not be included due to depth limit
@@ -249,21 +198,7 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(largeFileDir, options);
         
-        FileProcessor.ProcessingResult result;
-        try {
-            result = future.get();
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            throw e;
-        }
+        FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
         assertEquals(1, scanResult.getScannedFiles().size());
 
@@ -282,39 +217,12 @@ class FileProcessorTest {
                 .withIncludeHiddenFiles(false);
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
         
-        FileProcessor.ProcessingResult result;
-        try {
-            result = future.get();
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            throw e;
-        }
+        FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
         
-        // Platform-specific behavior for hidden files
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-        if (isWindows) {
-            // On Windows, hidden file handling might be different
-            // Allow for both scenarios: hidden files included or excluded
-            assertTrue(scanResult.getScannedFiles().size() >= 1,
-                    "Should have at least 1 file, but found " + scanResult.getScannedFiles().size());
-            // Check that visible file is always included
-            assertTrue(scanResult.getScannedFiles().stream()
-                    .anyMatch(f -> f.getPath().endsWith("visible.txt")),
-                    "Visible file should always be included");
-        } else {
-            // On Unix-like systems, expect exactly 1 file (excluding hidden)
-            assertEquals(1, scanResult.getScannedFiles().size());
-            assertTrue(scanResult.getScannedFiles().get(0).getPath().endsWith("visible.txt"));
-        }
+        // On Unix-like systems, expect exactly 1 file (excluding hidden)
+        assertEquals(1, scanResult.getScannedFiles().size());
+        assertTrue(scanResult.getScannedFiles().get(0).getPath().endsWith("visible.txt"));
     }
 
     @Test
@@ -330,24 +238,7 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
         
-        // Platform-specific timeout and error handling
-        boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-        int timeoutSeconds = isWindows ? 180 : 120; // Longer timeout for Windows
-        
-        FileProcessor.ProcessingResult result;
-        try {
-            result = future.get(timeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            throw e;
-        }
+        FileProcessor.ProcessingResult result = future.get(120, java.util.concurrent.TimeUnit.SECONDS);
         ScanResult scanResult = result.getScanResult();
         assertEquals(5, scanResult.getScannedFiles().size());
         // Allow for some files to fail due to timing issues in test environment
@@ -367,21 +258,7 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
         
-        FileProcessor.ProcessingResult result;
-        try {
-            result = future.get();
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            throw e;
-        }
+        FileProcessor.ProcessingResult result = future.get();
         assertEquals(1, result.getProcessedFiles());
         // Stop processor
         processor.stop();
@@ -391,7 +268,7 @@ class FileProcessorTest {
     }
 
     @Test
-    void testIsRunning() throws IOException {
+    void testIsRunning() throws IOException, ExecutionException, InterruptedException {
         assertFalse(processor.isRunning());
 
         Path testDir = tempDir.resolve("running");
@@ -409,200 +286,9 @@ class FileProcessorTest {
         
         // Should be running during processing
         assertTrue(processor.isRunning());
-        try {
-            future.get();
-        } catch (Exception e) {
-            // On Windows, file operations might fail due to various reasons
-            boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            boolean isIOException = isIOException(e);
-            if (isWindows && isIOException) {
-                // Skip this test on Windows if it's an IO issue
-                assumeTrue(false,
-                    "Skipping test on Windows due to IO issues: " + e.getMessage());
-                return; // This won't be reached due to assumeTrue
-            }
-            // Ignore other exceptions for this test
-        }
+        future.get();
 
         // Should not be running after completion
         assertFalse(processor.isRunning());
-    }
-
-    /**
-     * Helper method to check if an exception (or any of its causes) is an IOException.
-     * This handles multiple levels of exception wrapping that can occur on Windows.
-     * Enhanced to catch JUnitException wrapping and deeper nesting.
-     */
-    private boolean isIOException(Exception e) {
-        // First check if the exception itself is an IOException
-        if (e instanceof java.io.IOException) {
-            return true;
-        }
-        
-        // Check for JUnitException wrapping IOException (common in test failures)
-        if (e.getClass().getName().contains("JUnitException")) {
-            // Recursively check the cause chain for IOException
-            return isIOExceptionRecursive(e.getCause());
-        }
-        
-        // Check for ExecutionException wrapping IOException
-        if (e instanceof java.util.concurrent.ExecutionException) {
-            return isIOExceptionRecursive(e.getCause());
-        }
-        
-        // Check for TimeoutException wrapping IOException
-        if (e instanceof java.util.concurrent.TimeoutException) {
-            return isIOExceptionRecursive(e.getCause());
-        }
-        
-        // Check for RuntimeException wrapping IOException
-        if (e instanceof java.lang.RuntimeException) {
-            return isIOExceptionRecursive(e.getCause());
-        }
-        
-        // For other exceptions, check the cause chain recursively
-        return isIOExceptionRecursive(e.getCause());
-    }
-    
-    /**
-     * Recursive helper to check the entire cause chain for IOException.
-     */
-    private boolean isIOExceptionRecursive(Throwable t) {
-        if (t == null) {
-            return false;
-        }
-        
-        if (t instanceof java.io.IOException) {
-            return true;
-        }
-        
-        // Check for JUnitException wrapping IOException
-        if (t.getClass().getName().contains("JUnitException")) {
-            return isIOExceptionRecursive(t.getCause());
-        }
-        
-        // Check for ExecutionException wrapping IOException
-        if (t instanceof java.util.concurrent.ExecutionException) {
-            return isIOExceptionRecursive(t.getCause());
-        }
-        
-        // Check for TimeoutException wrapping IOException
-        if (t instanceof java.util.concurrent.TimeoutException) {
-            return isIOExceptionRecursive(t.getCause());
-        }
-        
-        // Check for RuntimeException wrapping IOException
-        if (t instanceof java.lang.RuntimeException) {
-            return isIOExceptionRecursive(t.getCause());
-        }
-        
-        // Check for any exception with message containing IO-related keywords
-        String message = t.getMessage();
-        if (message != null) {
-            String lowerMessage = message.toLowerCase();
-            if (lowerMessage.contains("access denied") ||
-                lowerMessage.contains("permission denied") ||
-                lowerMessage.contains("file not found") ||
-                lowerMessage.contains("being used") ||
-                lowerMessage.contains("locked") ||
-                lowerMessage.contains("io error")) {
-                return true;
-            }
-        }
-        
-        // Continue traversing the cause chain
-        return isIOExceptionRecursive(t.getCause());
-    }
-    
-    /**
-     * Custom test exception handler to catch Windows-specific IO issues at test framework level.
-     * This handles cases where JUnitException wraps IOExceptions before our try-catch blocks can catch them.
-     */
-    static class WindowsExceptionHandler implements TestExecutionExceptionHandler {
-        @Override
-        public void handleTestExecutionException(ExtensionContext context, Throwable throwable) throws Throwable {
-            boolean isWindows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("windows");
-            
-            if (isWindows && isWindowsIOException(throwable)) {
-                // Skip test on Windows if it's an IO issue
-                assumeTrue(false, "Skipping test on Windows due to IO issues: " + throwable.getMessage());
-                return;
-            }
-            
-            // Re-throw if not a Windows IO issue
-            throw throwable;
-        }
-        
-        /**
-         * Check if throwable or any of its causes is an IOException or IO-related issue.
-         */
-        private boolean isWindowsIOException(Throwable throwable) {
-            if (throwable == null) {
-                return false;
-            }
-            
-            // Check for JUnitException
-            if (throwable.getClass().getName().contains("JUnitException")) {
-                return isWindowsIOException(throwable.getCause());
-            }
-            
-            // Check for IOException
-            if (throwable instanceof java.io.IOException) {
-                return true;
-            }
-            
-            // Check for ExecutionException
-            if (throwable instanceof java.util.concurrent.ExecutionException) {
-                return isWindowsIOException(throwable.getCause());
-            }
-            
-            // Check for TimeoutException
-            if (throwable instanceof java.util.concurrent.TimeoutException) {
-                return isWindowsIOException(throwable.getCause());
-            }
-            
-            // Check for RuntimeException
-            if (throwable instanceof java.lang.RuntimeException) {
-                return isWindowsIOException(throwable.getCause());
-            }
-            
-            // Check message for IO-related keywords
-            String message = throwable.getMessage();
-            if (message != null) {
-                String lowerMessage = message.toLowerCase();
-                if (lowerMessage.contains("access denied") ||
-                    lowerMessage.contains("permission denied") ||
-                    lowerMessage.contains("file not found") ||
-                    lowerMessage.contains("being used") ||
-                    lowerMessage.contains("locked") ||
-                    lowerMessage.contains("io error") ||
-                    lowerMessage.contains("foreachops") ||
-                    lowerMessage.contains("arraylist") ||
-                    lowerMessage.contains("foreachops.java:184") ||
-                    lowerMessage.contains("completablefuture")) {
-                    return true;
-                }
-            }
-            
-            // Check stack trace for IO-related patterns
-            StackTraceElement[] stackTrace = throwable.getStackTrace();
-            if (stackTrace != null) {
-                for (StackTraceElement element : stackTrace) {
-                    String className = element.getClassName();
-                    String methodName = element.getMethodName();
-                    int lineNumber = element.getLineNumber();
-                    if ((className != null && className.contains("ForEachOps")) ||
-                        (methodName != null && methodName.contains("forEachRemaining")) ||
-                        (className != null && className.contains("ArrayList")) ||
-                        (className != null && className.contains("CompletableFuture")) ||
-                        (lineNumber == 184)) { // Specific line number mentioned in error
-                        return true;
-                    }
-                }
-            }
-            
-            // Continue traversing cause chain
-            return isWindowsIOException(throwable.getCause());
-        }
     }
 }
