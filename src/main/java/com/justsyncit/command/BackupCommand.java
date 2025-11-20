@@ -70,6 +70,12 @@ public class BackupCommand implements Command {
     @Override
     public boolean execute(String[] args, CommandContext context) {
 
+        // Handle help option first
+        if (args.length == 1 && args[0].equals("--help")) {
+            displayHelp();
+            return true;
+        }
+
         if (args.length == 0) {
             System.err.println("Error: Source directory is required");
             System.err.println(getUsage());
@@ -105,6 +111,9 @@ public class BackupCommand implements Command {
                     break;
                 case "--include-hidden":
                     optionsBuilder.includeHiddenFiles(true);
+                    break;
+                case "--verify-integrity":
+                    optionsBuilder.verifyIntegrity(true);
                     break;
                 case "--no-verify":
                     optionsBuilder.verifyIntegrity(false);
@@ -198,6 +207,7 @@ public class BackupCommand implements Command {
         System.out.println("  --follow-symlinks    Follow symbolic links instead of preserving them");
         System.out.println("  --skip-symlinks      Skip symbolic links entirely");
         System.out.println("  --include-hidden     Include hidden files and directories");
+        System.out.println("  --verify-integrity   Verify integrity after backup (default)");
         System.out.println("  --no-verify          Skip integrity verification after backup");
         System.out.println("  --chunk-size SIZE    Set chunk size in bytes (default: 64KB)");
         System.out.println("  --help               Show this help message");

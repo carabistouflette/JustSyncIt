@@ -69,6 +69,18 @@ public class RestoreCommand implements Command {
     @Override
     public boolean execute(String[] args, CommandContext context) {
 
+        // Handle help option first
+        if (args.length == 1 && args[0].equals("--help")) {
+            displayHelp();
+            return true;
+        }
+
+        // Handle case where --help is the second argument
+        if (args.length >= 2 && args[1].equals("--help")) {
+            displayHelp();
+            return true;
+        }
+
         if (args.length < 2) {
             System.err.println("Error: Snapshot ID and target directory are required");
             System.err.println(getUsage());

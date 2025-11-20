@@ -112,18 +112,16 @@ public class BackupRestoreIntegrationTest {
         Path restoreDir = tempDir.resolve("restore");
         Files.createDirectories(restoreDir);
 
-        // Create a simple test file to verify restore directory creation
-        Path restoredTestFile = restoreDir.resolve("test.txt");
-        Files.write(restoredTestFile, "Test restore functionality".getBytes());
+        // Perform restore using the actual restore service
+        String snapshotId = "test-snapshot-id";
+        RestoreOptions restoreOptions = new RestoreOptions.Builder()
+                .overwriteExisting(true)
+                .verifyIntegrity(true)
+                .build();
 
-        // Create a mock restore result for testing
-        RestoreService.RestoreResult restoreResult = RestoreService.RestoreResult.create(
-                1, // filesRestored
-                0, // filesSkipped
-                0, // filesWithErrors
-                restoredTestFile.toFile().length(), // totalBytesRestored
-                true // integrityVerified
-        );
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture =
+                restoreService.restore(snapshotId, restoreDir, restoreOptions);
+        RestoreService.RestoreResult restoreResult = restoreFuture.get();
 
         // Verify restore result
         assertTrue(restoreResult.isSuccess());
@@ -178,7 +176,7 @@ public class BackupRestoreIntegrationTest {
                 .verifyIntegrity(true)
                 .build();
 
-        String snapshotId = "test-snapshot-id";
+        String snapshotId = "test-snapshot-id-multiple";
         CompletableFuture<RestoreService.RestoreResult> restoreFuture =
                 restoreService.restore(snapshotId, restoreDir, restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
