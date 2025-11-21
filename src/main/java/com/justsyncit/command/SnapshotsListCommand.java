@@ -195,7 +195,7 @@ public class SnapshotsListCommand implements Command {
             System.out.println("Total files across all snapshots: " + totalFiles);
             System.out.println("Total size across all snapshots: " + formatFileSize(totalSize));
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("Error: Failed to list snapshots: " + e.getMessage());
             return false;
         } finally {
