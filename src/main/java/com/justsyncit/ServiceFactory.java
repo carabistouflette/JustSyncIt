@@ -233,7 +233,24 @@ public class ServiceFactory {
      */
     public com.justsyncit.command.BackupCommand createBackupCommand(com.justsyncit.backup.BackupService backupService) throws ServiceException {
         try {
-            return new com.justsyncit.command.BackupCommand(backupService);
+            NetworkService networkService = createNetworkService();
+            return new com.justsyncit.command.BackupCommand(backupService, networkService);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create backup command", e);
+        }
+    }
+    
+    /**
+     * Creates a backup command with network service injection.
+     *
+     * @param backupService backup service
+     * @param networkService network service
+     * @return a configured BackupCommand instance
+     * @throws ServiceException if command creation fails
+     */
+    public com.justsyncit.command.BackupCommand createBackupCommand(com.justsyncit.backup.BackupService backupService, NetworkService networkService) throws ServiceException {
+        try {
+            return new com.justsyncit.command.BackupCommand(backupService, networkService);
         } catch (Exception e) {
             throw new ServiceException("Failed to create backup command", e);
         }
@@ -248,7 +265,24 @@ public class ServiceFactory {
      */
     public com.justsyncit.command.RestoreCommand createRestoreCommand(com.justsyncit.restore.RestoreService restoreService) throws ServiceException {
         try {
-            return new com.justsyncit.command.RestoreCommand(restoreService);
+            NetworkService networkService = createNetworkService();
+            return new com.justsyncit.command.RestoreCommand(restoreService, networkService);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create restore command", e);
+        }
+    }
+    
+    /**
+     * Creates a restore command with network service injection.
+     *
+     * @param restoreService restore service
+     * @param networkService network service
+     * @return a configured RestoreCommand instance
+     * @throws ServiceException if command creation fails
+     */
+    public com.justsyncit.command.RestoreCommand createRestoreCommand(com.justsyncit.restore.RestoreService restoreService, NetworkService networkService) throws ServiceException {
+        try {
+            return new com.justsyncit.command.RestoreCommand(restoreService, networkService);
         } catch (Exception e) {
             throw new ServiceException("Failed to create restore command", e);
         }

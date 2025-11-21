@@ -1,6 +1,9 @@
 package com.justsyncit.backup;
 
 import com.justsyncit.scanner.SymlinkStrategy;
+import com.justsyncit.network.TransportType;
+
+import java.net.InetSocketAddress;
 
 /**
  * Configuration options for backup operations.
@@ -13,6 +16,11 @@ public class BackupOptions {
     private final int maxDepth;
     private final String snapshotName;
     private final String description;
+    
+    // Network options for remote backup
+    private final boolean remoteBackup;
+    private final InetSocketAddress remoteAddress;
+    private final TransportType transportType;
 
     private BackupOptions(Builder builder) {
         this.symlinkStrategy = builder.symlinkStrategy;
@@ -22,6 +30,9 @@ public class BackupOptions {
         this.maxDepth = builder.maxDepth;
         this.snapshotName = builder.snapshotName;
         this.description = builder.description;
+        this.remoteBackup = builder.remoteBackup;
+        this.remoteAddress = builder.remoteAddress;
+        this.transportType = builder.transportType;
     }
 
     public SymlinkStrategy getSymlinkStrategy() {
@@ -52,6 +63,18 @@ public class BackupOptions {
         return description;
     }
 
+    public boolean isRemoteBackup() {
+        return remoteBackup;
+    }
+
+    public InetSocketAddress getRemoteAddress() {
+        return remoteAddress;
+    }
+
+    public TransportType getTransportType() {
+        return transportType;
+    }
+
     public static class Builder {
         private SymlinkStrategy symlinkStrategy = SymlinkStrategy.RECORD;
         private boolean includeHiddenFiles = false;
@@ -60,6 +83,11 @@ public class BackupOptions {
         private int maxDepth = Integer.MAX_VALUE; // Unlimited depth by default
         private String snapshotName;
         private String description;
+        
+        // Network options with defaults
+        private boolean remoteBackup = false;
+        private InetSocketAddress remoteAddress = null;
+        private TransportType transportType = TransportType.TCP;
 
         public Builder symlinkStrategy(SymlinkStrategy symlinkStrategy) {
             this.symlinkStrategy = symlinkStrategy;
@@ -93,6 +121,21 @@ public class BackupOptions {
 
         public Builder description(String description) {
             this.description = description;
+            return this;
+        }
+
+        public Builder remoteBackup(boolean remoteBackup) {
+            this.remoteBackup = remoteBackup;
+            return this;
+        }
+
+        public Builder remoteAddress(InetSocketAddress remoteAddress) {
+            this.remoteAddress = remoteAddress;
+            return this;
+        }
+
+        public Builder transportType(TransportType transportType) {
+            this.transportType = transportType;
             return this;
         }
 

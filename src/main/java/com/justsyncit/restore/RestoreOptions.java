@@ -18,6 +18,9 @@
 
 package com.justsyncit.restore;
 
+import com.justsyncit.network.TransportType;
+
+import java.net.InetSocketAddress;
 import java.nio.file.FileSystems;
 import java.nio.file.PathMatcher;
 
@@ -50,6 +53,11 @@ public class RestoreOptions {
 
     /** Original exclude pattern string for files to skip. */
     private final String excludePatternString;
+    
+    // Network options for remote restore
+    private final boolean remoteRestore;
+    private final InetSocketAddress remoteAddress;
+    private final TransportType transportType;
 
     /**
      * Creates a new RestoreOptions.
@@ -63,6 +71,9 @@ public class RestoreOptions {
         this.includePatternString = builder.includePatternString;
         this.excludePattern = builder.excludePattern;
         this.excludePatternString = builder.excludePatternString;
+        this.remoteRestore = builder.remoteRestore;
+        this.remoteAddress = builder.remoteAddress;
+        this.transportType = builder.transportType;
     }
 
     /**
@@ -77,6 +88,9 @@ public class RestoreOptions {
         this.includePatternString = null;
         this.excludePattern = null;
         this.excludePatternString = null;
+        this.remoteRestore = false;
+        this.remoteAddress = null;
+        this.transportType = TransportType.TCP;
     }
 
     public boolean isOverwriteExisting() {
@@ -111,6 +125,18 @@ public class RestoreOptions {
         return excludePatternString;
     }
 
+    public boolean isRemoteRestore() {
+        return remoteRestore;
+    }
+
+    public InetSocketAddress getRemoteAddress() {
+        return remoteAddress;
+    }
+
+    public TransportType getTransportType() {
+        return transportType;
+    }
+
     @Override
     public String toString() {
         return "RestoreOptions{" +
@@ -135,6 +161,11 @@ public class RestoreOptions {
         private PathMatcher excludePattern;
         private String includePatternString;
         private String excludePatternString;
+        
+        // Network options with defaults
+        private boolean remoteRestore = false;
+        private InetSocketAddress remoteAddress = null;
+        private TransportType transportType = TransportType.TCP;
 
         public Builder overwriteExisting(boolean overwriteExisting) {
             this.overwriteExisting = overwriteExisting;
@@ -169,6 +200,21 @@ public class RestoreOptions {
                 this.excludePattern = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
                 this.excludePatternString = pattern;
             }
+            return this;
+        }
+
+        public Builder remoteRestore(boolean remoteRestore) {
+            this.remoteRestore = remoteRestore;
+            return this;
+        }
+
+        public Builder remoteAddress(InetSocketAddress remoteAddress) {
+            this.remoteAddress = remoteAddress;
+            return this;
+        }
+
+        public Builder transportType(TransportType transportType) {
+            this.transportType = transportType;
             return this;
         }
 

@@ -18,6 +18,10 @@
 
 package com.justsyncit.command;
 
+import com.justsyncit.ServiceException;
+import com.justsyncit.ServiceFactory;
+import com.justsyncit.network.NetworkService;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,6 +43,14 @@ public class CommandRegistry {
         register(new com.justsyncit.command.VerifyCommand(null)); // Will be injected properly
         register(new com.justsyncit.command.BackupCommand(null)); // Will be injected properly
         register(new com.justsyncit.command.RestoreCommand(null)); // Will be injected properly
+        
+        // Register new snapshot management commands
+        register(new SnapshotsCommandGroup());
+        
+        // Register new network operation commands
+        register(new ServerCommandGroup());
+        register(new com.justsyncit.command.TransferCommand(null)); // Will be injected properly
+        register(new com.justsyncit.command.SyncCommand(null)); // Will be injected properly
     }
 
     /**
