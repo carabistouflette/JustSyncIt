@@ -27,6 +27,19 @@ dependencies {
     testImplementation 'org.mockito:mockito-core:5.19.0'
     testImplementation 'org.mockito:mockito-junit-jupiter:5.19.0'
     
+    // Performance testing and benchmarking
+    testImplementation 'org.openjdk.jmh:jmh-core:1.37'
+    testImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    
+    // Performance monitoring and profiling
+    testImplementation 'org.hdrhistogram:HdrHistogram:2.2.2'
+    testImplementation 'com.github.oshi:oshi-core:6.6.5'
+    
+    // JSON processing for benchmark reports
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2'
+    
     // Logging
     implementation 'org.slf4j:slf4j-api:2.0.16'
     implementation 'ch.qos.logback:logback-classic:1.5.17'
@@ -216,6 +229,149 @@ task downloadDependencies {
         configurations.runtimeClasspath.resolve()
         configurations.testCompileClasspath.resolve()
         configurations.testRuntimeClasspath.resolve()
+    }
+}
+
+// Benchmark tasks
+task runBenchmarks {
+    description = 'Run all performance benchmarks'
+    group = 'verification'
+    dependsOn testClasses
+    
+    doLast {
+        javaexec {
+            mainClass = 'org.junit.platform.console.ConsoleLauncher'
+            classpath = sourceSets.test.runtimeClasspath
+            args = [
+                '--select-class=com.justsyncit.performance.ThroughputBenchmark',
+                '--select-class=com.justsyncit.performance.ScalabilityBenchmark',
+                '--select-class=com.justsyncit.performance.NetworkBenchmark',
+                '--select-class=com.justsyncit.performance.DeduplicationBenchmark',
+                '--select-class=com.justsyncit.performance.ConcurrencyBenchmark',
+                '--details=summary'
+            ]
+            jvmArgs = ['-Xmx4g', '-XX:+UseG1GC']
+        }
+    }
+}
+
+task runThroughputBenchmarks {
+    description = 'Run throughput benchmarks only'
+    group = 'verification'
+    dependsOn testClasses
+    
+    doLast {
+        javaexec {
+            mainClass = 'org.junit.platform.console.ConsoleLauncher'
+            classpath = sourceSets.test.runtimeClasspath
+            args = [
+                '--select-class=com.justsyncit.performance.ThroughputBenchmark',
+                '--details=summary'
+            ]
+            jvmArgs = ['-Xmx2g', '-XX:+UseG1GC']
+        }
+    }
+}
+
+task runScalabilityBenchmarks {
+    description = 'Run scalability benchmarks only'
+    group = 'verification'
+    dependsOn testClasses
+    
+    doLast {
+        javaexec {
+            mainClass = 'org.junit.platform.console.ConsoleLauncher'
+            classpath = sourceSets.test.runtimeClasspath
+            args = [
+                '--select-class=com.justsyncit.performance.ScalabilityBenchmark',
+                '--details=summary'
+            ]
+            jvmArgs = ['-Xmx4g', '-XX:+UseG1GC']
+        }
+    }
+}
+
+task runNetworkBenchmarks {
+    description = 'Run network benchmarks only'
+    group = 'verification'
+    dependsOn testClasses
+    
+    doLast {
+        javaexec {
+            mainClass = 'org.junit.platform.console.ConsoleLauncher'
+            classpath = sourceSets.test.runtimeClasspath
+            args = [
+                '--select-class=com.justsyncit.performance.NetworkBenchmark',
+                '--details=summary'
+            ]
+            jvmArgs = ['-Xmx2g', '-XX:+UseG1GC']
+        }
+    }
+}
+
+task runDeduplicationBenchmarks {
+    description = 'Run deduplication benchmarks only'
+    group = 'verification'
+    dependsOn testClasses
+    
+    doLast {
+        javaexec {
+            mainClass = 'org.junit.platform.console.ConsoleLauncher'
+            classpath = sourceSets.test.runtimeClasspath
+            args = [
+                '--select-class=com.justsyncit.performance.DeduplicationBenchmark',
+                '--details=summary'
+            ]
+            jvmArgs = ['-Xmx2g', '-XX:+UseG1GC']
+        }
+    }
+}
+
+task runConcurrencyBenchmarks {
+    description = 'Run concurrency benchmarks only'
+    group = 'verification'
+    dependsOn testClasses
+    
+    doLast {
+        javaexec {
+            mainClass = 'org.junit.platform.console.ConsoleLauncher'
+            classpath = sourceSets.test.runtimeClasspath
+            args = [
+                '--select-class=com.justsyncit.performance.ConcurrencyBenchmark',
+                '--details=summary'
+            ]
+            jvmArgs = ['-Xmx4g', '-XX:+UseG1GC']
+        }
+    }
+}
+
+task generateBenchmarkReports {
+    description = 'Generate benchmark reports from existing results'
+    group = 'reporting'
+    dependsOn testClasses
+    
+    doLast {
+        javaexec {
+            mainClass = 'org.junit.platform.console.ConsoleLauncher'
+            classpath = sourceSets.test.runtimeClasspath
+            args = [
+                '--select-class=com.justsyncit.performance.BenchmarkReportGeneratorTest',
+                '--details=summary'
+            ]
+            jvmArgs = ['-Xmx1g']
+        }
+    }
+}
+
+// Performance verification task
+task verifyPerformance {
+    description = 'Verify performance targets are met'
+    group = 'verification'
+    dependsOn runBenchmarks
+    
+    doLast {
+        println "Performance verification completed"
+        println "Check benchmark reports for detailed results"
     }
 }
 
