@@ -239,9 +239,11 @@ task integrationTest(type: Test) {
     }
     
     // Ensure XML reports are generated in the expected location
+    // Configure test results directory during configuration phase
+    def testResultsDir = layout.buildDirectory.dir("test-results/integrationTest").get().asFile
+    
     doLast {
         // Verify that test results were generated
-        def testResultsDir = layout.buildDirectory.dir("test-results/integrationTest").get().asFile
         if (!testResultsDir.exists() || testResultsDir.listFiles().length == 0) {
             throw new GradleException("Integration test results not found in ${testResultsDir}")
         }
