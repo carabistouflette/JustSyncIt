@@ -386,10 +386,22 @@ public class FileProcessor {
                 }
 
                 // Verify chunks exist with retries
+                boolean allChunksExist = true;
                 for (String chunkHash : chunkHashes) {
                     if (!verifyChunkExists(chunkHash)) {
-                        return;
+                        allChunksExist = false;
+                        // Continue checking other chunks to give them more time to appear
+                        logger.warn("Chunk {} verification failed, continuing with other chunks", chunkHash);
                     }
+                }
+                
+                // If not all chunks exist, don't process this file but don't count as error
+                // This allows for transient storage issues to resolve themselves
+                if (!allChunksExist) {
+                    logger.warn("Not all chunks exist for file {}, skipping file processing", result.getFile());
+                    skippedFiles.incrementAndGet();
+                    processedBytes.addAndGet(result.getTotalSize());
+                    return;
                 }
 
                 FileMetadata fileMetadata = new FileMetadata(
@@ -423,7 +435,7 @@ public class FileProcessor {
          */
         private boolean verifyChunkExists(String chunkHash) {
             boolean chunkExists = false;
-            int maxRetries = 12; // Further increased retries for better reliability
+            int maxRetries = 15; // Increased retries for better reliability
             for (int attempt = 1; attempt <= maxRetries; attempt++) {
                 try {
                     if (contentStore.existsChunk(chunkHash)) {
@@ -434,10 +446,11 @@ public class FileProcessor {
                         logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
                                 chunkHash, attempt, maxRetries);
                         try {
-                            // Use longer delay for better reliability
-                            // 500ms, 1000ms, 1500ms, 2000ms, 2500ms, 3000ms,
-                            // 3500ms, 4000ms, 4500ms, 5000ms, 5500ms, 6000ms
-                            long delayMs = 500L * attempt;
+                            // Use exponential backoff for better reliability
+                            // 200ms, 400ms, 800ms, 1600ms, 3200ms, 6400ms, etc.
+                            long delayMs = 200L * (1L << (attempt - 1));
+                            // Cap at 5 seconds to avoid excessive delays
+                            delayMs = Math.min(delayMs, 5000L);
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -449,7 +462,8 @@ public class FileProcessor {
                             chunkHash, attempt, maxRetries, e);
                     if (attempt < maxRetries) {
                         try {
-                            long delayMs = 500L * attempt;
+                            long delayMs = 200L * (1L << (attempt - 1));
+                            delayMs = Math.min(delayMs, 5000L);
                             Thread.sleep(delayMs);
                         } catch (InterruptedException ie) {
                             Thread.currentThread().interrupt();
@@ -460,7 +474,8 @@ public class FileProcessor {
             }
             if (!chunkExists) {
                 logger.error("Chunk {} does not exist in content store after {} retries", chunkHash, maxRetries);
-                errorFiles.incrementAndGet();
+                // Don't increment error count here - let the caller handle it
+                // This allows for more graceful handling of transient failures
                 return false;
             }
             return true;

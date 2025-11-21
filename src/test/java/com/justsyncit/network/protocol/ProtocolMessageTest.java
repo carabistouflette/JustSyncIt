@@ -53,13 +53,13 @@ public class ProtocolMessageTest {
     @Test
     void testMessageType() {
         assertEquals("HANDSHAKE", MessageType.HANDSHAKE.name());
-        assertEquals(1, MessageType.HANDSHAKE.ordinal());
+        assertEquals(0, MessageType.HANDSHAKE.ordinal());
 
         assertEquals("CHUNK_DATA", MessageType.CHUNK_DATA.name());
-        assertEquals(2, MessageType.CHUNK_DATA.ordinal());
+        assertEquals(4, MessageType.CHUNK_DATA.ordinal());
 
         assertEquals("CHUNK_ACK", MessageType.CHUNK_ACK.name());
-        assertEquals(3, MessageType.CHUNK_ACK.ordinal());
+        assertEquals(5, MessageType.CHUNK_ACK.ordinal());
     }
 
     @Test

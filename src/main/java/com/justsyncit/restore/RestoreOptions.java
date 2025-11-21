@@ -42,8 +42,14 @@ public class RestoreOptions {
     /** Include pattern for files to restore. */
     private final PathMatcher includePattern;
 
+    /** Original include pattern string for files to restore. */
+    private final String includePatternString;
+
     /** Exclude pattern for files to skip. */
     private final PathMatcher excludePattern;
+
+    /** Original exclude pattern string for files to skip. */
+    private final String excludePatternString;
 
     /**
      * Creates a new RestoreOptions.
@@ -54,7 +60,9 @@ public class RestoreOptions {
         this.verifyIntegrity = builder.verifyIntegrity;
         this.preserveAttributes = builder.preserveAttributes;
         this.includePattern = builder.includePattern;
+        this.includePatternString = builder.includePatternString;
         this.excludePattern = builder.excludePattern;
+        this.excludePatternString = builder.excludePatternString;
     }
 
     /**
@@ -66,7 +74,9 @@ public class RestoreOptions {
         this.verifyIntegrity = true;
         this.preserveAttributes = true;
         this.includePattern = null;
+        this.includePatternString = null;
         this.excludePattern = null;
+        this.excludePatternString = null;
     }
 
     public boolean isOverwriteExisting() {
@@ -89,8 +99,28 @@ public class RestoreOptions {
         return includePattern;
     }
 
+    public String getIncludePatternString() {
+        return includePatternString;
+    }
+
     public PathMatcher getExcludePattern() {
         return excludePattern;
+    }
+
+    public String getExcludePatternString() {
+        return excludePatternString;
+    }
+
+    @Override
+    public String toString() {
+        return "RestoreOptions{" +
+                "overwriteExisting=" + overwriteExisting +
+                ", backupExisting=" + backupExisting +
+                ", verifyIntegrity=" + verifyIntegrity +
+                ", preserveAttributes=" + preserveAttributes +
+                ", includePatternString='" + includePatternString + '\'' +
+                ", excludePatternString='" + excludePatternString + '\'' +
+                '}';
     }
 
     /**
@@ -103,6 +133,8 @@ public class RestoreOptions {
         private boolean preserveAttributes = true;
         private PathMatcher includePattern;
         private PathMatcher excludePattern;
+        private String includePatternString;
+        private String excludePatternString;
 
         public Builder overwriteExisting(boolean overwriteExisting) {
             this.overwriteExisting = overwriteExisting;
@@ -127,6 +159,7 @@ public class RestoreOptions {
         public Builder includePattern(String pattern) {
             if (pattern != null && !pattern.trim().isEmpty()) {
                 this.includePattern = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+                this.includePatternString = pattern;
             }
             return this;
         }
@@ -134,6 +167,7 @@ public class RestoreOptions {
         public Builder excludePattern(String pattern) {
             if (pattern != null && !pattern.trim().isEmpty()) {
                 this.excludePattern = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+                this.excludePatternString = pattern;
             }
             return this;
         }

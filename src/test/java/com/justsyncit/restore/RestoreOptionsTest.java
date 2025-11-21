@@ -76,13 +76,13 @@ public class RestoreOptionsTest {
     @Test
     void testBuilderWithIncludePattern() {
         RestoreOptions options = builder.includePattern("*.txt").build();
-        assertEquals("*.txt", options.getIncludePattern());
+        assertEquals("*.txt", options.getIncludePatternString());
     }
 
     @Test
     void testBuilderWithExcludePattern() {
         RestoreOptions options = builder.excludePattern("*.tmp").build();
-        assertEquals("*.tmp", options.getExcludePattern());
+        assertEquals("*.tmp", options.getExcludePatternString());
     }
 
     @Test
@@ -99,8 +99,8 @@ public class RestoreOptionsTest {
         assertFalse(options.isBackupExisting());
         assertFalse(options.isVerifyIntegrity());
         assertTrue(options.isPreserveAttributes());
-        assertEquals("*.java", options.getIncludePattern());
-        assertEquals("*.class", options.getExcludePattern());
+        assertEquals("*.java", options.getIncludePatternString());
+        assertEquals("*.class", options.getExcludePatternString());
     }
 
     @Test
