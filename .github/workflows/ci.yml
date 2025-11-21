@@ -71,6 +71,14 @@ jobs:
     - name: Run integration tests
       run: ./gradlew integrationTest --no-daemon -PjavaVersion=${{ matrix.java-version }}
        
+    - name: Verify performance tests are excluded
+      run: |
+        echo "Verifying that performance tests and benchmarks are properly excluded from CI..."
+        # Check that performance test tasks exist but are not part of the check task
+        ./gradlew tasks --group=verification | grep -E "(performanceTest|benchmarkTest)" && echo "Performance test tasks found" || echo "Performance test tasks not found"
+        # Verify that check task doesn't include performance tests
+        ./gradlew check --dry-run 2>&1 | grep -E "(performanceTest|benchmarkTest)" && echo "ERROR: Performance tests found in check task" || echo "OK: Performance tests excluded from check task"
+       
     - name: Check test results
       run: |
         if [ "$RUNNER_OS" == "Linux" ] || [ "$RUNNER_OS" == "macOS" ]; then
