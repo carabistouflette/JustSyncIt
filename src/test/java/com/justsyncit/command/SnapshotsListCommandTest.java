@@ -53,15 +53,20 @@ class SnapshotsListCommandTest {
     private SnapshotsListCommand command;
     private CommandContext context;
     private ByteArrayOutputStream outputStream;
+    private ByteArrayOutputStream errorStream;
     private PrintStream printStream;
+    private PrintStream errorPrintStream;
 
     @BeforeEach
     void setUp() {
         command = new SnapshotsListCommand(metadataService);
         context = new CommandContext(blake3Service);
         outputStream = new ByteArrayOutputStream();
+        errorStream = new ByteArrayOutputStream();
         printStream = new PrintStream(outputStream);
+        errorPrintStream = new PrintStream(errorStream);
         System.setOut(printStream);
+        System.setErr(errorPrintStream);
     }
 
     @Test
@@ -94,7 +99,8 @@ class SnapshotsListCommandTest {
         assertFalse(result);
         
         String output = outputStream.toString();
-        assertTrue(output.contains("Error: Missing subcommand 'list'"));
+        String error = errorStream.toString();
+        assertTrue(error.contains("Error: Missing subcommand 'list'"));
     }
 
     @Test
@@ -103,7 +109,8 @@ class SnapshotsListCommandTest {
         assertFalse(result);
         
         String output = outputStream.toString();
-        assertTrue(output.contains("Error: Missing subcommand 'list'"));
+        String error = errorStream.toString();
+        assertTrue(error.contains("Error: Missing subcommand 'list'"));
     }
 
     @Test
@@ -171,7 +178,8 @@ class SnapshotsListCommandTest {
         assertFalse(result);
         
         String output = outputStream.toString();
-        assertTrue(output.contains("Error: Unknown option: --unknown"));
+        String error = errorStream.toString();
+        assertTrue(error.contains("Error: Unknown option: --unknown"));
     }
 
     @Test
@@ -193,6 +201,7 @@ class SnapshotsListCommandTest {
         assertFalse(result);
         
         String output = outputStream.toString();
-        assertTrue(output.contains("Error: Failed to list snapshots"));
+        String error = errorStream.toString();
+        assertTrue(error.contains("Error: Failed to list snapshots"));
     }
 }
