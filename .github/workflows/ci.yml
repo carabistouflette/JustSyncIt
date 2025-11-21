@@ -65,8 +65,11 @@ jobs:
     - name: Run dev build
       run: ./gradlew devBuild --no-daemon -PjavaVersion=${{ matrix.java-version }}
        
-    - name: Run tests with coverage
+    - name: Run unit tests with coverage
       run: ./gradlew clean test jacocoTestReport --no-daemon -PjavaVersion=${{ matrix.java-version }}
+       
+    - name: Run integration tests
+      run: ./gradlew integrationTest --no-daemon -PjavaVersion=${{ matrix.java-version }}
        
     - name: Check test results
       run: |
@@ -85,12 +88,20 @@ jobs:
       if: matrix.run-quality-checks
       run: ./gradlew spotbugsMain spotbugsTest --no-daemon -PjavaVersion=${{ matrix.java-version }}
       
-    - name: Generate test report
+    - name: Generate unit test report
       uses: dorny/test-reporter@v1
       if: success() || failure()
       with:
-        name: Gradle Tests (${{ matrix.os }}, Java ${{ matrix.java-version }})
+        name: Unit Tests (${{ matrix.os }}, Java ${{ matrix.java-version }})
         path: build/test-results/test/TEST-*.xml
+        reporter: java-junit
+        
+    - name: Generate integration test report
+      uses: dorny/test-reporter@v1
+      if: success() || failure()
+      with:
+        name: Integration Tests (${{ matrix.os }}, Java ${{ matrix.java-version }})
+        path: build/test-results/integrationTest/TEST-*.xml
         reporter: java-junit
         
     - name: Upload coverage reports to Codecov
@@ -107,7 +118,8 @@ jobs:
       with:
         name: test-results-${{ matrix.os }}-java${{ matrix.java-version }}-${{ github.run_attempt }}
         path: |
-          build/reports/tests/
+          build/reports/tests/test/
+          build/reports/tests/integrationTest/
           build/reports/checkstyle/
           build/reports/spotbugs/
           build/reports/jacoco/

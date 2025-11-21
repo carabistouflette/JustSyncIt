@@ -92,8 +92,8 @@ jobs:
       if: github.event_name == 'pull_request'
       run: |
         echo "Running quick performance tests for PR..."
-        ./gradlew runThroughputBenchmarks --info --no-daemon > benchmark-logs/throughput-${{ matrix.java-version }}.log 2>&1 || echo "Throughput tests completed with warnings"
-        ./gradlew runDeduplicationBenchmarks --info --no-daemon > benchmark-logs/deduplication-${{ matrix.java-version }}.log 2>&1 || echo "Deduplication tests completed with warnings"
+        ./gradlew performanceTest --info --no-daemon --tests "*ThroughputBenchmark*" > benchmark-logs/throughput-${{ matrix.java-version }}.log 2>&1 || echo "Throughput tests completed with warnings"
+        ./gradlew performanceTest --info --no-daemon --tests "*DeduplicationBenchmark*" > benchmark-logs/deduplication-${{ matrix.java-version }}.log 2>&1 || echo "Deduplication tests completed with warnings"
         
     - name: Run full performance benchmarks (push/schedule)
       if: github.event_name != 'pull_request'
@@ -102,23 +102,23 @@ jobs:
         
         case "${{ github.event.inputs.benchmark_type || 'all' }}" in
           "throughput")
-            ./gradlew runThroughputBenchmarks --info --no-daemon > benchmark-logs/throughput-${{ matrix.java-version }}.log 2>&1
+            ./gradlew performanceTest --info --no-daemon --tests "*ThroughputBenchmark*" > benchmark-logs/throughput-${{ matrix.java-version }}.log 2>&1
             ;;
           "scalability")
-            ./gradlew runScalabilityBenchmarks --info --no-daemon > benchmark-logs/scalability-${{ matrix.java-version }}.log 2>&1
+            ./gradlew performanceTest --info --no-daemon --tests "*ScalabilityBenchmark*" > benchmark-logs/scalability-${{ matrix.java-version }}.log 2>&1
             ;;
           "network")
-            ./gradlew runNetworkBenchmarks --info --no-daemon > benchmark-logs/network-${{ matrix.java-version }}.log 2>&1
+            ./gradlew performanceTest --info --no-daemon --tests "*NetworkBenchmark*" > benchmark-logs/network-${{ matrix.java-version }}.log 2>&1
             ;;
           "deduplication")
-            ./gradlew runDeduplicationBenchmarks --info --no-daemon > benchmark-logs/deduplication-${{ matrix.java-version }}.log 2>&1
+            ./gradlew performanceTest --info --no-daemon --tests "*DeduplicationBenchmark*" > benchmark-logs/deduplication-${{ matrix.java-version }}.log 2>&1
             ;;
           "concurrency")
-            ./gradlew runConcurrencyBenchmarks --info --no-daemon > benchmark-logs/concurrency-${{ matrix.java-version }}.log 2>&1
+            ./gradlew performanceTest --info --no-daemon --tests "*ConcurrencyBenchmark*" > benchmark-logs/concurrency-${{ matrix.java-version }}.log 2>&1
             ;;
           "all"|*)
             echo "Running all benchmarks..."
-            ./gradlew runBenchmarks --info --no-daemon > benchmark-logs/all-${{ matrix.java-version }}.log 2>&1
+            ./gradlew performanceTest --info --no-daemon > benchmark-logs/all-${{ matrix.java-version }}.log 2>&1
             ;;
         esac
         
@@ -126,7 +126,7 @@ jobs:
       if: github.event_name != 'pull_request'
       run: |
         echo "Generating benchmark reports..."
-        ./gradlew generateBenchmarkReports --info --no-daemon > benchmark-logs/reports-${{ matrix.java-version }}.log 2>&1 || echo "Report generation completed with warnings"
+        ./gradlew benchmarkTest --info --no-daemon > benchmark-logs/reports-${{ matrix.java-version }}.log 2>&1 || echo "Report generation completed with warnings"
         
     - name: Parse benchmark results
       run: |
