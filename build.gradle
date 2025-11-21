@@ -224,15 +224,27 @@ task integrationTest(type: Test) {
     group = 'verification'
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
-    useJUnitPlatform {
-        includeTags 'integration'
-        excludeTags 'performance', 'benchmark', 'slow'
-    }
+    useJUnitPlatform()
     
     shouldRunAfter test
     
     testLogging {
         events "passed", "skipped", "failed"
+    }
+    
+    // Configure test reports
+    reports {
+        html.required = true
+        junitXml.required = true
+    }
+    
+    // Ensure XML reports are generated in the expected location
+    doLast {
+        // Verify that test results were generated
+        def testResultsDir = layout.buildDirectory.dir("test-results/integrationTest").get().asFile
+        if (!testResultsDir.exists() || testResultsDir.listFiles().length == 0) {
+            throw new GradleException("Integration test results not found in ${testResultsDir}")
+        }
     }
     
     // Handle Java 24 compatibility issues
