@@ -179,8 +179,134 @@ java {
     }
 }
 
+// Configure test source sets for different test categories
+sourceSets {
+    // Integration tests (fast, run in CI)
+    integrationTest {
+        java {
+            srcDirs = ['src/integrationTest/java']
+        }
+        resources {
+            srcDirs = ['src/integrationTest/resources']
+        }
+        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
+        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+    }
+    
+    // Performance tests (slow, exclude from CI)
+    performanceTest {
+        java {
+            srcDirs = ['src/performanceTest/java']
+        }
+        resources {
+            srcDirs = ['src/performanceTest/resources']
+        }
+        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
+        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+    }
+    
+    // Benchmark tests (very slow, exclude from CI)
+    benchmarkTest {
+        java {
+            srcDirs = ['src/benchmarkTest/java']
+        }
+        resources {
+            srcDirs = ['src/benchmarkTest/resources']
+        }
+        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
+        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+    }
+}
+
+// Configure test task dependencies
+task integrationTest(type: Test) {
+    description = 'Run integration tests'
+    group = 'verification'
+    testClassesDirs = sourceSets.integrationTest.output.classesDirs
+    classpath = sourceSets.integrationTest.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'integration'
+        excludeTags 'performance', 'benchmark', 'slow'
+    }
+    
+    shouldRunAfter test
+    
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    
+    // Handle Java 24 compatibility issues
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24)) {
+        jvmArgs = [
+            '--enable-native-access=ALL-UNNAMED',
+            '-Djava.util.logging.config.file=src/main/resources/logback-quiet.xml'
+        ]
+    }
+}
+
+task performanceTest(type: Test) {
+    description = 'Run performance tests'
+    group = 'verification'
+    testClassesDirs = sourceSets.performanceTest.output.classesDirs
+    classpath = sourceSets.performanceTest.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'performance'
+    }
+    
+    shouldRunAfter integrationTest
+    
+    // Performance tests need more memory
+    maxHeapSize = '4g'
+    
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    
+    // Handle Java 24 compatibility issues
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24)) {
+        jvmArgs = [
+            '--enable-native-access=ALL-UNNAMED',
+            '-Djava.util.logging.config.file=src/main/resources/logback-quiet.xml'
+        ]
+    }
+}
+
+task benchmarkTest(type: Test) {
+    description = 'Run benchmark tests'
+    group = 'verification'
+    testClassesDirs = sourceSets.benchmarkTest.output.classesDirs
+    classpath = sourceSets.benchmarkTest.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'benchmark'
+    }
+    
+    shouldRunAfter performanceTest
+    
+    // Benchmarks need even more memory
+    maxHeapSize = '8g'
+    
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    
+    // Handle Java 24 compatibility issues
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24)) {
+        jvmArgs = [
+            '--enable-native-access=ALL-UNNAMED',
+            '-Djava.util.logging.config.file=src/main/resources/logback-quiet.xml'
+        ]
+    }
+}
+
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'performance', 'benchmark', 'slow'
+    }
+    
+    // Exclude performance and benchmark test classes
+    exclude '**/performance/**'
+    exclude '**/benchmark/**'
+    
     testLogging {
         events "passed", "skipped", "failed"
     }
@@ -806,7 +932,9 @@ test {
 }
 
 // Add check task dependencies
+check.dependsOn integrationTest
 check.dependsOn jacocoTestCoverageVerification
+// Note: performanceTest and benchmarkTest are excluded from CI by default
 // Make dependency check optional to avoid blocking builds when NVD API is unavailable
 // check.dependsOn dependencyCheckAggregate
 
