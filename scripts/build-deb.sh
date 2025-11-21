@@ -11,7 +11,7 @@ PACKAGE_NAME="justsyncit"
 MAINTAINER="JustSyncIt Team <team@justsyncit.com>"
 DESCRIPTION="A modern, reliable backup solution built with Java 21+ featuring BLAKE3 hashing"
 HOMEPAGE="https://github.com/carabistouflette/justsyncit"
-LICENSE="MIT"
+LICENSE="GPL-3.0"
 SECTION="utils"
 PRIORITY="optional"
 DEPENDS="openjdk-21-jre | default-jre (>= 2:21)"
@@ -167,7 +167,7 @@ JustSyncIt documentation is available at: \fIhttps://github.com/carabistouflette
 .SH AUTHOR
 JustSyncIt Team
 .SH LICENSE
-This software is released under the MIT License.
+This software is released under the GNU General Public License v3.0.
 EOF
     
     # Compress man page

@@ -165,28 +165,6 @@ docker run -p 8080:8080 justsyncit/app:0.1.0 backup /data
 - Network transfers may timeout on very slow connections
 - Some filesystems with non-standard permissions may require manual configuration
 
-## 🗺️ Roadmap
-
-### v0.2.0 (Planned)
-- Real-time synchronization
-- Web UI for management
-- Enhanced compression options
-- Plugin system for extensibility
-
-### v1.0.0 (Future)
-- GUI application
-- Cloud storage integrations
-- Advanced encryption options
-- Multi-platform support (Windows)
-
-## 🙏 Acknowledgments
-
-We'd like to thank:
-- The **BLAKE3 team** for the excellent hash function
-- The **Java community** for the robust ecosystem
-- Our **beta testers** for valuable feedback
-- The **open-source community** for inspiration and tools
-
 ## 📞 Support
 
 ### Getting Help

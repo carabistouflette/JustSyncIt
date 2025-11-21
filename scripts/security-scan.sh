@@ -257,7 +257,7 @@ EOF
 
 ## Compliance
 
-- **License Compliance:** MIT License - All dependencies compatible
+- **License Compliance:** GPL-3.0 License - All dependencies compatible
 - **Security Standards:** Follows OWASP best practices
 - **Data Protection:** BLAKE3 cryptographic hashing for integrity
 
