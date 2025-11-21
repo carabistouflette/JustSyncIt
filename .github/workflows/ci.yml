@@ -117,12 +117,33 @@ jobs:
       if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
       run: ./gradlew releaseBuild --no-daemon -PjavaVersion=${{ matrix.java-version }}
       
+    - name: Build packages (only on main branch, Java 21)
+      if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
+      run: |
+        # Install package building dependencies
+        sudo apt-get update
+        sudo apt-get install -y dpkg-dev rpm
+        
+        # Build packages
+        ./gradlew buildPackages --no-daemon -PjavaVersion=${{ matrix.java-version }}
+      
     - name: Upload JAR artifact (only on main branch, Java 21)
       if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
       uses: actions/upload-artifact@v4
       with:
         name: justsyncit-jar-java21-${{ github.run_attempt }}
         path: build/libs/*.jar
+        overwrite: true
+        
+    - name: Upload package artifacts (only on main branch, Java 21)
+      if: matrix.java-version == '21' && matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
+      uses: actions/upload-artifact@v4
+      with:
+        name: justsyncit-packages-java21-${{ github.run_attempt }}
+        path: |
+          *.deb
+          *.rpm
+          *.AppImage
         overwrite: true
 
   # Dependency check is disabled in build.gradle (skip = true)
@@ -255,8 +276,22 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
           
+    - name: Install package building dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y dpkg-dev rpm
+        
     - name: Build release artifacts
-      run: ./gradlew releaseBuild --no-daemon -PjavaVersion=21
+      run: |
+        ./gradlew releaseBuild --no-daemon -PjavaVersion=21
+        ./gradlew buildPackages --no-daemon -PjavaVersion=21
+      
+    - name: List artifacts
+      run: |
+        echo "Built artifacts:"
+        find build -name "*.jar" -o -name "*.tar.gz" -o -name "*.zip" -o -name "*.md5" -o -name "*.sha256" | sort
+        echo "Package artifacts:"
+        ls -la *.deb *.rpm *.AppImage 2>/dev/null || echo "No packages found"
       
     - name: Generate changelog
       id: changelog
@@ -281,7 +316,7 @@ jobs:
         draft: false
         prerelease: false
         
-    - name: Upload release assets
+    - name: Upload JAR asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -290,3 +325,73 @@ jobs:
         asset_path: build/libs/justsyncit-${{ steps.changelog.outputs.version }}.jar
         asset_name: justsyncit-${{ steps.changelog.outputs.version }}.jar
         asset_content_type: application/java-archive
+        
+    - name: Upload Fat JAR asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/libs/justsyncit-${{ steps.changelog.outputs.version }}-all.jar
+        asset_name: justsyncit-${{ steps.changelog.outputs.version }}-all.jar
+        asset_content_type: application/java-archive
+        
+    - name: Upload TAR.GZ asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/distributions/justsyncit-${{ steps.changelog.outputs.version }}.tar.gz
+        asset_name: justsyncit-${{ steps.changelog.outputs.version }}.tar.gz
+        asset_content_type: application/gzip
+        
+    - name: Upload ZIP asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/distributions/justsyncit-${{ steps.changelog.outputs.version }}.zip
+        asset_name: justsyncit-${{ steps.changelog.outputs.version }}.zip
+        asset_content_type: application/zip
+        
+    - name: Upload DEB asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: justsyncit_${{ steps.changelog.outputs.version }}_all.deb
+        asset_name: justsyncit_${{ steps.changelog.outputs.version }}_all.deb
+        asset_content_type: application/vnd.debian.binary-package
+        
+    - name: Upload RPM asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: justsyncit-${{ steps.changelog.outputs.version }}-1.noarch.rpm
+        asset_name: justsyncit-${{ steps.changelog.outputs.version }}-1.noarch.rpm
+        asset_content_type: application/x-rpm
+        
+    - name: Upload AppImage asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: JustSyncIt-${{ steps.changelog.outputs.version }}-x86_64.AppImage
+        asset_name: JustSyncIt-${{ steps.changelog.outputs.version }}-x86_64.AppImage
+        asset_content_type: application/x-executable
+        
+    - name: Upload checksums
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: build/libs/justsyncit-${{ steps.changelog.outputs.version }}-all.jar.sha256
+        asset_name: justsyncit-${{ steps.changelog.outputs.version }}-all.jar.sha256
+        asset_content_type: text/plain
