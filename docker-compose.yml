@@ -12,11 +12,12 @@ services:
       - JAVA_OPTS=-Xmx512m -Xms256m
       - LOG_LEVEL=INFO
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - justsyncit-data:/opt/justsyncit/data
+      - justsyncit-logs:/opt/justsyncit/logs
+      - ./config:/opt/justsyncit/config
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "java", "-jar", "app.jar", "--version"]
+      test: ["CMD", "bin/start.sh", "--version"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -61,6 +62,8 @@ services:
 volumes:
   prometheus_data:
   grafana_data:
+  justsyncit-data:
+  justsyncit-logs:
 
 networks:
   default:
