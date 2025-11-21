@@ -373,6 +373,11 @@ task fatJar(type: Jar) {
     with jar
     
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    
+    // Exclude signature files to avoid "Invalid signature file digest" errors
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
 }
 
 // Configure distributions
@@ -953,9 +958,11 @@ check.dependsOn integrationTest
 check.dependsOn jacocoTestCoverageVerification
 // Note: performanceTest and benchmarkTest are excluded from CI by default
 // Explicitly exclude performance tests from check task
+// Store the property value during configuration phase to avoid configuration cache issues
+def excludePerformanceTests = project.hasProperty('excludePerformanceTests')
 check {
     // Ensure performance tests are not run as part of check
-    onlyIf { !project.hasProperty('excludePerformanceTests') }
+    onlyIf { !excludePerformanceTests }
 }
 // Make dependency check optional to avoid blocking builds when NVD API is unavailable
 // check.dependsOn dependencyCheckAggregate
