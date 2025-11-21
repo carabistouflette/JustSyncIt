@@ -357,6 +357,9 @@ public class ComprehensiveBenchmarkSuite {
             metrics.recordMetric("peak_thread_count", summary.getPeakThreadCount());
             metrics.recordMetric("dataset_size_mb", datasetSize / (1024 * 1024));
             
+            // Ensure proper cleanup of resources
+            System.gc(); // Suggest garbage collection to free resources
+            
             // Print summary
             System.out.println("  " + metrics.generateSummary());
             
@@ -567,6 +570,10 @@ public class ComprehensiveBenchmarkSuite {
         System.out.println("\n=== Generating Comprehensive Reports ===");
         
         BenchmarkReportGenerator reportGenerator = new BenchmarkReportGenerator(allMetrics, reportDir);
+        
+        // Ensure all resources are properly cleaned up before generating reports
+        System.gc();
+        Thread.sleep(1000); // Give time for cleanup
         
         // Generate all report formats
         Path htmlReport = reportGenerator.generateHtmlReport();

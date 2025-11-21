@@ -88,6 +88,13 @@ public abstract class E2ETestBase {
 
     @AfterEach
     void tearDown() throws Exception {
+        // Wait for async operations to complete before cleanup
+        try {
+            Thread.sleep(2000); // Give time for async operations to complete
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
         // Clean up resources in reverse order of creation
         for (int i = resourcesToCleanup.size() - 1; i >= 0; i--) {
             try {
@@ -100,6 +107,13 @@ public abstract class E2ETestBase {
             }
         }
         resourcesToCleanup.clear();
+        
+        // Additional cleanup wait
+        try {
+            Thread.sleep(1000); // Ensure cleanup completes
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // Test data creation methods

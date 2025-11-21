@@ -251,14 +251,44 @@ public class BenchmarkReportGenerator {
             Double cpuUsage = (Double) metrics.getMetrics().get("cpu_usage_percent");
             csv.append(cpuUsage != null ? String.format("%.2f", cpuUsage) : "").append(",");
             
-            Integer datasetSize = (Integer) metrics.getMetrics().get("dataset_size_mb");
-            csv.append(datasetSize != null ? datasetSize.toString() : "").append(",");
+            Object datasetSizeObj = metrics.getMetrics().get("dataset_size_mb");
+            String datasetSizeStr = "";
+            if (datasetSizeObj != null) {
+                if (datasetSizeObj instanceof Long) {
+                    datasetSizeStr = ((Long) datasetSizeObj).toString();
+                } else if (datasetSizeObj instanceof Integer) {
+                    datasetSizeStr = ((Integer) datasetSizeObj).toString();
+                } else {
+                    datasetSizeStr = datasetSizeObj.toString();
+                }
+            }
+            csv.append(datasetSizeStr).append(",");
             
-            Integer fileCount = (Integer) metrics.getMetrics().get("file_count");
-            csv.append(fileCount != null ? fileCount.toString() : "").append(",");
+            Object fileCountObj = metrics.getMetrics().get("file_count");
+            String fileCountStr = "";
+            if (fileCountObj != null) {
+                if (fileCountObj instanceof Long) {
+                    fileCountStr = ((Long) fileCountObj).toString();
+                } else if (fileCountObj instanceof Integer) {
+                    fileCountStr = ((Integer) fileCountObj).toString();
+                } else {
+                    fileCountStr = fileCountObj.toString();
+                }
+            }
+            csv.append(fileCountStr).append(",");
             
-            Integer chunkCount = (Integer) metrics.getMetrics().get("chunks_created");
-            csv.append(chunkCount != null ? chunkCount.toString() : "").append("\n");
+            Object chunkCountObj = metrics.getMetrics().get("chunks_created");
+            String chunkCountStr = "";
+            if (chunkCountObj != null) {
+                if (chunkCountObj instanceof Long) {
+                    chunkCountStr = ((Long) chunkCountObj).toString();
+                } else if (chunkCountObj instanceof Integer) {
+                    chunkCountStr = ((Integer) chunkCountObj).toString();
+                } else {
+                    chunkCountStr = chunkCountObj.toString();
+                }
+            }
+            csv.append(chunkCountStr).append("\n");
         }
         
         return csv.toString();
@@ -977,11 +1007,31 @@ public class BenchmarkReportGenerator {
             Double memory = (Double) metrics.getMetrics().get("memory_used_mb");
             rawData.append("                <td>").append(memory != null ? String.format("%.2f", memory) : "").append("</td>\n");
             
-            Integer files = (Integer) metrics.getMetrics().get("file_count");
-            rawData.append("                <td>").append(files != null ? files.toString() : "").append("</td>\n");
+            Object filesObj = metrics.getMetrics().get("file_count");
+            String filesStr = "";
+            if (filesObj != null) {
+                if (filesObj instanceof Long) {
+                    filesStr = ((Long) filesObj).toString();
+                } else if (filesObj instanceof Integer) {
+                    filesStr = ((Integer) filesObj).toString();
+                } else {
+                    filesStr = filesObj.toString();
+                }
+            }
+            rawData.append("                <td>").append(filesStr).append("</td>\n");
             
-            Integer chunks = (Integer) metrics.getMetrics().get("chunks_created");
-            rawData.append("                <td>").append(chunks != null ? chunks.toString() : "").append("</td>\n");
+            Object chunksObj = metrics.getMetrics().get("chunks_created");
+            String chunksStr = "";
+            if (chunksObj != null) {
+                if (chunksObj instanceof Long) {
+                    chunksStr = ((Long) chunksObj).toString();
+                } else if (chunksObj instanceof Integer) {
+                    chunksStr = ((Integer) chunksObj).toString();
+                } else {
+                    chunksStr = chunksObj.toString();
+                }
+            }
+            rawData.append("                <td>").append(chunksStr).append("</td>\n");
             
             rawData.append("            </tr>\n");
         }
