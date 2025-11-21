@@ -1015,4 +1015,4 @@ export JUSTSYNCIT_FAILOVER_ENABLED="true"
 export JUSTSYNCIT_FAILOVER_TIMEOUT="30000"  # 30 seconds
 ```
 
-This comprehensive network operations guide provides everything you need to set up, configure, and optimize JustSyncIt for network operations. For additional information, refer to the [CLI Reference](cli-reference.md) and [Troubleshooting Guide](troubleshooting.md).
+This comprehensive network operations guide provides everything you need to set up, configure, and optimize JustSyncIt for network operations. For additional information, refer to the [CLI Reference](cli-reference.md), [Technical Guide](technical-guide.md), and [Troubleshooting Guide](troubleshooting.md).

@@ -1041,4 +1041,4 @@ java -jar justsyncit.jar snapshots recover-chunks --from-other-snapshots
 java -jar justsyncit.jar snapshots mark-chunks-lost --chunk-ids "chunk1,chunk2,chunk3"
 ```
 
-This comprehensive snapshot management guide provides everything you need to effectively manage JustSyncIt snapshots. For additional information, refer to the [User Guide](user-guide.md) and [CLI Reference](cli-reference.md).
+This comprehensive snapshot management guide provides everything you need to effectively manage JustSyncIt snapshots. For additional information, refer to the [Getting Started Guide](getting-started.md) and [CLI Reference](cli-reference.md).

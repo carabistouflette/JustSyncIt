@@ -1122,4 +1122,4 @@ cat > bug-report.md <<EOF'
 EOF
 ```
 
-This comprehensive troubleshooting guide covers the most common issues you may encounter with JustSyncIt. For additional help, refer to the [User Guide](user-guide.md), [CLI Reference](cli-reference.md), or visit the [GitHub Issues](https://github.com/carabistouflette/justsyncit/issues) page.
+This comprehensive troubleshooting guide covers the most common issues you may encounter with JustSyncIt. For additional help, refer to the [Getting Started Guide](getting-started.md), [CLI Reference](cli-reference.md), [Technical Guide](technical-guide.md), or visit the [GitHub Issues](https://github.com/carabistouflette/justsyncit/issues) page.

@@ -4,9 +4,8 @@
 
 - [System Requirements](#system-requirements)
 - [Installation](#installation)
-- [First Backup Tutorial](#first-backup-tutorial)
-- [First Restore Tutorial](#first-restore-tutorial)
-- [Basic Server Setup](#basic-server-setup)
+- [Quick Start Tutorial](#quick-start-tutorial)
+- [Basic Usage](#basic-usage)
 - [Configuration](#configuration)
 - [Next Steps](#next-steps)
 
@@ -160,7 +159,7 @@ mkdir -p ~/.justsyncit/data
 mkdir -p ~/.justsyncit/logs
 ```
 
-## First Backup Tutorial
+## Quick Start Tutorial
 
 Let's create your first backup step by step.
 
@@ -259,23 +258,12 @@ Verification completed successfully!
 All files and chunks verified.
 ```
 
-## First Restore Tutorial
-
-Now let's restore the backup we just created.
-
-### Step 1: Prepare Restore Directory
+### Step 6: Restore Your Backup
 
 ```bash
 # Create restore directory
 mkdir -p ~/justsyncit-restore
 
-# Ensure it's empty
-rm -rf ~/justsyncit-restore/*
-```
-
-### Step 2: Perform Restore
-
-```bash
 # Restore the snapshot
 java -jar justsyncit.jar restore abc123def456 ~/justsyncit-restore
 ```
@@ -294,7 +282,7 @@ Total bytes: 204800
 Integrity verified: true
 ```
 
-### Step 3: Verify Restored Data
+### Step 7: Verify Restored Data
 
 ```bash
 # Check restored files
@@ -310,114 +298,147 @@ diff -r ~/justsyncit-test ~/justsyncit-restore
 
 The diff command should produce no output, indicating the files are identical.
 
-### Step 4: Test Selective Restore
+## Basic Usage
 
+### Common Backup Operations
+
+#### Basic Backup
 ```bash
-# Create another restore directory
-mkdir -p ~/justsyncit-restore-docs
-
-# Restore only documents
-java -jar justsyncit.jar restore abc123def456 ~/justsyncit-restore-docs --include "documents/*"
-
-# Check result
-find ~/justsyncit-restore-docs -type f
+# Simple backup
+java -jar justsyncit.jar backup ~/documents
 ```
 
-## Basic Server Setup
+#### Backup with Options
+```bash
+# Backup with hidden files and custom chunk size
+java -jar justsyncit.jar backup ~/documents \
+  --include-hidden \
+  --chunk-size 1048576 \
+  --verify-integrity
+```
 
-Let's set up a JustSyncIt server for remote backups.
+#### Backup Following Symlinks
+```bash
+# Backup following symbolic links
+java -jar justsyncit.jar backup ~/documents \
+  --follow-symlinks \
+  --include-hidden
+```
 
-### Step 1: Start Server
+### Snapshot Management
 
+#### List Snapshots
+```bash
+# Basic list
+java -jar justsyncit.jar snapshots list
+
+# Detailed list
+java -jar justsyncit.jar snapshots list --verbose
+
+# Sort by size
+java -jar justsyncit.jar snapshots list --sort-by-size
+```
+
+#### Snapshot Information
+```bash
+# Get snapshot details
+java -jar justsyncit.jar snapshots info <snapshot-id>
+
+# Show files in snapshot
+java -jar justsyncit.jar snapshots info <snapshot-id> --show-files
+```
+
+#### Delete Snapshots
+```bash
+# Interactive delete
+java -jar justsyncit.jar snapshots delete <snapshot-id>
+
+# Force delete
+java -jar justsyncit.jar snapshots delete <snapshot-id> --force
+```
+
+### Restore Operations
+
+#### Basic Restore
+```bash
+# Restore to directory
+java -jar justsyncit.jar restore <snapshot-id> ~/restore
+```
+
+#### Restore with Options
+```bash
+# Restore with overwrite
+java -jar justsyncit.jar restore <snapshot-id> ~/restore --overwrite
+
+# Selective restore
+java -jar justsyncit.jar restore <snapshot-id> ~/restore --include "*.txt"
+
+# Restore excluding files
+java -jar justsyncit.jar restore <snapshot-id> ~/restore --exclude "*.tmp"
+```
+
+### Server Operations
+
+#### Start Server
 ```bash
 # Start server on default port 8080
-java -jar justsyncit.jar server start --port 8080
-```
+java -jar justsyncit.jar server start
 
-Output:
-```
-Starting JustSyncIt server...
-Transport: TCP
-Port: 8080
-Server started successfully.
-Listening for connections...
-```
+# Start server on custom port
+java -jar justsyncit.jar server start --port 9090
 
-### Step 2: Test Server Status
-
-Open another terminal and check server status:
-
-```bash
-# Check server status
-java -jar justsyncit.jar server status --verbose
-```
-
-Output:
-```
-Server Status: Running
-Transport: TCP
-Port: 8080
-Active Connections: 0
-Total Transfers: 0
-Uptime: 0m 5s
-Version: 1.0.0
-```
-
-### Step 3: Test Remote Backup
-
-In another terminal, perform a remote backup:
-
-```bash
-# Create test data for remote backup
-mkdir -p ~/remote-test
-echo "Remote backup test" > ~/remote-test/remote.txt
-
-# Backup to remote server
-java -jar justsyncit.jar backup ~/remote-test --remote --server localhost:8080
-```
-
-Output:
-```
-Starting backup of: /home/user/remote-test
-Options: BackupOptions{..., remoteBackup=true, remoteAddress=localhost/127.0.0.1:8080, transportType=TCP}
-Remote backup to: localhost/127.0.0.1:8080 using TCP
-Remote backup data sent successfully!
-
-Remote backup completed successfully!
-Files processed: 1
-Total bytes: 20
-Chunks created: 1
-Integrity verified: true
-```
-
-### Step 4: Stop Server
-
-```bash
-# Stop the server
-java -jar justsyncit.jar server stop
-```
-
-Output:
-```
-Stopping JustSyncIt server...
-Server stopped successfully.
-```
-
-### Step 5: Start Server as Daemon
-
-For production use, start the server in daemon mode:
-
-```bash
-# Start server in background
+# Start server in daemon mode
 java -jar justsyncit.jar server start --daemon --quiet
+```
 
-# Check if running
+#### Check Server Status
+```bash
+# Basic status
 java -jar justsyncit.jar server status
+
+# Detailed status
+java -jar justsyncit.jar server status --verbose
+
+# JSON status
+java -jar justsyncit.jar server status --json
+```
+
+#### Stop Server
+```bash
+# Graceful stop
+java -jar justsyncit.jar server stop
+
+# Force stop
+java -jar justsyncit.jar server stop --force
+```
+
+### Remote Operations
+
+#### Remote Backup
+```bash
+# Backup to remote server
+java -jar justsyncit.jar backup ~/documents \
+  --remote \
+  --server backup.example.com:8080
+
+# Remote backup with QUIC
+java -jar justsyncit.jar backup ~/documents \
+  --remote \
+  --server backup.example.com:8080 \
+  --transport QUIC
+```
+
+#### Remote Restore
+```bash
+# Restore from remote server
+java -jar justsyncit.jar restore <snapshot-id> ~/restore \
+  --remote \
+  --server backup.example.com:8080
 ```
 
 ## Configuration
 
-JustSyncIt can be configured through command-line options and configuration files.
+JustSyncIt can be configured through command-line options, environment variables, and configuration files.
 
 ### Command-Line Options
 
@@ -525,26 +546,23 @@ Congratulations! You've successfully:
 1. ✅ Installed JustSyncIt
 2. ✅ Created your first backup
 3. ✅ Restored data from backup
-4. ✅ Set up a backup server
-5. ✅ Performed remote backup operations
+4. ✅ Learned basic operations
 
 ### Continue Learning
 
 Now that you have the basics down, explore these topics:
 
 1. **Advanced Backup Strategies**
-   - [User Guide](user-guide.md) - Comprehensive usage guide
+   - [CLI Reference](cli-reference.md) - Complete command reference
    - [Snapshot Management Guide](snapshot-management.md) - Advanced snapshot operations
+   - [Technical Guide](technical-guide.md) - Technical architecture and implementation details
 
 2. **Network Operations**
    - [Network Operations Guide](network-operations.md) - Remote backup setup and optimization
-   - [CLI Reference](cli-reference.md) - Complete command reference
-
-3. **Performance Optimization**
    - [Performance Guide](performance-guide.md) - Tuning and optimization tips
-   - [Benchmarking Guide](benchmarking-guide.md) - Performance testing
 
-4. **Troubleshooting**
+3. **Technical Details**
+   - [Technical Guide](technical-guide.md) - Architecture and implementation details
    - [Troubleshooting Guide](troubleshooting.md) - Common issues and solutions
 
 ### Common Next Steps
