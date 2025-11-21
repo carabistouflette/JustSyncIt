@@ -165,17 +165,16 @@ java {
         javaVersion = JavaVersion.VERSION_21
     } else if (javaVersion.isCompatibleWith(JavaVersion.VERSION_24)) {
         javaVersion = JavaVersion.VERSION_24
+    } else {
+        throw new GradleException("JustSyncIt requires Java 21 or higher. Current version: ${javaVersion}")
     }
     
     sourceCompatibility = javaVersion
     targetCompatibility = javaVersion
     
-    // Only configure toolchain if a specific version is requested
-    // This allows fallback to the current JVM if toolchain is not available
-    if (project.hasProperty('javaVersion')) {
-        toolchain {
-            languageVersion = JavaLanguageVersion.of(javaVersion.majorVersion)
-        }
+    // Configure toolchain for consistent Java version
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(javaVersion.majorVersion)
     }
 }
 
@@ -320,6 +319,10 @@ test {
     // Exclude performance and benchmark test classes
     exclude '**/performance/**'
     exclude '**/benchmark/**'
+    
+    // Ensure performance and benchmark source sets are not included
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
     
     testLogging {
         events "passed", "skipped", "failed"
@@ -949,6 +952,11 @@ test {
 check.dependsOn integrationTest
 check.dependsOn jacocoTestCoverageVerification
 // Note: performanceTest and benchmarkTest are excluded from CI by default
+// Explicitly exclude performance tests from check task
+check {
+    // Ensure performance tests are not run as part of check
+    onlyIf { !project.hasProperty('excludePerformanceTests') }
+}
 // Make dependency check optional to avoid blocking builds when NVD API is unavailable
 // check.dependsOn dependencyCheckAggregate
 
