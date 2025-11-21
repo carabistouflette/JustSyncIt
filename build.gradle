@@ -5,6 +5,8 @@ plugins {
     id 'com.github.spotbugs' version '6.0.25'
     id 'jacoco'
     id 'org.owasp.dependencycheck' version '12.1.0'
+    id 'distribution'
+    id 'maven-publish'
 }
 
 import org.gradle.api.file.DuplicatesStrategy
@@ -197,8 +199,138 @@ jar {
         attributes(
             'Main-Class': 'com.justsyncit.JustSyncItApplication',
             'Implementation-Title': 'JustSyncIt',
-            'Implementation-Version': project.version
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'JustSyncIt Team',
+            'Built-By': System.getProperty('user.name'),
+            'Built-Date': new Date().format('yyyy-MM-dd HH:mm:ss'),
+            'Built-JDK': System.getProperty('java.version'),
+            'Built-Gradle': gradle.gradleVersion
         )
+    }
+}
+
+// Create fat JAR with all dependencies
+task fatJar(type: Jar) {
+    description = 'Create executable JAR with all dependencies'
+    group = 'build'
+    archiveClassifier.set('all')
+    
+    manifest {
+        attributes(
+            'Main-Class': 'com.justsyncit.JustSyncItApplication',
+            'Implementation-Title': 'JustSyncIt',
+            'Implementation-Version': project.version,
+            'Implementation-Vendor': 'JustSyncIt Team'
+        )
+    }
+    
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+    
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Configure distributions
+distributions {
+    main {
+        distributionBaseName.set('justsyncit')
+        contents {
+            from { fatJar } into 'lib'
+            from { 'LICENSE' } into '.'
+            from { 'README.md' } into '.'
+            from { 'CHANGELOG.md' } into '.'
+            from('docs') { into 'docs' }
+            from('examples') { into 'examples' }
+            
+            // Create startup scripts
+            from { file('scripts/start.sh') } into 'bin'
+            
+            // Create configuration directory
+            from('examples/config-files') { into 'config' }
+        }
+    }
+}
+
+// Make start scripts executable
+distTar {
+    compression = Compression.GZIP
+    archiveExtension.set('tar.gz')
+}
+
+distZip {
+    archiveExtension.set('zip')
+}
+
+// Create checksums for release artifacts
+task createChecksums {
+    description = 'Create checksums for release artifacts'
+    group = 'release'
+    
+    // Disable configuration cache for this task due to ant.checksum usage
+    notCompatibleWithConfigurationCache("Task uses Ant checksum which is not compatible with configuration cache")
+    
+    doLast {
+        def artifacts = [
+            "build/libs/${project.name}-${project.version}.jar",
+            "build/libs/${project.name}-${project.version}-all.jar",
+            "build/distributions/${project.name}-${project.version}.tar.gz",
+            "build/distributions/${project.name}-${project.version}.zip"
+        ]
+        
+        artifacts.each { artifact ->
+            def file = file(artifact)
+            if (file.exists()) {
+                // SHA-256 checksum
+                ant.checksum(file: file, algorithm: 'SHA-256', property: "${artifact}.sha256")
+                def sha256 = ant.project.getProperties()["${artifact}.sha256"]
+                new File("${artifact}.sha256").text = "${sha256}  ${file.name}"
+                
+                // MD5 checksum
+                ant.checksum(file: file, algorithm: 'MD5', property: "${artifact}.md5")
+                def md5 = ant.project.getProperties()["${artifact}.md5"]
+                new File("${artifact}.md5").text = "${md5}  ${file.name}"
+                
+                println "Created checksums for ${file.name}"
+            }
+        }
+    }
+}
+
+// Configure publishing
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            
+            pom {
+                name = 'JustSyncIt'
+                description = 'A modern, reliable backup solution built with Java 21+ featuring BLAKE3 hashing'
+                url = 'https://github.com/carabistouflette/justsyncit'
+                
+                licenses {
+                    license {
+                        name = 'The MIT License'
+                        url = 'https://opensource.org/licenses/MIT'
+                    }
+                }
+                
+                developers {
+                    developer {
+                        id = 'justsyncit-team'
+                        name = 'JustSyncIt Team'
+                        email = 'team@justsyncit.com'
+                    }
+                }
+                
+                scm {
+                    connection = 'scm:git:git://github.com/carabistouflette/justsyncit.git'
+                    developerConnection = 'scm:git:ssh://github.com:carabistouflette/justsyncit.git'
+                    url = 'https://github.com/carabistouflette/justsyncit/tree/main'
+                }
+            }
+        }
     }
 }
 
@@ -218,8 +350,233 @@ task testBuild {
 task releaseBuild {
     description = 'Build for release'
     group = 'build'
-    dependsOn testBuild, jar, jacocoTestReport
+    dependsOn testBuild, jar, fatJar, distTar, distZip, createChecksums
 }
+
+// Package building tasks
+task buildDeb {
+    description = 'Build DEB package for Debian/Ubuntu'
+    group = 'distribution'
+    
+    doLast {
+        exec {
+            commandLine './scripts/build-deb.sh'
+        }
+    }
+}
+
+task buildRpm {
+    description = 'Build RPM package for RHEL/CentOS/Fedora'
+    group = 'distribution'
+    
+    doLast {
+        exec {
+            commandLine './scripts/build-rpm.sh'
+        }
+    }
+}
+
+task buildPackages {
+    description = 'Build all distribution packages'
+    group = 'distribution'
+    dependsOn buildDeb, buildRpm
+}
+
+// AppImage task for Linux
+task buildAppImage {
+    description = 'Build AppImage for Linux'
+    group = 'distribution'
+    
+    doLast {
+        def appDir = "JustSyncIt-${project.version}.AppDir"
+        def appImage = "JustSyncIt-${project.version}-x86_64.AppImage"
+        
+        // Create AppDir structure
+        exec {
+            commandLine 'mkdir', '-p', "${appDir}/usr/bin"
+            commandLine 'mkdir', '-p', "${appDir}/usr/lib"
+            commandLine 'mkdir', '-p', "${appDir}/usr/share/applications"
+            commandLine 'mkdir', '-p', "${appDir}/usr/share/icons/hicolor/256x256/apps"
+        }
+        
+        // Copy application files
+        copy {
+            from "build/distributions/justsyncit-${project.version}"
+            into "${appDir}/usr/lib/justsyncit"
+        }
+        
+        // Create symlink
+        exec {
+            commandLine 'ln', '-sf', '../lib/justsyncit/bin/start.sh', "${appDir}/usr/bin/justsyncit"
+        }
+        
+        // Create desktop file
+        file("${appDir}/usr/share/applications/justsyncit.desktop").text = '''[Desktop Entry]
+Version=1.0
+Type=Application
+Name=JustSyncIt
+Comment=A modern, reliable backup solution
+Exec=justsyncit
+Icon=justsyncit
+Terminal=true
+Categories=System;Utility;
+'''
+        
+        // Create AppRun
+        file("${appDir}/AppRun").text = '''#!/bin/bash
+HERE="$(dirname "$(readlink -f "${0}")")"
+export PATH="${HERE}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${HERE}/usr/lib:${LD_LIBRARY_PATH}"
+exec "${HERE}/usr/bin/justsyncit" "$@"
+'''
+        exec {
+            commandLine 'chmod', '+x', "${appDir}/AppRun"
+        }
+        
+        // Download appimagetool if not present
+        if (!file('appimagetool-x86_64.AppImage').exists()) {
+            exec {
+                commandLine 'wget', '-q', 'https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage'
+            }
+            exec {
+                commandLine 'chmod', '+x', 'appimagetool-x86_64.AppImage'
+            }
+        }
+        
+        // Create AppImage
+        exec {
+            commandLine './appimagetool-x86_64.AppImage', appDir, appImage
+        }
+        
+        println "AppImage created: ${appImage}"
+    }
+}
+
+// Native image task (requires GraalVM)
+task nativeImage {
+    description = 'Create native image using GraalVM'
+    group = 'build'
+    
+    doLast {
+        def graalHome = System.getenv('GRAALVM_HOME')
+        if (!graalHome) {
+            throw new GradleException("GRAALVM_HOME environment variable not set")
+        }
+        
+        exec {
+            executable "${graalHome}/bin/native-image"
+            args = [
+                '-jar', "build/libs/${project.name}-${project.version}-all.jar",
+                '-H:Name=justsyncit',
+                '-H:+ReportExceptionStackTraces',
+                '--no-fallback',
+                '--enable-url-protocols=http,https',
+                '--enable-https',
+                '-H:+ReportExceptionStackTraces',
+                '-H:IncludeResources=' + [
+                    'logback*.xml',
+                    '*.properties',
+                    '*.yaml',
+                    '*.yml'
+                ].join(','),
+                '-H:ConfigurationFileDirectories=src/main/resources/META-INF/native-image',
+                '-H:JNIConfigurationFiles=src/main/resources/META-INF/native-image/jni-config.json',
+                '-H:ResourceConfigurationFiles=src/main/resources/META-INF/native-image/resource-config.json',
+                '-H:ReflectionConfigurationFiles=src/main/resources/META-INF/native-image/reflect-config.json',
+                '-Djava.awt.headless=true',
+                '--initialize-at-build-time=org.slf4j',
+                '-J-Xmx4g'
+            ]
+        }
+    }
+}
+
+// Create startup scripts directory and files
+task createStartupScripts {
+    description = 'Create startup scripts for distribution'
+    group = 'build'
+    
+    // Disable configuration cache for this task due to file operations in closures
+    notCompatibleWithConfigurationCache("Task performs file operations that are not compatible with configuration cache")
+    
+    doLast {
+        def scriptsDir = file('scripts')
+        scriptsDir.mkdirs()
+        
+        // Create Unix startup script
+        def startSh = new File(scriptsDir, 'start.sh')
+        startSh.text = '''#!/bin/bash
+# JustSyncIt Startup Script
+
+# Set default JVM options
+JVM_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC"
+
+# Override with environment variable if set
+if [ -n "\$JUSTSYNCIT_JVM_OPTS" ]; then
+    JVM_OPTS="\$JUSTSYNCIT_JVM_OPTS"
+fi
+
+# Get the directory where this script is located
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="\$SCRIPT_DIR/../lib"
+
+# Find the JAR file
+JAR_FILE=\$(find "\$LIB_DIR" -name "justsyncit-*-all.jar" | head -n 1)
+
+if [ -z "\$JAR_FILE" ]; then
+    echo "Error: JustSyncIt JAR file not found in \$LIB_DIR"
+    exit 1
+fi
+
+echo "Starting JustSyncIt..."
+echo "JVM Options: \$JVM_OPTS"
+echo "JAR File: \$JAR_FILE"
+
+# Run the application
+exec java \$JVM_OPTS -jar "\$JAR_FILE" "\$@"
+'''
+        startSh.setExecutable(true)
+        
+        // Create Windows startup script
+        def startBat = new File(scriptsDir, 'start.bat')
+        startBat.text = '''@echo off
+REM JustSyncIt Startup Script
+
+REM Set default JVM options
+set JVM_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+
+REM Override with environment variable if set
+if defined JUSTSYNCIT_JVM_OPTS (
+    set JVM_OPTS=%JUSTSYNCIT_JVM_OPTS%
+)
+
+REM Get the directory where this script is located
+set SCRIPT_DIR=%~dp0
+set LIB_DIR=%SCRIPT_DIR%..\\lib
+
+REM Find the JAR file
+for %%f in ("%LIB_DIR%\\justsyncit-*-all.jar") do (
+    set JAR_FILE=%%f
+    goto :found
+)
+
+echo Error: JustSyncIt JAR file not found in %LIB_DIR%
+exit /b 1
+
+:found
+echo Starting JustSyncIt...
+echo JVM Options: %JVM_OPTS%
+echo JAR File: %JAR_FILE%
+
+REM Run the application
+java %JVM_OPTS% -jar "%JAR_FILE%" %*
+'''
+    }
+}
+
+// Make sure startup scripts are created before building distributions
+distTar.dependsOn createStartupScripts
+distZip.dependsOn createStartupScripts
 
 task downloadDependencies {
     description = 'Download all dependencies'
