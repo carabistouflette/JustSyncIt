@@ -96,9 +96,9 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions()
                 .withMaxDepth(10);
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        
+
         FileProcessor.ProcessingResult result = future.get(120, java.util.concurrent.TimeUnit.SECONDS);
-        
+
         // Verify results
         ScanResult scanResult = result.getScanResult();
         // Allow for some files to fail due to integrity issues in test environment
@@ -152,7 +152,7 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions()
                 .withIncludePattern(tempDir.getFileSystem().getPathMatcher("glob:**/*.txt"));
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        
+
         FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
         assertEquals(1, scanResult.getScannedFiles().size());
@@ -178,7 +178,7 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions()
                 .withMaxDepth(2);
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(root, options);
-        
+
         FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
         assertEquals(3, scanResult.getScannedFiles().size()); // root.txt, level1.txt, level2.txt
@@ -197,7 +197,7 @@ class FileProcessorTest {
         Files.write(largeFile, data);
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(largeFileDir, options);
-        
+
         FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
         assertEquals(1, scanResult.getScannedFiles().size());
@@ -216,10 +216,10 @@ class FileProcessorTest {
         ScanOptions options = new ScanOptions()
                 .withIncludeHiddenFiles(false);
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        
+
         FileProcessor.ProcessingResult result = future.get();
         ScanResult scanResult = result.getScanResult();
-        
+
         // On Unix-like systems, expect exactly 1 file (excluding hidden)
         assertEquals(1, scanResult.getScannedFiles().size());
         assertTrue(scanResult.getScannedFiles().get(0).getPath().endsWith("visible.txt"));
@@ -237,7 +237,7 @@ class FileProcessorTest {
         // This test would need to be implemented differently or feature added
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        
+
         FileProcessor.ProcessingResult result = future.get(120, java.util.concurrent.TimeUnit.SECONDS);
         ScanResult scanResult = result.getScanResult();
         assertEquals(5, scanResult.getScannedFiles().size());
@@ -257,7 +257,7 @@ class FileProcessorTest {
         // Process successfully first
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        
+
         FileProcessor.ProcessingResult result = future.get();
         assertEquals(1, result.getProcessedFiles());
         // Stop processor
@@ -276,14 +276,14 @@ class FileProcessorTest {
         Files.write(testDir.resolve("test.txt"), "test".getBytes(StandardCharsets.UTF_8));
         ScanOptions options = new ScanOptions();
         CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
-        
+
         // Give a moment for processing to start, then check if running
         try {
             Thread.sleep(100); // Allow async processing to start
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
+
         // Should be running during processing
         assertTrue(processor.isRunning());
         future.get();

@@ -19,6 +19,9 @@
 package com.justsyncit.command;
 
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.network.NetworkService;
+import com.justsyncit.storage.metadata.MetadataService;
+import com.justsyncit.storage.ContentStore;
 
 /**
  * Context object that provides services to commands.
@@ -28,6 +31,15 @@ public class CommandContext {
 
     /** BLAKE3 service instance. */
     private final Blake3Service blake3Service;
+    
+    /** Network service instance. */
+    private final NetworkService networkService;
+    
+    /** Metadata service instance. */
+    private final MetadataService metadataService;
+    
+    /** Content store instance. */
+    private final ContentStore contentStore;
 
     /**
      * Creates a new CommandContext with the provided services.
@@ -36,6 +48,25 @@ public class CommandContext {
      */
     public CommandContext(Blake3Service blake3Service) {
         this.blake3Service = blake3Service;
+        this.networkService = null;
+        this.metadataService = null;
+        this.contentStore = null;
+    }
+    
+    /**
+     * Creates a new CommandContext with all provided services.
+     *
+     * @param blake3Service the BLAKE3 service
+     * @param networkService the network service
+     * @param metadataService the metadata service
+     * @param contentStore the content store
+     */
+    public CommandContext(Blake3Service blake3Service, NetworkService networkService,
+                        MetadataService metadataService, ContentStore contentStore) {
+        this.blake3Service = blake3Service;
+        this.networkService = networkService;
+        this.metadataService = metadataService;
+        this.contentStore = contentStore;
     }
 
     /**
@@ -45,5 +76,32 @@ public class CommandContext {
      */
     public Blake3Service getBlake3Service() {
         return blake3Service;
+    }
+    
+    /**
+     * Gets the network service.
+     *
+     * @return the network service
+     */
+    public NetworkService getNetworkService() {
+        return networkService;
+    }
+    
+    /**
+     * Gets the metadata service.
+     *
+     * @return the metadata service
+     */
+    public MetadataService getMetadataService() {
+        return metadataService;
+    }
+    
+    /**
+     * Gets the content store.
+     *
+     * @return the content store
+     */
+    public ContentStore getContentStore() {
+        return contentStore;
     }
 }

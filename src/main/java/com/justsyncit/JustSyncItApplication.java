@@ -100,7 +100,7 @@ public class JustSyncItApplication {
 
         // Display application header
         logger.info("JustSyncIt - Backup Solution");
-        logger.info("Version: 1.0-SNAPSHOT");
+        logger.info("Version: 0.1.0");
 
         if (processedArgs.length == 0) {
             logger.info("Running with no arguments");
@@ -263,15 +263,23 @@ public class JustSyncItApplication {
      */
     private String[] extractCommandArgs(String[] args, int startIndex, Command command) {
         String commandName = command.getName();
+
+        // Special handling for --help as second argument
+        if (startIndex + 1 < args.length && args[startIndex + 1].equals("--help")) {
+            return new String[] {"--help"};
+        }
+
         int argCount = getExpectedArgCount(commandName);
 
         if (startIndex + argCount >= args.length) {
-            return new String[0];
+            // Return all remaining arguments if we don't have enough
+            String[] commandArgs = new String[args.length - startIndex - 1];
+            System.arraycopy(args, startIndex + 1, commandArgs, 0, args.length - startIndex - 1);
+            return commandArgs;
         }
 
-        String[] commandArgs = new String[argCount + 1]; // +1 for command name
-        commandArgs[0] = commandName;
-        System.arraycopy(args, startIndex + 1, commandArgs, 1, argCount);
+        String[] commandArgs = new String[argCount];
+        System.arraycopy(args, startIndex + 1, commandArgs, 0, argCount);
 
         return commandArgs;
     }
@@ -288,6 +296,10 @@ public class JustSyncItApplication {
                 return 1; // file path
             case "--verify":
                 return 2; // file path and hash
+            case "backup":
+                return 1; // source directory (minimum)
+            case "restore":
+                return 2; // snapshot ID and target directory (minimum)
             default:
                 return 0;
         }

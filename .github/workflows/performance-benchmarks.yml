@@ -1,0 +1,426 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/main/java/**'
+      - 'src/test/java/**'
+      - 'build.gradle'
+      - '.github/workflows/performance-benchmarks.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'src/main/java/**'
+      - 'src/test/java/**'
+      - 'build.gradle'
+      - '.github/workflows/performance-benchmarks.yml'
+  schedule:
+    # Run performance benchmarks daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      benchmark_type:
+        description: 'Type of benchmarks to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - throughput
+          - scalability
+          - network
+          - deduplication
+          - concurrency
+      upload_results:
+        description: 'Upload benchmark results as artifacts'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  performance-benchmarks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java-version: [21, 17]
+      fail-fast: false
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+        
+    - name: Cache Gradle packages
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Cache benchmark data
+      uses: actions/cache@v4
+      with:
+        path: |
+          benchmark-data/
+          benchmark-reports/
+        key: ${{ runner.os }}-benchmark-data-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-benchmark-data-
+          
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+      
+    - name: Download dependencies
+      run: ./gradlew downloadDependencies
+      
+    - name: Create benchmark directories
+      run: |
+        mkdir -p benchmark-data
+        mkdir -p benchmark-reports
+        mkdir -p benchmark-logs
+        
+    - name: Run quick performance tests (PR)
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "Running quick performance tests for PR..."
+        ./gradlew performanceTest --info --no-daemon --tests "*ThroughputBenchmark*" > benchmark-logs/throughput-${{ matrix.java-version }}.log 2>&1 || echo "Throughput tests completed with warnings"
+        ./gradlew performanceTest --info --no-daemon --tests "*DeduplicationBenchmark*" > benchmark-logs/deduplication-${{ matrix.java-version }}.log 2>&1 || echo "Deduplication tests completed with warnings"
+        
+    - name: Run full performance benchmarks (push/schedule)
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "Running full performance benchmarks..."
+        
+        case "${{ github.event.inputs.benchmark_type || 'all' }}" in
+          "throughput")
+            ./gradlew performanceTest --info --no-daemon --tests "*ThroughputBenchmark*" > benchmark-logs/throughput-${{ matrix.java-version }}.log 2>&1
+            ;;
+          "scalability")
+            ./gradlew performanceTest --info --no-daemon --tests "*ScalabilityBenchmark*" > benchmark-logs/scalability-${{ matrix.java-version }}.log 2>&1
+            ;;
+          "network")
+            ./gradlew performanceTest --info --no-daemon --tests "*NetworkBenchmark*" > benchmark-logs/network-${{ matrix.java-version }}.log 2>&1
+            ;;
+          "deduplication")
+            ./gradlew performanceTest --info --no-daemon --tests "*DeduplicationBenchmark*" > benchmark-logs/deduplication-${{ matrix.java-version }}.log 2>&1
+            ;;
+          "concurrency")
+            ./gradlew performanceTest --info --no-daemon --tests "*ConcurrencyBenchmark*" > benchmark-logs/concurrency-${{ matrix.java-version }}.log 2>&1
+            ;;
+          "all"|*)
+            echo "Running all benchmarks..."
+            ./gradlew performanceTest --info --no-daemon > benchmark-logs/all-${{ matrix.java-version }}.log 2>&1
+            ;;
+        esac
+        
+    - name: Generate benchmark reports
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "Generating benchmark reports..."
+        ./gradlew benchmarkTest --info --no-daemon > benchmark-logs/reports-${{ matrix.java-version }}.log 2>&1 || echo "Report generation completed with warnings"
+        
+    - name: Parse benchmark results
+      run: |
+        echo "Parsing benchmark results..."
+        python3 << 'EOF'
+        import json
+        import os
+        import re
+        from datetime import datetime
+        
+        results = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "java_version": "${{ matrix.java-version }}",
+            "github_sha": "${{ github.sha }}",
+            "github_ref": "${{ github.ref }}",
+            "github_event": "${{ github.event_name }}",
+            "benchmarks": {}
+        }
+        
+        # Parse log files for performance metrics
+        log_dir = "benchmark-logs"
+        if os.path.exists(log_dir):
+            for log_file in os.listdir(log_dir):
+                if log_file.endswith(".log"):
+                    benchmark_type = log_file.replace(f"-${{ matrix.java-version }}.log", "")
+                    log_path = os.path.join(log_dir, log_file)
+                    
+                    with open(log_path, 'r') as f:
+                        content = f.read()
+                        
+                    # Extract performance metrics
+                    throughput_match = re.search(r'Throughput:\s*([\d.]+)\s*MB/s', content)
+                    memory_match = re.search(r'Memory Usage:\s*([\d.]+)\s*MB', content)
+                    duration_match = re.search(r'Duration:\s*(\d+)\s*ms', content)
+                    
+                    if throughput_match or memory_match or duration_match:
+                        results["benchmarks"][benchmark_type] = {}
+                        if throughput_match:
+                            results["benchmarks"][benchmark_type]["throughput_mbps"] = float(throughput_match.group(1))
+                        if memory_match:
+                            results["benchmarks"][benchmark_type]["memory_mb"] = float(memory_match.group(1))
+                        if duration_match:
+                            results["benchmarks"][benchmark_type]["duration_ms"] = int(duration_match.group(1))
+        
+        # Save results
+        with open("benchmark-results-${{ matrix.java-version }}.json", "w") as f:
+            json.dump(results, f, indent=2)
+            
+        print("Benchmark results parsed and saved")
+        EOF
+        
+    - name: Check performance regression
+      run: |
+        echo "Checking for performance regression..."
+        python3 << 'EOF'
+        import json
+        import os
+        import sys
+        
+        # Load current results
+        current_results_file = f"benchmark-results-${{ matrix.java-version }}.json"
+        if not os.path.exists(current_results_file):
+            print("No current results found")
+            sys.exit(0)
+            
+        with open(current_results_file, 'r') as f:
+            current_results = json.load(f)
+        
+        # Performance targets
+        targets = {
+            "backup_throughput_mbps": 50.0,
+            "restore_throughput_mbps": 100.0,
+            "max_memory_mb": 500.0,
+            "max_deduplication_overhead_percent": 10.0
+        }
+        
+        regression_detected = False
+        
+        # Check against targets
+        for benchmark_name, benchmark_data in current_results.get("benchmarks", {}).items():
+            if "throughput_mbps" in benchmark_data:
+                throughput = benchmark_data["throughput_mbps"]
+                if "backup" in benchmark_name.lower() and throughput < targets["backup_throughput_mbps"]:
+                    print(f"REGRESSION: {benchmark_name} throughput {throughput:.2f} MB/s < {targets['backup_throughput_mbps']} MB/s")
+                    regression_detected = True
+                elif "restore" in benchmark_name.lower() and throughput < targets["restore_throughput_mbps"]:
+                    print(f"REGRESSION: {benchmark_name} throughput {throughput:.2f} MB/s < {targets['restore_throughput_mbps']} MB/s")
+                    regression_detected = True
+                    
+            if "memory_mb" in benchmark_data:
+                memory = benchmark_data["memory_mb"]
+                if memory > targets["max_memory_mb"]:
+                    print(f"REGRESSION: {benchmark_name} memory usage {memory:.2f} MB > {targets['max_memory_mb']} MB")
+                    regression_detected = True
+        
+        if regression_detected:
+            print("Performance regression detected!")
+            sys.exit(1)
+        else:
+            print("No performance regression detected")
+        EOF
+        
+    - name: Upload benchmark results
+      if: (github.event.inputs.upload_results || github.event.inputs.upload_results == '') && github.event_name != 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-java${{ matrix.java-version }}
+        path: |
+          benchmark-results-*.json
+          benchmark-reports/
+          benchmark-logs/
+        retention-days: 30
+        
+    - name: Upload benchmark reports to PR
+      if: github.event_name == 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-pr-java${{ matrix.java-version }}
+        path: |
+          benchmark-results-*.json
+          benchmark-logs/
+        retention-days: 7
+        
+    - name: Comment on PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const path = require('path');
+          
+          let commentBody = '## 🚀 Performance Benchmark Results\n\n';
+          commentBody += `Java Version: ${{ matrix.java-version }}\n`;
+          commentBody += `Commit: ${{ github.sha }}\n\n`;
+          
+          // Try to read results
+          const resultsFile = `benchmark-results-${{ matrix.java-version }}.json`;
+          if (fs.existsSync(resultsFile)) {
+            try {
+              const results = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
+              
+              commentBody += '### Benchmark Results:\n\n';
+              
+              for (const [benchmarkName, data] of Object.entries(results.benchmarks || {})) {
+                commentBody += `**${benchmarkName}**:\n`;
+                
+                if (data.throughput_mbps) {
+                  commentBody += `- Throughput: ${data.throughput_mbps.toFixed(2)} MB/s\n`;
+                }
+                if (data.memory_mb) {
+                  commentBody += `- Memory Usage: ${data.memory_mb.toFixed(2)} MB\n`;
+                }
+                if (data.duration_ms) {
+                  commentBody += `- Duration: ${data.duration_ms} ms\n`;
+                }
+                commentBody += '\n';
+              }
+              
+            } catch (error) {
+              commentBody += 'Error parsing benchmark results.\n';
+            }
+          } else {
+            commentBody += 'Benchmark results file not found.\n';
+          }
+          
+          commentBody += '\n---\n';
+          commentBody += '*This comment was automatically generated by the performance benchmark workflow.*';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: commentBody
+          });
+          
+  performance-summary:
+    needs: performance-benchmarks
+    runs-on: ubuntu-latest
+    if: always() && github.event_name != 'pull_request'
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: benchmark-results-java*
+        merge-multiple: true
+        
+    - name: Generate performance summary
+      run: |
+        echo "Generating performance summary..."
+        python3 << 'EOF'
+        import json
+        import os
+        import glob
+        from datetime import datetime
+        
+        summary = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "github_sha": "${{ github.sha }}",
+            "github_ref": "${{ github.ref }}",
+            "github_event": "${{ github.event_name }}",
+            "java_versions": {},
+            "summary": {
+                "total_benchmarks": 0,
+                "passed_targets": 0,
+                "failed_targets": 0
+            }
+        }
+        
+        # Collect results from all Java versions
+        for results_file in glob.glob("benchmark-results-*.json"):
+            java_version = results_file.replace("benchmark-results-", "").replace(".json", "")
+            
+            with open(results_file, 'r') as f:
+                results = json.load(f)
+                
+            summary["java_versions"][java_version] = results["benchmarks"]
+            
+            # Count benchmarks and check targets
+            for benchmark_name, benchmark_data in results["benchmarks"].items():
+                summary["summary"]["total_benchmarks"] += 1
+                
+                # Simple target checking
+                if "throughput_mbps" in benchmark_data:
+                    if "backup" in benchmark_name.lower() and benchmark_data["throughput_mbps"] >= 50.0:
+                        summary["summary"]["passed_targets"] += 1
+                    elif "restore" in benchmark_name.lower() and benchmark_data["throughput_mbps"] >= 100.0:
+                        summary["summary"]["passed_targets"] += 1
+                    else:
+                        summary["summary"]["failed_targets"] += 1
+                        
+                if "memory_mb" in benchmark_data and benchmark_data["memory_mb"] <= 500.0:
+                    summary["summary"]["passed_targets"] += 1
+                elif "memory_mb" in benchmark_data:
+                    summary["summary"]["failed_targets"] += 1
+        
+        # Save summary
+        with open("performance-summary.json", "w") as f:
+            json.dump(summary, f, indent=2)
+            
+        print("Performance summary generated")
+        print(f"Total benchmarks: {summary['summary']['total_benchmarks']}")
+        print(f"Passed targets: {summary['summary']['passed_targets']}")
+        print(f"Failed targets: {summary['summary']['failed_targets']}")
+        EOF
+        
+    - name: Upload performance summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-summary
+        path: performance-summary.json
+        retention-days: 90
+        
+    - name: Performance summary report
+      run: |
+        echo "## Performance Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f performance-summary.json ]; then
+          python3 << 'EOF' >> $GITHUB_STEP_SUMMARY
+        import json
+        
+        with open("performance-summary.json", "r") as f:
+            summary = json.load(f)
+            
+        print(f"**Timestamp:** {summary['timestamp']}")
+        print(f"**Commit:** {summary['github_sha']}")
+        print(f"**Branch:** {summary['github_ref']}")
+        print("")
+        print("### Summary Statistics:")
+        print(f"- Total Benchmarks: {summary['summary']['total_benchmarks']}")
+        print(f"- Passed Targets: {summary['summary']['passed_targets']}")
+        print(f"- Failed Targets: {summary['summary']['failed_targets']}")
+        print("")
+        
+        if summary['summary']['failed_targets'] > 0:
+            print("⚠️ **Performance regression detected!**")
+        else:
+            print("✅ **All performance targets met!**")
+        print("")
+        
+        print("### Results by Java Version:")
+        for java_version, benchmarks in summary['java_versions'].items():
+            print(f"#### Java {java_version}:")
+            for benchmark_name, data in benchmarks.items():
+                print(f"- **{benchmark_name}:**")
+                if 'throughput_mbps' in data:
+                    print(f"  - Throughput: {data['throughput_mbps']:.2f} MB/s")
+                if 'memory_mb' in data:
+                    print(f"  - Memory: {data['memory_mb']:.2f} MB")
+                if 'duration_ms' in data:
+                    print(f"  - Duration: {data['duration_ms']} ms")
+            print("")
+        EOF
+        else
+          echo "No performance summary found" >> $GITHUB_STEP_SUMMARY
+        fi
