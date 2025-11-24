@@ -868,6 +868,15 @@ task generateBenchmarkReports {
     }
 }
 
+// Custom task to run AsyncVsSyncBenchmarkSuite
+task runAsyncBenchmarkSuite(type: JavaExec) {
+    description = 'Run AsyncVsSyncBenchmarkSuite as standalone application'
+    group = 'verification'
+    classpath = sourceSets.performanceTest.runtimeClasspath
+    mainClass = 'com.justsyncit.performance.AsyncVsSyncBenchmarkSuite'
+    jvmArgs = ['-Xmx4g', '-XX:+UseG1GC']
+}
+
 // Performance verification task
 task verifyPerformance {
     description = 'Verify performance targets are met'
