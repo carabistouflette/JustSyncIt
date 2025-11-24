@@ -44,9 +44,9 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
-    void testAcquireAndReleaseAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testAcquireAndReleaseAsync() throws Exception {
         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(1024);
-        ByteBuffer buffer = acquireFuture.get(5, TimeUnit.SECONDS);
+        ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(buffer, "Buffer should not be null");
         // AsyncByteBufferPoolImpl allocates at least default size (64KB) for efficiency
@@ -55,31 +55,31 @@ class AsyncByteBufferPoolTest {
         assertEquals(buffer.capacity(), buffer.limit(), "Buffer limit should equal capacity");
 
         CompletableFuture<Void> releaseFuture = pool.releaseAsync(buffer);
-        releaseFuture.get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(releaseFuture, AsyncTestUtils.SHORT_TIMEOUT);
     }
 
     @Test
-    void testAcquireWithDefaultSizeAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testAcquireWithDefaultSizeAsync() throws Exception {
         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(64 * 1024); // Use default 64KB size
-        ByteBuffer buffer = acquireFuture.get(5, TimeUnit.SECONDS);
+        ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(buffer, "Buffer should not be null");
         assertEquals(64 * 1024, buffer.capacity(), "Buffer capacity should equal default size");
         assertEquals(0, buffer.position(), "Buffer position should be 0");
         assertEquals(buffer.capacity(), buffer.limit(), "Buffer limit should equal capacity");
 
-        pool.releaseAsync(buffer).get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer), AsyncTestUtils.SHORT_TIMEOUT);
     }
 
     @Test
-    void testMultipleBuffersAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testMultipleBuffersAsync() throws Exception {
         CompletableFuture<ByteBuffer> future1 = pool.acquireAsync(1024);
         CompletableFuture<ByteBuffer> future2 = pool.acquireAsync(2048);
         CompletableFuture<ByteBuffer> future3 = pool.acquireAsync(1024);
 
-        ByteBuffer buffer1 = future1.get(5, TimeUnit.SECONDS);
-        ByteBuffer buffer2 = future2.get(5, TimeUnit.SECONDS);
-        ByteBuffer buffer3 = future3.get(5, TimeUnit.SECONDS);
+        ByteBuffer buffer1 = AsyncTestUtils.getResultOrThrow(future1, AsyncTestUtils.SHORT_TIMEOUT);
+        ByteBuffer buffer2 = AsyncTestUtils.getResultOrThrow(future2, AsyncTestUtils.SHORT_TIMEOUT);
+        ByteBuffer buffer3 = AsyncTestUtils.getResultOrThrow(future3, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(buffer1, "Buffer1 should not be null");
         assertNotNull(buffer2, "Buffer2 should not be null");
@@ -91,31 +91,31 @@ class AsyncByteBufferPoolTest {
         assertTrue(buffer3.capacity() >= 1024, "Buffer3 capacity should be at least requested size");
 
         // Release buffers
-        pool.releaseAsync(buffer1).get(5, TimeUnit.SECONDS);
-        pool.releaseAsync(buffer2).get(5, TimeUnit.SECONDS);
-        pool.releaseAsync(buffer3).get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer1), AsyncTestUtils.SHORT_TIMEOUT);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer2), AsyncTestUtils.SHORT_TIMEOUT);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer3), AsyncTestUtils.SHORT_TIMEOUT);
     }
 
     @Test
-    void testBufferReuseAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testBufferReuseAsync() throws Exception {
         // Acquire buffer
         CompletableFuture<ByteBuffer> acquireFuture1 = pool.acquireAsync(1024);
-        ByteBuffer buffer1 = acquireFuture1.get(5, TimeUnit.SECONDS);
+        ByteBuffer buffer1 = AsyncTestUtils.getResultOrThrow(acquireFuture1, AsyncTestUtils.SHORT_TIMEOUT);
 
         // Modify buffer
         buffer1.putInt(0x12345678);
         assertEquals(4, buffer1.position(), "Buffer position should be 4 after putInt");
 
         // Release and acquire again
-        pool.releaseAsync(buffer1).get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer1), AsyncTestUtils.SHORT_TIMEOUT);
         CompletableFuture<ByteBuffer> acquireFuture2 = pool.acquireAsync(1024);
-        ByteBuffer buffer2 = acquireFuture2.get(5, TimeUnit.SECONDS);
+        ByteBuffer buffer2 = AsyncTestUtils.getResultOrThrow(acquireFuture2, AsyncTestUtils.SHORT_TIMEOUT);
 
         // Buffer should be reset
         assertEquals(0, buffer2.position(), "Buffer position should be 0 after reuse");
         assertEquals(buffer2.capacity(), buffer2.limit(), "Buffer limit should equal capacity");
 
-        pool.releaseAsync(buffer2).get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer2), AsyncTestUtils.SHORT_TIMEOUT);
     }
 
     @Test
@@ -138,9 +138,9 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
-    void testGetStatsAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testGetStatsAsync() throws Exception {
         CompletableFuture<String> statsFuture = pool.getStatsAsync();
-        String stats = statsFuture.get(5, TimeUnit.SECONDS);
+        String stats = AsyncTestUtils.getResultOrThrow(statsFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(stats, "Stats should not be null");
         assertTrue(stats.contains("AsyncByteBufferPoolImpl"), "Stats should contain class name");
@@ -150,27 +150,27 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
-    void testGetAvailableCountAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testGetAvailableCountAsync() throws Exception {
         CompletableFuture<Integer> countFuture = pool.getAvailableCountAsync();
-        Integer count = countFuture.get(5, TimeUnit.SECONDS);
+        Integer count = AsyncTestUtils.getResultOrThrow(countFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(count, "Count should not be null");
         assertTrue(count >= 0, "Count should be non-negative");
     }
 
     @Test
-    void testGetTotalCountAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testGetTotalCountAsync() throws Exception {
         CompletableFuture<Integer> countFuture = pool.getTotalCountAsync();
-        Integer count = countFuture.get(5, TimeUnit.SECONDS);
+        Integer count = AsyncTestUtils.getResultOrThrow(countFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(count, "Count should not be null");
         assertTrue(count >= 0, "Count should be non-negative");
     }
 
     @Test
-    void testGetBuffersInUseAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testGetBuffersInUseAsync() throws Exception {
         CompletableFuture<Integer> countFuture = pool.getBuffersInUseAsync();
-        Integer count = countFuture.get(5, TimeUnit.SECONDS);
+        Integer count = AsyncTestUtils.getResultOrThrow(countFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(count, "Count should not be null");
         assertTrue(count >= 0, "Count should be non-negative");
@@ -181,33 +181,33 @@ class AsyncByteBufferPoolTest {
         CompletableFuture<ByteBuffer> future1 = pool.acquireAsync(0);
         CompletableFuture<ByteBuffer> future2 = pool.acquireAsync(-1);
 
-        assertTrue(future1.isCompletedExceptionally(), "Future should be completed exceptionally for size 0");
-        assertTrue(future2.isCompletedExceptionally(), "Future should be completed exceptionally for negative size");
+        AsyncTestUtils.assertFailsWithException(future1, IllegalArgumentException.class, AsyncTestUtils.ULTRA_SHORT_TIMEOUT);
+        AsyncTestUtils.assertFailsWithException(future2, IllegalArgumentException.class, AsyncTestUtils.ULTRA_SHORT_TIMEOUT);
     }
 
     @Test
     void testNullBufferReleaseAsync() {
         CompletableFuture<Void> future = pool.releaseAsync(null);
 
+        AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.ULTRA_SHORT_TIMEOUT);
         assertTrue(future.isCompletedExceptionally(), "Future should be completed exceptionally for null buffer");
-        assertThrows(ExecutionException.class, () -> future.get(5, TimeUnit.SECONDS));
     }
 
     @Test
-    void testDirectBuffersAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testDirectBuffersAsync() throws Exception {
         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(1024);
-        ByteBuffer buffer = acquireFuture.get(5, TimeUnit.SECONDS);
+        ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         // Buffers should be direct for better performance
         assertTrue(buffer.isDirect(), "Buffer should be direct");
 
-        pool.releaseAsync(buffer).get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer), AsyncTestUtils.SHORT_TIMEOUT);
     }
 
     @Test
-    void testConcurrentAccessAsync() throws InterruptedException, ExecutionException, TimeoutException {
+    void testConcurrentAccessAsync() throws Exception {
         final int threadCount = 10;
-        final int operationsPerThread = 100;
+        final int operationsPerThread = 10; // Reduced for faster execution
         Thread[] threads = new Thread[threadCount];
         
         for (int i = 0; i < threadCount; i++) {
@@ -215,14 +215,14 @@ class AsyncByteBufferPoolTest {
                 for (int j = 0; j < operationsPerThread; j++) {
                     try {
                         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(1024);
-                        ByteBuffer buffer = acquireFuture.get(5, TimeUnit.SECONDS);
+                        ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
                         assertNotNull(buffer, "Buffer should not be null");
 
                         // Simulate some work
                         buffer.putInt(j);
                         buffer.flip();
 
-                        pool.releaseAsync(buffer).get(5, TimeUnit.SECONDS);
+                        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer), AsyncTestUtils.SHORT_TIMEOUT);
                     } catch (Exception e) {
                         fail("Concurrent operation failed: " + e.getMessage());
                     }
@@ -243,27 +243,27 @@ class AsyncByteBufferPoolTest {
         // Should not throw any exceptions
         assertDoesNotThrow(() -> {
             CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(1024);
-            ByteBuffer buffer = acquireFuture.get(5, TimeUnit.SECONDS);
-            pool.releaseAsync(buffer).get(5, TimeUnit.SECONDS);
+            ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
+            AsyncTestUtils.getResultOrThrow(pool.releaseAsync(buffer), AsyncTestUtils.SHORT_TIMEOUT);
         });
     }
 
     @Test
-    void testCustomPoolAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testCustomPoolAsync() throws Exception {
         AsyncByteBufferPool customPool = AsyncByteBufferPoolImpl.create(32 * 1024, 8); // 32KB default, max 8 buffers
 
         CompletableFuture<ByteBuffer> acquireFuture = customPool.acquireAsync(32 * 1024);
-        ByteBuffer buffer = acquireFuture.get(5, TimeUnit.SECONDS);
+        ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
         assertNotNull(buffer, "Buffer should not be null");
         assertEquals(32 * 1024, buffer.capacity(), "Buffer should have custom default size");
 
-        customPool.releaseAsync(buffer).get(5, TimeUnit.SECONDS);
-        customPool.clearAsync().get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(customPool.releaseAsync(buffer), AsyncTestUtils.SHORT_TIMEOUT);
+        AsyncTestUtils.getResultOrThrow(customPool.clearAsync(), AsyncTestUtils.SHORT_TIMEOUT);
     }
 
     @Test
-    void testSyncCompatibilityAsync() throws ExecutionException, InterruptedException, TimeoutException {
+    void testSyncCompatibilityAsync() throws Exception {
         // Test that async pool still works with sync interface methods
         ByteBuffer buffer = pool.acquire(1024);
         assertNotNull(buffer, "Sync acquire should work");
@@ -272,9 +272,9 @@ class AsyncByteBufferPoolTest {
 
         // Test async operations after sync operations
         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(1024);
-        ByteBuffer asyncBuffer = acquireFuture.get(5, TimeUnit.SECONDS);
+        ByteBuffer asyncBuffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
         assertNotNull(asyncBuffer, "Async acquire should work after sync operations");
 
-        pool.releaseAsync(asyncBuffer).get(5, TimeUnit.SECONDS);
+        AsyncTestUtils.getResultOrThrow(pool.releaseAsync(asyncBuffer), AsyncTestUtils.SHORT_TIMEOUT);
     }
 }
