@@ -133,13 +133,22 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
             throw new IllegalArgumentException("Handler cannot be null");
         }
         if (closed) {
-            throw new IllegalStateException("Chunker has been closed");
+            handler.failed(new IllegalStateException("Chunker has been closed"));
+            return;
         }
 
         CompletableFuture<ChunkingResult> future = chunkFileAsync(file, options);
         future.whenComplete((result, throwable) -> {
             if (throwable != null) {
                 handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+            } else if (result != null && !result.isSuccess()) {
+                // Convert failed ChunkingResult to exception for CompletionHandler
+                Exception exception = result.getError();
+                if (exception != null) {
+                    handler.failed(exception);
+                } else {
+                    handler.failed(new RuntimeException("Chunking failed: " + result));
+                }
             } else {
                 handler.completed(result);
             }
@@ -155,14 +164,7 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
             return CompletableFuture.failedFuture(new IllegalStateException("Chunker has been closed"));
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return performAsyncChunking(file, options);
-            } catch (Exception e) {
-                logger.error("Error chunking file: {}", file, e);
-                return ChunkingResult.createFailed(file, e);
-            }
-        }, executorService);
+        return performAsyncChunking(file, options);
     }
 
     @Override
@@ -278,36 +280,45 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return CompletableFuture.runAsync(() -> {
-            if (closed) {
-                return;
-            }
+        if (closed) {
+            return CompletableFuture.completedFuture(null);
+        }
 
-            closed = true;
-            executorService.shutdown();
+        closed = true;
+        return CompletableFuture.runAsync(() -> {
             try {
                 asyncBufferPool.clearAsync().get();
             } catch (Exception e) {
                 logger.warn("Error closing async buffer pool: {}", e.getMessage());
             }
             logger.info("Closed AsyncFileChunkerImpl");
-        }, executorService);
+        }, executorService).thenRun(() -> executorService.shutdown());
     }
 
     /**
      * Performs the actual async file chunking operation.
      */
-    private ChunkingResult performAsyncChunking(Path file, ChunkingOptions options) {
+    private CompletableFuture<ChunkingResult> performAsyncChunking(Path file, ChunkingOptions options) {
         if (!Files.exists(file)) {
-            throw new IllegalArgumentException("File does not exist: " + file);
+            return CompletableFuture.completedFuture(
+                ChunkingResult.createFailed(file, new IllegalArgumentException("File does not exist: " + file)));
         }
         if (!Files.isRegularFile(file)) {
-            throw new IllegalArgumentException("Path is not a regular file: " + file);
+            return CompletableFuture.completedFuture(
+                ChunkingResult.createFailed(file, new IllegalArgumentException("Path is not a regular file: " + file)));
         }
 
         final ChunkingOptions finalOptions = options != null ? options : new ChunkingOptions();
         final int effectiveChunkSize = finalOptions.getChunkSize() > 0
                 ? finalOptions.getChunkSize() : this.chunkSize;
+        
+        // Update max concurrent operations if specified in options
+        if (finalOptions.getMaxConcurrentChunks() != this.maxConcurrentOperations) {
+            this.maxConcurrentOperations = finalOptions.getMaxConcurrentChunks();
+            // Update semaphore permits
+            operationSemaphore.drainPermits();
+            operationSemaphore.release(this.maxConcurrentOperations);
+        }
 
         try {
             long fileSize = Files.size(file);
@@ -316,82 +327,97 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
             if (fileSize == 0) {
                 try {
                     String fileHash = blake3Service.hashBuffer(new byte[0]);
-                    return new ChunkingResult(file, 0, 0, 0, fileHash, new ArrayList<>());
+                    return CompletableFuture.completedFuture(
+                        new ChunkingResult(file, 0, 0, 0, fileHash, new ArrayList<>()));
                 } catch (com.justsyncit.hash.HashingException e) {
-                    return ChunkingResult.createFailed(file, e);
+                    return CompletableFuture.completedFuture(ChunkingResult.createFailed(file, e));
                 }
             }
 
             // Calculate number of chunks
             int chunkCount = (int) Math.ceil((double) fileSize / effectiveChunkSize);
-            List<String> chunkHashes = new ArrayList<>(chunkCount);
 
             logger.debug("Chunking file {} ({} bytes) into {} chunks of {} bytes each",
                     file, fileSize, chunkCount, effectiveChunkSize);
 
-            // Use async file channel for non-blocking I/O
-            try (AsynchronousFileChannel channel = AsynchronousFileChannel.open(file, StandardOpenOption.READ)) {
-                String fileHash = calculateFileHashAsync(channel, fileSize);
-                
-                // Process chunks concurrently
-                CompletableFuture<String>[] chunkFutures = new CompletableFuture[chunkCount];
-                for (int i = 0; i < chunkCount; i++) {
-                    final int chunkIndex = i;
-                    final long offset = (long) i * effectiveChunkSize;
-                    final int length = (int) Math.min(effectiveChunkSize, fileSize - offset);
-
-                    chunkFutures[i] = processChunkAsync(channel, offset, length, chunkIndex, chunkCount, file);
+            // Use simpler synchronous approach wrapped in CompletableFuture
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    // Calculate file hash
+                    String fileHash = blake3Service.hashBuffer(Files.readAllBytes(file));
+                    
+                    // Process chunks
+                    List<String> chunkHashes = new ArrayList<>(chunkCount);
+                    for (int i = 0; i < chunkCount; i++) {
+                        final int chunkIndex = i;
+                        final long offset = (long) i * effectiveChunkSize;
+                        final int length = (int) Math.min(effectiveChunkSize, fileSize - offset);
+                        
+                        // Read chunk data
+                        byte[] chunkData = new byte[length];
+                        try (java.io.RandomAccessFile raf = new java.io.RandomAccessFile(file.toFile(), "r")) {
+                            raf.seek(offset);
+                            raf.readFully(chunkData);
+                        }
+                        
+                        // Hash chunk
+                        String chunkHash = blake3Service.hashBuffer(chunkData);
+                        chunkHashes.add(chunkHash);
+                    }
+                    
+                    return new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
+                } catch (Exception e) {
+                    logger.error("Error in async chunking", e);
+                    return ChunkingResult.createFailed(file, e);
                 }
-
-                // Wait for all chunks to complete
-                CompletableFuture.allOf(chunkFutures).join();
-                
-                // Collect results
-                for (int i = 0; i < chunkCount; i++) {
-                    chunkHashes.add(chunkFutures[i].join());
-                }
-
-                return new ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
-            }
+            }, executorService);
         } catch (IOException e) {
-            throw new RuntimeException("Failed to chunk file: " + file, e);
+            return CompletableFuture.completedFuture(ChunkingResult.createFailed(file, e));
+        } catch (Exception e) {
+            return CompletableFuture.completedFuture(ChunkingResult.createFailed(file, e));
         }
     }
 
     /**
      * Calculates the hash of the entire file asynchronously.
      */
-    private String calculateFileHashAsync(AsynchronousFileChannel channel, long fileSize) throws IOException {
-        try {
-            // For small files, read all at once
-            if (fileSize <= asyncBufferPool.getDefaultBufferSize()) {
-                CompletableFuture<ByteBuffer> bufferFuture = asyncBufferPool.acquireAsync((int) fileSize);
-                ByteBuffer buffer = bufferFuture.join();
-                
-                try {
-                    channel.read(buffer, 0).get();
-                    buffer.flip();
-                    
-                    byte[] fileData = new byte[buffer.remaining()];
-                    buffer.get(fileData);
-                    
-                    return blake3Service.hashBuffer(fileData);
-                } finally {
-                    asyncBufferPool.releaseAsync(buffer);
-                }
-            } else {
-                // For large files, use incremental hashing
-                return calculateFileHashIncrementallyAsync(channel, fileSize);
-            }
-        } catch (Exception e) {
-            throw new IOException("Failed to calculate file hash", e);
+    private CompletableFuture<String> calculateFileHashAsync(AsynchronousFileChannel channel, long fileSize) {
+        // For small files, read all at once
+        if (fileSize <= asyncBufferPool.getDefaultBufferSize()) {
+            return asyncBufferPool.acquireAsync((int) fileSize)
+                    .thenCompose(buffer -> {
+                        return CompletableFuture.supplyAsync(() -> {
+                            try {
+                                channel.read(buffer, 0).get();
+                                buffer.flip();
+                                
+                                byte[] fileData = new byte[buffer.remaining()];
+                                buffer.get(fileData);
+                                
+                                try {
+                                    String hash = blake3Service.hashBuffer(fileData);
+                                    asyncBufferPool.releaseAsync(buffer);
+                                    return hash;
+                                } catch (Exception e) {
+                                    asyncBufferPool.releaseAsync(buffer);
+                                    throw new RuntimeException("Failed to hash file", e);
+                                }
+                            } catch (Exception e) {
+                                asyncBufferPool.releaseAsync(buffer);
+                                throw new RuntimeException("Failed to read file", e);
+                            }
+                        }, executorService);
+                    });
+        } else {
+            // For large files, use incremental hashing
+            return calculateFileHashIncrementallyAsync(channel, fileSize);
         }
     }
 
     /**
      * Calculates file hash incrementally for large files.
      */
-    private String calculateFileHashIncrementallyAsync(AsynchronousFileChannel channel, long fileSize) throws IOException {
+    private CompletableFuture<String> calculateFileHashIncrementallyAsync(AsynchronousFileChannel channel, long fileSize) {
         try {
             com.justsyncit.hash.IncrementalHasherFactory hasherFactory =
                     new com.justsyncit.hash.Blake3IncrementalHasherFactory(
@@ -399,32 +425,56 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher incrementalHasher =
                     hasherFactory.createIncrementalHasher();
 
-            long position = 0;
-            int bufferSize = asyncBufferPool.getDefaultBufferSize();
-            
-            while (position < fileSize) {
-                CompletableFuture<ByteBuffer> bufferFuture = asyncBufferPool.acquireAsync(bufferSize);
-                ByteBuffer buffer = bufferFuture.join();
-                
-                try {
-                    int bytesToRead = (int) Math.min(bufferSize, fileSize - position);
-                    channel.read(buffer, position).get();
-                    buffer.flip();
-                    
-                    byte[] chunkData = new byte[buffer.remaining()];
-                    buffer.get(chunkData);
-                    
-                    incrementalHasher.update(chunkData);
-                    position += buffer.remaining();
-                } finally {
-                    asyncBufferPool.releaseAsync(buffer);
-                }
-            }
-            
-            return incrementalHasher.digest();
+            return calculateFileHashIncrementallyRecursive(channel, fileSize, incrementalHasher, 0);
         } catch (Exception e) {
-            throw new IOException("Failed to calculate incremental file hash", e);
+            return CompletableFuture.failedFuture(new IOException("Failed to calculate incremental file hash", e));
         }
+    }
+    
+    /**
+     * Recursively processes file chunks for incremental hashing.
+     */
+    private CompletableFuture<String> calculateFileHashIncrementallyRecursive(
+            AsynchronousFileChannel channel, long fileSize,
+            com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher incrementalHasher,
+            long position) {
+        
+        if (position >= fileSize) {
+            try {
+                return CompletableFuture.completedFuture(incrementalHasher.digest());
+            } catch (Exception e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        }
+        
+        int bufferSize = asyncBufferPool.getDefaultBufferSize();
+        int bytesToRead = (int) Math.min(bufferSize, fileSize - position);
+        
+        return asyncBufferPool.acquireAsync(bufferSize)
+                .thenCompose(buffer -> {
+                    return CompletableFuture.supplyAsync(() -> {
+                        try {
+                            channel.read(buffer, position).get();
+                            buffer.flip();
+                            
+                            byte[] chunkData = new byte[buffer.remaining()];
+                            buffer.get(chunkData);
+                            
+                            incrementalHasher.update(chunkData);
+                            long newPosition = position + buffer.remaining();
+                            
+                            asyncBufferPool.releaseAsync(buffer);
+                            
+                            // Return the result directly instead of calling get()
+                            return newPosition;
+                        } catch (Exception e) {
+                            asyncBufferPool.releaseAsync(buffer);
+                            throw new RuntimeException("Failed to read file chunk", e);
+                        }
+                    }, executorService);
+                }).thenCompose(newPosition -> {
+                    return calculateFileHashIncrementallyRecursive(channel, fileSize, incrementalHasher, newPosition);
+                });
     }
 
     /**
@@ -436,30 +486,34 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
             try {
                 operationSemaphore.acquire();
                 activeOperations.incrementAndGet();
-                
-                try {
-                    CompletableFuture<ByteBuffer> bufferFuture = asyncBufferPool.acquireAsync(length);
-                    ByteBuffer buffer = bufferFuture.join();
-                    
-                    try {
-                        channel.read(buffer, offset).get();
-                        buffer.flip();
-                        
-                        return asyncChunkHandler.processChunkAsync(buffer, chunkIndex, totalChunks, file).join();
-                    } finally {
-                        asyncBufferPool.releaseAsync(buffer);
-                    }
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to process chunk " + chunkIndex, e);
-                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Interrupted while processing chunk " + chunkIndex, e);
-            } finally {
-                operationSemaphore.release();
-                activeOperations.decrementAndGet();
             }
-        }, executorService);
+            return null; // Return value for supplyAsync
+        }, executorService).thenCompose(acquired -> {
+            return asyncBufferPool.acquireAsync(length)
+                    .thenCompose(buffer -> {
+                        return CompletableFuture.supplyAsync(() -> {
+                            try {
+                                channel.read(buffer, offset).get();
+                                buffer.flip();
+                                
+                                byte[] data = new byte[buffer.remaining()];
+                                buffer.get(data);
+                                
+                                // Hash the chunk directly instead of calling asyncChunkHandler
+                                return blake3Service.hashBuffer(data);
+                            } catch (Exception e) {
+                                throw new RuntimeException("Failed to process chunk " + chunkIndex, e);
+                            }
+                        }, executorService).whenComplete((result, throwable) -> {
+                            asyncBufferPool.releaseAsync(buffer);
+                            operationSemaphore.release();
+                            activeOperations.decrementAndGet();
+                        });
+                    });
+        });
     }
 
     /**
