@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -104,7 +105,7 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
         this.buffersInUse = new AtomicInteger(0);
         this.closed = false;
         this.cleanupLock = new ReentrantLock();
-        this.executorService = Executors.newCachedThreadPool();
+        this.executorService = Executors.newCachedThreadPool(new DaemonThreadFactory());
 
         // Pre-allocate some buffers
         int initialBuffers = Math.min(maxBuffers / 2, 4); // Start with half capacity or 4, whichever is smaller
@@ -119,14 +120,14 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
 
     @Override
     public CompletableFuture<ByteBuffer> acquireAsync(int size) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (closed) {
-                throw new IllegalStateException("Buffer pool has been closed");
-            }
-            if (size <= 0) {
-                throw new IllegalArgumentException("Size must be positive");
-            }
+        if (size <= 0) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Size must be positive"));
+        }
+        if (closed) {
+            return CompletableFuture.failedFuture(new IllegalStateException("Buffer pool has been closed"));
+        }
 
+        return CompletableFuture.supplyAsync(() -> {
             // Try to find an existing buffer that's large enough
             ByteBuffer buffer = availableBuffers.poll();
             while (buffer != null) {
@@ -153,15 +154,15 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
 
     @Override
     public CompletableFuture<Void> releaseAsync(ByteBuffer buffer) {
-        return CompletableFuture.runAsync(() -> {
-            if (buffer == null) {
-                throw new IllegalArgumentException("Buffer cannot be null");
-            }
-            if (closed) {
-                // Pool is closed, just let the buffer be garbage collected
-                return;
-            }
+        if (buffer == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Buffer cannot be null"));
+        }
+        if (closed) {
+            // Pool is closed, just let the buffer be garbage collected
+            return CompletableFuture.completedFuture(null);
+        }
 
+        return CompletableFuture.runAsync(() -> {
             buffer.clear();
             if (availableBuffers.offer(buffer)) {
                 buffersInUse.decrementAndGet();
@@ -175,29 +176,51 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
 
     @Override
     public CompletableFuture<Void> clearAsync() {
-        return CompletableFuture.runAsync(() -> {
-            cleanupLock.lock();
-            try {
-                if (closed) {
-                    return;
-                }
+        // First check if already closed to avoid unnecessary locking
+        if (closed) {
+            return CompletableFuture.completedFuture(null);
+        }
 
-                int clearedCount = 0;
-                while ((availableBuffers.poll()) != null) {
-                    // Direct buffers don't need explicit cleanup, but we can track
-                    clearedCount++;
-                }
-
-                logger.info("Cleared AsyncByteBufferPoolImpl, removed {} buffers from pool", clearedCount);
-                availableBuffers.clear();
-                totalBuffers.set(0);
-                buffersInUse.set(0);
-                closed = true;
-                executorService.shutdown();
-            } finally {
-                cleanupLock.unlock();
+        cleanupLock.lock();
+        try {
+            if (closed) {
+                return CompletableFuture.completedFuture(null);
             }
-        }, executorService);
+
+            int clearedCount = 0;
+            while ((availableBuffers.poll()) != null) {
+                // Direct buffers don't need explicit cleanup, but we can track
+                clearedCount++;
+            }
+
+            logger.info("Cleared AsyncByteBufferPoolImpl, removed {} buffers from pool", clearedCount);
+            availableBuffers.clear();
+            totalBuffers.set(0);
+            buffersInUse.set(0);
+            closed = true;
+            
+            // Capture executor reference while holding lock
+            final ExecutorService executorToShutdown = executorService;
+            
+            // Schedule shutdown on a separate daemon thread to avoid deadlock
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            Thread shutdownThread = new Thread(() -> {
+                try {
+                    if (executorToShutdown != null && !executorToShutdown.isShutdown()) {
+                        shutdownExecutorService(executorToShutdown, "AsyncByteBufferPool async executor");
+                    }
+                    result.complete(null);
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            }, "AsyncByteBufferPool-shutdown");
+            shutdownThread.setDaemon(true);
+            shutdownThread.start();
+            
+            return result;
+        } finally {
+            cleanupLock.unlock();
+        }
     }
 
     @Override
@@ -278,6 +301,14 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
 
     @Override
     public void clear() {
+        // Capture executor reference locally to minimize critical section
+        ExecutorService executorToShutdown = null;
+        
+        // First check if already closed to avoid unnecessary locking
+        if (closed) {
+            return;
+        }
+
         cleanupLock.lock();
         try {
             if (closed) {
@@ -295,9 +326,16 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
             totalBuffers.set(0);
             buffersInUse.set(0);
             closed = true;
-            executorService.shutdown();
+            
+            // Capture executor reference while holding lock
+            executorToShutdown = executorService;
         } finally {
             cleanupLock.unlock();
+        }
+        
+        // Shutdown executor service outside of lock to avoid deadlock
+        if (executorToShutdown != null && !executorToShutdown.isShutdown()) {
+            shutdownExecutorService(executorToShutdown, "AsyncByteBufferPool sync executor");
         }
     }
 
@@ -354,5 +392,50 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
      */
     public int getBuffersInUse() {
         return buffersInUse.get();
+    }
+
+    /**
+     * Daemon thread factory for the async buffer pool.
+     * Creates daemon threads that don't prevent JVM shutdown.
+     */
+    private static class DaemonThreadFactory implements ThreadFactory {
+        private static final AtomicInteger threadNumber = new AtomicInteger(1);
+        private static final String NAME_PREFIX = "AsyncByteBufferPool-worker-";
+
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread thread = new Thread(r, NAME_PREFIX + threadNumber.getAndIncrement());
+            thread.setDaemon(true);
+            thread.setPriority(Thread.NORM_PRIORITY);
+            return thread;
+        }
+    }
+
+    /**
+     * Helper method to shutdown executor service with proper error handling and logging.
+     *
+     * @param executor the executor service to shutdown
+     * @param executorName name for logging purposes
+     */
+    private void shutdownExecutorService(ExecutorService executor, String executorName) {
+        if (executor == null || executor.isShutdown()) {
+            return;
+        }
+        
+        try {
+            executor.shutdown();
+            if (!executor.awaitTermination(3, java.util.concurrent.TimeUnit.SECONDS)) {
+                logger.warn("{} did not terminate gracefully, forcing shutdown", executorName);
+                executor.shutdownNow();
+                // Give a short time for forced shutdown
+                if (!executor.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS)) {
+                    logger.error("{} failed to terminate completely", executorName);
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            logger.warn("Interrupted while waiting for {} shutdown", executorName, e);
+            executor.shutdownNow();
+        }
     }
 }
