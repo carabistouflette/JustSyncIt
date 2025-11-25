@@ -1,7 +1,10 @@
 package com.justsyncit.backup;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.atomic.AtomicLong;
+
 import java.util.logging.Logger;
 
 /**
@@ -10,12 +13,15 @@ import java.util.logging.Logger;
 public class ConsoleBackupProgressTracker implements BackupProgressTracker {
 
     private static final Logger LOGGER = Logger.getLogger(ConsoleBackupProgressTracker.class.getName());
+    private static final long PRINT_INTERVAL_MS = 100;
 
     private final AtomicLong filesProcessed = new AtomicLong(0);
     private final AtomicLong bytesProcessed = new AtomicLong(0);
     private final AtomicLong totalFiles = new AtomicLong(0);
     private final AtomicLong totalBytes = new AtomicLong(0);
+
     private volatile boolean started = false;
+    private volatile long lastPrintTime = 0;
 
     @Override
     public void startBackup(Path sourceDir, String snapshotName) {
@@ -35,9 +41,7 @@ public class ConsoleBackupProgressTracker implements BackupProgressTracker {
         this.totalFiles.set(totalFiles);
         this.totalBytes.set(totalBytes);
 
-        if (filesProcessed % 10 == 0 || filesProcessed == totalFiles) {
-            printProgress();
-        }
+        tryPrintProgress(false);
     }
 
     @Override
@@ -46,7 +50,7 @@ public class ConsoleBackupProgressTracker implements BackupProgressTracker {
             return;
         }
 
-        printProgress();
+        tryPrintProgress(true); // Force print
         System.out.println();
         System.out.println("Backup completed successfully!");
         System.out.printf("  Files processed: %d%n", filesProcessed.get());
@@ -60,12 +64,17 @@ public class ConsoleBackupProgressTracker implements BackupProgressTracker {
 
     @Override
     public void fileProcessed(Path file) {
-        long processed = filesProcessed.incrementAndGet();
-        long bytes = bytesProcessed.addAndGet(file.toFile().length());
-
-        if (processed % 10 == 0 || processed == totalFiles.get()) {
-            printProgress();
+        filesProcessed.incrementAndGet();
+        long size = 0;
+        try {
+            size = Files.size(file);
+        } catch (IOException e) {
+            // Fallback if we can't read size, though unlikely if we just processed it
+            size = file.toFile().length();
         }
+        bytesProcessed.addAndGet(size);
+
+        tryPrintProgress(false);
     }
 
     @Override
@@ -78,13 +87,30 @@ public class ConsoleBackupProgressTracker implements BackupProgressTracker {
         LOGGER.info(String.format("Skipped file: %s - %s", file, reason));
     }
 
+    private void tryPrintProgress(boolean force) {
+        long now = System.currentTimeMillis();
+        if (force || (now - lastPrintTime >= PRINT_INTERVAL_MS)) {
+            synchronized (this) {
+                if (force || (System.currentTimeMillis() - lastPrintTime >= PRINT_INTERVAL_MS)) {
+                    printProgress();
+                    lastPrintTime = System.currentTimeMillis();
+                }
+            }
+        }
+    }
+
     private void printProgress() {
-        double filePercent = (double) filesProcessed.get() / totalFiles.get() * 100.0;
-        double bytePercent = (double) bytesProcessed.get() / totalBytes.get() * 100.0;
+        long currentFiles = filesProcessed.get();
+        long currentTotalFiles = totalFiles.get();
+        long currentBytes = bytesProcessed.get();
+        long currentTotalBytes = totalBytes.get();
+
+        double filePercent = currentTotalFiles > 0 ? (double) currentFiles / currentTotalFiles * 100.0 : 0.0;
+        double bytePercent = currentTotalBytes > 0 ? (double) currentBytes / currentTotalBytes * 100.0 : 0.0;
 
         System.out.printf("\rProgress: %d/%d files (%.1f%%) | %s/%s bytes (%.1f%%)",
-                filesProcessed.get(), totalFiles.get(), filePercent,
-                formatBytes(bytesProcessed.get()), formatBytes(totalBytes.get()), bytePercent);
+                currentFiles, currentTotalFiles, filePercent,
+                formatBytes(currentBytes), formatBytes(currentTotalBytes), bytePercent);
     }
 
     private String formatBytes(long bytes) {
