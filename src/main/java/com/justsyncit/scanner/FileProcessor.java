@@ -26,8 +26,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Service that orchestrates the workflow between filesystem scanning and chunking.
- * Integrates with ContentStore and MetadataService to provide complete file processing.
+ * Service that orchestrates the workflow between filesystem scanning and
+ * chunking.
+ * Integrates with ContentStore and MetadataService to provide complete file
+ * processing.
  */
 public class FileProcessor {
     /** Logger instance for the FileProcessor class. */
@@ -60,16 +62,20 @@ public class FileProcessor {
 
     /**
      * Creates a new FileProcessor with specified dependencies.
-     * @deprecated Use {@link #create(FilesystemScanner, FileChunker, ContentStore, MetadataService)} instead.
+     * 
+     * @deprecated Use
+     *             {@link #create(FilesystemScanner, FileChunker, ContentStore, MetadataService)}
+     *             instead.
      */
     @Deprecated
     @SuppressWarnings("EI_EXPOSE_REP2")
     @SuppressFBWarnings("EI_EXPOSE_REP2")
     public FileProcessor(FilesystemScanner scanner, FileChunker chunker,
-                        ContentStore contentStore, MetadataService metadataService) {
+            ContentStore contentStore, MetadataService metadataService) {
         // No validation in constructor - use static factory method instead
         // Note: We don't create defensive copies here as these are service interfaces
-        // that are meant to be used directly. The static factory method handles validation.
+        // that are meant to be used directly. The static factory method handles
+        // validation.
         this.scanner = scanner;
         this.chunker = chunker;
         this.contentStore = contentStore;
@@ -81,27 +87,28 @@ public class FileProcessor {
         }
 
         this.executorService = Executors.newFixedThreadPool(
-            Runtime.getRuntime().availableProcessors(),
-            r -> {
-                Thread t = new Thread(r, "FileProcessor-" + System.currentTimeMillis() + "-"
-                        + UUID.randomUUID().toString().substring(0, 8));
-                t.setDaemon(true);
-                return t;
-            });
+                Runtime.getRuntime().availableProcessors(),
+                r -> {
+                    Thread t = new Thread(r, "FileProcessor-" + System.currentTimeMillis() + "-"
+                            + UUID.randomUUID().toString().substring(0, 8));
+                    t.setDaemon(true);
+                    return t;
+                });
     }
 
     /**
      * Creates a new FileProcessor with specified dependencies.
      *
-     * @param scanner the filesystem scanner for discovering files
-     * @param chunker the file chunker for processing files into chunks
-     * @param contentStore the content store for storing chunks
-     * @param metadataService the metadata service for storing file and chunk metadata
+     * @param scanner         the filesystem scanner for discovering files
+     * @param chunker         the file chunker for processing files into chunks
+     * @param contentStore    the content store for storing chunks
+     * @param metadataService the metadata service for storing file and chunk
+     *                        metadata
      * @return a new FileProcessor instance
      * @throws IllegalArgumentException if any parameter is null
      */
     public static FileProcessor create(FilesystemScanner scanner, FileChunker chunker,
-                                      ContentStore contentStore, MetadataService metadataService) {
+            ContentStore contentStore, MetadataService metadataService) {
         if (scanner == null) {
             throw new IllegalArgumentException("Scanner cannot be null");
         }
@@ -119,8 +126,28 @@ public class FileProcessor {
 
     /**
      * Processes files from the specified directory using the given options.
+     *
+     * @param directory the directory to process
+     * @param options   the scan options
+     * @return a future that completes with the processing result
      */
     public CompletableFuture<ProcessingResult> processDirectory(Path directory, ScanOptions options) {
+        return processDirectory(directory, options, new FileChunker.ChunkingOptions()
+                .withChunkSize(chunker.getChunkSize())
+                .withUseAsyncIO(true)
+                .withDetectSparseFiles(true));
+    }
+
+    /**
+     * Processes files from the specified directory using the given options.
+     *
+     * @param directory       the directory to process
+     * @param options         the scan options
+     * @param chunkingOptions the chunking options
+     * @return a future that completes with the processing result
+     */
+    public CompletableFuture<ProcessingResult> processDirectory(Path directory, ScanOptions options,
+            FileChunker.ChunkingOptions chunkingOptions) {
         // Check if executor has been shut down (stopped) and don't restart
         if (executorService.isShutdown()) {
             throw new IllegalStateException("FileProcessor has been stopped and cannot be restarted");
@@ -185,7 +212,7 @@ public class FileProcessor {
                 }
 
                 // Configure scanner with file visitor that handles chunking
-                ChunkingFileVisitor fileVisitor = new ChunkingFileVisitor();
+                ChunkingFileVisitor fileVisitor = new ChunkingFileVisitor(chunkingOptions);
                 scanner.setFileVisitor(fileVisitor);
 
                 // Configure scanner with progress listener
@@ -202,8 +229,7 @@ public class FileProcessor {
                         skippedFiles.get(),
                         errorFiles.get(),
                         totalBytes.get(),
-                        processedBytes.get()
-                );
+                        processedBytes.get());
 
                 logger.info("File processing completed. Processed: {}, Skipped: {}, Errors: {}, Total bytes: {}",
                         result.getProcessedFiles(), result.getSkippedFiles(), result.getErrorFiles(),
@@ -271,6 +297,12 @@ public class FileProcessor {
         private final List<CompletableFuture<FileChunker.ChunkingResult>> chunkingFutures = new ArrayList<>();
         /** Lock for synchronizing access to chunkingFutures list. */
         private final Object chunkingFuturesLock = new Object();
+        /** Chunking options to use. */
+        private final FileChunker.ChunkingOptions options;
+
+        public ChunkingFileVisitor(FileChunker.ChunkingOptions options) {
+            this.options = options;
+        }
 
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
@@ -286,14 +318,12 @@ public class FileProcessor {
             }
 
             try {
-                // Create chunking options
-                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                        .withChunkSize(chunker.getChunkSize())
-                        .withUseAsyncIO(true)
-                        .withDetectSparseFiles(true);
+                // Use provided chunking options
+                // We create a copy to ensure thread safety if options are mutable
+                FileChunker.ChunkingOptions currentOptions = new FileChunker.ChunkingOptions(options);
 
                 // Start chunking file
-                CompletableFuture<FileChunker.ChunkingResult> chunkingFuture = chunker.chunkFile(file, options)
+                CompletableFuture<FileChunker.ChunkingResult> chunkingFuture = chunker.chunkFile(file, currentOptions)
                         .thenCompose(result -> {
                             return CompletableFuture.supplyAsync(() -> {
                                 try {
@@ -323,7 +353,8 @@ public class FileProcessor {
                             return FileChunker.ChunkingResult.createFailed(file, ioException);
                         })
                         .handle((result, throwable) -> {
-                            // Ensure we always return a valid result, even if both result and throwable are null
+                            // Ensure we always return a valid result, even if both result and throwable are
+                            // null
                             if (result == null) {
                                 if (throwable != null) {
                                     logger.error("Null result with throwable for file: {}", file, throwable);
@@ -394,7 +425,7 @@ public class FileProcessor {
                         logger.warn("Chunk {} verification failed, continuing with other chunks", chunkHash);
                     }
                 }
-                
+
                 // If not all chunks exist, don't process this file but don't count as error
                 // This allows for transient storage issues to resolve themselves
                 if (!allChunksExist) {
@@ -411,8 +442,7 @@ public class FileProcessor {
                         result.getTotalSize(),
                         Instant.now(),
                         result.getFileHash(),
-                        chunkHashes
-                );
+                        chunkHashes);
                 // Store file metadata with retry for foreign key constraint
                 storeFileMetadataWithRetry(fileMetadata, chunkHashes, result);
 
@@ -485,8 +515,8 @@ public class FileProcessor {
          * Stores file metadata with retry logic for foreign key constraints.
          *
          * @param fileMetadata the file metadata to store
-         * @param chunkHashes the list of chunk hashes
-         * @param result the chunking result
+         * @param chunkHashes  the list of chunk hashes
+         * @param result       the chunking result
          * @throws IOException if storing fails after all retries
          */
         private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
@@ -523,11 +553,12 @@ public class FileProcessor {
                                     result.getFile(), rollbackEx.getMessage());
                         }
                     }
-                    // If it's a foreign key constraint or visibility issue, chunks might not be visible yet
+                    // If it's a foreign key constraint or visibility issue, chunks might not be
+                    // visible yet
                     if (e.getMessage() != null
                             && (e.getMessage().contains("FOREIGN KEY constraint failed")
-                            || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
-                            || e.getMessage().contains("Not all chunk metadata is visible"))) {
+                                    || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
+                                    || e.getMessage().contains("Not all chunk metadata is visible"))) {
                         if (attempt < maxRetries) {
                             // Increased backoff: 400ms, 800ms, 1200ms, 1600ms, 2000ms, 2400ms,
                             // 2800ms, 3200ms, 3600ms, 4000ms, 4400ms, 4800ms
@@ -568,7 +599,7 @@ public class FileProcessor {
          *
          * @param chunkHashes the list of chunk hashes to verify
          * @throws InterruptedException if the thread is interrupted
-         * @throws IOException if there's an error creating chunk metadata
+         * @throws IOException          if there's an error creating chunk metadata
          */
         private void ensureChunkMetadataExists(List<String> chunkHashes)
                 throws InterruptedException, IOException {
@@ -580,8 +611,7 @@ public class FileProcessor {
                             0, // Size unknown, will be updated when chunk is accessed
                             java.time.Instant.now(),
                             1, // Initial reference count
-                            java.time.Instant.now()
-                    );
+                            java.time.Instant.now());
                     metadataService.upsertChunk(chunkMetadata);
                     logger.debug("Created missing chunk metadata for: {}", chunkHash);
                     // Wait a bit for the chunk metadata to be committed
@@ -612,7 +642,7 @@ public class FileProcessor {
                 // Use the filtered list to create the array for allOf()
                 // Ensure no null elements in array to prevent ForEachOps issues
                 CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = validFutures.toArray(
-                    new CompletableFuture[validFutures.size()]);
+                        new CompletableFuture[validFutures.size()]);
                 CompletableFuture.allOf(futuresArray)
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {
@@ -685,11 +715,13 @@ public class FileProcessor {
 
         /**
          * Creates a new ProcessingResult.
-         * @deprecated Use {@link #create(ScanResult, int, int, int, long, long)} instead.
+         * 
+         * @deprecated Use {@link #create(ScanResult, int, int, int, long, long)}
+         *             instead.
          */
         @Deprecated
         public ProcessingResult(ScanResult scanResult, int processedFiles, int skippedFiles,
-                              int errorFiles, long totalBytes, long processedBytes) {
+                int errorFiles, long totalBytes, long processedBytes) {
             this.scanResult = scanResult;
             this.processedFiles = processedFiles;
             this.skippedFiles = skippedFiles;
@@ -701,16 +733,16 @@ public class FileProcessor {
         /**
          * Creates a new ProcessingResult.
          *
-         * @param scanResult the scan result from the filesystem scanner
+         * @param scanResult     the scan result from the filesystem scanner
          * @param processedFiles the number of successfully processed files
-         * @param skippedFiles the number of skipped files
-         * @param errorFiles the number of files with errors
-         * @param totalBytes the total bytes in all files
+         * @param skippedFiles   the number of skipped files
+         * @param errorFiles     the number of files with errors
+         * @param totalBytes     the total bytes in all files
          * @param processedBytes the total bytes processed
          * @return a new ProcessingResult instance
          */
         public static ProcessingResult create(ScanResult scanResult, int processedFiles, int skippedFiles,
-                                             int errorFiles, long totalBytes, long processedBytes) {
+                int errorFiles, long totalBytes, long processedBytes) {
             return new ProcessingResult(scanResult, processedFiles, skippedFiles,
                     errorFiles, totalBytes, processedBytes);
         }

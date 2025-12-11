@@ -249,6 +249,8 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
 
     @Override
     public ByteBuffer acquire(int size) {
+        logger.debug("Acquiring buffer of size {}", size);
+        
         if (closed) {
             throw new IllegalStateException("Buffer pool has been closed");
         }
@@ -257,25 +259,35 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
         }
 
         // Try to find an existing buffer that's large enough
+        logger.debug("Looking for existing buffer, available count: {}", availableBuffers.size());
         ByteBuffer buffer = availableBuffers.poll();
-        while (buffer != null) {
+        int attempts = 0;
+        while (buffer != null && attempts < 10) { // Add safety limit to prevent infinite loop
+            attempts++;
+            logger.debug("Checking buffer {} with capacity {}", attempts, buffer.capacity());
             if (buffer.capacity() >= size) {
                 buffersInUse.incrementAndGet();
                 buffer.clear();
-                logger.trace("Acquired buffer of size {} for request {}", buffer.capacity(), size);
+                logger.debug("Acquired existing buffer of size {} for request {} after {} attempts", buffer.capacity(), size, attempts);
                 return buffer;
             }
             // Buffer is too small, put it back and try another
+            logger.debug("Buffer too small, putting back and trying another");
             availableBuffers.offer(buffer);
             buffer = availableBuffers.poll();
         }
 
+        if (attempts >= 10) {
+            logger.error("Too many attempts ({}) to find suitable buffer, available count: {}", attempts, availableBuffers.size());
+        }
+
         // No suitable buffer found, allocate a new one
+        logger.debug("No suitable buffer found, allocating new one");
         int allocateSize = Math.max(size, defaultBufferSize);
         buffer = allocateBuffer(allocateSize);
         buffersInUse.incrementAndGet();
 
-        logger.trace("Allocated new buffer of size {} for request {}", allocateSize, size);
+        logger.debug("Allocated new buffer of size {} for request {}", allocateSize, size);
         return buffer;
     }
 
@@ -424,11 +436,11 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
         
         try {
             executor.shutdown();
-            if (!executor.awaitTermination(3, java.util.concurrent.TimeUnit.SECONDS)) {
+            if (!executor.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS)) {
                 logger.warn("{} did not terminate gracefully, forcing shutdown", executorName);
                 executor.shutdownNow();
                 // Give a short time for forced shutdown
-                if (!executor.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS)) {
+                if (!executor.awaitTermination(500, java.util.concurrent.TimeUnit.MILLISECONDS)) {
                     logger.error("{} failed to terminate completely", executorName);
                 }
             }
