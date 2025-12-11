@@ -18,15 +18,13 @@
 
 package com.justsyncit.command;
 
-import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 
-import java.io.IOException;
-
 /**
  * Command for showing server status and configuration.
- * Follows Single Responsibility Principle by handling only server status operations.
+ * Follows Single Responsibility Principle by handling only server status
+ * operations.
  */
 public class ServerStatusCommand implements Command {
 
@@ -74,7 +72,59 @@ public class ServerStatusCommand implements Command {
             return false;
         }
 
-        // Parse options
+        StatusOptions options;
+        try {
+            options = parseOptions(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
+
+        if (options == null) {
+            return false; // Help was displayed
+        }
+
+        NetworkService localService = null;
+
+        try {
+            NetworkService service = this.networkService;
+            if (service == null && context != null) {
+                service = context.getNetworkService();
+            }
+            if (service == null) {
+                try {
+                    localService = serviceFactory.createNetworkService();
+                    service = localService;
+                } catch (Exception e) {
+                    System.err.println("Error: Failed to initialize network service: " + e.getMessage());
+                    return false;
+                }
+            }
+
+            if (options.json) {
+                displayJsonStatus(service, options.verbose);
+            } else {
+                displayTextStatus(service, options.verbose);
+            }
+
+            return true;
+
+        } catch (Exception e) {
+            System.err.println("Error: Failed to get server status: " + e.getMessage());
+            return false;
+        } finally {
+            closeQuietly(localService);
+        }
+    }
+
+    /**
+     * Parses command-line options.
+     *
+     * @param args command-line arguments
+     * @return parsed options, or null if help was displayed
+     * @throws IllegalArgumentException if invalid options are provided
+     */
+    private StatusOptions parseOptions(String[] args) {
         boolean verbose = false;
         boolean json = false;
 
@@ -90,51 +140,16 @@ public class ServerStatusCommand implements Command {
                     break;
                 case "--help":
                     displayHelp();
-                    return true;
+                    return null;
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
+                        throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
             }
         }
 
-        // Create service if not provided
-        final NetworkService service;
-        if (networkService == null) {
-            try {
-                service = serviceFactory.createNetworkService();
-            } catch (Exception e) {
-                System.err.println("Error: Failed to initialize network service: " + e.getMessage());
-                return false;
-            }
-        } else {
-            service = networkService;
-        }
-
-        try {
-            if (json) {
-                displayJsonStatus(service, verbose);
-            } else {
-                displayTextStatus(service, verbose);
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error: Failed to get server status: " + e.getMessage());
-            return false;
-        } finally {
-            // Clean up resources if we created them
-            if (networkService == null && service != null) {
-                try {
-                    service.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close network service: " + e.getMessage());
-                }
-            }
-        }
-
-        return true;
+        return new StatusOptions(verbose, json);
     }
 
     /**
@@ -148,7 +163,20 @@ public class ServerStatusCommand implements Command {
         System.out.println("========================");
         System.out.println();
 
-        // Basic status
+        displayBasicStatus(service);
+        System.out.println();
+
+        if (verbose || service.isServerRunning()) {
+            displayStatistics(service, verbose);
+        }
+    }
+
+    /**
+     * Displays basic server status information.
+     *
+     * @param service network service
+     */
+    private void displayBasicStatus(NetworkService service) {
         System.out.println("Server Status: " + (service.isServerRunning() ? "RUNNING" : "STOPPED"));
         System.out.println("Service Status: " + (service.isRunning() ? "ACTIVE" : "INACTIVE"));
 
@@ -160,52 +188,60 @@ public class ServerStatusCommand implements Command {
         } else {
             System.out.println("Server is not running");
         }
+    }
 
+    /**
+     * Displays statistics information.
+     *
+     * @param service network service
+     * @param verbose whether to show verbose output
+     */
+    private void displayStatistics(NetworkService service, boolean verbose) {
+        NetworkService.NetworkStatistics stats = service.getStatistics();
+
+        System.out.println("Statistics:");
+        System.out.println("-----------");
+        System.out.println("Total Bytes Sent: " + formatFileSize(stats.getTotalBytesSent()));
+        System.out.println("Total Bytes Received: " + formatFileSize(stats.getTotalBytesReceived()));
+        System.out.println("Total Messages Sent: " + stats.getTotalMessagesSent());
+        System.out.println("Total Messages Received: " + stats.getTotalMessagesReceived());
+        System.out.println("Completed Transfers: " + stats.getCompletedTransfers());
+        System.out.println("Failed Transfers: " + stats.getFailedTransfers());
+        System.out.println("Average Transfer Rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+        System.out.println("Uptime: " + formatUptime(stats.getUptimeMillis()));
+
+        if (verbose) {
+            displayDetailedStatistics(service, stats);
+        }
+    }
+
+    /**
+     * Displays detailed statistics information.
+     *
+     * @param service network service
+     * @param stats   network statistics
+     */
+    private void displayDetailedStatistics(NetworkService service, NetworkService.NetworkStatistics stats) {
         System.out.println();
+        System.out.println("Detailed Information:");
+        System.out.println("--------------------");
 
-        if (verbose || service.isServerRunning()) {
-            // Statistics
-            NetworkService.NetworkStatistics stats = service.getStatistics();
-            
-            System.out.println("Statistics:");
-            System.out.println("-----------");
-            System.out.println("Total Bytes Sent: " + formatFileSize(stats.getTotalBytesSent()));
-            System.out.println("Total Bytes Received: " + formatFileSize(stats.getTotalBytesReceived()));
-            System.out.println("Total Messages Sent: " + stats.getTotalMessagesSent());
-            System.out.println("Total Messages Received: " + stats.getTotalMessagesReceived());
-            System.out.println("Completed Transfers: " + stats.getCompletedTransfers());
-            System.out.println("Failed Transfers: " + stats.getFailedTransfers());
-            System.out.println("Average Transfer Rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
-            System.out.println("Uptime: " + formatUptime(stats.getUptimeMillis()));
-            
-            if (verbose) {
-                System.out.println();
-                System.out.println("Detailed Information:");
-                System.out.println("--------------------");
-                
-                // Calculate additional statistics
-                long totalTransfers = stats.getCompletedTransfers() + stats.getFailedTransfers();
-                double successRate = totalTransfers > 0 ? 
-                    (stats.getCompletedTransfers() * 100.0 / totalTransfers) : 0.0;
-                
-                System.out.println("Success Rate: " + String.format("%.2f%%", successRate));
-                System.out.println("Total Transfers Attempted: " + totalTransfers);
-                
-                if (service.isServerRunning()) {
-                    System.out.println("Current Transfer Rate: " + 
-                        formatFileSize((long) stats.getAverageTransferRate()) + "/s");
-                }
-                
-                // Connection information
-                System.out.println("Connection Capacity: " + service.getActiveConnectionCount() + " active");
-                
-                // Performance metrics
-                long uptimeSeconds = stats.getUptimeMillis() / 1000;
-                if (uptimeSeconds > 0) {
-                    double throughputPerSecond = stats.getTotalBytesReceived() / (double) uptimeSeconds;
-                    System.out.println("Average Throughput: " + formatFileSize((long) throughputPerSecond) + "/s");
-                }
-            }
+        double successRate = calculateSuccessRate(stats);
+        long totalTransfers = stats.getCompletedTransfers() + stats.getFailedTransfers();
+
+        System.out.println("Success Rate: " + String.format("%.2f%%", successRate));
+        System.out.println("Total Transfers Attempted: " + totalTransfers);
+
+        if (service.isServerRunning()) {
+            System.out.println("Current Transfer Rate: " +
+                    formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+        }
+
+        System.out.println("Connection Capacity: " + service.getActiveConnectionCount() + " active");
+
+        double throughputPerSecond = calculateThroughputPerSecond(stats);
+        if (throughputPerSecond > 0) {
+            System.out.println("Average Throughput: " + formatFileSize((long) throughputPerSecond) + "/s");
         }
     }
 
@@ -217,23 +253,52 @@ public class ServerStatusCommand implements Command {
      */
     private void displayJsonStatus(NetworkService service, boolean verbose) {
         NetworkService.NetworkStatistics stats = service.getStatistics();
-        
-        StringBuilder json = new StringBuilder();
+
+        StringBuilder json = new StringBuilder(512);
         json.append("{\n");
+        appendServerInfo(json, service, stats);
+        json.append(",\n");
+        appendStatistics(json, stats);
+
+        if (verbose) {
+            json.append(",\n");
+            appendDetailedInfo(json, stats);
+        }
+
+        json.append("\n}");
+        System.out.println(json.toString());
+    }
+
+    /**
+     * Appends server information to JSON output.
+     *
+     * @param json    StringBuilder to append to
+     * @param service network service
+     * @param stats   network statistics
+     */
+    private void appendServerInfo(StringBuilder json, NetworkService service, NetworkService.NetworkStatistics stats) {
         json.append("  \"server\": {\n");
         json.append("    \"running\": ").append(service.isServerRunning()).append(",\n");
         json.append("    \"serviceActive\": ").append(service.isRunning()).append(",\n");
-        
+
         if (service.isServerRunning()) {
             json.append("    \"port\": ").append(service.getServerPort()).append(",\n");
             json.append("    \"defaultTransport\": \"").append(service.getDefaultTransportType()).append("\",\n");
             json.append("    \"activeConnections\": ").append(service.getActiveConnectionCount()).append(",\n");
             json.append("    \"activeTransfers\": ").append(service.getActiveTransferCount()).append(",\n");
         }
-        
+
         json.append("    \"uptimeMillis\": ").append(stats.getUptimeMillis()).append("\n");
-        json.append("  },\n");
-        
+        json.append("  }");
+    }
+
+    /**
+     * Appends statistics to JSON output.
+     *
+     * @param json  StringBuilder to append to
+     * @param stats network statistics
+     */
+    private void appendStatistics(StringBuilder json, NetworkService.NetworkStatistics stats) {
         json.append("  \"statistics\": {\n");
         json.append("    \"totalBytesSent\": ").append(stats.getTotalBytesSent()).append(",\n");
         json.append("    \"totalBytesReceived\": ").append(stats.getTotalBytesReceived()).append(",\n");
@@ -243,27 +308,61 @@ public class ServerStatusCommand implements Command {
         json.append("    \"failedTransfers\": ").append(stats.getFailedTransfers()).append(",\n");
         json.append("    \"averageTransferRate\": ").append(stats.getAverageTransferRate()).append("\n");
         json.append("  }");
-        
-        if (verbose) {
-            long totalTransfers = stats.getCompletedTransfers() + stats.getFailedTransfers();
-            double successRate = totalTransfers > 0 ? 
-                (stats.getCompletedTransfers() * 100.0 / totalTransfers) : 0.0;
-            
-            long uptimeSeconds = stats.getUptimeMillis() / 1000;
-            double throughputPerSecond = uptimeSeconds > 0 ? 
-                stats.getTotalBytesReceived() / (double) uptimeSeconds : 0.0;
-            
-            json.append(",\n");
-            json.append("  \"detailed\": {\n");
-            json.append("    \"successRate\": ").append(String.format("%.2f", successRate)).append(",\n");
-            json.append("    \"totalTransfersAttempted\": ").append(totalTransfers).append(",\n");
-            json.append("    \"averageThroughputPerSecond\": ").append((long) throughputPerSecond).append("\n");
-            json.append("  }");
+    }
+
+    /**
+     * Appends detailed information to JSON output.
+     *
+     * @param json  StringBuilder to append to
+     * @param stats network statistics
+     */
+    private void appendDetailedInfo(StringBuilder json, NetworkService.NetworkStatistics stats) {
+        double successRate = calculateSuccessRate(stats);
+        double throughputPerSecond = calculateThroughputPerSecond(stats);
+        long totalTransfers = stats.getCompletedTransfers() + stats.getFailedTransfers();
+
+        json.append("  \"detailed\": {\n");
+        json.append("    \"successRate\": ").append(String.format("%.2f", successRate)).append(",\n");
+        json.append("    \"totalTransfersAttempted\": ").append(totalTransfers).append(",\n");
+        json.append("    \"averageThroughputPerSecond\": ").append((long) throughputPerSecond).append("\n");
+        json.append("  }");
+    }
+
+    /**
+     * Calculates success rate from statistics.
+     *
+     * @param stats network statistics
+     * @return success rate as percentage
+     */
+    private double calculateSuccessRate(NetworkService.NetworkStatistics stats) {
+        long totalTransfers = stats.getCompletedTransfers() + stats.getFailedTransfers();
+        return totalTransfers > 0 ? (stats.getCompletedTransfers() * 100.0 / totalTransfers) : 0.0;
+    }
+
+    /**
+     * Calculates average throughput per second.
+     *
+     * @param stats network statistics
+     * @return throughput in bytes per second
+     */
+    private double calculateThroughputPerSecond(NetworkService.NetworkStatistics stats) {
+        long uptimeSeconds = stats.getUptimeMillis() / 1000;
+        return uptimeSeconds > 0 ? stats.getTotalBytesReceived() / (double) uptimeSeconds : 0.0;
+    }
+
+    /**
+     * Safely closes a resource.
+     *
+     * @param resource resource to close
+     */
+    private void closeQuietly(AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+            }
         }
-        
-        json.append("\n}");
-        
-        System.out.println(json.toString());
     }
 
     /**
@@ -297,15 +396,29 @@ public class ServerStatusCommand implements Command {
      * @return formatted size string
      */
     private String formatFileSize(long bytes) {
-        if (bytes < 1024) {
+        final long KB = 1024;
+        final long MB = KB * 1024;
+        final long GB = MB * 1024;
+
+        if (bytes < KB) {
             return bytes + " B";
-        } else if (bytes < 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / 1024.0) + " KB";
-        } else if (bytes < 1024 * 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024)) + " MB";
+        } else if (bytes < MB) {
+            return formatWithDecimal(bytes / (double) KB) + " KB";
+        } else if (bytes < GB) {
+            return formatWithDecimal(bytes / (double) MB) + " MB";
         } else {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024 * 1024)) + " GB";
+            return formatWithDecimal(bytes / (double) GB) + " GB";
         }
+    }
+
+    /**
+     * Formats a number with one decimal place.
+     *
+     * @param value the value to format
+     * @return formatted string
+     */
+    private String formatWithDecimal(double value) {
+        return new java.text.DecimalFormat("#,##0.#").format(value);
     }
 
     /**
@@ -315,15 +428,20 @@ public class ServerStatusCommand implements Command {
      * @return formatted uptime string
      */
     private String formatUptime(long uptimeMillis) {
-        long seconds = uptimeMillis / 1000;
-        long minutes = seconds / 60;
-        long hours = minutes / 60;
-        long days = hours / 24;
-        
-        seconds = seconds % 60;
-        minutes = minutes % 60;
-        hours = hours % 24;
-        
+        final long MILLIS_PER_SECOND = 1000;
+        final long SECONDS_PER_MINUTE = 60;
+        final long MINUTES_PER_HOUR = 60;
+        final long HOURS_PER_DAY = 24;
+
+        long seconds = uptimeMillis / MILLIS_PER_SECOND;
+        long minutes = seconds / SECONDS_PER_MINUTE;
+        long hours = minutes / MINUTES_PER_HOUR;
+        long days = hours / HOURS_PER_DAY;
+
+        seconds = seconds % SECONDS_PER_MINUTE;
+        minutes = minutes % MINUTES_PER_HOUR;
+        hours = hours % HOURS_PER_DAY;
+
         StringBuilder sb = new StringBuilder();
         if (days > 0) {
             sb.append(days).append("d ");
@@ -335,7 +453,20 @@ public class ServerStatusCommand implements Command {
             sb.append(minutes).append("m ");
         }
         sb.append(seconds).append("s");
-        
+
         return sb.toString();
+    }
+
+    /**
+     * Simple data class to hold status options.
+     */
+    private static class StatusOptions {
+        final boolean verbose;
+        final boolean json;
+
+        StatusOptions(boolean verbose, boolean json) {
+            this.verbose = verbose;
+            this.json = json;
+        }
     }
 }

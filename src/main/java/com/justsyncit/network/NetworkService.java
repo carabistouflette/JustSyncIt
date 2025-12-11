@@ -30,28 +30,31 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Service interface for network operations in JustSyncIt.
- * Provides high-level abstractions for TCP-based file transfers and connection management.
- * Follows Interface Segregation Principle by providing focused network operations.
+ * Provides high-level abstractions for TCP-based file transfers and connection
+ * management.
+ * Follows Interface Segregation Principle by providing focused network
+ * operations.
  */
-public interface NetworkService {
+public interface NetworkService extends com.justsyncit.storage.ClosableResource {
 
     /**
      * Starts the network server for accepting incoming connections using TCP.
      *
      * @param port the port to listen on
      * @return a CompletableFuture that completes when the server is started
-     * @throws IOException if an I/O error occurs
+     * @throws IOException      if an I/O error occurs
      * @throws ServiceException if a service error occurs
      */
     CompletableFuture<Void> startServer(int port) throws IOException, ServiceException;
 
     /**
-     * Starts the network server for accepting incoming connections using the specified transport.
+     * Starts the network server for accepting incoming connections using the
+     * specified transport.
      *
-     * @param port the port to listen on
+     * @param port          the port to listen on
      * @param transportType the transport protocol to use
      * @return a CompletableFuture that completes when the server is started
-     * @throws IOException if an I/O error occurs
+     * @throws IOException      if an I/O error occurs
      * @throws ServiceException if a service error occurs
      */
     CompletableFuture<Void> startServer(int port, TransportType transportType) throws IOException, ServiceException;
@@ -75,7 +78,7 @@ public interface NetworkService {
     /**
      * Connects to a remote JustSyncIt node using the specified transport.
      *
-     * @param address the remote address
+     * @param address       the remote address
      * @param transportType the transport protocol to use
      * @return a CompletableFuture that completes when the connection is established
      * @throws IOException if an I/O error occurs
@@ -93,9 +96,9 @@ public interface NetworkService {
     /**
      * Sends a file to a remote node using the default transport.
      *
-     * @param filePath the path to the file to send
+     * @param filePath      the path to the file to send
      * @param remoteAddress the remote node address
-     * @param contentStore the content store for chunk access
+     * @param contentStore  the content store for chunk access
      * @return a CompletableFuture that completes when the file transfer is complete
      * @throws IOException if an I/O error occurs
      */
@@ -105,9 +108,9 @@ public interface NetworkService {
     /**
      * Sends a file to a remote node using the specified transport.
      *
-     * @param filePath the path to the file to send
+     * @param filePath      the path to the file to send
      * @param remoteAddress the remote node address
-     * @param contentStore the content store for chunk access
+     * @param contentStore  the content store for chunk access
      * @param transportType the transport protocol to use
      * @return a CompletableFuture that completes when the file transfer is complete
      * @throws IOException if an I/O error occurs
@@ -118,7 +121,7 @@ public interface NetworkService {
     /**
      * Sends a protocol message to a remote node using the default transport.
      *
-     * @param message the message to send
+     * @param message       the message to send
      * @param remoteAddress the remote node address
      * @return a CompletableFuture that completes when the message is sent
      * @throws IOException if an I/O error occurs
@@ -128,7 +131,7 @@ public interface NetworkService {
     /**
      * Sends a protocol message to a remote node using the specified transport.
      *
-     * @param message the message to send
+     * @param message       the message to send
      * @param remoteAddress the remote node address
      * @param transportType the transport protocol to use
      * @return a CompletableFuture that completes when the message is sent
@@ -266,14 +269,14 @@ public interface NetworkService {
          * Called when a connection is closed.
          *
          * @param remoteAddress the remote address
-         * @param cause the reason for disconnection (null if normal)
+         * @param cause         the reason for disconnection (null if normal)
          */
         void onConnectionClosed(InetSocketAddress remoteAddress, Throwable cause);
 
         /**
          * Called when a message is received.
          *
-         * @param message the received message
+         * @param message       the received message
          * @param remoteAddress the remote address
          */
         void onMessageReceived(ProtocolMessage message, InetSocketAddress remoteAddress);
@@ -281,38 +284,38 @@ public interface NetworkService {
         /**
          * Called when a file transfer starts.
          *
-         * @param filePath the file path
+         * @param filePath      the file path
          * @param remoteAddress the remote address
-         * @param fileSize the file size
+         * @param fileSize      the file size
          */
         void onFileTransferStarted(Path filePath, InetSocketAddress remoteAddress, long fileSize);
 
         /**
          * Called when file transfer progress is updated.
          *
-         * @param filePath the file path
-         * @param remoteAddress the remote address
+         * @param filePath         the file path
+         * @param remoteAddress    the remote address
          * @param bytesTransferred the number of bytes transferred
-         * @param totalBytes the total number of bytes
+         * @param totalBytes       the total number of bytes
          */
         void onFileTransferProgress(Path filePath, InetSocketAddress remoteAddress,
-                               long bytesTransferred, long totalBytes);
+                long bytesTransferred, long totalBytes);
 
         /**
          * Called when a file transfer completes.
          *
-         * @param filePath the file path
+         * @param filePath      the file path
          * @param remoteAddress the remote address
-         * @param success true if successful, false otherwise
-         * @param error the error message if unsuccessful
+         * @param success       true if successful, false otherwise
+         * @param error         the error message if unsuccessful
          */
         void onFileTransferCompleted(Path filePath, InetSocketAddress remoteAddress,
-                                  boolean success, String error);
+                boolean success, String error);
 
         /**
          * Called when an error occurs.
          *
-         * @param error the error that occurred
+         * @param error   the error that occurred
          * @param context the context in which the error occurred
          */
         void onError(Throwable error, String context);

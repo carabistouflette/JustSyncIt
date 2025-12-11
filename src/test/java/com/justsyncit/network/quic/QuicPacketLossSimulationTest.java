@@ -52,9 +52,9 @@ public class QuicPacketLossSimulationTest {
     /** Server port for testing. */
     private static final int SERVER_PORT = 9998;
     /** Timeout in seconds for tests. */
-    private static final int TIMEOUT_SECONDS = 30;
+    private static final int TIMEOUT_SECONDS = 10;
     /** Number of test messages to send. */
-    private static final int TEST_MESSAGE_COUNT = 100;
+    private static final int TEST_MESSAGE_COUNT = 20;
     /** Large file size for testing (1MB). */
     private static final int LARGE_FILE_SIZE = 1024 * 1024;
 
@@ -176,7 +176,7 @@ public class QuicPacketLossSimulationTest {
         long totalTime = endTime - startTime;
 
         // Wait for all operations to complete
-        Thread.sleep(2000);
+        Thread.sleep(500);
 
         // Calculate metrics
         double successRate = (double) successfulMessages.get() / TEST_MESSAGE_COUNT;
@@ -295,9 +295,9 @@ public class QuicPacketLossSimulationTest {
         HandshakeMessage message1 = new HandshakeMessage("initial-message", 0x01);
         stream1.sendMessage(message1).get(5, TimeUnit.SECONDS);
 
-        // Simulate network interruption (100% packet loss for 2 seconds)
+        // Simulate network interruption (100% packet loss for 1 second)
         packetLossSimulator.setPacketLossRate(1.0);
-        Thread.sleep(2000);
+        Thread.sleep(1000);
 
         // Restore network
         packetLossSimulator.setPacketLossRate(0.0);

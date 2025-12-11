@@ -23,12 +23,14 @@ import com.justsyncit.hash.HashingException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -69,12 +71,14 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testConstructorWithNullVerifier() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> new MemoryContentStore(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testStoreChunkWithValidData() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -91,18 +95,21 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testStoreChunkWithNullData() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.storeChunk(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testStoreChunkWithEmptyData() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.storeChunk(new byte[0]));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testStoreDuplicateChunk() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -121,6 +128,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRetrieveChunkWithValidHash() throws HashingException, IOException, StorageIntegrityException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -140,6 +148,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRetrieveChunkWithNonExistentHash() throws IOException, StorageIntegrityException {
         // Arrange
         String nonExistentHash = "nonexistent123456";
@@ -152,18 +161,21 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRetrieveChunkWithNullHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.retrieveChunk(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRetrieveChunkWithEmptyHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.retrieveChunk(""));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExistsChunkWithExistingHash() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -182,6 +194,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExistsChunkWithNonExistentHash() throws IOException {
         // Arrange
         String nonExistentHash = "nonexistent123456";
@@ -194,12 +207,14 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExistsChunkWithNullHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.existsChunk(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetChunkCountWithEmptyStore() throws IOException {
         // Act
         long result = contentStore.getChunkCount();
@@ -209,6 +224,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetChunkCountWithStoredChunks() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -231,6 +247,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetTotalSizeWithEmptyStore() throws IOException {
         // Act
         long result = contentStore.getTotalSize();
@@ -240,6 +257,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetTotalSizeWithStoredChunks() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -260,6 +278,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGarbageCollectWithActiveHashes() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -289,12 +308,14 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGarbageCollectWithNullActiveHashes() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.garbageCollect(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetStats() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -317,6 +338,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testClose() throws IOException, HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -342,6 +364,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetCurrentChunkCount() throws HashingException, IOException {
         // Arrange
         byte[] data1 = "data1".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -362,6 +385,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testIsEmptyWithEmptyStore() {
         // Act
         boolean result = contentStore.isEmpty();
@@ -371,6 +395,7 @@ class MemoryContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testIsEmptyWithStoredChunks() throws HashingException, IOException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);

@@ -31,6 +31,7 @@ import com.justsyncit.storage.metadata.MetadataService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -106,6 +107,7 @@ public class ConcurrencyBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkConcurrentBackups() throws Exception {
         // Test concurrent backup operations
         int[] concurrencyLevels = {1, 2, 4, 8, 16};
@@ -198,6 +200,7 @@ public class ConcurrencyBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkConcurrentRestores() throws Exception {
         // Test concurrent restore operations
         int[] concurrencyLevels = {1, 2, 4, 8};
@@ -311,6 +314,7 @@ public class ConcurrencyBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMixedConcurrentOperations() throws Exception {
         // Test mixed concurrent backup and restore operations
         int[] concurrencyLevels = {2, 4, 8};
@@ -456,6 +460,7 @@ public class ConcurrencyBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkResourceContention() throws Exception {
         // Test performance under resource contention scenarios
         int[] concurrencyLevels = {4, 8, 16, 32};

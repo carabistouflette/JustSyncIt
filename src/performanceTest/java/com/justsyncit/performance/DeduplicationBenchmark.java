@@ -30,7 +30,9 @@ import com.justsyncit.storage.metadata.MetadataStats;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+import java.util.concurrent.TimeUnit;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -97,6 +99,7 @@ public class DeduplicationBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPerfectDeduplication() throws Exception {
         // Test with identical files (perfect deduplication scenario)
         int[] duplicateCounts = {10, 50, 100, 500};
@@ -170,6 +173,7 @@ public class DeduplicationBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPartialDeduplication() throws Exception {
         // Test with files having partial duplication
         int[] fileCounts = {50, 100, 200};
@@ -250,6 +254,7 @@ public class DeduplicationBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkNoDeduplication() throws Exception {
         // Test with completely unique files (no deduplication)
         int[] fileCounts = {50, 100, 200};
@@ -319,6 +324,7 @@ public class DeduplicationBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkChunkSizeImpact() throws Exception {
         // Test impact of chunk size on deduplication efficiency
         int[] chunkSizes = {32 * 1024, 64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024}; // 32KB to 1MB
@@ -384,6 +390,7 @@ public class DeduplicationBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkDeduplicationOverhead() throws Exception {
         // Test performance overhead of deduplication processing
         int[] fileCounts = {50, 100, 200, 500};
@@ -469,6 +476,7 @@ public class DeduplicationBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkIncrementalDeduplication() throws Exception {
         // Test deduplication efficiency in incremental backups
         int initialSizeMB = 50;

@@ -21,12 +21,14 @@ package com.justsyncit.storage;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -68,6 +70,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testPutChunk() throws IOException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -83,6 +86,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testPutChunkNullHash() {
         // Arrange
         Path filePath = storageDir.resolve("test.txt");
@@ -92,6 +96,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testPutChunkNullFilePath() {
         // Arrange
         String hash = "abcdef1234567890";
@@ -101,6 +106,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetChunkPathExistingChunk() throws IOException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -115,6 +121,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetChunkPathNonExistentChunk() throws IOException {
         // Arrange
         String hash = "nonexistent";
@@ -127,6 +134,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testContainsChunkTrue() throws IOException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -141,6 +149,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testContainsChunkFalse() throws IOException {
         // Arrange
         String hash = "nonexistent";
@@ -153,6 +162,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRemoveChunkExistingChunk() throws IOException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -170,6 +180,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRemoveChunkNonExistentChunk() throws IOException {
         // Arrange
         String hash = "nonexistent";
@@ -182,6 +193,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetAllHashes() throws IOException {
         // Arrange
         String hash1 = "hash1";
@@ -203,6 +215,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetChunkCount() throws IOException {
         // Arrange
         chunkIndex.putChunk("hash1", storageDir.resolve("file1"));
@@ -216,6 +229,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRetainAll() throws IOException {
         // Arrange
         String hash1 = "hash1";
@@ -242,12 +256,14 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testRetainAllNullActiveHashes() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> chunkIndex.retainAll(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testPersistence() throws IOException {
         // Arrange
         String hash1 = "hash1";
@@ -271,6 +287,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testPersistenceWithEmptyIndex() throws IOException {
         // Close and reopen the index
         chunkIndex.close();
@@ -282,6 +299,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testOperationsAfterClose() throws IOException {
         // Arrange
         chunkIndex.close();
@@ -297,6 +315,7 @@ class FilesystemChunkIndexTest {
     }
 
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testConcurrentOperations() throws InterruptedException, IOException {
         // Arrange
         int threadCount = 10;

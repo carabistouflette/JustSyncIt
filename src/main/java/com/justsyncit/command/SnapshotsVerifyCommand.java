@@ -22,8 +22,6 @@ import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.storage.ContentStore;
-import com.justsyncit.storage.IntegrityVerifier;
-import com.justsyncit.storage.IntegrityVerifierFactory;
 import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
@@ -134,23 +132,26 @@ public class SnapshotsVerifyCommand implements Command {
         }
 
         // Create services if not provided
-        MetadataService metadataSvc = metadataService;
-        Blake3Service hashSvc = blake3Service;
+        MetadataService metadataService = this.metadataService;
+        Blake3Service blake3Service = this.blake3Service;
         ContentStore contentStore = null;
-        IntegrityVerifier integrityVerifier = null;
+        boolean createdMetadataService = false;
+        boolean createdBlake3Service = false;
 
-        if (metadataSvc == null) {
+        if (metadataService == null) {
             try {
-                metadataSvc = serviceFactory.createMetadataService();
+                metadataService = serviceFactory.createMetadataService();
+                createdMetadataService = true;
             } catch (ServiceException e) {
                 System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
                 return false;
             }
         }
 
-        if (hashSvc == null) {
+        if (blake3Service == null) {
             try {
-                hashSvc = serviceFactory.createBlake3Service();
+                blake3Service = serviceFactory.createBlake3Service();
+                createdBlake3Service = true;
             } catch (ServiceException e) {
                 System.err.println("Error: Failed to initialize BLAKE3 service: " + e.getMessage());
                 return false;
@@ -158,16 +159,18 @@ public class SnapshotsVerifyCommand implements Command {
         }
 
         try {
-            contentStore = serviceFactory.createSqliteContentStore(hashSvc);
-            integrityVerifier = IntegrityVerifierFactory.createBlake3Verifier(hashSvc);
-        } catch (Exception e) {
+            contentStore = serviceFactory.createSqliteContentStore(blake3Service);
+        } catch (ServiceException e) {
             System.err.println("Error: Failed to initialize content store: " + e.getMessage());
+            return false;
+        } catch (Exception e) {
+            System.err.println("Error: Unexpected error initializing content store: " + e.getMessage());
             return false;
         }
 
         try {
             // Get snapshot information
-            Optional<Snapshot> snapshotOpt = metadataSvc.getSnapshot(snapshotId);
+            Optional<Snapshot> snapshotOpt = metadataService.getSnapshot(snapshotId);
             if (snapshotOpt.isEmpty()) {
                 System.err.println("Error: Snapshot not found: " + snapshotId);
                 return false;
@@ -186,7 +189,20 @@ public class SnapshotsVerifyCommand implements Command {
             }
 
             // Get files in snapshot
-            List<FileMetadata> files = metadataSvc.getFilesInSnapshot(snapshotId);
+            List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId);
+            
+            // Validate files list
+            if (files == null) {
+                System.err.println("Error: Failed to retrieve files for snapshot: " + snapshotId);
+                return false;
+            }
+            
+            if (files.isEmpty()) {
+                if (!quiet) {
+                    System.out.println("Warning: Snapshot contains no files to verify");
+                }
+                return true;
+            }
             
             // Verification statistics
             AtomicInteger filesVerified = new AtomicInteger(0);
@@ -203,9 +219,21 @@ public class SnapshotsVerifyCommand implements Command {
             for (int i = 0; i < files.size(); i++) {
                 FileMetadata file = files.get(i);
                 
-                if (showProgress && !quiet) {
-                    System.out.printf("\rProgress: %d/%d files (%.1f%%)", 
-                        i + 1, files.size(), (i + 1) * 100.0 / files.size());
+                // Validate file metadata
+                if (file == null) {
+                    if (!quiet) {
+                        System.out.println("\nWarning: Encountered null file metadata at index " + i);
+                    }
+                    filesWithErrors.incrementAndGet();
+                    errors.incrementAndGet();
+                    continue;
+                }
+                
+                // Report progress less frequently for better performance
+                if (showProgress && !quiet && (i % 10 == 0 || i == files.size() - 1)) {
+                    double progress = (i + 1) * 100.0 / files.size();
+                    System.out.printf("\rProgress: %d/%d files (%.1f%%)",
+                        i + 1, files.size(), progress);
                     System.out.flush();
                 }
 
@@ -216,38 +244,75 @@ public class SnapshotsVerifyCommand implements Command {
                     if (verifyFileHashes) {
                         // Verify file hash by reconstructing from chunks
                         String expectedHash = file.getFileHash();
-                        // In a real implementation, we would reconstruct the file from chunks
-                        // and compute its hash. For now, we'll simulate this.
-                        // fileIntegrityOk = verifyFileHash(file, contentStore, hashSvc);
+                        if (expectedHash == null || expectedHash.isEmpty()) {
+                            if (!quiet) {
+                                System.out.println("\nWarning: File has no hash: " + file.getPath());
+                            }
+                            fileIntegrityOk = false;
+                        } else {
+                            // Implement actual file hash verification
+                            fileIntegrityOk = verifyFileHash(file, contentStore, blake3Service);
+                        }
                     }
 
-                    if (verifyChunks) {
-                        // Verify each chunk exists and has correct hash
-                        for (String chunkHash : file.getChunkHashes()) {
-                            chunksVerified.incrementAndGet();
-                            
-                            // Verify chunk integrity by checking if chunk exists and retrieving it
-                            // The retrieveChunk method already verifies integrity
-                            try {
-                                if (contentStore.existsChunk(chunkHash)) {
-                                    byte[] chunkData = contentStore.retrieveChunk(chunkHash);
-                                    // If we get here, chunk integrity is verified
-                                } else {
+                    if (verifyChunks && fileIntegrityOk) {
+                        List<String> chunkHashes = file.getChunkHashes();
+                        if (chunkHashes == null) {
+                            if (!quiet) {
+                                System.out.println("\nWarning: File has no chunk hashes: " + file.getPath());
+                            }
+                            fileIntegrityOk = false;
+                            filesWithErrors.incrementAndGet();
+                            errors.incrementAndGet();
+                        } else {
+                            // Verify each chunk exists and has correct hash
+                            for (String chunkHash : chunkHashes) {
+                                // Validate chunk hash
+                                if (chunkHash == null || chunkHash.isEmpty()) {
+                                    if (!quiet) {
+                                        System.out.println("\nWarning: Encountered null or empty chunk hash in file: " + file.getPath());
+                                    }
+                                    chunksWithErrors.incrementAndGet();
+                                    errors.incrementAndGet();
+                                    fileIntegrityOk = false;
+                                    continue;
+                                }
+                                
+                                chunksVerified.incrementAndGet();
+                                
+                                // Verify chunk integrity by checking if chunk exists and retrieving it
+                                // The retrieveChunk method already verifies integrity
+                                try {
+                                    if (contentStore.existsChunk(chunkHash)) {
+                                        // Verify chunk integrity by retrieving it - the retrieveChunk method verifies the hash
+                                        // We don't need to store the data since retrieval itself verifies integrity
+                                        contentStore.retrieveChunk(chunkHash);
+                                        // If we get here without exception, chunk integrity is verified
+                                    } else {
+                                        chunksWithErrors.incrementAndGet();
+                                        errors.incrementAndGet();
+                                        fileIntegrityOk = false;
+                                        
+                                        if (!quiet) {
+                                            System.out.println("\nChunk not found: " + chunkHash + " (file: " + file.getPath() + ")");
+                                        }
+                                    }
+                                } catch (IOException e) {
                                     chunksWithErrors.incrementAndGet();
                                     errors.incrementAndGet();
                                     fileIntegrityOk = false;
                                     
                                     if (!quiet) {
-                                        System.out.println("\nChunk not found: " + chunkHash + " (file: " + file.getPath() + ")");
+                                        System.out.println("\nChunk integrity error: " + chunkHash + " (file: " + file.getPath() + ") - " + e.getMessage());
                                     }
-                                }
-                            } catch (Exception e) {
-                                chunksWithErrors.incrementAndGet();
-                                errors.incrementAndGet();
-                                fileIntegrityOk = false;
-                                
-                                if (!quiet) {
-                                    System.out.println("\nChunk integrity error: " + chunkHash + " (file: " + file.getPath() + ") - " + e.getMessage());
+                                } catch (Exception e) {
+                                    chunksWithErrors.incrementAndGet();
+                                    errors.incrementAndGet();
+                                    fileIntegrityOk = false;
+                                    
+                                    if (!quiet) {
+                                        System.out.println("\nUnexpected chunk error: " + chunkHash + " (file: " + file.getPath() + ") - " + e.getMessage());
+                                    }
                                 }
                             }
                         }
@@ -300,11 +365,14 @@ public class SnapshotsVerifyCommand implements Command {
         } catch (IOException e) {
             System.err.println("Error: Failed to verify snapshot: " + e.getMessage());
             return false;
+        } catch (Exception e) {
+            System.err.println("Error: Unexpected error during snapshot verification: " + e.getMessage());
+            return false;
         } finally {
             // Clean up resources if we created them
-            if (metadataService == null && metadataSvc != null) {
+            if (createdMetadataService && metadataService != null) {
                 try {
-                    metadataSvc.close();
+                    metadataService.close();
                 } catch (Exception e) {
                     System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
                 }
@@ -314,6 +382,18 @@ public class SnapshotsVerifyCommand implements Command {
                     contentStore.close();
                 } catch (Exception e) {
                     System.err.println("Warning: Failed to close content store: " + e.getMessage());
+                }
+            }
+            // Clean up Blake3Service if we created it (though it typically doesn't need explicit cleanup)
+            if (createdBlake3Service && blake3Service != null) {
+                try {
+                    // Blake3Service doesn't have a close method, but we track it for consistency
+                    // If Blake3Service later implements AutoCloseable, this will handle it
+                    if (blake3Service instanceof AutoCloseable) {
+                        ((AutoCloseable) blake3Service).close();
+                    }
+                } catch (Exception e) {
+                    System.err.println("Warning: Failed to close BLAKE3 service: " + e.getMessage());
                 }
             }
         }
@@ -351,6 +431,52 @@ public class SnapshotsVerifyCommand implements Command {
         System.out.println("  snapshots verify abc123-def456 --quiet");
         System.out.println("  snapshots verify abc123-def456 --no-chunk-verify");
         System.out.println("  snapshots verify abc123-def456 --no-progress");
+    }
+
+    /**
+     * Verifies the file hash by reconstructing the file from chunks and computing its hash.
+     *
+     * @param file the file metadata to verify
+     * @param contentStore the content store to retrieve chunks from
+     * @param blake3Service the BLAKE3 service for hashing
+     * @return true if the file hash is valid, false otherwise
+     */
+    private boolean verifyFileHash(FileMetadata file, ContentStore contentStore, Blake3Service blake3Service) {
+        try {
+            List<String> chunkHashes = file.getChunkHashes();
+            if (chunkHashes == null || chunkHashes.isEmpty()) {
+                return false;
+            }
+
+            // Create incremental hasher to reconstruct file from chunks
+            Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
+            
+            // Retrieve and hash each chunk in order
+            for (String chunkHash : chunkHashes) {
+                if (chunkHash == null || chunkHash.isEmpty()) {
+                    return false;
+                }
+                
+                try {
+                    byte[] chunkData = contentStore.retrieveChunk(chunkHash);
+                    if (chunkData == null) {
+                        return false;
+                    }
+                    hasher.update(chunkData);
+                } catch (IOException e) {
+                    return false;
+                }
+            }
+            
+            // Compute the reconstructed file hash
+            String computedHash = hasher.digest();
+            String expectedHash = file.getFileHash();
+            
+            return computedHash != null && computedHash.equals(expectedHash);
+            
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**

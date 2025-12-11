@@ -21,8 +21,14 @@ package com.justsyncit.command;
 /**
  * Command group for snapshot management operations.
  * This command delegates to specific snapshot subcommands.
+ * Follows Composite Pattern by grouping related commands together.
  */
 public class SnapshotsCommandGroup implements Command {
+
+    private static final String SUBCOMMAND_LIST = "list";
+    private static final String SUBCOMMAND_INFO = "info";
+    private static final String SUBCOMMAND_DELETE = "delete";
+    private static final String SUBCOMMAND_VERIFY = "verify";
 
     private final SnapshotsListCommand listCommand;
     private final SnapshotsInfoCommand infoCommand;
@@ -56,36 +62,63 @@ public class SnapshotsCommandGroup implements Command {
 
     @Override
     public boolean execute(String[] args, CommandContext context) {
+        // Check for help first
+        if (isHelpRequested(args)) {
+            displayHelp();
+            return true;
+        }
+
         if (args.length == 0) {
-            System.err.println("Error: Missing subcommand");
-            System.err.println("Available subcommands: list, info, delete, verify");
-            System.err.println("Use 'help snapshots' for more information");
+            displayMissingSubcommandError();
             return false;
         }
 
         String subcommand = args[0];
-        String[] subcommandArgs = new String[args.length - 1];
-        System.arraycopy(args, 1, subcommandArgs, 0, args.length - 1);
+        String[] subcommandArgs = java.util.Arrays.copyOfRange(args, 1, args.length);
 
         switch (subcommand) {
-            case "list":
+            case SUBCOMMAND_LIST:
                 return listCommand.execute(subcommandArgs, context);
-            case "info":
+            case SUBCOMMAND_INFO:
                 return infoCommand.execute(subcommandArgs, context);
-            case "delete":
+            case SUBCOMMAND_DELETE:
                 return deleteCommand.execute(subcommandArgs, context);
-            case "verify":
+            case SUBCOMMAND_VERIFY:
                 return verifyCommand.execute(subcommandArgs, context);
-            case "--help":
             case "help":
                 displayHelp();
                 return true;
             default:
-                System.err.println("Error: Unknown subcommand: " + subcommand);
-                System.err.println("Available subcommands: list, info, delete, verify");
-                System.err.println("Use 'help snapshots' for more information");
+                displayUnknownSubcommandError(subcommand);
                 return false;
         }
+    }
+
+    /**
+     * Displays error message for missing subcommand.
+     */
+    private void displayMissingSubcommandError() {
+        System.err.println("Error: Missing subcommand");
+        displayAvailableSubcommands();
+    }
+
+    /**
+     * Displays error message for unknown subcommand.
+     *
+     * @param subcommand the unknown subcommand
+     */
+    private void displayUnknownSubcommandError(String subcommand) {
+        System.err.println("Error: Unknown subcommand: " + subcommand);
+        displayAvailableSubcommands();
+    }
+
+    /**
+     * Displays the list of available subcommands.
+     */
+    private void displayAvailableSubcommands() {
+        System.err.println("Available subcommands: " + SUBCOMMAND_LIST + ", "
+                + SUBCOMMAND_INFO + ", " + SUBCOMMAND_DELETE + ", " + SUBCOMMAND_VERIFY);
+        System.err.println("Use 'help snapshots' for more information");
     }
 
     /**
@@ -101,21 +134,21 @@ public class SnapshotsCommandGroup implements Command {
         System.out.println("  " + getDescription());
         System.out.println();
         System.out.println("Subcommands:");
-        System.out.println("  list        List all available snapshots");
-        System.out.println("  info        Show detailed information about a specific snapshot");
-        System.out.println("  delete      Delete a specific snapshot");
-        System.out.println("  verify      Verify integrity of a snapshot");
+        System.out.println("  " + SUBCOMMAND_LIST + "        List all available snapshots");
+        System.out.println("  " + SUBCOMMAND_INFO + "        Show detailed information about a specific snapshot");
+        System.out.println("  " + SUBCOMMAND_DELETE + "      Delete a specific snapshot");
+        System.out.println("  " + SUBCOMMAND_VERIFY + "      Verify integrity of a snapshot");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  snapshots list");
-        System.out.println("  snapshots info abc123-def456");
-        System.out.println("  snapshots delete abc123-def456");
-        System.out.println("  snapshots verify abc123-def456");
+        System.out.println("  snapshots " + SUBCOMMAND_LIST);
+        System.out.println("  snapshots " + SUBCOMMAND_INFO + " abc123-def456");
+        System.out.println("  snapshots " + SUBCOMMAND_DELETE + " abc123-def456");
+        System.out.println("  snapshots " + SUBCOMMAND_VERIFY + " abc123-def456");
         System.out.println();
         System.out.println("For detailed help on a specific subcommand, use:");
-        System.out.println("  help snapshots list");
-        System.out.println("  help snapshots info");
-        System.out.println("  help snapshots delete");
-        System.out.println("  help snapshots verify");
+        System.out.println("  help snapshots " + SUBCOMMAND_LIST);
+        System.out.println("  help snapshots " + SUBCOMMAND_INFO);
+        System.out.println("  help snapshots " + SUBCOMMAND_DELETE);
+        System.out.println("  help snapshots " + SUBCOMMAND_VERIFY);
     }
 }

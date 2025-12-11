@@ -21,9 +21,11 @@ package com.justsyncit.storage;
 import com.justsyncit.ServiceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -47,6 +49,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGeneratePathWithValidHash() throws ServiceException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -60,6 +63,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGeneratePathWithMinimumHash() throws ServiceException {
         // Arrange
         String hash = "abcd";
@@ -73,6 +77,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGeneratePathWithLongHash() throws ServiceException {
         // Arrange
         String hash = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
@@ -86,6 +91,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithValidHash() {
         // Arrange
         String hash = "abcdef1234567890";
@@ -95,12 +101,14 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithNullHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> pathGenerator.validateHash(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithEmptyHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> pathGenerator.validateHash(""));
@@ -108,6 +116,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithTooShortHash() {
         // Arrange
         String hash = "abc"; // Less than minimum length
@@ -117,6 +126,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGeneratePathCreatesDirectories() throws java.io.IOException, ServiceException {
         // Arrange
         String hash = "test1234567890";
@@ -132,6 +142,7 @@ class TwoLevelChunkPathGeneratorTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGeneratePathWithDifferentHashes() throws ServiceException {
         // Test multiple different hashes
         String[] hashes = {

@@ -18,6 +18,7 @@
 
 package com.justsyncit.hash;
 
+import com.justsyncit.simd.SimdInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -224,7 +225,7 @@ class Blake3ServiceTest {
     @Test
     void testNullInputValidation() {
         assertThrows(IllegalArgumentException.class, () -> {
-            blake3Service.hashBuffer(null);
+            blake3Service.hashBuffer((byte[]) null);
         });
 
         assertThrows(IllegalArgumentException.class, () -> {
@@ -300,7 +301,7 @@ class Blake3ServiceTest {
 
     @Test
     void testSimdUtils() {
-        SimdUtils.SimdInfo simdInfo = SimdUtils.getSimdInfo();
+        SimdInfo simdInfo = SimdUtils.getSimdInfo();
 
         assertNotNull(simdInfo);
         assertNotNull(simdInfo.getOperatingSystem());

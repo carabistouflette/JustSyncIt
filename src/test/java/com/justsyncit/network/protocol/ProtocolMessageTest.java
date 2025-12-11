@@ -20,7 +20,9 @@ package com.justsyncit.network.protocol;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Timeout;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -41,6 +43,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testProtocolHeader() {
         assertEquals(MessageType.HANDSHAKE, header.getMessageType());
         assertEquals(12345, header.getMessageId());
@@ -51,6 +54,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testMessageType() {
         assertEquals("HANDSHAKE", MessageType.HANDSHAKE.name());
         assertEquals(0, MessageType.HANDSHAKE.ordinal());
@@ -63,6 +67,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testProtocolConstants() {
         assertEquals(0x4A53544E, ProtocolConstants.PROTOCOL_MAGIC);
         assertEquals(16, ProtocolConstants.HEADER_SIZE);
@@ -72,6 +77,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testProtocolHeaderSerialization() {
         ByteBuffer serialized = header.serialize();
         ProtocolHeader deserialized = ProtocolHeader.deserialize(serialized);
@@ -80,6 +86,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testProtocolHeaderOffsets() {
         assertEquals(0, ProtocolConstants.HeaderOffset.MAGIC);
         assertEquals(4, ProtocolConstants.HeaderOffset.VERSION);
@@ -90,6 +97,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testProtocolFlags() {
         assertEquals(0x00, ProtocolConstants.Flags.NONE);
         assertEquals(0x01, ProtocolConstants.Flags.COMPRESSED);
@@ -99,6 +107,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testErrorCodes() {
         assertEquals(0, ProtocolConstants.ErrorCode.NONE);
         assertEquals(1, ProtocolConstants.ErrorCode.PROTOCOL_VERSION_MISMATCH);
@@ -108,6 +117,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testAbstractProtocolMessage() {
         TestProtocolMessage message = new TestProtocolMessage(MessageType.HANDSHAKE, testData);
 
@@ -118,6 +128,7 @@ public class ProtocolMessageTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testProtocolMessageImplementation() {
         TestProtocolMessage message = new TestProtocolMessage(MessageType.HANDSHAKE, testData);
 

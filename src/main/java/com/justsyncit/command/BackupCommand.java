@@ -22,7 +22,7 @@ import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.backup.BackupOptions;
 import com.justsyncit.backup.BackupService;
-import com.justsyncit.backup.ConsoleBackupProgressTracker;
+
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
@@ -49,7 +49,7 @@ public class BackupCommand implements Command {
     /**
      * Creates a backup command with dependency injection.
      *
-     * @param backupService backup service (may be null for lazy initialization)
+     * @param backupService  backup service (may be null for lazy initialization)
      * @param networkService network service (may be null for lazy initialization)
      */
     public BackupCommand(BackupService backupService, NetworkService networkService) {
@@ -57,9 +57,10 @@ public class BackupCommand implements Command {
         this.networkService = networkService;
         this.serviceFactory = new ServiceFactory();
     }
-    
+
     /**
-     * Creates a backup command with only backup service (for backward compatibility).
+     * Creates a backup command with only backup service (for backward
+     * compatibility).
      *
      * @param backupService backup service (may be null for lazy initialization)
      */
@@ -84,7 +85,6 @@ public class BackupCommand implements Command {
 
     @Override
     public boolean execute(String[] args, CommandContext context) {
-
         // Handle help option first
         if (args.length == 1 && args[0].equals("--help")) {
             displayHelp();
@@ -101,6 +101,66 @@ public class BackupCommand implements Command {
         String sourceDir = args[0];
         Path sourcePath = Paths.get(sourceDir);
 
+        if (!validateSourcePath(sourcePath, sourceDir)) {
+            return false;
+        }
+
+        BackupOptions options;
+        try {
+            options = parseOptions(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
+
+        if (options == null) {
+            return false;
+        }
+
+        // Services to close if locally created
+        ContentStore localContentStore = null;
+        MetadataService localMetadataService = null;
+        NetworkService localNetworkService = null;
+
+        try {
+            BackupService service = this.backupService;
+            NetworkService netService = this.networkService;
+
+            // Initialize services if not provided
+            if (service == null) {
+                try {
+                    Blake3Service blake3Service = serviceFactory.createBlake3Service();
+                    localContentStore = serviceFactory.createSqliteContentStore(blake3Service);
+                    localMetadataService = serviceFactory.createMetadataService();
+                    service = serviceFactory.createBackupService(localContentStore, localMetadataService,
+                            blake3Service);
+
+                    if (options.isRemoteBackup() && netService == null) {
+                        localNetworkService = serviceFactory.createNetworkService();
+                        netService = localNetworkService;
+                    }
+                } catch (ServiceException e) {
+                    System.err.println("Error: Failed to initialize backup service: " + e.getMessage());
+                    return false;
+                }
+            }
+
+            return performBackup(service, netService, sourcePath, options);
+
+        } catch (Exception e) {
+            System.err.println("\nBackup failed: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("Cause: " + e.getCause().getMessage());
+            }
+            return false;
+        } finally {
+            closeQuietly(localContentStore);
+            closeQuietly(localMetadataService);
+            closeQuietly(localNetworkService);
+        }
+    }
+
+    private boolean validateSourcePath(Path sourcePath, String sourceDir) {
         if (!Files.exists(sourcePath)) {
             System.err.println("Error: Source directory does not exist: " + sourceDir);
             return false;
@@ -110,11 +170,11 @@ public class BackupCommand implements Command {
             System.err.println("Error: Source path is not a directory: " + sourceDir);
             return false;
         }
+        return true;
+    }
 
-        // Parse options
+    private BackupOptions parseOptions(String[] args) {
         BackupOptions.Builder optionsBuilder = new BackupOptions.Builder();
-        InetSocketAddress remoteAddress = null;
-        TransportType transportType = TransportType.TCP;
 
         for (int i = 1; i < args.length; i++) {
             String arg = args[i];
@@ -140,14 +200,12 @@ public class BackupCommand implements Command {
                         try {
                             int chunkSize = Integer.parseInt(args[i + 1]);
                             optionsBuilder.chunkSize(chunkSize);
-                            i++; // Skip the next argument
+                            i++;
                         } catch (NumberFormatException e) {
-                            System.err.println("Error: Invalid chunk size: " + args[i + 1]);
-                            return false;
+                            throw new IllegalArgumentException("Error: Invalid chunk size: " + args[i + 1]);
                         }
                     } else {
-                        System.err.println("Error: --chunk-size requires a value");
-                        return false;
+                        throw new IllegalArgumentException("Error: --chunk-size requires a value");
                     }
                     break;
                 case "--remote":
@@ -158,159 +216,116 @@ public class BackupCommand implements Command {
                         try {
                             String[] parts = args[i + 1].split(":");
                             if (parts.length != 2) {
-                                System.err.println("Error: Invalid server format. Use host:port");
-                                return false;
+                                throw new IllegalArgumentException("Error: Invalid server format. Use host:port");
                             }
                             String host = parts[0];
                             int port = Integer.parseInt(parts[1]);
-                            remoteAddress = new InetSocketAddress(host, port);
-                            optionsBuilder.remoteAddress(remoteAddress);
-                            i++; // Skip the next argument
+                            optionsBuilder.remoteAddress(new InetSocketAddress(host, port));
+                            i++;
                         } catch (NumberFormatException e) {
-                            System.err.println("Error: Invalid port number: " + args[i + 1]);
-                            return false;
+                            throw new IllegalArgumentException("Error: Invalid port number: " + args[i + 1]);
                         }
                     } else {
-                        System.err.println("Error: --server requires a value (host:port)");
-                        return false;
+                        throw new IllegalArgumentException("Error: --server requires a value (host:port)");
                     }
                     break;
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            TransportType transportType = TransportType.valueOf(args[i + 1].toUpperCase());
                             optionsBuilder.transportType(transportType);
-                            i++; // Skip the next argument
+                            i++;
                         } catch (IllegalArgumentException e) {
-                            System.err.println("Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
-                            return false;
+                            throw new IllegalArgumentException(
+                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
                         }
                     } else {
-                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
-                        return false;
+                        throw new IllegalArgumentException("Error: --transport requires a value (TCP|QUIC)");
                     }
                     break;
                 case "--help":
                     displayHelp();
-                    return true;
+                    return null; // Signal to stop parsing and exit
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
+                        throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
             }
         }
 
         BackupOptions options = optionsBuilder.build();
-        
+
         // Validate remote backup options
         if (options.isRemoteBackup()) {
             if (options.getRemoteAddress() == null) {
-                System.err.println("Error: Remote backup requires --server option");
-                return false;
+                throw new IllegalArgumentException("Error: Remote backup requires --server option");
             }
         }
 
-        // Create services if not provided
-        BackupService service = backupService;
-        ContentStore contentStore = null;
-        MetadataService metadataService = null;
-        NetworkService netService = networkService;
+        return options;
+    }
 
-        if (service == null) {
+    private boolean performBackup(BackupService service, NetworkService netService, Path sourcePath,
+            BackupOptions options) throws Exception {
+        System.out.println("Starting backup of: " + sourcePath);
+        System.out.println("Options: " + options);
+
+        if (options.isRemoteBackup()) {
+            System.out.println(
+                    "Remote backup to: " + options.getRemoteAddress() + " using " + options.getTransportType());
+
+            // Connect to remote server first
+            netService.connectToNode(options.getRemoteAddress(), options.getTransportType()).get();
+
             try {
-                Blake3Service blake3Service = serviceFactory.createBlake3Service();
-                contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-                metadataService = serviceFactory.createMetadataService();
-                service = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
-                
-                // Create network service if needed for remote backup
-                if (options.isRemoteBackup() && netService == null) {
-                    netService = serviceFactory.createNetworkService();
-                }
-            } catch (ServiceException e) {
-                System.err.println("Error: Failed to initialize backup service: " + e.getMessage());
-                return false;
-            }
-        }
-
-        // Execute backup
-        ConsoleBackupProgressTracker progressTracker = new ConsoleBackupProgressTracker();
-
-        try {
-            System.out.println("Starting backup of: " + sourceDir);
-            System.out.println("Options: " + options);
-
-            if (options.isRemoteBackup()) {
-                System.out.println("Remote backup to: " + options.getRemoteAddress() + " using " + options.getTransportType());
-                
-                // Connect to remote server first
-                netService.connectToNode(options.getRemoteAddress(), options.getTransportType()).get();
-                
-                // For remote backup, we would typically send the snapshot data after creating it locally
+                // For remote backup, we would typically send the snapshot data after creating
+                // it locally
                 // For now, we'll create the backup locally and then simulate sending it
                 CompletableFuture<BackupService.BackupResult> backupFuture = service.backup(sourcePath, options);
                 BackupService.BackupResult result = backupFuture.get();
-                
-                // In a real implementation, we would send the snapshot and chunks to the remote server
+
+                // In a real implementation, we would send the snapshot and chunks to the remote
+                // server
                 // For demonstration, we'll just show what would happen
                 System.out.println("Remote backup data sent successfully!");
-                
+
+                printResult(result, true);
+            } finally {
                 // Disconnect from remote server
                 netService.disconnectFromNode(options.getRemoteAddress()).get();
-                
-                System.out.println("\nRemote backup completed successfully!");
-                System.out.println("Files processed: " + result.getFilesProcessed());
-                System.out.println("Total bytes: " + result.getTotalBytesProcessed());
-                System.out.println("Chunks created: " + result.getChunksCreated());
-                System.out.println("Integrity verified: " + result.isIntegrityVerified());
-            } else {
-                // Local backup
-                CompletableFuture<BackupService.BackupResult> backupFuture = service.backup(sourcePath, options);
-                BackupService.BackupResult result = backupFuture.get();
+            }
+        } else {
+            // Local backup
+            CompletableFuture<BackupService.BackupResult> backupFuture = service.backup(sourcePath, options);
+            BackupService.BackupResult result = backupFuture.get();
 
-                System.out.println("\nBackup completed successfully!");
-                System.out.println("Files processed: " + result.getFilesProcessed());
-                System.out.println("Total bytes: " + result.getTotalBytesProcessed());
-                System.out.println("Chunks created: " + result.getChunksCreated());
-                System.out.println("Integrity verified: " + result.isIntegrityVerified());
-            }
-
-        } catch (Exception e) {
-            System.err.println("\nBackup failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
-            return false;
-        } finally {
-            // Clean up resources if we created them
-            if (contentStore != null) {
-                try {
-                    contentStore.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close content store: " + e.getMessage());
-                }
-            }
-            if (metadataService != null) {
-                try {
-                    metadataService.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
-                }
-            }
-            if (netService != null && options.isRemoteBackup()) {
-                try {
-                    netService.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close network service: " + e.getMessage());
-                }
-            }
+            printResult(result, false);
         }
 
-        // Force JVM exit to prevent hanging due to background threads
-        System.exit(0);
-        return true; // This line won't be reached but keeps compiler happy
+        return true;
+    }
+
+    private void printResult(BackupService.BackupResult result, boolean remote) {
+        if (remote) {
+            System.out.println("\nRemote backup completed successfully!");
+        } else {
+            System.out.println("\nBackup completed successfully!");
+        }
+        System.out.println("Files processed: " + result.getFilesProcessed());
+        System.out.println("Total bytes: " + result.getTotalBytesProcessed());
+        System.out.println("Chunks created: " + result.getChunksCreated());
+        System.out.println("Integrity verified: " + result.isIntegrityVerified());
+    }
+
+    private void closeQuietly(AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+            }
+        }
     }
 
     /**

@@ -18,14 +18,12 @@
 
 package com.justsyncit.backup;
 
-import com.justsyncit.scanner.ChunkingOptions;
 import com.justsyncit.scanner.FileChunker;
 import com.justsyncit.scanner.FileProcessor;
 import com.justsyncit.scanner.FilesystemScanner;
 import com.justsyncit.scanner.ScanOptions;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
-import com.justsyncit.storage.metadata.Snapshot;
 
 import java.nio.file.Path;
 import java.time.Instant;
@@ -48,13 +46,13 @@ public class BackupService {
     /**
      * Creates a new backup service.
      *
-     * @param contentStore content store for storing chunks
+     * @param contentStore    content store for storing chunks
      * @param metadataService metadata service for snapshot management
-     * @param scanner filesystem scanner for discovering files
-     * @param chunker file chunker for processing files
+     * @param scanner         filesystem scanner for discovering files
+     * @param chunker         file chunker for processing files
      */
     public BackupService(ContentStore contentStore, MetadataService metadataService,
-                        FilesystemScanner scanner, FileChunker chunker) {
+            FilesystemScanner scanner, FileChunker chunker) {
         this.contentStore = contentStore;
         this.metadataService = metadataService;
         this.scanner = scanner;
@@ -65,7 +63,7 @@ public class BackupService {
      * Backs up a directory to content store.
      *
      * @param sourceDir directory to backup
-     * @param options backup options
+     * @param options   backup options
      * @return future that completes with snapshot ID
      */
     public CompletableFuture<BackupResult> backup(Path sourceDir, BackupOptions options) {
@@ -91,7 +89,7 @@ public class BackupService {
                         .withMaxDepth(options.getMaxDepth());
 
                 // Configure chunking options
-                ChunkingOptions chunkingOptions = new ChunkingOptions()
+                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
                         .withChunkSize(options.getChunkSize())
                         .withDetectSparseFiles(true);
 
@@ -99,7 +97,8 @@ public class BackupService {
                 FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
 
                 // Process directory
-                FileProcessor.ProcessingResult result = processor.processDirectory(sourceDir, scanOptions).get();
+                FileProcessor.ProcessingResult result = processor
+                        .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
 
                 // Create snapshot
                 String snapshotId = options.getSnapshotName() != null
@@ -110,7 +109,7 @@ public class BackupService {
                         ? options.getDescription()
                         : "Backup created on " + Instant.now();
 
-                Snapshot snapshot = metadataService.createSnapshot(snapshotId, description);
+                metadataService.createSnapshot(snapshotId, description);
 
                 LOGGER.info(String.format("Backup completed successfully: %s", snapshotId));
 
@@ -141,8 +140,8 @@ public class BackupService {
         private final String error;
 
         private BackupResult(String snapshotId, int filesProcessed, long totalBytesProcessed,
-                          int chunksCreated, int filesWithErrors, boolean integrityVerified,
-                          boolean success, String error) {
+                int chunksCreated, int filesWithErrors, boolean integrityVerified,
+                boolean success, String error) {
             this.snapshotId = snapshotId;
             this.filesProcessed = filesProcessed;
             this.totalBytesProcessed = totalBytesProcessed;
@@ -154,9 +153,9 @@ public class BackupService {
         }
 
         public static BackupResult success(String snapshotId, int filesProcessed, long totalBytesProcessed,
-                                      int chunksCreated, boolean integrityVerified) {
+                int chunksCreated, boolean integrityVerified) {
             return new BackupResult(snapshotId, filesProcessed, totalBytesProcessed, chunksCreated, 0,
-                integrityVerified, true, null);
+                    integrityVerified, true, null);
         }
 
         public static BackupResult failure(String error) {

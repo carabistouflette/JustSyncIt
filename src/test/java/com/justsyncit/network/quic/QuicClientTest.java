@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Timeout;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,6 +64,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should start and stop successfully")
     void testStartStop() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -78,6 +80,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should not start twice")
     void testStartTwice() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -91,6 +94,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should handle connection events")
     void testConnectionEvents() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -127,6 +131,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should handle message events")
     void testMessageEvents() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -161,6 +166,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should handle error events")
     void testErrorEvents() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -195,6 +201,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should report connection status correctly")
     void testConnectionStatus() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -212,6 +219,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should handle listener management")
     void testListenerManagement() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -235,6 +243,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Client should validate null listeners")
     void testNullListenerValidation() {
         assertThrows(NullPointerException.class, () ->
@@ -243,6 +252,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should connect to server asynchronously")
     void testAsyncConnection() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -256,6 +266,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should create streams asynchronously")
     void testAsyncStreamCreation() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -269,6 +280,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should send messages asynchronously")
     void testAsyncMessageSending() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {
@@ -283,6 +295,7 @@ public class QuicClientTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Client should disconnect asynchronously")
     void testAsyncDisconnection() throws InterruptedException, java.util.concurrent.ExecutionException,
             java.util.concurrent.TimeoutException {

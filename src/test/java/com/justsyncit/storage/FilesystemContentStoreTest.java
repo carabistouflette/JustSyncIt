@@ -23,6 +23,7 @@ import com.justsyncit.hash.HashingException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -31,6 +32,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -88,6 +90,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testStoreChunkNewChunk() throws IOException, HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -107,6 +110,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testStoreChunkExistingChunk() throws IOException, HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -126,18 +130,21 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testStoreChunkNullData() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.storeChunk(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testStoreChunkEmptyData() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> contentStore.storeChunk(new byte[0]));
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRetrieveChunkExistingChunk() throws IOException, StorageIntegrityException, HashingException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -165,6 +172,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRetrieveChunkNonExistentChunk() throws IOException, StorageIntegrityException, HashingException {
         // Arrange
         String hash = "nonexistent";
@@ -177,10 +185,11 @@ class FilesystemContentStoreTest {
         // Assert
         assertNull(result);
         verify(mockChunkIndex).getChunkPath(hash);
-        verify(mockBlake3Service, never()).hashBuffer(any());
+        verify(mockBlake3Service, never()).hashBuffer((byte[]) any());
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRetrieveChunkIntegrityFailure() throws IOException, HashingException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -204,6 +213,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExistsChunkTrue() throws IOException {
         // Arrange
         String hash = "abcdef1234567890";
@@ -219,6 +229,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExistsChunkFalse() throws IOException {
         // Arrange
         String hash = "nonexistent";
@@ -234,6 +245,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testGetChunkCount() throws IOException {
         // Arrange
         long expectedCount = 42L;
@@ -249,6 +261,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testGarbageCollect() throws IOException {
         // Arrange
         Set<String> activeHashes = new HashSet<>();
@@ -274,6 +287,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testGetStats() throws IOException {
         // Arrange
         long expectedChunkCount = 10L;
@@ -291,6 +305,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testClose() throws IOException, HashingException {
         // Act
         contentStore.close();
@@ -300,6 +315,7 @@ class FilesystemContentStoreTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testOperationsAfterClose() throws IOException, HashingException {
         // Arrange
         contentStore.close();

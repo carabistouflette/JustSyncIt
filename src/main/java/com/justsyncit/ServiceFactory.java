@@ -341,4 +341,135 @@ public class ServiceFactory {
     private ApplicationInfoDisplay createInfoDisplay() {
         return new ConsoleInfoDisplay();
     }
+
+    /**
+     * Creates an async backup service with all dependencies.
+     *
+     * @param contentStore content store for storing chunks
+     * @param metadataService metadata service for snapshot management
+     * @param blake3Service BLAKE3 service for integrity verification
+     * @return a configured async BackupService instance
+     * @throws ServiceException if service creation fails
+     */
+    public com.justsyncit.backup.BackupService createAsyncBackupService(ContentStore contentStore, MetadataService metadataService,
+                                                  Blake3Service blake3Service) throws ServiceException {
+        try {
+            // Create async components
+            com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl.create();
+            com.justsyncit.scanner.ThreadPoolManager threadPoolManager = com.justsyncit.scanner.ThreadPoolManager.getInstance();
+            com.justsyncit.scanner.AsyncFilesystemScanner asyncScanner = new com.justsyncit.scanner.AsyncFilesystemScannerImpl(threadPoolManager, bufferPool);
+            com.justsyncit.scanner.AsyncFileChunker asyncChunker = com.justsyncit.scanner.AsyncFileChunkerImpl.create(blake3Service);
+            
+            return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner, asyncChunker);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create async backup service", e);
+        }
+    }
+
+    /**
+     * Creates an async backup service with batch processing capabilities.
+     *
+     * @param contentStore content store for storing chunks
+     * @param metadataService metadata service for snapshot management
+     * @param blake3Service BLAKE3 service for integrity verification
+     * @return a configured async BackupService instance with batch processing
+     * @throws ServiceException if service creation fails
+     */
+    public com.justsyncit.backup.BackupService createBatchAsyncBackupService(ContentStore contentStore, MetadataService metadataService,
+                                                         Blake3Service blake3Service) throws ServiceException {
+        try {
+            // Create async components with batch processing
+            com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl.create();
+            com.justsyncit.scanner.ThreadPoolManager threadPoolManager = com.justsyncit.scanner.ThreadPoolManager.getInstance();
+            com.justsyncit.scanner.AsyncFilesystemScanner asyncScanner = new com.justsyncit.scanner.AsyncFilesystemScannerImpl(threadPoolManager, bufferPool);
+            com.justsyncit.scanner.AsyncFileChunker delegateChunker = com.justsyncit.scanner.AsyncFileChunkerImpl.create(blake3Service);
+            com.justsyncit.scanner.AsyncBatchProcessor batchProcessor = com.justsyncit.scanner.AsyncFileBatchProcessorImpl.create(delegateChunker, bufferPool, threadPoolManager);
+            com.justsyncit.scanner.BatchConfiguration batchConfig = new com.justsyncit.scanner.BatchConfiguration();
+            com.justsyncit.scanner.AsyncFileChunker batchAsyncChunker = new com.justsyncit.scanner.BatchAwareAsyncFileChunker(delegateChunker, batchProcessor, batchConfig);
+            
+            return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner, batchAsyncChunker);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create batch async backup service", e);
+        }
+    }
+
+    /**
+     * Creates an async filesystem scanner.
+     *
+     * @return configured async filesystem scanner
+     * @throws ServiceException if scanner creation fails
+     */
+    public com.justsyncit.scanner.AsyncFilesystemScanner createAsyncFilesystemScanner() throws ServiceException {
+        try {
+            com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl.create();
+            com.justsyncit.scanner.ThreadPoolManager threadPoolManager = com.justsyncit.scanner.ThreadPoolManager.getInstance();
+            return new com.justsyncit.scanner.AsyncFilesystemScannerImpl(threadPoolManager, bufferPool);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create async filesystem scanner", e);
+        }
+    }
+
+    /**
+     * Creates an async file chunker.
+     *
+     * @param blake3Service BLAKE3 service for hashing
+     * @return configured async file chunker
+     * @throws ServiceException if chunker creation fails
+     */
+    public com.justsyncit.scanner.AsyncFileChunker createAsyncFileChunker(Blake3Service blake3Service) throws ServiceException {
+        try {
+            com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl.create();
+            return com.justsyncit.scanner.AsyncFileChunkerImpl.create(blake3Service);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create async file chunker", e);
+        }
+    }
+
+    /**
+     * Creates a batch-aware async file chunker.
+     *
+     * @param blake3Service BLAKE3 service for hashing
+     * @return configured batch-aware async file chunker
+     * @throws ServiceException if chunker creation fails
+     */
+    public com.justsyncit.scanner.AsyncFileChunker createBatchAsyncFileChunker(Blake3Service blake3Service) throws ServiceException {
+        try {
+            com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl.create();
+            com.justsyncit.scanner.ThreadPoolManager threadPoolManager = com.justsyncit.scanner.ThreadPoolManager.getInstance();
+            com.justsyncit.scanner.AsyncFileChunker delegateChunker = com.justsyncit.scanner.AsyncFileChunkerImpl.create(blake3Service);
+            com.justsyncit.scanner.AsyncBatchProcessor batchProcessor = com.justsyncit.scanner.AsyncFileBatchProcessorImpl.create(delegateChunker, bufferPool, threadPoolManager);
+            com.justsyncit.scanner.BatchConfiguration batchConfig = new com.justsyncit.scanner.BatchConfiguration();
+            return new com.justsyncit.scanner.BatchAwareAsyncFileChunker(delegateChunker, batchProcessor, batchConfig);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create batch async file chunker", e);
+        }
+    }
+
+    /**
+     * Creates an async buffer pool.
+     *
+     * @return configured async buffer pool
+     * @throws ServiceException if pool creation fails
+     */
+    public com.justsyncit.scanner.AsyncByteBufferPool createAsyncByteBufferPool() throws ServiceException {
+        try {
+            return com.justsyncit.scanner.AsyncByteBufferPoolImpl.create();
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create async buffer pool", e);
+        }
+    }
+
+    /**
+     * Creates a thread pool manager.
+     *
+     * @return configured thread pool manager
+     * @throws ServiceException if manager creation fails
+     */
+    public com.justsyncit.scanner.ThreadPoolManager createThreadPoolManager() throws ServiceException {
+        try {
+            return com.justsyncit.scanner.ThreadPoolManager.getInstance();
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create thread pool manager", e);
+        }
+    }
 }

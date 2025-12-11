@@ -24,6 +24,7 @@ import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -33,6 +34,7 @@ import java.io.PrintStream;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -70,21 +72,25 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetName() {
         assertEquals("snapshots", command.getName());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetDescription() {
         assertEquals("List all available snapshots", command.getDescription());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testGetUsage() {
         assertEquals("snapshots list [options]", command.getUsage());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithHelp() {
         boolean result = command.execute(new String[]{"--help"}, context);
         assertTrue(result);
@@ -94,6 +100,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithMissingSubcommand() {
         boolean result = command.execute(new String[]{}, context);
         assertFalse(result);
@@ -104,6 +111,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithInvalidSubcommand() {
         boolean result = command.execute(new String[]{"invalid"}, context);
         assertFalse(result);
@@ -114,6 +122,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithValidList() throws Exception {
         // Mock snapshots
         Snapshot snapshot1 = new Snapshot("snap1", "Snapshot 1", "First snapshot", 
@@ -135,6 +144,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithVerboseOption() throws Exception {
         // Mock snapshots
         Snapshot snapshot = new Snapshot("snap1", "Snapshot 1", "First snapshot", 
@@ -152,6 +162,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithSortBySizeOption() throws Exception {
         // Mock snapshots
         Snapshot snapshot1 = new Snapshot("snap1", "Small Snapshot", "Small", 
@@ -173,6 +184,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithUnknownOption() {
         boolean result = command.execute(new String[]{"list", "--unknown"}, context);
         assertFalse(result);
@@ -183,6 +195,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithEmptySnapshotList() throws Exception {
         when(metadataService.listSnapshots()).thenReturn(Arrays.asList());
         
@@ -194,6 +207,7 @@ class SnapshotsListCommandTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithServiceException() throws Exception {
         when(metadataService.listSnapshots()).thenThrow(new RuntimeException("Service error"));
         

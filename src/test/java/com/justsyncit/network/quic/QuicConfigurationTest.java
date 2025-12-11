@@ -21,6 +21,7 @@ package com.justsyncit.network.quic;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Timeout;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -31,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Unit tests for QuicConfiguration.
@@ -47,6 +49,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Default configuration should have sensible values")
     void testDefaultConfiguration() {
         QuicConfiguration config = QuicConfiguration.defaultConfiguration();
@@ -61,6 +64,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Builder should create configuration with custom values")
     void testBuilderWithCustomValues() {
         QuicConfiguration config = builder
@@ -82,6 +86,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Builder should validate idle timeout")
     void testIdleTimeoutValidation() {
         assertThrows(IllegalArgumentException.class, () ->
@@ -99,6 +104,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Builder should validate max streams")
     void testMaxStreamsValidation() {
         assertThrows(IllegalArgumentException.class, () ->
@@ -116,6 +122,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Builder should validate max stream data")
     void testMaxStreamDataValidation() {
         assertThrows(IllegalArgumentException.class, () ->
@@ -133,6 +140,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Configuration should be immutable")
     void testConfigurationImmutability() {
         QuicConfiguration original = QuicConfiguration.defaultConfiguration();
@@ -148,6 +156,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Configuration should have meaningful toString")
     void testToString() {
         QuicConfiguration config = QuicConfiguration.defaultConfiguration();
@@ -161,6 +170,7 @@ public class QuicConfigurationTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Configuration should support TLS configuration")
     void testTlsConfiguration() {
         QuicTlsConfiguration tlsConfig = QuicTlsConfiguration.defaultConfiguration();

@@ -20,6 +20,8 @@ package com.justsyncit.restore;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Timeout;
+import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -39,6 +41,7 @@ public class RestoreOptionsTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testDefaultOptions() {
         RestoreOptions options = builder.build();
         assertFalse(options.isOverwriteExisting());
@@ -50,42 +53,49 @@ public class RestoreOptionsTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testBuilderWithOverwriteExisting() {
         RestoreOptions options = builder.overwriteExisting(true).build();
         assertTrue(options.isOverwriteExisting());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testBuilderWithBackupExisting() {
         RestoreOptions options = builder.backupExisting(true).build();
         assertTrue(options.isBackupExisting());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testBuilderWithVerifyIntegrity() {
         RestoreOptions options = builder.verifyIntegrity(false).build();
         assertFalse(options.isVerifyIntegrity());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testBuilderWithPreserveAttributes() {
         RestoreOptions options = builder.preserveAttributes(false).build();
         assertFalse(options.isPreserveAttributes());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testBuilderWithIncludePattern() {
         RestoreOptions options = builder.includePattern("*.txt").build();
         assertEquals("*.txt", options.getIncludePatternString());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testBuilderWithExcludePattern() {
         RestoreOptions options = builder.excludePattern("*.tmp").build();
         assertEquals("*.tmp", options.getExcludePatternString());
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testBuilderWithMultipleOptions() {
         RestoreOptions options = builder
                 .overwriteExisting(true)
@@ -104,6 +114,7 @@ public class RestoreOptionsTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testToString() {
         RestoreOptions options = builder
                 .overwriteExisting(true)

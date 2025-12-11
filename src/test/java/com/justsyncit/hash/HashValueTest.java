@@ -7,8 +7,10 @@ package com.justsyncit.hash;
 
 import com.justsyncit.TestServiceFactory;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import static java.util.Arrays.fill;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Test to get actual hash values for our implementation.
@@ -16,6 +18,7 @@ import static java.util.Arrays.fill;
 class HashValueTest {
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void getHashValues() throws HashingException {
         Blake3Service service = TestServiceFactory.createBlake3Service();
 
