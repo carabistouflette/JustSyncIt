@@ -200,8 +200,8 @@ sourceSets {
         resources {
             srcDirs = ['src/performanceTest/resources']
         }
-        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
-        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath + sourceSets.integrationTest.output
+        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath + sourceSets.integrationTest.output
     }
     
     // Benchmark tests (very slow, exclude from CI)
