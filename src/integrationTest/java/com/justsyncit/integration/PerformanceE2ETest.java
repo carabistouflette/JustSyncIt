@@ -21,11 +21,13 @@ package com.justsyncit.integration;
 import com.justsyncit.storage.ContentStoreStats;
 import com.justsyncit.storage.metadata.MetadataStats;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -50,6 +52,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 2, unit = TimeUnit.MINUTES)
     void testBackupPerformanceWithSmallFiles() throws Exception {
         // Create dataset with many small files
         createPerformanceDataset(100, 10 * 1024); // 100 files, up to 10KB each
@@ -93,6 +96,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void testBackupPerformanceWithLargeFiles() throws Exception {
         // Create dataset with fewer large files
         createPerformanceDataset(10, 1024 * 1024); // 10 files, up to 1MB each
@@ -136,6 +140,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 2, unit = TimeUnit.MINUTES)
     void testRestorePerformance() throws Exception {
         // Create test dataset
         createPerformanceDataset(50, 100 * 1024); // 50 files, up to 100KB each
@@ -180,6 +185,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 2, unit = TimeUnit.MINUTES)
     void testDeduplicationPerformance() throws Exception {
         // Create dataset with many duplicate files
         createDuplicateDataset();
@@ -237,6 +243,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void testConcurrentBackupPerformance() throws Exception {
         // Create multiple datasets for concurrent testing
         List<String> snapshotIds = new ArrayList<>();
@@ -289,6 +296,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 1, unit = TimeUnit.MINUTES)
     void testNetworkPerformance() throws Exception {
         // Create test dataset
         createPerformanceDataset(30, 200 * 1024); // 30 files, up to 200KB each
@@ -316,6 +324,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void testMemoryUsagePerformance() throws Exception {
         // Create dataset that tests memory usage
         createPerformanceDataset(100, 500 * 1024); // 100 files, up to 500KB each
@@ -351,6 +360,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 4, unit = TimeUnit.MINUTES)
     void testScalabilityPerformance() throws Exception {
         // Test scalability with increasing dataset sizes
         int[] fileCounts = {10, 50, 100};
@@ -413,6 +423,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 2, unit = TimeUnit.MINUTES)
     void testPerformanceWithSpecialCharacters() throws Exception {
         // Create dataset with special characters
         createSpecialCharacterDataset();
@@ -457,6 +468,7 @@ public class PerformanceE2ETest extends E2ETestBase {
     }
 
     @Test
+    @Timeout(value = 3, unit = TimeUnit.MINUTES)
     void testPerformanceMetrics() throws Exception {
         // Create comprehensive dataset
         createPerformanceDataset(75, 150 * 1024); // 75 files, up to 150KB each

@@ -37,7 +37,9 @@ import com.justsyncit.integration.util.NetworkSimulationUtil;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+import java.util.concurrent.TimeUnit;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -88,6 +90,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testBackupAndRestoreSingleFile() throws Exception {
         // Create test file
         Path sourceDir = tempDir.resolve("source");
@@ -146,6 +149,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 45, unit = TimeUnit.SECONDS)
     void testBackupAndRestoreMultipleFiles() throws Exception {
         // Create test directory with multiple files
         Path sourceDir = tempDir.resolve("source");
@@ -208,6 +212,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testBackupCommandIntegration() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -227,6 +232,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testRestoreCommandIntegration() throws Exception {
         // Create test directory and file
         Path sourceDir = tempDir.resolve("source");
@@ -247,6 +253,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testDeduplicationEffectiveness() throws Exception {
         // Create test directory with duplicate files
         Path sourceDir = tempDir.resolve("source");
@@ -282,6 +289,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testErrorHandlingForInvalidSource() throws Exception {
         // Try to backup non-existent directory
         Path nonExistentDir = tempDir.resolve("does-not-exist");
@@ -295,6 +303,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testErrorHandlingForInvalidSnapshot() throws Exception {
         // Try to restore non-existent snapshot
         Path restoreDir = tempDir.resolve("restore");
@@ -309,6 +318,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testRemoteBackupOptions() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -337,6 +347,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testRemoteRestoreOptions() throws Exception {
         // Create test directory and file
         Path sourceDir = tempDir.resolve("source");
@@ -376,6 +387,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testNetworkOptionsValidation() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -421,6 +433,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testBackupOptionsWithNetworkSettings() throws Exception {
         // Test that BackupOptions correctly handles network settings
         BackupOptions options = new BackupOptions.Builder()
@@ -439,6 +452,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRestoreOptionsWithNetworkSettings() throws Exception {
         // Test that RestoreOptions correctly handles network settings
         RestoreOptions options = new RestoreOptions.Builder()
@@ -457,6 +471,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testNetworkConnectivityValidation() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -478,6 +493,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testNetworkSimulation() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -495,6 +511,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     void testCrossProtocolBackupRestore() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -553,6 +570,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testNetworkErrorHandling() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -590,6 +608,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
     void testConcurrentNetworkOperations() throws Exception {
         // Create test directories
         Path sourceDir1 = tempDir.resolve("source1");
@@ -686,6 +705,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
     void testNetworkPerformanceMetrics() throws Exception {
         // Create test directory with performance dataset
         Path sourceDir = tempDir.resolve("source");
@@ -750,6 +770,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     void testStorageAndNetworkIntegration() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");

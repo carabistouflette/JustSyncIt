@@ -49,13 +49,13 @@ public abstract class E2ETestBase {
 
     @TempDir
     protected Path tempDir;
-    
-    @TempDir 
+
+    @TempDir
     protected Path storageDir;
-    
+
     @TempDir
     protected Path sourceDir;
-    
+
     @TempDir
     protected Path restoreDir;
 
@@ -67,7 +67,7 @@ public abstract class E2ETestBase {
     protected RestoreService restoreService;
     protected NetworkService networkService;
     protected NetworkService networkServiceWithSimulation;
-    
+
     protected List<ResourceWrapper<?>> resourcesToCleanup = new ArrayList<>();
 
     @BeforeEach
@@ -80,7 +80,7 @@ public abstract class E2ETestBase {
         restoreService = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
         networkService = serviceFactory.createNetworkService();
         networkServiceWithSimulation = NetworkSimulationUtil.createExcellentNetworkSimulator(networkService);
-        
+
         resourcesToCleanup.add(new ResourceWrapper<>(contentStore));
         resourcesToCleanup.add(new ResourceWrapper<>(metadataService));
         resourcesToCleanup.add(new ResourceWrapper<>(networkService));
@@ -94,7 +94,7 @@ public abstract class E2ETestBase {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
-        
+
         // Clean up resources in reverse order of creation
         for (int i = resourcesToCleanup.size() - 1; i >= 0; i--) {
             try {
@@ -107,7 +107,7 @@ public abstract class E2ETestBase {
             }
         }
         resourcesToCleanup.clear();
-        
+
         // Additional cleanup wait
         try {
             Thread.sleep(1000); // Ensure cleanup completes
@@ -139,6 +139,23 @@ public abstract class E2ETestBase {
 
     protected void createPermissionDataset() throws IOException {
         TestDataGenerator.createPermissionDataset(sourceDir);
+    }
+
+    /**
+     * Cleans up a directory by removing all files.
+     */
+    protected void cleanupDirectory(Path directory) throws IOException {
+        if (Files.exists(directory)) {
+            Files.walk(directory)
+                    .filter(Files::isRegularFile)
+                    .forEach(file -> {
+                        try {
+                            Files.delete(file);
+                        } catch (IOException e) {
+                            // Ignore cleanup errors
+                        }
+                    });
+        }
     }
 
     // Backup and restore utility methods
@@ -176,7 +193,8 @@ public abstract class E2ETestBase {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(snapshotId, restoreDir, restoreOptions);
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(snapshotId, restoreDir,
+                restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
 
         assertTrue(restoreResult.isSuccess(), "Restore should succeed");
@@ -209,7 +227,7 @@ public abstract class E2ETestBase {
         long expectedFiles = Files.walk(expected)
                 .filter(Files::isRegularFile)
                 .count();
-        
+
         long actualFiles = Files.walk(actual)
                 .filter(Files::isRegularFile)
                 .count();
@@ -235,12 +253,12 @@ public abstract class E2ETestBase {
     }
 
     protected void assertSnapshotExists(String snapshotId) throws IOException {
-        assertTrue(metadataService.getSnapshot(snapshotId).isPresent(), 
+        assertTrue(metadataService.getSnapshot(snapshotId).isPresent(),
                 "Snapshot should exist: " + snapshotId);
     }
 
     protected void assertSnapshotDoesNotExist(String snapshotId) throws IOException {
-        assertFalse(metadataService.getSnapshot(snapshotId).isPresent(), 
+        assertFalse(metadataService.getSnapshot(snapshotId).isPresent(),
                 "Snapshot should not exist: " + snapshotId);
     }
 
@@ -252,7 +270,8 @@ public abstract class E2ETestBase {
     }
 
     protected double calculateThroughput(long bytes, long timeMs) {
-        if (timeMs == 0) return 0;
+        if (timeMs == 0)
+            return 0;
         return (bytes / 1024.0 / 1024.0) / (timeMs / 1000.0); // MB/s
     }
 
@@ -263,15 +282,16 @@ public abstract class E2ETestBase {
     }
 
     /**
-     * Wrapper for resources that don't implement Closeable but have close() methods.
+     * Wrapper for resources that don't implement Closeable but have close()
+     * methods.
      */
     private static class ResourceWrapper<T> implements java.io.Closeable {
         private final T resource;
-        
+
         public ResourceWrapper(T resource) {
             this.resource = resource;
         }
-        
+
         @Override
         @SuppressWarnings("unchecked")
         public void close() throws IOException {
@@ -292,8 +312,7 @@ public abstract class E2ETestBase {
     // Network simulation helpers
     protected void enablePoorNetworkSimulation() {
         if (networkServiceWithSimulation instanceof NetworkSimulationUtil.NetworkConditionSimulator) {
-            NetworkSimulationUtil.NetworkConditionSimulator simulator = 
-                    (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
+            NetworkSimulationUtil.NetworkConditionSimulator simulator = (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
             simulator.enableLatencySimulation(500);
             simulator.enablePacketLossSimulation(15);
             simulator.enableConnectionFailureSimulation(10);
@@ -302,8 +321,7 @@ public abstract class E2ETestBase {
 
     protected void disableNetworkSimulation() {
         if (networkServiceWithSimulation instanceof NetworkSimulationUtil.NetworkConditionSimulator) {
-            NetworkSimulationUtil.NetworkConditionSimulator simulator = 
-                    (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
+            NetworkSimulationUtil.NetworkConditionSimulator simulator = (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
             simulator.disableLatencySimulation();
             simulator.disablePacketLossSimulation();
             simulator.disableConnectionFailureSimulation();
@@ -314,7 +332,7 @@ public abstract class E2ETestBase {
     protected void testWithBothTransports(TransportTestOperation operation) throws Exception {
         // Test with TCP
         operation.run(TransportType.TCP);
-        
+
         // Test with QUIC
         operation.run(TransportType.QUIC);
     }
