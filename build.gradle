@@ -666,13 +666,30 @@ fi
 
 # Get the directory where this script is located
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="\$SCRIPT_DIR/../lib"
 
-# Find the JAR file
-JAR_FILE=\$(find "\$LIB_DIR" -name "justsyncit-*-all.jar" | head -n 1)
+# Find the JAR file - check multiple locations for robustness
+JAR_FILE=""
+
+# 1. Standard layout (../lib)
+if [ -d "\$SCRIPT_DIR/../lib" ]; then
+    JAR_FILE=\$(find "\$SCRIPT_DIR/../lib" -name "justsyncit-*-all.jar" | head -n 1)
+fi
+
+# 2. Local/Flat layout (./lib)
+if [ -z "\$JAR_FILE" ] && [ -d "\$SCRIPT_DIR/lib" ]; then
+    JAR_FILE=\$(find "\$SCRIPT_DIR/lib" -name "justsyncit-*-all.jar" | head -n 1)
+fi
+
+# 3. Same directory (.)
+if [ -z "\$JAR_FILE" ]; then
+    JAR_FILE=\$(find "\$SCRIPT_DIR" -maxdepth 1 -name "justsyncit-*-all.jar" | head -n 1)
+fi
 
 if [ -z "\$JAR_FILE" ]; then
-    echo "Error: JustSyncIt JAR file not found in \$LIB_DIR"
+    echo "Error: JustSyncIt JAR file (justsyncit-*-all.jar) not found in:"
+    echo "  - \$SCRIPT_DIR/../lib"
+    echo "  - \$SCRIPT_DIR/lib"
+    echo "  - \$SCRIPT_DIR"
     exit 1
 fi
 
