@@ -19,6 +19,7 @@
 package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -34,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class CompletionHandlerTest {
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerSuccess() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -62,6 +64,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerFailure() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -91,6 +94,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerWithCompletableFuture() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -129,6 +133,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerWithCompletableFutureFailure() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -168,6 +173,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerChaining() throws InterruptedException {
         CountDownLatch latch1 = new CountDownLatch(1);
         CountDownLatch latch2 = new CountDownLatch(1);
@@ -214,6 +220,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerWithNullResult() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -242,6 +249,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerWithNullException() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -270,6 +278,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerRuntimeException() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -299,6 +308,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerCheckedException() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -328,6 +338,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerMultipleCalls() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(2);
         AtomicReference<String> resultRef = new AtomicReference<>();
@@ -357,6 +368,7 @@ class CompletionHandlerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCompletionHandlerExceptionInCallback() throws InterruptedException {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> resultRef = new AtomicReference<>();

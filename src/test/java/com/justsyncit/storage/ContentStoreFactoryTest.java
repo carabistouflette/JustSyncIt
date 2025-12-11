@@ -20,11 +20,13 @@ package com.justsyncit.storage;
 
 import com.justsyncit.hash.Blake3Service;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -43,6 +45,7 @@ class ContentStoreFactoryTest {
     Path tempDir;
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithValidParameters() throws java.io.IOException {
         // Arrange
         MockitoAnnotations.openMocks(this);
@@ -55,6 +58,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithNullStorageDirectory() {
         // Arrange
         MockitoAnnotations.openMocks(this);
@@ -65,6 +69,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithNullBlake3Service() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class,
@@ -72,6 +77,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateMemoryStoreWithValidVerifier() {
         // Arrange
         IntegrityVerifier mockVerifier = new IntegrityVerifier() {
@@ -99,6 +105,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateMemoryStoreWithNullVerifier() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class,
@@ -106,6 +113,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateMemoryStoreWithValidBlake3Service() {
         // Arrange
         MockitoAnnotations.openMocks(this);
@@ -118,6 +126,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateMemoryStoreWithNullBlake3Service() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class,
@@ -125,6 +134,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithCustomComponents() throws java.io.IOException {
         // Arrange
         MockitoAnnotations.openMocks(this);
@@ -206,6 +216,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithCustomComponentsNullStorageDirectory() {
         // Arrange
         IntegrityVerifier mockVerifier = new IntegrityVerifier() {
@@ -283,6 +294,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithCustomComponentsNullChunkIndex() {
         // Arrange
         IntegrityVerifier mockVerifier = new IntegrityVerifier() {
@@ -319,6 +331,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithCustomComponentsNullIntegrityVerifier() {
         // Arrange
         ChunkPathGenerator mockPathGenerator = new ChunkPathGenerator() {
@@ -380,6 +393,7 @@ class ContentStoreFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateFilesystemStoreWithCustomComponentsNullPathGenerator() {
         // Arrange
         IntegrityVerifier mockVerifier = new IntegrityVerifier() {

@@ -28,13 +28,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Builder for creating complex async test scenarios.
- * Provides fluent API for building comprehensive test scenarios with concurrent operations,
+ * Provides fluent API for building comprehensive test scenarios with concurrent
+ * operations,
  * timing constraints, and result validation.
  */
 public final class AsyncTestScenarioBuilder {
@@ -144,15 +143,14 @@ public final class AsyncTestScenarioBuilder {
      */
     public AsyncTestScenario build() {
         return new AsyncTestScenario(
-            concurrentOperations,
-            sequentialSteps,
-            timingConstraints,
-            validationRules,
-            globalTimeout,
-            enableMetrics,
-            enableDetailedLogging,
-            maxConcurrentThreads
-        );
+                concurrentOperations,
+                sequentialSteps,
+                timingConstraints,
+                validationRules,
+                globalTimeout,
+                enableMetrics,
+                enableDetailedLogging,
+                maxConcurrentThreads);
     }
 
     /**
@@ -170,15 +168,37 @@ public final class AsyncTestScenarioBuilder {
             this.operation = operation;
         }
 
-        public String getName() { return name; }
-        public Runnable getOperation() { return operation; }
-        public boolean isCompleted() { return completed; }
-        public Exception getError() { return error; }
-        public long getExecutionTimeMs() { return executionTimeMs.get(); }
+        public String getName() {
+            return name;
+        }
 
-        void markCompleted() { this.completed = true; }
-        void setError(Exception error) { this.error = error; }
-        void setExecutionTime(long timeMs) { this.executionTimeMs.set(timeMs); }
+        public Runnable getOperation() {
+            return operation;
+        }
+
+        public boolean isCompleted() {
+            return completed;
+        }
+
+        public Exception getError() {
+            return error;
+        }
+
+        public long getExecutionTimeMs() {
+            return executionTimeMs.get();
+        }
+
+        void markCompleted() {
+            this.completed = true;
+        }
+
+        void setError(Exception error) {
+            this.error = error;
+        }
+
+        void setExecutionTime(long timeMs) {
+            this.executionTimeMs.set(timeMs);
+        }
     }
 
     /**
@@ -196,15 +216,37 @@ public final class AsyncTestScenarioBuilder {
             this.step = step;
         }
 
-        public String getName() { return name; }
-        public Runnable getStep() { return step; }
-        public boolean isCompleted() { return completed; }
-        public Exception getError() { return error; }
-        public long getExecutionTimeMs() { return executionTimeMs.get(); }
+        public String getName() {
+            return name;
+        }
 
-        void markCompleted() { this.completed = true; }
-        void setError(Exception error) { this.error = error; }
-        void setExecutionTime(long timeMs) { this.executionTimeMs.set(timeMs); }
+        public Runnable getStep() {
+            return step;
+        }
+
+        public boolean isCompleted() {
+            return completed;
+        }
+
+        public Exception getError() {
+            return error;
+        }
+
+        public long getExecutionTimeMs() {
+            return executionTimeMs.get();
+        }
+
+        void markCompleted() {
+            this.completed = true;
+        }
+
+        void setError(Exception error) {
+            this.error = error;
+        }
+
+        void setExecutionTime(long timeMs) {
+            this.executionTimeMs.set(timeMs);
+        }
     }
 
     /**
@@ -221,13 +263,29 @@ public final class AsyncTestScenarioBuilder {
             this.maxDuration = maxDuration;
         }
 
-        public String getName() { return name; }
-        public Duration getMaxDuration() { return maxDuration; }
-        public boolean isSatisfied() { return satisfied; }
-        public long getActualDurationMs() { return actualDurationMs.get(); }
+        public String getName() {
+            return name;
+        }
 
-        void setSatisfied(boolean satisfied) { this.satisfied = satisfied; }
-        void setActualDuration(long durationMs) { this.actualDurationMs.set(durationMs); }
+        public Duration getMaxDuration() {
+            return maxDuration;
+        }
+
+        public boolean isSatisfied() {
+            return satisfied;
+        }
+
+        public long getActualDurationMs() {
+            return actualDurationMs.get();
+        }
+
+        void setSatisfied(boolean satisfied) {
+            this.satisfied = satisfied;
+        }
+
+        void setActualDuration(long durationMs) {
+            this.actualDurationMs.set(durationMs);
+        }
     }
 
     /**
@@ -244,13 +302,29 @@ public final class AsyncTestScenarioBuilder {
             this.validator = validator;
         }
 
-        public String getName() { return name; }
-        public ValidationFunction getValidator() { return validator; }
-        public boolean isSatisfied() { return satisfied; }
-        public String getErrorMessage() { return errorMessage; }
+        public String getName() {
+            return name;
+        }
 
-        void setSatisfied(boolean satisfied) { this.satisfied = satisfied; }
-        void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+        public ValidationFunction getValidator() {
+            return validator;
+        }
+
+        public boolean isSatisfied() {
+            return satisfied;
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+
+        void setSatisfied(boolean satisfied) {
+            this.satisfied = satisfied;
+        }
+
+        void setErrorMessage(String errorMessage) {
+            this.errorMessage = errorMessage;
+        }
     }
 
     /**
@@ -273,8 +347,13 @@ public final class AsyncTestScenarioBuilder {
             this.message = message;
         }
 
-        public boolean isValid() { return valid; }
-        public String getMessage() { return message; }
+        public boolean isValid() {
+            return valid;
+        }
+
+        public String getMessage() {
+            return message;
+        }
 
         public static ValidationResult valid() {
             return new ValidationResult(true, null);
@@ -299,13 +378,13 @@ public final class AsyncTestScenarioBuilder {
         private final int maxConcurrentThreads;
 
         public AsyncTestScenario(List<ConcurrentOperation> concurrentOperations,
-                                List<SequentialStep> sequentialSteps,
-                                List<TimingConstraint> timingConstraints,
-                                List<ValidationRule> validationRules,
-                                Duration globalTimeout,
-                                boolean enableMetrics,
-                                boolean enableDetailedLogging,
-                                int maxConcurrentThreads) {
+                List<SequentialStep> sequentialSteps,
+                List<TimingConstraint> timingConstraints,
+                List<ValidationRule> validationRules,
+                Duration globalTimeout,
+                boolean enableMetrics,
+                boolean enableDetailedLogging,
+                int maxConcurrentThreads) {
             this.concurrentOperations = new ArrayList<>(concurrentOperations);
             this.sequentialSteps = new ArrayList<>(sequentialSteps);
             this.timingConstraints = new ArrayList<>(timingConstraints);
@@ -338,9 +417,9 @@ public final class AsyncTestScenarioBuilder {
 
             try {
                 if (enableDetailedLogging) {
-                    System.out.println("Starting scenario execution with " + 
-                        concurrentOperations.size() + " concurrent operations and " +
-                        sequentialSteps.size() + " sequential steps");
+                    System.out.println("Starting scenario execution with " +
+                            concurrentOperations.size() + " concurrent operations and " +
+                            sequentialSteps.size() + " sequential steps");
                 }
 
                 // Execute concurrent operations
@@ -385,7 +464,7 @@ public final class AsyncTestScenarioBuilder {
             }
 
             ExecutorService executor = Executors.newFixedThreadPool(
-                Math.min(maxConcurrentThreads, concurrentOperations.size()));
+                    Math.min(maxConcurrentThreads, concurrentOperations.size()));
 
             try {
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -405,8 +484,8 @@ public final class AsyncTestScenarioBuilder {
                         } catch (Exception e) {
                             operation.setError(e);
                             if (enableDetailedLogging) {
-                                System.err.println("Failed concurrent operation: " + operation.getName() + 
-                                    " - " + e.getMessage());
+                                System.err.println("Failed concurrent operation: " + operation.getName() +
+                                        " - " + e.getMessage());
                             }
                         } finally {
                             operation.setExecutionTime(System.currentTimeMillis() - startTime);
@@ -417,7 +496,7 @@ public final class AsyncTestScenarioBuilder {
 
                 // Wait for all concurrent operations to complete
                 CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(globalTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                        .get(globalTimeout.toMillis(), TimeUnit.MILLISECONDS);
 
             } catch (Exception e) {
                 throw new RuntimeException("Concurrent operations execution failed", e);
@@ -451,8 +530,8 @@ public final class AsyncTestScenarioBuilder {
                 } catch (Exception e) {
                     step.setError(e);
                     if (enableDetailedLogging) {
-                        System.err.println("Failed sequential step: " + step.getName() + 
-                            " - " + e.getMessage());
+                        System.err.println("Failed sequential step: " + step.getName() +
+                                " - " + e.getMessage());
                     }
                     throw new RuntimeException("Sequential step failed: " + step.getName(), e);
                 } finally {
@@ -473,9 +552,9 @@ public final class AsyncTestScenarioBuilder {
 
                 if (enableDetailedLogging) {
                     System.out.println("Timing constraint '" + constraint.getName() + "': " +
-                        (constraint.isSatisfied() ? "SATISFIED" : "VIOLATED") +
-                        " (actual: " + actualDuration + "ms, max: " + 
-                        constraint.getMaxDuration().toMillis() + "ms)");
+                            (constraint.isSatisfied() ? "SATISFIED" : "VIOLATED") +
+                            " (actual: " + actualDuration + "ms, max: " +
+                            constraint.getMaxDuration().toMillis() + "ms)");
                 }
             }
 
@@ -491,8 +570,8 @@ public final class AsyncTestScenarioBuilder {
 
                     if (enableDetailedLogging) {
                         System.out.println("Validation rule '" + rule.getName() + "': " +
-                            (rule.isSatisfied() ? "SATISFIED" : "VIOLATED") +
-                            (validation.getMessage() != null ? " - " + validation.getMessage() : ""));
+                                (rule.isSatisfied() ? "SATISFIED" : "VIOLATED") +
+                                (validation.getMessage() != null ? " - " + validation.getMessage() : ""));
                     }
                 } catch (Exception e) {
                     rule.setSatisfied(false);
@@ -507,14 +586,37 @@ public final class AsyncTestScenarioBuilder {
         }
 
         // Getters
-        public List<ConcurrentOperation> getConcurrentOperations() { return concurrentOperations; }
-        public List<SequentialStep> getSequentialSteps() { return sequentialSteps; }
-        public List<TimingConstraint> getTimingConstraints() { return timingConstraints; }
-        public List<ValidationRule> getValidationRules() { return validationRules; }
-        public Duration getGlobalTimeout() { return globalTimeout; }
-        public boolean isEnableMetrics() { return enableMetrics; }
-        public boolean isEnableDetailedLogging() { return enableDetailedLogging; }
-        public int getMaxConcurrentThreads() { return maxConcurrentThreads; }
+        public List<ConcurrentOperation> getConcurrentOperations() {
+            return concurrentOperations;
+        }
+
+        public List<SequentialStep> getSequentialSteps() {
+            return sequentialSteps;
+        }
+
+        public List<TimingConstraint> getTimingConstraints() {
+            return timingConstraints;
+        }
+
+        public List<ValidationRule> getValidationRules() {
+            return validationRules;
+        }
+
+        public Duration getGlobalTimeout() {
+            return globalTimeout;
+        }
+
+        public boolean isEnableMetrics() {
+            return enableMetrics;
+        }
+
+        public boolean isEnableDetailedLogging() {
+            return enableDetailedLogging;
+        }
+
+        public int getMaxConcurrentThreads() {
+            return maxConcurrentThreads;
+        }
     }
 
     /**
@@ -537,32 +639,76 @@ public final class AsyncTestScenarioBuilder {
         }
 
         // Getters and setters
-        public Instant getStartTime() { return startTime; }
-        public Instant getEndTime() { return endTime; }
-        public Duration getDuration() { return duration; }
-        public boolean isSuccess() { return success; }
-        public String getErrorMessage() { return errorMessage; }
-        public List<ConcurrentOperation> getConcurrentOperations() { return concurrentOperations; }
-        public List<SequentialStep> getSequentialSteps() { return sequentialSteps; }
-        public List<TimingConstraint> getTimingConstraints() { return timingConstraints; }
-        public List<ValidationRule> getValidationRules() { return validationRules; }
-        public ConcurrentHashMap<String, Object> getMetrics() { return metrics; }
+        public Instant getStartTime() {
+            return startTime;
+        }
 
-        void setEndTime(Instant endTime) { this.endTime = endTime; }
-        void setDuration(Duration duration) { this.duration = duration; }
-        void setSuccess(boolean success) { this.success = success; }
-        void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
-        void setConcurrentOperations(List<ConcurrentOperation> concurrentOperations) { 
-            this.concurrentOperations = concurrentOperations; 
+        public Instant getEndTime() {
+            return endTime;
         }
-        void setSequentialSteps(List<SequentialStep> sequentialSteps) { 
-            this.sequentialSteps = sequentialSteps; 
+
+        public Duration getDuration() {
+            return duration;
         }
-        void setTimingConstraints(List<TimingConstraint> timingConstraints) { 
-            this.timingConstraints = timingConstraints; 
+
+        public boolean isSuccess() {
+            return success;
         }
-        void setValidationRules(List<ValidationRule> validationRules) { 
-            this.validationRules = validationRules; 
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+
+        public List<ConcurrentOperation> getConcurrentOperations() {
+            return concurrentOperations;
+        }
+
+        public List<SequentialStep> getSequentialSteps() {
+            return sequentialSteps;
+        }
+
+        public List<TimingConstraint> getTimingConstraints() {
+            return timingConstraints;
+        }
+
+        public List<ValidationRule> getValidationRules() {
+            return validationRules;
+        }
+
+        public ConcurrentHashMap<String, Object> getMetrics() {
+            return metrics;
+        }
+
+        void setEndTime(Instant endTime) {
+            this.endTime = endTime;
+        }
+
+        void setDuration(Duration duration) {
+            this.duration = duration;
+        }
+
+        void setSuccess(boolean success) {
+            this.success = success;
+        }
+
+        void setErrorMessage(String errorMessage) {
+            this.errorMessage = errorMessage;
+        }
+
+        void setConcurrentOperations(List<ConcurrentOperation> concurrentOperations) {
+            this.concurrentOperations = concurrentOperations;
+        }
+
+        void setSequentialSteps(List<SequentialStep> sequentialSteps) {
+            this.sequentialSteps = sequentialSteps;
+        }
+
+        void setTimingConstraints(List<TimingConstraint> timingConstraints) {
+            this.timingConstraints = timingConstraints;
+        }
+
+        void setValidationRules(List<ValidationRule> validationRules) {
+            this.validationRules = validationRules;
         }
 
         /**
@@ -586,13 +732,13 @@ public final class AsyncTestScenarioBuilder {
             int count = 0;
             if (concurrentOperations != null) {
                 count += (int) concurrentOperations.stream()
-                    .filter(op -> op.isCompleted() && op.getError() == null)
-                    .count();
+                        .filter(op -> op.isCompleted() && op.getError() == null)
+                        .count();
             }
             if (sequentialSteps != null) {
                 count += (int) sequentialSteps.stream()
-                    .filter(step -> step.isCompleted() && step.getError() == null)
-                    .count();
+                        .filter(step -> step.isCompleted() && step.getError() == null)
+                        .count();
             }
             return count;
         }

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -74,6 +75,7 @@ class AsyncErrorHandlingSimplifiedTest {
 
         @Test
         @DisplayName("Should handle pool exhaustion gracefully")
+        @Timeout(value = 15, unit = TimeUnit.SECONDS)
         void shouldHandlePoolExhaustionGracefully() throws Exception {
             // Create a small pool
             AsyncByteBufferPool smallPool = AsyncByteBufferPoolImpl.create(8192, 2);

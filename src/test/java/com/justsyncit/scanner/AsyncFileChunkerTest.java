@@ -23,6 +23,7 @@ import com.justsyncit.ServiceException;
 import com.justsyncit.hash.Blake3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -39,7 +40,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
@@ -51,17 +51,17 @@ class AsyncFileChunkerTest {
     /** Temporary directory for test files. */
     @TempDir
     Path tempDir;
-    
+
     /** The async file chunker under test. */
     private AsyncFileChunker asyncChunker;
-    
+
     /** The BLAKE3 hashing service. */
     private Blake3Service blake3Service;
-    
+
     /** Mock async buffer pool. */
     @Mock
     private AsyncByteBufferPool mockAsyncBufferPool;
-    
+
     /** Mock async chunk handler. */
     @Mock
     private AsyncChunkHandler mockAsyncChunkHandler;
@@ -71,12 +71,25 @@ class AsyncFileChunkerTest {
         MockitoAnnotations.openMocks(this);
         ServiceFactory serviceFactory = new ServiceFactory();
         blake3Service = serviceFactory.createBlake3Service();
-        
+
         // Create async chunker with real dependencies for integration tests
         asyncChunker = AsyncFileChunkerImpl.create(blake3Service);
     }
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        if (asyncChunker != null) {
+            try {
+                // Close async to clean up resources (executor service, etc.)
+                asyncChunker.closeAsync().get(5, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                System.err.println("Failed to close asyncChunker in tearDown: " + e.getMessage());
+            }
+        }
+    }
+
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testChunkEmptyFileWithCompletionHandler() throws IOException, InterruptedException {
         Path emptyFile = tempDir.resolve("empty.txt");
         Files.createFile(emptyFile);
@@ -103,7 +116,7 @@ class AsyncFileChunkerTest {
 
         assertTrue(latch.await(5, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(errorRef.get(), "Should not have any errors");
-        
+
         FileChunker.ChunkingResult result = resultRef.get();
         assertNotNull(result, "Result should not be null");
         assertTrue(result.isSuccess(), "Chunking should be successful");
@@ -114,6 +127,7 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testChunkSmallFileWithCompletionHandler() throws IOException, InterruptedException {
         Path smallFile = tempDir.resolve("small.txt");
         byte[] data = "Hello, Async World!".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -141,7 +155,7 @@ class AsyncFileChunkerTest {
 
         assertTrue(latch.await(5, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(errorRef.get(), "Should not have any errors");
-        
+
         FileChunker.ChunkingResult result = resultRef.get();
         assertNotNull(result, "Result should not be null");
         assertTrue(result.isSuccess(), "Chunking should be successful");
@@ -152,6 +166,7 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testChunkLargeFileWithCompletionHandler() throws IOException, InterruptedException {
         Path largeFile = tempDir.resolve("large.txt");
         // Create file larger than default chunk size (64KB)
@@ -185,7 +200,7 @@ class AsyncFileChunkerTest {
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(errorRef.get(), "Should not have any errors");
-        
+
         FileChunker.ChunkingResult result = resultRef.get();
         assertNotNull(result, "Result should not be null");
         assertTrue(result.isSuccess(), "Chunking should be successful");
@@ -196,13 +211,15 @@ class AsyncFileChunkerTest {
     }
 
     @Test
-    void testChunkFileAsyncWithCompletableFuture() throws IOException, ExecutionException, InterruptedException, TimeoutException {
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    void testChunkFileAsyncWithCompletableFuture()
+            throws IOException, ExecutionException, InterruptedException, TimeoutException {
         Path file = tempDir.resolve("future.txt");
         byte[] data = "Test CompletableFuture integration".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         Files.write(file, data);
 
-        CompletableFuture<FileChunker.ChunkingResult> future = 
-            asyncChunker.chunkFileAsync(file, new FileChunker.ChunkingOptions());
+        CompletableFuture<FileChunker.ChunkingResult> future = asyncChunker.chunkFileAsync(file,
+                new FileChunker.ChunkingOptions());
 
         FileChunker.ChunkingResult result = future.get(5, TimeUnit.SECONDS);
 
@@ -214,6 +231,7 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testChunkNonExistentFileWithCompletionHandler() throws InterruptedException {
         Path nonExistentFile = tempDir.resolve("nonexistent.txt");
 
@@ -244,6 +262,7 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testChunkDirectoryWithCompletionHandler() throws InterruptedException {
         Path dir = tempDir.resolve("directory");
         try {
@@ -279,20 +298,24 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testSetAsyncBufferPool() {
         AsyncByteBufferPool newPool = mock(AsyncByteBufferPool.class);
-        when(mockAsyncBufferPool.acquireAsync(anyInt())).thenReturn(CompletableFuture.completedFuture(ByteBuffer.allocate(1024)));
+        when(mockAsyncBufferPool.acquireAsync(anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(ByteBuffer.allocate(1024)));
 
         assertDoesNotThrow(() -> asyncChunker.setAsyncBufferPool(newPool));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testSetNullAsyncBufferPool() {
-        assertThrows(IllegalArgumentException.class, 
-            () -> asyncChunker.setAsyncBufferPool(null));
+        assertThrows(IllegalArgumentException.class,
+                () -> asyncChunker.setAsyncBufferPool(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testSetChunkSize() {
         int newChunkSize = 32 * 1024; // 32KB
         asyncChunker.setChunkSize(newChunkSize);
@@ -300,26 +323,31 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testSetInvalidChunkSize() {
-        assertThrows(IllegalArgumentException.class, 
-            () -> asyncChunker.setChunkSize(0));
-        assertThrows(IllegalArgumentException.class, 
-            () -> asyncChunker.setChunkSize(-1));
+        assertThrows(IllegalArgumentException.class,
+                () -> asyncChunker.setChunkSize(0));
+        assertThrows(IllegalArgumentException.class,
+                () -> asyncChunker.setChunkSize(-1));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testSetAsyncChunkHandler() {
         assertDoesNotThrow(() -> asyncChunker.setAsyncChunkHandler(mockAsyncChunkHandler));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testSetNullAsyncChunkHandler() {
-        assertThrows(IllegalArgumentException.class, 
-            () -> asyncChunker.setAsyncChunkHandler(null));
+        assertThrows(IllegalArgumentException.class,
+                () -> asyncChunker.setAsyncChunkHandler(null));
     }
 
     @Test
-    void testCloseWithCompletionHandler() throws IOException, InterruptedException, ExecutionException, TimeoutException {
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
+    void testCloseWithCompletionHandler()
+            throws IOException, InterruptedException, ExecutionException, TimeoutException {
         Path file = tempDir.resolve("close.txt");
         Files.write(file, "test".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
@@ -365,6 +393,7 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testConcurrentAsyncOperations() throws IOException, InterruptedException {
         int fileCount = 5;
         CountDownLatch latch = new CountDownLatch(fileCount);
@@ -397,6 +426,7 @@ class AsyncFileChunkerTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testAsyncChunkingWithCustomOptions() throws IOException, InterruptedException {
         Path file = tempDir.resolve("custom_options.txt");
         byte[] data = new byte[96 * 1024]; // 96KB
@@ -429,7 +459,7 @@ class AsyncFileChunkerTest {
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(errorRef.get(), "Should not have any errors");
-        
+
         FileChunker.ChunkingResult result = resultRef.get();
         assertNotNull(result, "Result should not be null");
         assertTrue(result.isSuccess(), "Chunking should be successful");

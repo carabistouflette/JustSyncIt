@@ -22,18 +22,16 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Custom test runner for async test scenarios.
- * Provides enhanced execution capabilities for async tests with proper timeout handling
+ * Provides enhanced execution capabilities for async tests with proper timeout
+ * handling
  * and resource management.
  */
 public final class AsyncTestRunner {
@@ -66,45 +64,45 @@ public final class AsyncTestRunner {
     public AsyncTestSuite.ClassTestResult runTestClass(Class<?> testClass) {
         Instant startTime = Instant.now();
         String className = testClass.getSimpleName();
-        
+
         try {
             System.out.println("Running test class: " + className);
-            
+
             // Find test methods
             List<Method> testMethods = findTestMethods(testClass);
-            
+
             // Create test instance
             Object testInstance = createTestInstance(testClass);
-            
+
             // Run test methods
             List<TestMethodResult> methodResults = new ArrayList<>();
-            
+
             for (Method testMethod : testMethods) {
                 TestMethodResult methodResult = runTestMethod(testInstance, testMethod);
                 methodResults.add(methodResult);
             }
-            
+
             // Calculate class-level results
             int passedCount = (int) methodResults.stream().mapToInt(r -> r.isPassed() ? 1 : 0).sum();
             int failedCount = (int) methodResults.stream().mapToInt(r -> r.isFailed() ? 1 : 0).sum();
             int skippedCount = (int) methodResults.stream().mapToInt(r -> r.isSkipped() ? 1 : 0).sum();
-            
+
             boolean classSuccess = failedCount == 0;
             Duration executionTime = Duration.between(startTime, Instant.now());
-            
-            System.out.println("Completed test class: " + className + " - " + 
-                (classSuccess ? "PASSED" : "FAILED") + 
-                " (" + passedCount + " passed, " + failedCount + " failed, " + skippedCount + " skipped)");
-            
+
+            System.out.println("Completed test class: " + className + " - " +
+                    (classSuccess ? "PASSED" : "FAILED") +
+                    " (" + passedCount + " passed, " + failedCount + " failed, " + skippedCount + " skipped)");
+
             return new AsyncTestSuite.ClassTestResult(
-                className, classSuccess, testMethods.size(), 
-                passedCount, failedCount, skippedCount, executionTime, null);
-                
+                    className, classSuccess, testMethods.size(),
+                    passedCount, failedCount, skippedCount, executionTime, null);
+
         } catch (Exception e) {
             System.err.println("Failed to run test class: " + className + " - " + e.getMessage());
             Duration executionTime = Duration.between(startTime, Instant.now());
             return new AsyncTestSuite.ClassTestResult(
-                className, false, 0, 0, 0, 0, executionTime, e.getMessage());
+                    className, false, 0, 0, 0, 0, executionTime, e.getMessage());
         }
     }
 
@@ -114,14 +112,14 @@ public final class AsyncTestRunner {
     private TestMethodResult runTestMethod(Object testInstance, Method testMethod) {
         Instant startTime = Instant.now();
         String methodName = testMethod.getName();
-        
+
         try {
             // Check for @Test annotation or similar
             if (!isTestMethod(testMethod)) {
-                return new TestMethodResult(methodName, TestMethodResult.Status.SKIPPED, 
-                    Duration.ZERO, "Not a test method");
+                return new TestMethodResult(methodName, TestMethodResult.Status.SKIPPED,
+                        Duration.ZERO, "Not a test method");
             }
-            
+
             // Run the test method with timeout
             CompletableFuture<Void> testFuture = CompletableFuture.runAsync(() -> {
                 try {
@@ -130,28 +128,28 @@ public final class AsyncTestRunner {
                     throw new RuntimeException(e);
                 }
             }, executorService);
-            
+
             try {
                 testFuture.get(configuration.getTestTimeout().toMillis(), TimeUnit.MILLISECONDS);
                 Duration executionTime = Duration.between(startTime, Instant.now());
-                return new TestMethodResult(methodName, TestMethodResult.Status.PASSED, 
-                    executionTime, null);
-                    
+                return new TestMethodResult(methodName, TestMethodResult.Status.PASSED,
+                        executionTime, null);
+
             } catch (java.util.concurrent.TimeoutException e) {
                 Duration executionTime = Duration.between(startTime, Instant.now());
-                return new TestMethodResult(methodName, TestMethodResult.Status.FAILED, 
-                    executionTime, "Test timed out");
-                    
+                return new TestMethodResult(methodName, TestMethodResult.Status.FAILED,
+                        executionTime, "Test timed out");
+
             } catch (Exception e) {
                 Duration executionTime = Duration.between(startTime, Instant.now());
-                return new TestMethodResult(methodName, TestMethodResult.Status.FAILED, 
-                    executionTime, e.getCause().getMessage());
+                return new TestMethodResult(methodName, TestMethodResult.Status.FAILED,
+                        executionTime, e.getCause().getMessage());
             }
-            
+
         } catch (Exception e) {
             Duration executionTime = Duration.between(startTime, Instant.now());
-            return new TestMethodResult(methodName, TestMethodResult.Status.FAILED, 
-                executionTime, "Test execution failed: " + e.getMessage());
+            return new TestMethodResult(methodName, TestMethodResult.Status.FAILED,
+                    executionTime, "Test execution failed: " + e.getMessage());
         }
     }
 
@@ -160,13 +158,13 @@ public final class AsyncTestRunner {
      */
     private List<Method> findTestMethods(Class<?> testClass) {
         List<Method> testMethods = new ArrayList<>();
-        
+
         for (Method method : testClass.getDeclaredMethods()) {
             if (isTestMethod(method)) {
                 testMethods.add(method);
             }
         }
-        
+
         return testMethods;
     }
 
@@ -175,10 +173,10 @@ public final class AsyncTestRunner {
      */
     private boolean isTestMethod(Method method) {
         // Simple heuristic: public methods starting with "test" or annotated with @Test
-        return (method.getName().startsWith("test") && 
+        return (method.getName().startsWith("test") &&
                 java.lang.reflect.Modifier.isPublic(method.getModifiers()) &&
                 method.getParameterCount() == 0) ||
-               method.isAnnotationPresent(org.junit.jupiter.api.Test.class);
+                method.isAnnotationPresent(org.junit.jupiter.api.Test.class);
     }
 
     /**
@@ -232,17 +230,28 @@ public final class AsyncTestRunner {
         }
 
         // Getters
-        public int getMaxConcurrentTests() { return maxConcurrentTests; }
-        public Duration getTestTimeout() { return testTimeout; }
-        public boolean isEnableDetailedLogging() { return enableDetailedLogging; }
-        public boolean isEnableMetrics() { return enableMetrics; }
+        public int getMaxConcurrentTests() {
+            return maxConcurrentTests;
+        }
+
+        public Duration getTestTimeout() {
+            return testTimeout;
+        }
+
+        public boolean isEnableDetailedLogging() {
+            return enableDetailedLogging;
+        }
+
+        public boolean isEnableMetrics() {
+            return enableMetrics;
+        }
 
         /**
          * Builder for RunnerConfiguration.
          */
         public static class Builder {
             private int maxConcurrentTests = Runtime.getRuntime().availableProcessors();
-            private Duration testTimeout = Duration.ofMinutes(5);
+            private Duration testTimeout = Duration.ofMinutes(2);
             private boolean enableDetailedLogging = false;
             private boolean enableMetrics = true;
 
@@ -289,14 +298,33 @@ public final class AsyncTestRunner {
         }
 
         // Getters
-        public String getMethodName() { return methodName; }
-        public Status getStatus() { return status; }
-        public Duration getExecutionTime() { return executionTime; }
-        public String getErrorMessage() { return errorMessage; }
+        public String getMethodName() {
+            return methodName;
+        }
 
-        public boolean isPassed() { return status == Status.PASSED; }
-        public boolean isFailed() { return status == Status.FAILED; }
-        public boolean isSkipped() { return status == Status.SKIPPED; }
+        public Status getStatus() {
+            return status;
+        }
+
+        public Duration getExecutionTime() {
+            return executionTime;
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+
+        public boolean isPassed() {
+            return status == Status.PASSED;
+        }
+
+        public boolean isFailed() {
+            return status == Status.FAILED;
+        }
+
+        public boolean isSkipped() {
+            return status == Status.SKIPPED;
+        }
 
         /**
          * Test method execution status.

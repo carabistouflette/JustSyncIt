@@ -20,6 +20,7 @@ package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,6 +56,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testSkipSymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file
         Path targetFile = tempDir.resolve("target.txt");
@@ -78,6 +81,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRecordSymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file
         Path targetFile = tempDir.resolve("target.txt");
@@ -107,6 +111,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testFollowSymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file
         Path targetFile = tempDir.resolve("target.txt");
@@ -127,6 +132,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testBrokenSymlink() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create symlink to non-existent target
         Path symlinkFile = tempDir.resolve("broken_symlink.txt");
@@ -164,6 +170,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testSymlinkCycle() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create a cycle: A -> B -> A
         Path fileA = tempDir.resolve("fileA.txt");
@@ -194,6 +201,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testDirectorySymlinks() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target directory
         Path targetDir = tempDir.resolve("target_dir");
@@ -216,6 +224,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testDeepSymlinkStructure() throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create nested structure with symlinks
         Path level1 = tempDir.resolve("level1");
@@ -245,6 +254,7 @@ class SymlinkHandlingTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testSymlinkWithDifferentStrategies()
             throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
         // Create target file and symlink

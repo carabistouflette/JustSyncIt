@@ -31,6 +31,7 @@ import com.justsyncit.storage.metadata.MetadataService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
@@ -39,6 +40,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -86,6 +88,7 @@ public class ScalabilityBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkLinearDataSizeScalability() throws Exception {
         // Test scalability with linearly increasing dataset sizes
         int[] datasetSizesMB = {10, 50, 100, 250, 500, 1000}; // Progressive growth
@@ -149,6 +152,7 @@ public class ScalabilityBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkFileCountScalability() throws Exception {
         // Test scalability with increasing file counts (constant total size)
         int[] fileCounts = {10, 50, 100, 500, 1000, 5000};
@@ -202,6 +206,7 @@ public class ScalabilityBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkDirectoryDepthScalability() throws Exception {
         // Test scalability with increasing directory depth
         int[] depths = {1, 5, 10, 20, 50};
@@ -257,6 +262,7 @@ public class ScalabilityBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMemoryUsageScalability() throws Exception {
         // Test how memory usage scales with dataset size
         int[] datasetSizesMB = {50, 100, 200, 500, 1000};
@@ -312,6 +318,7 @@ public class ScalabilityBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkRestoreScalability() throws Exception {
         // Test restore scalability with increasing dataset sizes
         int[] datasetSizesMB = {10, 50, 100, 250, 500};
@@ -376,6 +383,7 @@ public class ScalabilityBenchmark {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkIncrementalBackupScalability() throws Exception {
         // Test scalability of incremental backups over time
         int initialSizeMB = 100;

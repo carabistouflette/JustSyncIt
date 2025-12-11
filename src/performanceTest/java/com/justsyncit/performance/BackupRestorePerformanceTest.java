@@ -29,7 +29,9 @@ import com.justsyncit.storage.metadata.MetadataService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
+import java.util.concurrent.TimeUnit;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -79,6 +81,7 @@ public class BackupRestorePerformanceTest {
 
     @Test
     @org.junit.jupiter.api.Disabled("Temporarily disabled for CI - performance tests need optimization")
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkSmallFilesBackup() throws Exception {
         // Create test directory with many small files
         Path sourceDir = tempDir.resolve("small_files");
@@ -124,6 +127,7 @@ public class BackupRestorePerformanceTest {
 
     @Test
     @org.junit.jupiter.api.Disabled("Temporarily disabled for CI - performance tests need optimization")
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkLargeFileBackup() throws Exception {
         // Create test directory with one large file
         Path sourceDir = tempDir.resolve("large_file");
@@ -169,6 +173,7 @@ public class BackupRestorePerformanceTest {
 
     @Test
     @org.junit.jupiter.api.Disabled("Temporarily disabled for CI - performance tests need optimization")
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkDeduplicationPerformance() throws Exception {
         // Create test directory with duplicate files
         Path sourceDir = tempDir.resolve("duplicate_files");
@@ -220,6 +225,7 @@ public class BackupRestorePerformanceTest {
 
     @Test
     @org.junit.jupiter.api.Disabled("Temporarily disabled for CI - performance tests need optimization")
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkRestorePerformance() throws Exception {
         // Create test directory and backup first
         Path sourceDir = tempDir.resolve("restore_source");
@@ -282,6 +288,7 @@ public class BackupRestorePerformanceTest {
 
     @Test
     @org.junit.jupiter.api.Disabled("Temporarily disabled for CI - performance tests need optimization")
+    @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMemoryUsage() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("memory_test");

@@ -25,7 +25,6 @@ import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.DisplayName;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,23 +51,24 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
     @BeforeEach
     void setUp() {
         super.setUp();
-        
+
         // Create test components
         bufferPool = AsyncByteBufferPoolImpl.create(8192, 100);
         fileChunker = AsyncFileChunkerImpl.create(createMockBlake3Service());
         chunkHandler = AsyncFileChunkHandler.create(createMockBlake3Service());
         filesystemScanner = new NioFilesystemScanner();
-        
+
         // Configure components
         fileChunker.setAsyncBufferPool(bufferPool);
         fileChunker.setAsyncChunkHandler(chunkHandler);
-        
+
         // Create test files
         testFiles = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             Path testFile = tempDir.resolve("test_file_" + i + ".dat");
             try {
-                AsyncTestUtils.createTestFile(tempDir, "test_file_" + i + ".dat", 1024 * (i + 1)); // 1KB, 2KB, 3KB, 4KB, 5KB
+                AsyncTestUtils.createTestFile(tempDir, "test_file_" + i + ".dat", 1024 * (i + 1)); // 1KB, 2KB, 3KB,
+                                                                                                   // 4KB, 5KB
             } catch (AsyncTestUtils.AsyncTestException e) {
                 throw new RuntimeException("Failed to create test file", e);
             }
@@ -96,80 +96,80 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(30)
+    @Timeout(15)
     @DisplayName("Should handle end-to-end async workflow")
     void shouldHandleEndToEndAsyncWorkflow() throws Exception {
         // Given
         AsyncTestMetricsCollector metrics = new AsyncTestMetricsCollector();
-        AsyncTestMetricsCollector.OperationTimer workflowTimer = metrics.startOperation("end_to_end_workflow", "integration_test");
-        
+        AsyncTestMetricsCollector.OperationTimer workflowTimer = metrics.startOperation("end_to_end_workflow",
+                "integration_test");
+
         // When - Scan directory
         ScanOptions scanOptions = new ScanOptions()
                 .withMaxDepth(1);
-                
+
         CompletableFuture<ScanResult> scanFuture = filesystemScanner.scanDirectory(tempDir, scanOptions);
         ScanResult scanResult = AsyncTestUtils.getResultOrThrow(scanFuture, Duration.ofSeconds(10));
-        
+
         workflowTimer.complete((long) scanResult.getScannedFileCount());
-        
+
         // When - Chunk all files concurrently
         List<CompletableFuture<FileChunker.ChunkingResult>> chunkFutures = new ArrayList<>();
         for (Path file : testFiles) {
-            CompletableFuture<FileChunker.ChunkingResult> chunkFuture =
-                fileChunker.chunkFileAsync(file, null);
+            CompletableFuture<FileChunker.ChunkingResult> chunkFuture = fileChunker.chunkFileAsync(file, null);
             chunkFutures.add(chunkFuture);
         }
-        
+
         // When - Wait for all chunking to complete
         CompletableFuture<Void> allChunkingFuture = CompletableFuture.allOf(
-            chunkFutures.toArray(new CompletableFuture[0]));
+                chunkFutures.toArray(new CompletableFuture[0]));
         allChunkingFuture.get(20, TimeUnit.SECONDS);
-        
+
         // Then - Verify all operations completed successfully
         assertEquals(testFiles.size(), scanResult.getScannedFileCount());
-        
+
         for (CompletableFuture<FileChunker.ChunkingResult> future : chunkFutures) {
             FileChunker.ChunkingResult result = future.get();
             assertTrue(result.isSuccess(), "All chunking operations should succeed");
             assertTrue(result.getChunkCount() > 0, "Each file should have at least one chunk");
         }
-        
+
         // Verify performance metrics
-        AsyncTestMetricsCollector.ComponentMetrics operationMetrics = metrics.getOperationMetrics("end_to_end_workflow");
+        AsyncTestMetricsCollector.ComponentMetrics operationMetrics = metrics
+                .getOperationMetrics("end_to_end_workflow");
         assertNotNull(operationMetrics);
         assertTrue(operationMetrics.getTotalOperations() > 0);
     }
 
     @Test
-    @Timeout(20)
+    @Timeout(10)
     @DisplayName("Should coordinate async components under load")
     void shouldCoordinateAsyncComponentsUnderLoad() throws Exception {
         // Given
         int concurrentOperations = 10;
         List<CompletableFuture<FileChunker.ChunkingResult>> futures = new ArrayList<>();
-        
+
         // When - Execute many concurrent operations
         for (int i = 0; i < concurrentOperations; i++) {
             Path testFile = testFiles.get(i % testFiles.size());
-            CompletableFuture<FileChunker.ChunkingResult> future = 
-                fileChunker.chunkFileAsync(testFile, null);
+            CompletableFuture<FileChunker.ChunkingResult> future = fileChunker.chunkFileAsync(testFile, null);
             futures.add(future);
         }
-        
+
         // Then - All operations should complete successfully
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
-            futures.toArray(new CompletableFuture[0]));
+                futures.toArray(new CompletableFuture[0]));
         allFutures.get(15, TimeUnit.SECONDS);
-        
+
         long totalSize = 0;
         for (CompletableFuture<FileChunker.ChunkingResult> future : futures) {
             FileChunker.ChunkingResult result = future.get();
             assertTrue(result.isSuccess());
             totalSize += result.getTotalSize();
         }
-        
+
         assertTrue(totalSize > 0, "Total processed size should be positive");
-        
+
         // Verify buffer pool statistics
         CompletableFuture<String> statsFuture = bufferPool.getStatsAsync();
         String statsString = statsFuture.join();
@@ -178,25 +178,24 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(15)
+    @Timeout(8)
     @DisplayName("Should handle resource exhaustion gracefully")
     void shouldHandleResourceExhaustionGracefully() throws Exception {
         // Given - Create limited buffer pool
         AsyncByteBufferPool limitedPool = AsyncByteBufferPoolImpl.create(1024, 2);
         fileChunker.setAsyncBufferPool(limitedPool);
-        
+
         // When - Submit many operations
         List<CompletableFuture<FileChunker.ChunkingResult>> futures = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
-            CompletableFuture<FileChunker.ChunkingResult> future = 
-                fileChunker.chunkFileAsync(testFiles.get(0), null);
+            CompletableFuture<FileChunker.ChunkingResult> future = fileChunker.chunkFileAsync(testFiles.get(0), null);
             futures.add(future);
         }
-        
+
         // Then - Operations should eventually complete (possibly with some failures)
         int successCount = 0;
         int failureCount = 0;
-        
+
         for (CompletableFuture<FileChunker.ChunkingResult> future : futures) {
             try {
                 FileChunker.ChunkingResult result = future.get(10, TimeUnit.SECONDS);
@@ -209,16 +208,16 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
                 failureCount++;
             }
         }
-        
+
         assertTrue(successCount > 0, "At least some operations should succeed");
         assertTrue(successCount + failureCount == futures.size(), "All operations should be accounted for");
-        
+
         // Cleanup
         limitedPool.clear();
     }
 
     @Test
-    @Timeout(10)
+    @Timeout(5)
     @DisplayName("Should handle mixed async operations")
     void shouldHandleMixedAsyncOperations() throws Exception {
         // Given
@@ -229,20 +228,21 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
             chunks[i].put(("test data " + i).getBytes());
             chunks[i].flip();
         }
-        
-        // When - Process chunks with both CompletableFuture and CompletionHandler patterns
+
+        // When - Process chunks with both CompletableFuture and CompletionHandler
+        // patterns
         CompletableFuture<String[]> futureResult = chunkHandler.processChunksAsync(chunks, testFile);
-        
+
         // Then - Operations should complete successfully
         String[] hashes = futureResult.get(5, TimeUnit.SECONDS);
         assertNotNull(hashes);
         assertEquals(chunks.length, hashes.length);
-        
+
         for (String hash : hashes) {
             assertNotNull(hash);
             assertFalse(hash.isEmpty());
         }
-        
+
         // Verify buffer pool usage
         CompletableFuture<String> statsFuture = bufferPool.getStatsAsync();
         String statsString = statsFuture.join();
@@ -250,7 +250,7 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(15)
+    @Timeout(8)
     @DisplayName("Should recover from component failures")
     void shouldRecoverFromComponentFailures() throws Exception {
         // Given - Create failing buffer pool
@@ -320,54 +320,53 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
                 return 8192;
             }
         };
-        
+
         // When - Use failing buffer pool
         fileChunker.setAsyncBufferPool(failingBufferPool);
-        CompletableFuture<FileChunker.ChunkingResult> future = 
-            fileChunker.chunkFileAsync(testFiles.get(0), null);
-        
+        CompletableFuture<FileChunker.ChunkingResult> future = fileChunker.chunkFileAsync(testFiles.get(0), null);
+
         // Then - Operation should fail gracefully
         FileChunker.ChunkingResult result = future.get(5, TimeUnit.SECONDS);
-        assertTrue(result.isSuccess() || result.getError() != null, "Operation should fail gracefully with failing buffer pool");
-        
+        assertTrue(result.isSuccess() || result.getError() != null,
+                "Operation should fail gracefully with failing buffer pool");
+
         // When - Restore working buffer pool
         fileChunker.setAsyncBufferPool(bufferPool);
         future = fileChunker.chunkFileAsync(testFiles.get(0), null);
-        
+
         // Then - Operation should succeed again
         result = future.get(5, TimeUnit.SECONDS);
         assertTrue(result.isSuccess(), "Operation should succeed with restored buffer pool");
     }
 
     @Test
-    @Timeout(10)
+    @Timeout(5)
     @DisplayName("Should maintain resource consistency")
     void shouldMaintainResourceConsistency() throws Exception {
         // Given
         int initialAvailableCount = bufferPool.getAvailableCount();
         int initialTotalCount = bufferPool.getTotalCount();
-        
+
         // When - Perform operations
         List<CompletableFuture<FileChunker.ChunkingResult>> futures = new ArrayList<>();
         for (Path testFile : testFiles) {
-            CompletableFuture<FileChunker.ChunkingResult> future = 
-                fileChunker.chunkFileAsync(testFile, null);
+            CompletableFuture<FileChunker.ChunkingResult> future = fileChunker.chunkFileAsync(testFile, null);
             futures.add(future);
         }
-        
+
         // Wait for completion
         CompletableFuture<Void> allFutures = CompletableFuture.allOf(
-            futures.toArray(new CompletableFuture[0]));
+                futures.toArray(new CompletableFuture[0]));
         allFutures.get(8, TimeUnit.SECONDS);
-        
+
         // Then - Resource counts should be consistent
         int finalAvailableCount = bufferPool.getAvailableCount();
         int finalTotalCount = bufferPool.getTotalCount();
-        
+
         // Total should not decrease (buffers shouldn't be lost)
-        assertTrue(finalTotalCount >= initialTotalCount, 
-            "Total buffer count should not decrease");
-        
+        assertTrue(finalTotalCount >= initialTotalCount,
+                "Total buffer count should not decrease");
+
         // Most buffers should be available after operations complete
         CompletableFuture<String> finalStatsFuture = bufferPool.getStatsAsync();
         String finalStatsString = finalStatsFuture.join();
@@ -375,7 +374,7 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(20)
+    @Timeout(10)
     @DisplayName("Should handle concurrent resource access")
     void shouldHandleConcurrentResourceAccess() throws Exception {
         // Given
@@ -383,13 +382,13 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
         int operationsPerThread = 5;
         int bufferCount = 4;
         int bufferSize = 2048;
-        
+
         AsyncByteBufferPool limitedPool = AsyncByteBufferPoolImpl.create(bufferSize, bufferCount);
         fileChunker.setAsyncBufferPool(limitedPool);
-        
+
         // When - Execute concurrent operations
         List<CompletableFuture<Void>> threadFutures = new ArrayList<>();
-        
+
         for (int t = 0; t < threadCount; t++) {
             final int threadId = t;
             CompletableFuture<Void> threadFuture = CompletableFuture.runAsync(() -> {
@@ -397,9 +396,9 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
                     try {
                         Path testFile = testFiles.get(threadId % testFiles.size());
                         FileChunker.ChunkingResult result = fileChunker
-                            .chunkFileAsync(testFile, null)
-                            .get(5, TimeUnit.SECONDS);
-                        
+                                .chunkFileAsync(testFile, null)
+                                .get(5, TimeUnit.SECONDS);
+
                         // Verify result
                         assertNotNull(result);
                         if (!result.isSuccess()) {
@@ -414,17 +413,17 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
             });
             threadFutures.add(threadFuture);
         }
-        
+
         // Then - All threads should complete
         CompletableFuture<Void> allThreadsFuture = CompletableFuture.allOf(
-            threadFutures.toArray(new CompletableFuture[0]));
+                threadFutures.toArray(new CompletableFuture[0]));
         allThreadsFuture.get(15, TimeUnit.SECONDS);
-        
+
         // Verify pool is still functional
         CompletableFuture<String> statsFuture = limitedPool.getStatsAsync();
         String statsString = statsFuture.join();
         assertTrue(statsString.contains("Total:"));
-        
+
         // Cleanup
         limitedPool.clear();
     }
@@ -445,7 +444,19 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
             }
 
             @Override
-            public String hashStream(java.io.InputStream inputStream) throws IOException, com.justsyncit.hash.HashingException {
+            public String hashBuffer(byte[] data, int offset, int length) throws com.justsyncit.hash.HashingException {
+                return "mock_buffer_hash_"
+                        + java.util.Arrays.hashCode(java.util.Arrays.copyOfRange(data, offset, offset + length));
+            }
+
+            @Override
+            public String hashBuffer(java.nio.ByteBuffer buffer) throws com.justsyncit.hash.HashingException {
+                return "mock_buffer_hash_" + buffer.hashCode();
+            }
+
+            @Override
+            public String hashStream(java.io.InputStream inputStream)
+                    throws IOException, com.justsyncit.hash.HashingException {
                 return "mock_stream_hash_" + inputStream.hashCode();
             }
 
@@ -453,7 +464,8 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
             public Blake3IncrementalHasher createIncrementalHasher() throws com.justsyncit.hash.HashingException {
                 return new Blake3IncrementalHasher() {
                     private final java.security.MessageDigest digest;
-                    
+                    private long bytesProcessed = 0;
+
                     {
                         try {
                             digest = java.security.MessageDigest.getInstance("SHA-256");
@@ -465,11 +477,21 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
                     @Override
                     public void update(byte[] data) {
                         digest.update(data);
+                        bytesProcessed += data.length;
                     }
 
                     @Override
                     public void update(byte[] data, int offset, int length) {
                         digest.update(data, offset, length);
+                        bytesProcessed += length;
+                    }
+
+                    @Override
+                    public void update(java.nio.ByteBuffer buffer) {
+                        byte[] data = new byte[buffer.remaining()];
+                        buffer.get(data);
+                        digest.update(data);
+                        bytesProcessed += data.length;
                     }
 
                     @Override
@@ -485,8 +507,38 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
                     @Override
                     public void reset() {
                         digest.reset();
+                        bytesProcessed = 0;
+                    }
+
+                    @Override
+                    public String peek() throws com.justsyncit.hash.HashingException {
+                        byte[] hash = digest.digest();
+                        StringBuilder sb = new StringBuilder();
+                        for (byte b : hash) {
+                            sb.append(String.format("%02x", b));
+                        }
+                        return sb.toString();
+                    }
+
+                    @Override
+                    public long getBytesProcessed() {
+                        return bytesProcessed;
                     }
                 };
+            }
+
+            @Override
+            public Blake3IncrementalHasher createKeyedIncrementalHasher(byte[] key)
+                    throws com.justsyncit.hash.HashingException {
+                return createIncrementalHasher();
+            }
+
+            @Override
+            public java.util.concurrent.CompletableFuture<java.util.List<String>> hashFilesParallel(
+                    java.util.List<Path> filePaths) {
+                return java.util.concurrent.CompletableFuture.completedFuture(
+                        filePaths.stream().map(p -> "mock_file_hash_" + p.hashCode())
+                                .collect(java.util.stream.Collectors.toList()));
             }
 
             @Override
@@ -511,7 +563,27 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
                     public boolean isJniImplementation() {
                         return false;
                     }
+
+                    @Override
+                    public int getOptimalBufferSize() {
+                        return 8192;
+                    }
+
+                    @Override
+                    public boolean supportsConcurrentHashing() {
+                        return true;
+                    }
+
+                    @Override
+                    public int getMaxConcurrentThreads() {
+                        return Runtime.getRuntime().availableProcessors();
+                    }
                 };
+            }
+
+            @Override
+            public boolean verify(byte[] data, String expectedHash) throws com.justsyncit.hash.HashingException {
+                return hashBuffer(data).equals(expectedHash);
             }
         };
     }

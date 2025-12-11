@@ -1,9 +1,11 @@
 package com.justsyncit.performance;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Test class for the AsyncVsSyncBenchmarkSuite.
@@ -15,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class AsyncVsSyncBenchmarkSuiteTest {
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.MINUTES)
     @DisplayName("Test complete benchmark suite execution")
     public void testCompleteBenchmarkSuite() throws Exception {
         AsyncVsSyncBenchmarkSuite suite = new AsyncVsSyncBenchmarkSuite();
@@ -42,6 +45,7 @@ public class AsyncVsSyncBenchmarkSuiteTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.MINUTES)
     @DisplayName("Test core performance benchmarks only")
     public void testCorePerformanceBenchmarks() throws Exception {
         AsyncVsSyncBenchmarkSuite suite = new AsyncVsSyncBenchmarkSuite();
@@ -77,6 +81,7 @@ public class AsyncVsSyncBenchmarkSuiteTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.MINUTES)
     @DisplayName("Test performance target validation")
     public void testPerformanceTargetValidation() throws Exception {
         AsyncVsSyncBenchmarkSuite suite = new AsyncVsSyncBenchmarkSuite();

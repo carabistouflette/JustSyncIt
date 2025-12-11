@@ -19,9 +19,11 @@
 package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AsyncByteBufferPoolReflectionTest {
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testCreateMethodReflection() throws Exception {
         // Test the create(int, int) method using reflection
         Method createMethod = AsyncByteBufferPoolImpl.class.getDeclaredMethod("create", int.class, int.class);
@@ -53,6 +56,7 @@ class AsyncByteBufferPoolReflectionTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testCreateMethodInvalidParameters() throws Exception {
         // Test the create(int, int) method with invalid parameters using reflection
         Method createMethod = AsyncByteBufferPoolImpl.class.getDeclaredMethod("create", int.class, int.class);
@@ -89,6 +93,7 @@ class AsyncByteBufferPoolReflectionTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testCreateMethodBoundaryParameters() throws Exception {
         // Test the create(int, int) method with boundary parameters using reflection
         Method createMethod = AsyncByteBufferPoolImpl.class.getDeclaredMethod("create", int.class, int.class);
@@ -112,6 +117,7 @@ class AsyncByteBufferPoolReflectionTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testCreateMethodWithDefaultParameters() throws Exception {
         // Test the create() method with default parameters using reflection
         Method createMethod = AsyncByteBufferPoolImpl.class.getDeclaredMethod("create");
@@ -133,6 +139,7 @@ class AsyncByteBufferPoolReflectionTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testSyncMethodsAfterCreate() throws Exception {
         // Test synchronous methods after creating pool with reflection
         Method createMethod = AsyncByteBufferPoolImpl.class.getDeclaredMethod("create", int.class, int.class);

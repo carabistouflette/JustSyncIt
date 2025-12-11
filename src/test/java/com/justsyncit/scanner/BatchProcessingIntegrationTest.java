@@ -23,11 +23,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -48,15 +48,15 @@ public class BatchProcessingIntegrationTest {
     @BeforeEach
     void setUp() {
         configuration = new BatchConfiguration();
-        
+
         // Create mock Blake3Service for testing
         Blake3Service mockBlake3Service = new MockBlake3Service();
-        
+
         // Create real instances for integration testing
         AsyncFileChunker asyncFileChunker = AsyncFileChunkerImpl.create(mockBlake3Service);
         AsyncByteBufferPool asyncBufferPool = AsyncByteBufferPoolImpl.create();
         ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
-        
+
         batchProcessor = AsyncFileBatchProcessorImpl.create(
                 asyncFileChunker, asyncBufferPool, threadPoolManager, configuration);
     }
@@ -69,6 +69,7 @@ public class BatchProcessingIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch processor successfully")
     void shouldCreateBatchProcessorSuccessfully() {
         // Then
@@ -85,6 +86,7 @@ public class BatchProcessingIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should handle empty batch gracefully")
     void shouldHandleEmptyBatchGracefully() throws Exception {
         // Given
@@ -103,6 +105,7 @@ public class BatchProcessingIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should apply backpressure correctly")
     void shouldApplyBackpressureCorrectly() {
         // Given
@@ -123,6 +126,7 @@ public class BatchProcessingIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should update configuration correctly")
     void shouldUpdateConfigurationCorrectly() {
         // Given
@@ -137,91 +141,153 @@ public class BatchProcessingIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should validate batch processing capabilities")
     void shouldValidateBatchProcessingCapabilities() {
         // Then
         assertTrue(batchProcessor.supportsAdaptiveSizing());
         assertTrue(batchProcessor.supportsPriorityScheduling());
         assertTrue(batchProcessor.supportsDependencies());
-        
+
         BatchProcessingStats stats = batchProcessor.getBatchProcessingStats();
         assertNotNull(stats);
         assertEquals(0, stats.getTotalBatchesProcessed());
         assertEquals(0, stats.getTotalFilesProcessed());
-}
+    }
 
-/**
- * Simple mock implementation of Blake3Service for testing.
- */
-private static class MockBlake3Service implements Blake3Service {
-    
-    @Override
-    public String hashFile(Path filePath) throws IOException {
-        return "mock_hash_" + filePath.toString().hashCode();
+    /**
+     * Simple mock implementation of Blake3Service for testing.
+     */
+    private static class MockBlake3Service implements Blake3Service {
+
+        @Override
+        public String hashFile(Path filePath) throws IOException {
+            return "mock_hash_" + filePath.toString().hashCode();
+        }
+
+        @Override
+        public String hashBuffer(byte[] data) throws com.justsyncit.hash.HashingException {
+            return "mock_hash_" + Arrays.hashCode(data);
+        }
+
+        @Override
+        public String hashBuffer(byte[] data, int offset, int length) throws com.justsyncit.hash.HashingException {
+            return "mock_hash_" + Arrays.hashCode(Arrays.copyOfRange(data, offset, offset + length));
+        }
+
+        @Override
+        public String hashBuffer(java.nio.ByteBuffer buffer) throws com.justsyncit.hash.HashingException {
+            return "mock_hash_" + buffer.hashCode();
+        }
+
+        @Override
+        public String hashStream(InputStream inputStream) throws IOException, com.justsyncit.hash.HashingException {
+            return "mock_stream_hash";
+        }
+
+        @Override
+        public Blake3IncrementalHasher createIncrementalHasher() throws com.justsyncit.hash.HashingException {
+            return new MockIncrementalHasher();
+        }
+
+        @Override
+        public Blake3IncrementalHasher createKeyedIncrementalHasher(byte[] key)
+                throws com.justsyncit.hash.HashingException {
+            return new MockIncrementalHasher();
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<java.util.List<String>> hashFilesParallel(
+                java.util.List<Path> filePaths) {
+            return java.util.concurrent.CompletableFuture.completedFuture(
+                    filePaths.stream().map(p -> "mock_hash_" + p.toString().hashCode())
+                            .collect(java.util.stream.Collectors.toList()));
+        }
+
+        @Override
+        public Blake3Info getInfo() {
+            return new MockBlake3Info();
+        }
+
+        @Override
+        public boolean verify(byte[] data, String expectedHash) throws com.justsyncit.hash.HashingException {
+            return hashBuffer(data).equals(expectedHash);
+        }
+
+        private static class MockIncrementalHasher implements Blake3IncrementalHasher {
+            private long bytesProcessed = 0;
+
+            @Override
+            public void update(byte[] data) {
+                bytesProcessed += data.length;
+            }
+
+            @Override
+            public void update(byte[] data, int offset, int length) {
+                bytesProcessed += length;
+            }
+
+            @Override
+            public void update(java.nio.ByteBuffer buffer) {
+                bytesProcessed += buffer.remaining();
+            }
+
+            @Override
+            public String digest() throws com.justsyncit.hash.HashingException {
+                return "mock_incremental_hash";
+            }
+
+            @Override
+            public void reset() {
+                bytesProcessed = 0;
+            }
+
+            @Override
+            public String peek() throws com.justsyncit.hash.HashingException {
+                return "mock_incremental_hash";
+            }
+
+            @Override
+            public long getBytesProcessed() {
+                return bytesProcessed;
+            }
+        }
+
+        private static class MockBlake3Info implements Blake3Info {
+            @Override
+            public String getVersion() {
+                return "mock-1.0.0";
+            }
+
+            @Override
+            public boolean hasSimdSupport() {
+                return true;
+            }
+
+            @Override
+            public String getSimdInstructionSet() {
+                return "MOCK-SIMD";
+            }
+
+            @Override
+            public boolean isJniImplementation() {
+                return false;
+            }
+
+            @Override
+            public int getOptimalBufferSize() {
+                return 8192;
+            }
+
+            @Override
+            public boolean supportsConcurrentHashing() {
+                return true;
+            }
+
+            @Override
+            public int getMaxConcurrentThreads() {
+                return Runtime.getRuntime().availableProcessors();
+            }
+        }
     }
-    
-    @Override
-    public String hashBuffer(byte[] data) throws com.justsyncit.hash.HashingException {
-        return "mock_hash_" + Arrays.hashCode(data);
-    }
-    
-    @Override
-    public String hashStream(InputStream inputStream) throws IOException, com.justsyncit.hash.HashingException {
-        return "mock_stream_hash";
-    }
-    
-    @Override
-    public Blake3IncrementalHasher createIncrementalHasher() throws com.justsyncit.hash.HashingException {
-        return new MockIncrementalHasher();
-    }
-    
-    @Override
-    public Blake3Info getInfo() {
-        return new MockBlake3Info();
-    }
-    
-    private static class MockIncrementalHasher implements Blake3IncrementalHasher {
-        @Override
-        public void update(byte[] data) {
-            // Mock implementation
-        }
-        
-        @Override
-        public void update(byte[] data, int offset, int length) {
-            // Mock implementation
-        }
-        
-        @Override
-        public String digest() throws com.justsyncit.hash.HashingException {
-            return "mock_incremental_hash";
-        }
-        
-        @Override
-        public void reset() {
-            // Mock implementation
-        }
-    }
-    
-    private static class MockBlake3Info implements Blake3Info {
-        @Override
-        public String getVersion() {
-            return "mock-1.0.0";
-        }
-        
-        @Override
-        public boolean hasSimdSupport() {
-            return true;
-        }
-        
-        @Override
-        public String getSimdInstructionSet() {
-            return "MOCK-SIMD";
-        }
-        
-        @Override
-        public boolean isJniImplementation() {
-            return false;
-        }
-    }
-}
 }

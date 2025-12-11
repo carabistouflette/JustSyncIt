@@ -24,6 +24,8 @@ import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Timeout;
+import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -40,6 +42,7 @@ public class ServiceFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateBlake3Service() {
         assertDoesNotThrow(() -> {
             Blake3Service blake3Service = serviceFactory.createBlake3Service();
@@ -48,12 +51,14 @@ public class ServiceFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateNetworkService() {
         NetworkService networkService = serviceFactory.createNetworkService();
         assertNotNull(networkService);
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateContentStore() {
         assertDoesNotThrow(() -> {
             Blake3Service blake3Service = serviceFactory.createBlake3Service();
@@ -63,6 +68,7 @@ public class ServiceFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateMetadataService() {
         assertDoesNotThrow(() -> {
             MetadataService metadataService = serviceFactory.createMetadataService();
@@ -71,6 +77,7 @@ public class ServiceFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateInMemoryMetadataService() {
         assertDoesNotThrow(() -> {
             MetadataService metadataService = serviceFactory.createInMemoryMetadataService();
@@ -79,6 +86,7 @@ public class ServiceFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateSqliteContentStore() {
         assertDoesNotThrow(() -> {
             Blake3Service blake3Service = serviceFactory.createBlake3Service();
@@ -88,6 +96,7 @@ public class ServiceFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateApplication() {
         assertDoesNotThrow(() -> {
             JustSyncItApplication app = serviceFactory.createApplication();
@@ -96,6 +105,7 @@ public class ServiceFactoryTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testServiceFactoryNotNull() {
         assertNotNull(serviceFactory);
     }

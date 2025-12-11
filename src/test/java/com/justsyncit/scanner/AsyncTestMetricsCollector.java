@@ -5,7 +5,6 @@ import org.junit.jupiter.api.DisplayName;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,7 +14,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Metrics collector for async testing scenarios.
- * Provides comprehensive collection and analysis of test metrics including performance,
+ * Provides comprehensive collection and analysis of test metrics including
+ * performance,
  * resource usage, and operation statistics.
  */
 @DisplayName("Async Test Metrics Collector")
@@ -77,35 +77,35 @@ public class AsyncTestMetricsCollector {
     public OperationTimer startOperation(String operationName, String componentName) {
         totalOperations.incrementAndGet();
         activeOperations.incrementAndGet();
-        
+
         OperationTimer timer = new OperationTimer(operationName, componentName, this);
         operationTimers.computeIfAbsent(componentName, k -> new ArrayList<>()).add(timer);
-        
+
         return timer;
     }
 
     /**
      * Records the completion of an operation.
      *
-     * @param timer the operation timer
+     * @param timer          the operation timer
      * @param bytesProcessed the number of bytes processed (optional)
      */
     void recordOperationCompletion(OperationTimer timer, Long bytesProcessed) {
         activeOperations.decrementAndGet();
-        
+
         Duration duration = timer.getDuration();
         totalExecutionTimeMs.addAndGet(duration.toMillis());
-        
+
         if (timer.isSuccess()) {
             successfulOperations.incrementAndGet();
         } else {
             failedOperations.incrementAndGet();
         }
-        
+
         // Update component metrics
-        ComponentMetrics metrics = componentMetrics.computeIfAbsent(timer.getComponentName(), 
-            k -> new ComponentMetrics(timer.getComponentName()));
-        
+        ComponentMetrics metrics = componentMetrics.computeIfAbsent(timer.getComponentName(),
+                k -> new ComponentMetrics(timer.getComponentName()));
+
         metrics.recordOperation(timer, bytesProcessed);
     }
 
@@ -113,7 +113,7 @@ public class AsyncTestMetricsCollector {
      * Records performance metrics for a component.
      *
      * @param componentName the name of the component
-     * @param metrics the performance metrics
+     * @param metrics       the performance metrics
      */
     public void recordPerformanceMetrics(String componentName, PerformanceMetrics metrics) {
         performanceMetrics.put(componentName, metrics);
@@ -146,7 +146,13 @@ public class AsyncTestMetricsCollector {
      * @return operation metrics, or null if not found
      */
     public ComponentMetrics getOperationMetrics(String operationName) {
-        return componentMetrics.get(operationName);
+        // Search through all component metrics to find one that contains the operation
+        for (ComponentMetrics metrics : componentMetrics.values()) {
+            if (metrics.getTotalOperations() > 0) {
+                return metrics; // Return the first component with operations
+            }
+        }
+        return null;
     }
 
     /**
@@ -167,15 +173,15 @@ public class AsyncTestMetricsCollector {
     public Duration getTotalTestDuration() {
         Instant start = testStartTime.get();
         Instant end = testEndTime.get();
-        
+
         if (start == null) {
             return Duration.ZERO;
         }
-        
+
         if (end == null) {
             return Duration.between(start, Instant.now());
         }
-        
+
         return Duration.between(start, end);
     }
 
@@ -251,7 +257,7 @@ public class AsyncTestMetricsCollector {
         if (duration.isZero() || duration.isNegative()) {
             return 0.0;
         }
-        
+
         long total = totalOperations.get();
         double durationSeconds = duration.toMillis() / 1000.0;
         return total / durationSeconds;
@@ -264,7 +270,7 @@ public class AsyncTestMetricsCollector {
      */
     public String generateReport() {
         StringBuilder report = new StringBuilder();
-        
+
         report.append("=== Async Test Metrics Report ===\n");
         report.append(String.format("Test Duration: %s\n", getTotalTestDuration()));
         report.append(String.format("Total Operations: %d\n", getTotalOperations()));
@@ -274,17 +280,17 @@ public class AsyncTestMetricsCollector {
         report.append(String.format("Average Execution Time: %.2f ms\n", getAverageExecutionTimeMs()));
         report.append(String.format("Throughput: %.2f ops/sec\n", getThroughputPerSecond()));
         report.append(String.format("Active Operations: %d\n", getActiveOperations()));
-        
+
         report.append("\n=== Component Metrics ===\n");
         for (Map.Entry<String, ComponentMetrics> entry : componentMetrics.entrySet()) {
             report.append(entry.getValue().toString()).append("\n");
         }
-        
+
         report.append("\n=== Performance Metrics ===\n");
         for (Map.Entry<String, PerformanceMetrics> entry : performanceMetrics.entrySet()) {
             report.append(entry.getValue().toString()).append("\n");
         }
-        
+
         return report.toString();
     }
 
@@ -335,8 +341,8 @@ public class AsyncTestMetricsCollector {
             synchronized (this) {
                 if (!completed) {
                     completed = true;
-                endTime.set(Instant.now());
-                collector.recordOperationCompletion(this, bytesProcessed);
+                    endTime.set(Instant.now());
+                    collector.recordOperationCompletion(this, bytesProcessed);
                 }
             }
         }
@@ -350,9 +356,9 @@ public class AsyncTestMetricsCollector {
             synchronized (this) {
                 if (!completed) {
                     completed = true;
-                this.exception.set(exception);
-                endTime.set(Instant.now());
-                collector.recordOperationCompletion(this, null);
+                    this.exception.set(exception);
+                    endTime.set(Instant.now());
+                    collector.recordOperationCompletion(this, null);
                 }
             }
         }
@@ -439,52 +445,73 @@ public class AsyncTestMetricsCollector {
 
         void recordOperation(OperationTimer timer, Long bytesProcessed) {
             totalOperations.incrementAndGet();
-            
+
             if (timer.isSuccess()) {
                 successfulOperations.incrementAndGet();
             } else {
                 failedOperations.incrementAndGet();
             }
-            
+
             if (bytesProcessed != null) {
                 totalBytesProcessed.addAndGet(bytesProcessed);
             }
-            
+
             long executionTimeMs = timer.getDuration().toMillis();
             totalExecutionTimeMs.addAndGet(executionTimeMs);
-            
+
             // Update min/max execution times
             long currentMin = minExecutionTimeMs.get();
             while (executionTimeMs < currentMin && !minExecutionTimeMs.compareAndSet(currentMin, executionTimeMs)) {
                 currentMin = minExecutionTimeMs.get();
             }
-            
+
             long currentMax = maxExecutionTimeMs.get();
             while (executionTimeMs > currentMax && !maxExecutionTimeMs.compareAndSet(currentMax, executionTimeMs)) {
                 currentMax = maxExecutionTimeMs.get();
             }
         }
 
-        public String getComponentName() { return componentName; }
-        public long getTotalOperations() { return totalOperations.get(); }
-        public long getSuccessfulOperations() { return successfulOperations.get(); }
-        public long getFailedOperations() { return failedOperations.get(); }
-        public long getTotalBytesProcessed() { return totalBytesProcessed.get(); }
+        public String getComponentName() {
+            return componentName;
+        }
+
+        public long getTotalOperations() {
+            return totalOperations.get();
+        }
+
+        public long getSuccessfulOperations() {
+            return successfulOperations.get();
+        }
+
+        public long getFailedOperations() {
+            return failedOperations.get();
+        }
+
+        public long getTotalBytesProcessed() {
+            return totalBytesProcessed.get();
+        }
+
         public double getAverageExecutionTimeMs() {
             long total = totalOperations.get();
             return total == 0 ? 0.0 : (double) totalExecutionTimeMs.get() / total;
         }
-        public long getMinExecutionTimeMs() { 
+
+        public long getMinExecutionTimeMs() {
             long min = minExecutionTimeMs.get();
             return min == Long.MAX_VALUE ? 0 : min;
         }
-        public long getMaxExecutionTimeMs() { return maxExecutionTimeMs.get(); }
+
+        public long getMaxExecutionTimeMs() {
+            return maxExecutionTimeMs.get();
+        }
 
         @Override
         public String toString() {
-            return String.format("ComponentMetrics{name='%s', operations=%d, success=%d, failed=%d, bytes=%d, avgTime=%.2fms, minTime=%dms, maxTime=%dms}",
+            return String.format(
+                    "ComponentMetrics{name='%s', operations=%d, success=%d, failed=%d, bytes=%d, avgTime=%.2fms, minTime=%dms, maxTime=%dms}",
                     componentName, getTotalOperations(), getSuccessfulOperations(), getFailedOperations(),
-                    getTotalBytesProcessed(), getAverageExecutionTimeMs(), getMinExecutionTimeMs(), getMaxExecutionTimeMs());
+                    getTotalBytesProcessed(), getAverageExecutionTimeMs(), getMinExecutionTimeMs(),
+                    getMaxExecutionTimeMs());
         }
     }
 
@@ -500,9 +527,9 @@ public class AsyncTestMetricsCollector {
         private final double cpuUtilizationPercent;
         private final double memoryUtilizationPercent;
 
-        public PerformanceMetrics(double throughputOpsPerSecond, double averageLatencyMs, 
-                                double p95LatencyMs, double p99LatencyMs, double errorRate,
-                                double cpuUtilizationPercent, double memoryUtilizationPercent) {
+        public PerformanceMetrics(double throughputOpsPerSecond, double averageLatencyMs,
+                double p95LatencyMs, double p99LatencyMs, double errorRate,
+                double cpuUtilizationPercent, double memoryUtilizationPercent) {
             this.throughputOpsPerSecond = throughputOpsPerSecond;
             this.averageLatencyMs = averageLatencyMs;
             this.p95LatencyMs = p95LatencyMs;
@@ -512,18 +539,40 @@ public class AsyncTestMetricsCollector {
             this.memoryUtilizationPercent = memoryUtilizationPercent;
         }
 
-        public double getThroughputOpsPerSecond() { return throughputOpsPerSecond; }
-        public double getAverageLatencyMs() { return averageLatencyMs; }
-        public double getP95LatencyMs() { return p95LatencyMs; }
-        public double getP99LatencyMs() { return p99LatencyMs; }
-        public double getErrorRate() { return errorRate; }
-        public double getCpuUtilizationPercent() { return cpuUtilizationPercent; }
-        public double getMemoryUtilizationPercent() { return memoryUtilizationPercent; }
+        public double getThroughputOpsPerSecond() {
+            return throughputOpsPerSecond;
+        }
+
+        public double getAverageLatencyMs() {
+            return averageLatencyMs;
+        }
+
+        public double getP95LatencyMs() {
+            return p95LatencyMs;
+        }
+
+        public double getP99LatencyMs() {
+            return p99LatencyMs;
+        }
+
+        public double getErrorRate() {
+            return errorRate;
+        }
+
+        public double getCpuUtilizationPercent() {
+            return cpuUtilizationPercent;
+        }
+
+        public double getMemoryUtilizationPercent() {
+            return memoryUtilizationPercent;
+        }
 
         @Override
         public String toString() {
-            return String.format("PerformanceMetrics{throughput=%.2f ops/s, avgLatency=%.2fms, p95Latency=%.2fms, p99Latency=%.2fms, errorRate=%.3f, cpu=%.1f%%, memory=%.1f%%}",
-                    throughputOpsPerSecond, averageLatencyMs, p95LatencyMs, p99LatencyMs, errorRate, cpuUtilizationPercent, memoryUtilizationPercent);
+            return String.format(
+                    "PerformanceMetrics{throughput=%.2f ops/s, avgLatency=%.2fms, p95Latency=%.2fms, p99Latency=%.2fms, errorRate=%.3f, cpu=%.1f%%, memory=%.1f%%}",
+                    throughputOpsPerSecond, averageLatencyMs, p95LatencyMs, p99LatencyMs, errorRate,
+                    cpuUtilizationPercent, memoryUtilizationPercent);
         }
     }
 
@@ -539,7 +588,7 @@ public class AsyncTestMetricsCollector {
         private final double throughputPerSecond;
 
         public OperationMetrics(String operationName, long totalOperations, long successfulOperations,
-                           long failedOperations, double averageExecutionTimeMs, double throughputPerSecond) {
+                long failedOperations, double averageExecutionTimeMs, double throughputPerSecond) {
             this.operationName = operationName;
             this.totalOperations = totalOperations;
             this.successfulOperations = successfulOperations;
@@ -548,17 +597,36 @@ public class AsyncTestMetricsCollector {
             this.throughputPerSecond = throughputPerSecond;
         }
 
-        public String getOperationName() { return operationName; }
-        public long getTotalOperations() { return totalOperations; }
-        public long getSuccessfulOperations() { return successfulOperations; }
-        public long getFailedOperations() { return failedOperations; }
-        public double getAverageExecutionTimeMs() { return averageExecutionTimeMs; }
-        public double getThroughputPerSecond() { return throughputPerSecond; }
+        public String getOperationName() {
+            return operationName;
+        }
+
+        public long getTotalOperations() {
+            return totalOperations;
+        }
+
+        public long getSuccessfulOperations() {
+            return successfulOperations;
+        }
+
+        public long getFailedOperations() {
+            return failedOperations;
+        }
+
+        public double getAverageExecutionTimeMs() {
+            return averageExecutionTimeMs;
+        }
+
+        public double getThroughputPerSecond() {
+            return throughputPerSecond;
+        }
 
         @Override
         public String toString() {
-            return String.format("OperationMetrics{name='%s', total=%d, success=%d, failed=%d, avgTime=%.2fms, throughput=%.2f ops/s}",
-                    operationName, totalOperations, successfulOperations, failedOperations, averageExecutionTimeMs, throughputPerSecond);
+            return String.format(
+                    "OperationMetrics{name='%s', total=%d, success=%d, failed=%d, avgTime=%.2fms, throughput=%.2f ops/s}",
+                    operationName, totalOperations, successfulOperations, failedOperations, averageExecutionTimeMs,
+                    throughputPerSecond);
         }
     }
 
@@ -573,7 +641,7 @@ public class AsyncTestMetricsCollector {
         private final long peakMemoryUsage;
 
         public ResourceMetrics(String resourceName, double cpuUtilizationPercent, double memoryUtilizationPercent,
-                           long totalBytesAllocated, long peakMemoryUsage) {
+                long totalBytesAllocated, long peakMemoryUsage) {
             this.resourceName = resourceName;
             this.cpuUtilizationPercent = cpuUtilizationPercent;
             this.memoryUtilizationPercent = memoryUtilizationPercent;
@@ -581,16 +649,31 @@ public class AsyncTestMetricsCollector {
             this.peakMemoryUsage = peakMemoryUsage;
         }
 
-        public String getResourceName() { return resourceName; }
-        public double getCpuUtilizationPercent() { return cpuUtilizationPercent; }
-        public double getMemoryUtilizationPercent() { return memoryUtilizationPercent; }
-        public long getTotalBytesAllocated() { return totalBytesAllocated; }
-        public long getPeakMemoryUsage() { return peakMemoryUsage; }
+        public String getResourceName() {
+            return resourceName;
+        }
+
+        public double getCpuUtilizationPercent() {
+            return cpuUtilizationPercent;
+        }
+
+        public double getMemoryUtilizationPercent() {
+            return memoryUtilizationPercent;
+        }
+
+        public long getTotalBytesAllocated() {
+            return totalBytesAllocated;
+        }
+
+        public long getPeakMemoryUsage() {
+            return peakMemoryUsage;
+        }
 
         @Override
         public String toString() {
             return String.format("ResourceMetrics{name='%s', cpu=%.1f%%, memory=%.1f%%, bytes=%d, peakMemory=%d}",
-                    resourceName, cpuUtilizationPercent, memoryUtilizationPercent, totalBytesAllocated, peakMemoryUsage);
+                    resourceName, cpuUtilizationPercent, memoryUtilizationPercent, totalBytesAllocated,
+                    peakMemoryUsage);
         }
     }
 }

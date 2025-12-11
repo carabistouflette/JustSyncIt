@@ -20,12 +20,14 @@ package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Timeout;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -37,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.*;
 public class BatchProcessingBasicTest {
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch options successfully")
     void shouldCreateBatchOptionsSuccessfully() {
         // When
@@ -58,6 +61,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch options with builder pattern")
     void shouldCreateBatchOptionsWithBuilderPattern() {
         // When
@@ -76,6 +80,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch configuration successfully")
     void shouldCreateBatchConfigurationSuccessfully() {
         // When
@@ -92,6 +97,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch configuration with builder pattern")
     void shouldCreateBatchConfigurationWithBuilderPattern() {
         // When
@@ -108,6 +114,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should validate batch priority enum")
     void shouldValidateBatchPriorityEnum() {
         // Then
@@ -124,6 +131,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should validate batch strategy enum")
     void shouldValidateBatchStrategyEnum() {
         // Then
@@ -140,6 +148,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should validate batch operation type enum")
     void shouldValidateBatchOperationTypeEnum() {
         // Then
@@ -159,6 +168,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch operation successfully")
     void shouldCreateBatchOperationSuccessfully() {
         // Given
@@ -193,6 +203,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch result successfully")
     void shouldCreateBatchResultSuccessfully() {
         // Given
@@ -227,6 +238,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create batch performance metrics successfully")
     void shouldCreateBatchPerformanceMetricsSuccessfully() {
         // When
@@ -260,6 +272,7 @@ public class BatchProcessingBasicTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Should create resource utilization successfully")
     void shouldCreateResourceUtilizationSuccessfully() {
         // When

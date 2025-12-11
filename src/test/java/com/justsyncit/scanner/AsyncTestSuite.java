@@ -27,47 +27,45 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Master test suite for all async components.
- * Coordinates execution of all async tests and provides comprehensive reporting.
+ * Coordinates execution of all async tests and provides comprehensive
+ * reporting.
  */
 public final class AsyncTestSuite {
 
     private static final List<Class<?>> UNIT_TEST_CLASSES = Arrays.asList(
-        AsyncByteBufferPoolTest.class,
-        AsyncFileChunkerTest.class,
-        AsyncChunkHandlerComprehensiveTest.class,
-        AsyncByteBufferPoolComprehensiveTest.class,
-        ThreadPoolManagerTest.class,
-        AsyncBatchProcessorTest.class,
-        CompletionHandlerTest.class
-    );
+            AsyncByteBufferPoolTest.class,
+            AsyncFileChunkerTest.class,
+            AsyncChunkHandlerComprehensiveTest.class,
+            AsyncByteBufferPoolComprehensiveTest.class,
+            ThreadPoolManagerTest.class,
+            AsyncBatchProcessorTest.class,
+            CompletionHandlerTest.class);
 
     private static final List<Class<?>> INTEGRATION_TEST_CLASSES = Arrays.asList(
-        // Integration tests - add actual integration test classes when they exist
-        // AsyncIntegrationTestSuite.class,
-        // AsyncComponentCoordinationTest.class,
-        // AsyncResourceManagementTest.class,
-        // AsyncErrorPropagationTest.class
+    // Integration tests - add actual integration test classes when they exist
+    // AsyncIntegrationTestSuite.class,
+    // AsyncComponentCoordinationTest.class,
+    // AsyncResourceManagementTest.class,
+    // AsyncErrorPropagationTest.class
     );
 
     private static final List<Class<?>> PERFORMANCE_TEST_CLASSES = Arrays.asList(
-        // Performance tests - add actual performance test classes when they exist
-        // AsyncPerformanceTestSuite.class,
-        // AsyncConcurrencyTest.class,
-        // AsyncScalabilityTest.class,
-        // AsyncResourceExhaustionTest.class
+    // Performance tests - add actual performance test classes when they exist
+    // AsyncPerformanceTestSuite.class,
+    // AsyncConcurrencyTest.class,
+    // AsyncScalabilityTest.class,
+    // AsyncResourceExhaustionTest.class
     );
 
     private static final List<Class<?>> ERROR_HANDLING_TEST_CLASSES = Arrays.asList(
-        // Error handling tests - add actual error handling test classes when they exist
-        // AsyncErrorHandlingTest.class,
-        // AsyncTimeoutTest.class,
-        // AsyncResourceLeakTest.class,
-        // AsyncBoundaryConditionTest.class
+    // Error handling tests - add actual error handling test classes when they exist
+    // AsyncErrorHandlingTest.class,
+    // AsyncTimeoutTest.class,
+    // AsyncResourceLeakTest.class,
+    // AsyncBoundaryConditionTest.class
     );
 
     private final AsyncTestRunner testRunner;
@@ -140,7 +138,8 @@ public final class AsyncTestSuite {
 
             // Run error handling tests
             if (configuration.isRunErrorHandlingTests()) {
-                TestCategoryResult errorHandlingResult = runTestCategory("Error Handling Tests", ERROR_HANDLING_TEST_CLASSES);
+                TestCategoryResult errorHandlingResult = runTestCategory("Error Handling Tests",
+                        ERROR_HANDLING_TEST_CLASSES);
                 result.addCategoryResult(errorHandlingResult);
             }
 
@@ -191,7 +190,7 @@ public final class AsyncTestSuite {
 
             // Wait for all test classes to complete
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(configuration.getCategoryTimeout().toMillis(), TimeUnit.MILLISECONDS);
+                    .get(configuration.getCategoryTimeout().toMillis(), TimeUnit.MILLISECONDS);
 
             // Collect results
             for (CompletableFuture<ClassTestResult> future : futures) {
@@ -218,8 +217,8 @@ public final class AsyncTestSuite {
         categoryResult.setEndTime(Instant.now());
         categoryResult.setDuration(Duration.between(startTime, categoryResult.getEndTime()));
 
-        System.out.println("Completed " + categoryName + " - " + 
-            (categoryResult.isSuccess() ? "SUCCESS" : "FAILED"));
+        System.out.println("Completed " + categoryName + " - " +
+                (categoryResult.isSuccess() ? "SUCCESS" : "FAILED"));
 
         return categoryResult;
     }
@@ -263,17 +262,49 @@ public final class AsyncTestSuite {
         }
 
         // Getters
-        public String getName() { return name; }
-        public boolean isRunUnitTests() { return runUnitTests; }
-        public boolean isRunIntegrationTests() { return runIntegrationTests; }
-        public boolean isRunPerformanceTests() { return runPerformanceTests; }
-        public boolean isRunErrorHandlingTests() { return runErrorHandlingTests; }
-        public boolean isRunValidation() { return runValidation; }
-        public int getMaxConcurrentTestClasses() { return maxConcurrentTestClasses; }
-        public Duration getCategoryTimeout() { return categoryTimeout; }
-        public AsyncTestRunner.RunnerConfiguration getRunnerConfiguration() { return runnerConfiguration; }
-        public AsyncTestReporter.ReporterConfiguration getReporterConfiguration() { return reporterConfiguration; }
-        public AsyncTestValidator.ValidatorConfiguration getValidatorConfiguration() { return validatorConfiguration; }
+        public String getName() {
+            return name;
+        }
+
+        public boolean isRunUnitTests() {
+            return runUnitTests;
+        }
+
+        public boolean isRunIntegrationTests() {
+            return runIntegrationTests;
+        }
+
+        public boolean isRunPerformanceTests() {
+            return runPerformanceTests;
+        }
+
+        public boolean isRunErrorHandlingTests() {
+            return runErrorHandlingTests;
+        }
+
+        public boolean isRunValidation() {
+            return runValidation;
+        }
+
+        public int getMaxConcurrentTestClasses() {
+            return maxConcurrentTestClasses;
+        }
+
+        public Duration getCategoryTimeout() {
+            return categoryTimeout;
+        }
+
+        public AsyncTestRunner.RunnerConfiguration getRunnerConfiguration() {
+            return runnerConfiguration;
+        }
+
+        public AsyncTestReporter.ReporterConfiguration getReporterConfiguration() {
+            return reporterConfiguration;
+        }
+
+        public AsyncTestValidator.ValidatorConfiguration getValidatorConfiguration() {
+            return validatorConfiguration;
+        }
 
         /**
          * Builder for TestSuiteConfiguration.
@@ -286,10 +317,13 @@ public final class AsyncTestSuite {
             private boolean runErrorHandlingTests = true;
             private boolean runValidation = true;
             private int maxConcurrentTestClasses = Runtime.getRuntime().availableProcessors();
-            private Duration categoryTimeout = Duration.ofMinutes(30);
-            private AsyncTestRunner.RunnerConfiguration runnerConfiguration = AsyncTestRunner.RunnerConfiguration.defaultConfiguration();
-            private AsyncTestReporter.ReporterConfiguration reporterConfiguration = AsyncTestReporter.ReporterConfiguration.defaultConfiguration();
-            private AsyncTestValidator.ValidatorConfiguration validatorConfiguration = AsyncTestValidator.ValidatorConfiguration.defaultConfiguration();
+            private Duration categoryTimeout = Duration.ofMinutes(5);
+            private AsyncTestRunner.RunnerConfiguration runnerConfiguration = AsyncTestRunner.RunnerConfiguration
+                    .defaultConfiguration();
+            private AsyncTestReporter.ReporterConfiguration reporterConfiguration = AsyncTestReporter.ReporterConfiguration
+                    .defaultConfiguration();
+            private AsyncTestValidator.ValidatorConfiguration validatorConfiguration = AsyncTestValidator.ValidatorConfiguration
+                    .defaultConfiguration();
 
             public Builder name(String name) {
                 this.name = name;
@@ -369,19 +403,53 @@ public final class AsyncTestSuite {
         }
 
         // Getters and setters
-        public Instant getStartTime() { return startTime; }
-        public Instant getEndTime() { return endTime; }
-        public Duration getDuration() { return duration; }
-        public boolean isSuccess() { return success; }
-        public String getErrorMessage() { return errorMessage; }
-        public List<TestCategoryResult> getCategoryResults() { return categoryResults; }
-        public ValidationResult getValidationResult() { return validationResult; }
+        public Instant getStartTime() {
+            return startTime;
+        }
 
-        void setEndTime(Instant endTime) { this.endTime = endTime; }
-        void setDuration(Duration duration) { this.duration = duration; }
-        void setSuccess(boolean success) { this.success = success; }
-        void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
-        void setValidationResult(ValidationResult validationResult) { this.validationResult = validationResult; }
+        public Instant getEndTime() {
+            return endTime;
+        }
+
+        public Duration getDuration() {
+            return duration;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+
+        public List<TestCategoryResult> getCategoryResults() {
+            return categoryResults;
+        }
+
+        public ValidationResult getValidationResult() {
+            return validationResult;
+        }
+
+        void setEndTime(Instant endTime) {
+            this.endTime = endTime;
+        }
+
+        void setDuration(Duration duration) {
+            this.duration = duration;
+        }
+
+        void setSuccess(boolean success) {
+            this.success = success;
+        }
+
+        void setErrorMessage(String errorMessage) {
+            this.errorMessage = errorMessage;
+        }
+
+        void setValidationResult(ValidationResult validationResult) {
+            this.validationResult = validationResult;
+        }
 
         void addCategoryResult(TestCategoryResult categoryResult) {
             categoryResults.add(categoryResult);
@@ -392,8 +460,8 @@ public final class AsyncTestSuite {
          */
         public int getTotalTestClasses() {
             return categoryResults.stream()
-                .mapToInt(category -> category.getClassResults().size())
-                .sum();
+                    .mapToInt(category -> category.getClassResults().size())
+                    .sum();
         }
 
         /**
@@ -401,9 +469,9 @@ public final class AsyncTestSuite {
          */
         public int getTotalTestMethods() {
             return categoryResults.stream()
-                .flatMap(category -> category.getClassResults().stream())
-                .mapToInt(classResult -> classResult.getTestMethodCount())
-                .sum();
+                    .flatMap(category -> category.getClassResults().stream())
+                    .mapToInt(classResult -> classResult.getTestMethodCount())
+                    .sum();
         }
 
         /**
@@ -411,9 +479,9 @@ public final class AsyncTestSuite {
          */
         public int getTotalPassedTests() {
             return categoryResults.stream()
-                .flatMap(category -> category.getClassResults().stream())
-                .mapToInt(ClassTestResult::getPassedTestCount)
-                .sum();
+                    .flatMap(category -> category.getClassResults().stream())
+                    .mapToInt(ClassTestResult::getPassedTestCount)
+                    .sum();
         }
 
         /**
@@ -421,9 +489,9 @@ public final class AsyncTestSuite {
          */
         public int getTotalFailedTests() {
             return categoryResults.stream()
-                .flatMap(category -> category.getClassResults().stream())
-                .mapToInt(ClassTestResult::getFailedTestCount)
-                .sum();
+                    .flatMap(category -> category.getClassResults().stream())
+                    .mapToInt(ClassTestResult::getFailedTestCount)
+                    .sum();
         }
 
         /**
@@ -431,9 +499,9 @@ public final class AsyncTestSuite {
          */
         public int getTotalSkippedTests() {
             return categoryResults.stream()
-                .flatMap(category -> category.getClassResults().stream())
-                .mapToInt(ClassTestResult::getSkippedTestCount)
-                .sum();
+                    .flatMap(category -> category.getClassResults().stream())
+                    .mapToInt(ClassTestResult::getSkippedTestCount)
+                    .sum();
         }
 
         /**
@@ -477,18 +545,49 @@ public final class AsyncTestSuite {
         }
 
         // Getters and setters
-        public String getCategoryName() { return categoryName; }
-        public Instant getStartTime() { return startTime; }
-        public Instant getEndTime() { return endTime; }
-        public Duration getDuration() { return duration; }
-        public boolean isSuccess() { return success; }
-        public String getErrorMessage() { return errorMessage; }
-        public List<ClassTestResult> getClassResults() { return classResults; }
+        public String getCategoryName() {
+            return categoryName;
+        }
 
-        void setEndTime(Instant endTime) { this.endTime = endTime; }
-        void setDuration(Duration duration) { this.duration = duration; }
-        void setSuccess(boolean success) { this.success = success; }
-        void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+        public Instant getStartTime() {
+            return startTime;
+        }
+
+        public Instant getEndTime() {
+            return endTime;
+        }
+
+        public Duration getDuration() {
+            return duration;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
+
+        public List<ClassTestResult> getClassResults() {
+            return classResults;
+        }
+
+        void setEndTime(Instant endTime) {
+            this.endTime = endTime;
+        }
+
+        void setDuration(Duration duration) {
+            this.duration = duration;
+        }
+
+        void setSuccess(boolean success) {
+            this.success = success;
+        }
+
+        void setErrorMessage(String errorMessage) {
+            this.errorMessage = errorMessage;
+        }
 
         void addClassResult(ClassTestResult classResult) {
             classResults.add(classResult);
@@ -499,8 +598,8 @@ public final class AsyncTestSuite {
          */
         public int getTotalTestMethods() {
             return classResults.stream()
-                .mapToInt(ClassTestResult::getTestMethodCount)
-                .sum();
+                    .mapToInt(ClassTestResult::getTestMethodCount)
+                    .sum();
         }
 
         /**
@@ -508,8 +607,8 @@ public final class AsyncTestSuite {
          */
         public int getTotalPassedTests() {
             return classResults.stream()
-                .mapToInt(ClassTestResult::getPassedTestCount)
-                .sum();
+                    .mapToInt(ClassTestResult::getPassedTestCount)
+                    .sum();
         }
 
         /**
@@ -517,8 +616,8 @@ public final class AsyncTestSuite {
          */
         public int getTotalFailedTests() {
             return classResults.stream()
-                .mapToInt(ClassTestResult::getFailedTestCount)
-                .sum();
+                    .mapToInt(ClassTestResult::getFailedTestCount)
+                    .sum();
         }
 
         /**
@@ -526,8 +625,8 @@ public final class AsyncTestSuite {
          */
         public int getTotalSkippedTests() {
             return classResults.stream()
-                .mapToInt(ClassTestResult::getSkippedTestCount)
-                .sum();
+                    .mapToInt(ClassTestResult::getSkippedTestCount)
+                    .sum();
         }
     }
 
@@ -545,8 +644,8 @@ public final class AsyncTestSuite {
         private final String errorMessage;
 
         public ClassTestResult(String className, boolean success, int testMethodCount,
-                              int passedTestCount, int failedTestCount, int skippedTestCount,
-                              Duration executionTime, String errorMessage) {
+                int passedTestCount, int failedTestCount, int skippedTestCount,
+                Duration executionTime, String errorMessage) {
             this.className = className;
             this.success = success;
             this.testMethodCount = testMethodCount;
@@ -558,14 +657,37 @@ public final class AsyncTestSuite {
         }
 
         // Getters
-        public String getClassName() { return className; }
-        public boolean isSuccess() { return success; }
-        public int getTestMethodCount() { return testMethodCount; }
-        public int getPassedTestCount() { return passedTestCount; }
-        public int getFailedTestCount() { return failedTestCount; }
-        public int getSkippedTestCount() { return skippedTestCount; }
-        public Duration getExecutionTime() { return executionTime; }
-        public String getErrorMessage() { return errorMessage; }
+        public String getClassName() {
+            return className;
+        }
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public int getTestMethodCount() {
+            return testMethodCount;
+        }
+
+        public int getPassedTestCount() {
+            return passedTestCount;
+        }
+
+        public int getFailedTestCount() {
+            return failedTestCount;
+        }
+
+        public int getSkippedTestCount() {
+            return skippedTestCount;
+        }
+
+        public Duration getExecutionTime() {
+            return executionTime;
+        }
+
+        public String getErrorMessage() {
+            return errorMessage;
+        }
     }
 
     /**
@@ -582,9 +704,17 @@ public final class AsyncTestSuite {
             this.warnings = new ArrayList<>(warnings);
         }
 
-        public boolean isValid() { return valid; }
-        public String getMessage() { return message; }
-        public List<String> getWarnings() { return warnings; }
+        public boolean isValid() {
+            return valid;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public List<String> getWarnings() {
+            return warnings;
+        }
 
         public static ValidationResult valid() {
             return new ValidationResult(true, null, new ArrayList<>());

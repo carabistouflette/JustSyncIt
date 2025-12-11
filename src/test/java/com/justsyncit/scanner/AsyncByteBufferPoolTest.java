@@ -20,6 +20,7 @@ package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +45,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testAcquireAndReleaseAsync() throws Exception {
         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(1024);
         ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -59,6 +61,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testAcquireWithDefaultSizeAsync() throws Exception {
         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(64 * 1024); // Use default 64KB size
         ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -72,6 +75,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testMultipleBuffersAsync() throws Exception {
         CompletableFuture<ByteBuffer> future1 = pool.acquireAsync(1024);
         CompletableFuture<ByteBuffer> future2 = pool.acquireAsync(2048);
@@ -97,6 +101,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testBufferReuseAsync() throws Exception {
         // Acquire buffer
         CompletableFuture<ByteBuffer> acquireFuture1 = pool.acquireAsync(1024);
@@ -119,6 +124,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testClearAsync() throws ExecutionException, InterruptedException, TimeoutException {
         // Acquire and release several buffers
         for (int i = 0; i < 5; i++) {
@@ -138,6 +144,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testGetStatsAsync() throws Exception {
         CompletableFuture<String> statsFuture = pool.getStatsAsync();
         String stats = AsyncTestUtils.getResultOrThrow(statsFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -150,6 +157,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testGetAvailableCountAsync() throws Exception {
         CompletableFuture<Integer> countFuture = pool.getAvailableCountAsync();
         Integer count = AsyncTestUtils.getResultOrThrow(countFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -159,6 +167,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testGetTotalCountAsync() throws Exception {
         CompletableFuture<Integer> countFuture = pool.getTotalCountAsync();
         Integer count = AsyncTestUtils.getResultOrThrow(countFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -168,6 +177,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testGetBuffersInUseAsync() throws Exception {
         CompletableFuture<Integer> countFuture = pool.getBuffersInUseAsync();
         Integer count = AsyncTestUtils.getResultOrThrow(countFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -177,6 +187,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testInvalidSizeAsync() {
         CompletableFuture<ByteBuffer> future1 = pool.acquireAsync(0);
         CompletableFuture<ByteBuffer> future2 = pool.acquireAsync(-1);
@@ -186,6 +197,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testNullBufferReleaseAsync() {
         CompletableFuture<Void> future = pool.releaseAsync(null);
 
@@ -194,6 +206,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testDirectBuffersAsync() throws Exception {
         CompletableFuture<ByteBuffer> acquireFuture = pool.acquireAsync(1024);
         ByteBuffer buffer = AsyncTestUtils.getResultOrThrow(acquireFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -205,6 +218,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testConcurrentAccessAsync() throws Exception {
         final int threadCount = 10;
         final int operationsPerThread = 10; // Reduced for faster execution
@@ -249,6 +263,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testCustomPoolAsync() throws Exception {
         AsyncByteBufferPool customPool = AsyncByteBufferPoolImpl.create(32 * 1024, 8); // 32KB default, max 8 buffers
 
@@ -263,6 +278,7 @@ class AsyncByteBufferPoolTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testSyncCompatibilityAsync() throws Exception {
         // Test that async pool still works with sync interface methods
         ByteBuffer buffer = pool.acquire(1024);

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Timeout;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.concurrent.CompletableFuture;
@@ -61,6 +62,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should initialize all specialized thread pools")
     void shouldInitializeAllThreadPools() {
         // Verify all pool types are available
@@ -73,6 +75,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should submit tasks to appropriate thread pools")
     void shouldSubmitTasksToAppropriatePools() throws Exception {
         // Test I/O task submission
@@ -98,6 +101,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should handle priority-based task submission")
     void shouldHandlePriorityBasedTaskSubmission() throws Exception {
         // Test high priority task
@@ -118,6 +122,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should apply and release backpressure")
     void shouldApplyAndReleaseBackpressure() throws Exception {
         // Get initial stats
@@ -139,6 +144,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should trigger adaptive resizing")
     void shouldTriggerAdaptiveResizing() throws Exception {
         // Get initial stats
@@ -157,6 +163,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     @DisplayName("Should handle concurrent task execution")
     void shouldHandleConcurrentTaskExecution() throws Exception {
         int taskCount = 100;
@@ -199,6 +206,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should collect comprehensive statistics")
     void shouldCollectComprehensiveStatistics() throws Exception {
         // Execute some tasks to generate statistics
@@ -222,6 +230,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should update configuration dynamically")
     void shouldUpdateConfigurationDynamically() throws Exception {
         // Create new configuration
@@ -243,6 +252,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should handle thread pool shutdown gracefully")
     void shouldHandleThreadPoolShutdownGracefully() throws Exception {
         // Submit some tasks
@@ -270,6 +280,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     @DisplayName("Should handle resource coordination")
     void shouldHandleResourceCoordination() throws Exception {
         // This test would verify resource coordination features
@@ -308,6 +319,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     @DisplayName("Should validate performance targets")
     void shouldValidatePerformanceTargets() throws Exception {
         long startTime = System.nanoTime();
@@ -352,6 +364,7 @@ public class ThreadPoolManagerTest {
     }
     
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Should handle error conditions gracefully")
     void shouldHandleErrorConditionsGracefully() throws Exception {
         // Test with null task

@@ -2,7 +2,6 @@ package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.DisplayName;
 
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,14 +35,15 @@ public class MockAsyncFileChunker implements AsyncFileChunker {
     }
 
     @Override
-    public void chunkFileAsync(Path file, ChunkingOptions options, CompletionHandler<ChunkingResult, Exception> handler) {
+    public void chunkFileAsync(Path file, ChunkingOptions options,
+            CompletionHandler<ChunkingResult, Exception> handler) {
         if (closed) {
             handler.failed(new IllegalStateException("Chunker is closed"));
             return;
         }
 
         activeOperations.incrementAndGet();
-        
+
         // Simulate async chunking with configurable delay
         CompletableFuture.runAsync(() -> {
             try {
@@ -70,7 +70,7 @@ public class MockAsyncFileChunker implements AsyncFileChunker {
         }
 
         activeOperations.incrementAndGet();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 Thread.sleep(10); // Simulate work

@@ -95,7 +95,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(30)
+    @Timeout(15)
     @DisplayName("Should handle concurrent buffer pool operations")
     void shouldHandleConcurrentBufferPoolOperations() throws Exception {
         // Given
@@ -155,7 +155,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(45)
+    @Timeout(20)
     @DisplayName("Should handle concurrent file chunking operations")
     void shouldHandleConcurrentFileChunkingOperations() throws Exception {
         // Given
@@ -209,7 +209,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(30)
+    @Timeout(15)
     @DisplayName("Should handle mixed concurrent operations")
     void shouldHandleMixedConcurrentOperations() throws Exception {
         // Given
@@ -290,7 +290,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(20)
+    @Timeout(10)
     @DisplayName("Should maintain thread safety under high contention")
     void shouldMaintainThreadSafetyUnderHighContention() throws Exception {
         // Given
@@ -359,7 +359,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
     }
 
     @Test
-    @Timeout(25)
+    @Timeout(12)
     @DisplayName("Should handle concurrent resource allocation and deallocation")
     void shouldHandleConcurrentResourceAllocationAndDeallocation() throws Exception {
         // Given
@@ -467,6 +467,16 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             public String hashBuffer(byte[] data) throws com.justsyncit.hash.HashingException {
                 return "mock_buffer_hash_" + java.util.Arrays.hashCode(data);
             }
+            
+            @Override
+            public String hashBuffer(byte[] data, int offset, int length) throws com.justsyncit.hash.HashingException {
+                return "mock_buffer_hash_" + java.util.Arrays.hashCode(java.util.Arrays.copyOfRange(data, offset, offset + length));
+            }
+            
+            @Override
+            public String hashBuffer(java.nio.ByteBuffer buffer) throws com.justsyncit.hash.HashingException {
+                return "mock_buffer_hash_" + buffer.hashCode();
+            }
 
             @Override
             public String hashStream(java.io.InputStream inputStream) throws java.io.IOException, com.justsyncit.hash.HashingException {
@@ -477,6 +487,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             public Blake3IncrementalHasher createIncrementalHasher() throws com.justsyncit.hash.HashingException {
                 return new Blake3IncrementalHasher() {
                     private final java.security.MessageDigest digest;
+                    private long bytesProcessed = 0;
                     
                     {
                         try {
@@ -489,11 +500,21 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                     @Override
                     public void update(byte[] data) {
                         digest.update(data);
+                        bytesProcessed += data.length;
                     }
 
                     @Override
                     public void update(byte[] data, int offset, int length) {
                         digest.update(data, offset, length);
+                        bytesProcessed += length;
+                    }
+                    
+                    @Override
+                    public void update(java.nio.ByteBuffer buffer) {
+                        byte[] data = new byte[buffer.remaining()];
+                        buffer.get(data);
+                        digest.update(data);
+                        bytesProcessed += data.length;
                     }
 
                     @Override
@@ -509,8 +530,36 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                     @Override
                     public void reset() {
                         digest.reset();
+                        bytesProcessed = 0;
+                    }
+                    
+                    @Override
+                    public String peek() throws com.justsyncit.hash.HashingException {
+                        byte[] hash = digest.digest();
+                        StringBuilder sb = new StringBuilder();
+                        for (byte b : hash) {
+                            sb.append(String.format("%02x", b));
+                        }
+                        return sb.toString();
+                    }
+                    
+                    @Override
+                    public long getBytesProcessed() {
+                        return bytesProcessed;
                     }
                 };
+            }
+            
+            @Override
+            public Blake3IncrementalHasher createKeyedIncrementalHasher(byte[] key) throws com.justsyncit.hash.HashingException {
+                return createIncrementalHasher();
+            }
+            
+            @Override
+            public java.util.concurrent.CompletableFuture<java.util.List<String>> hashFilesParallel(java.util.List<Path> filePaths) {
+                return java.util.concurrent.CompletableFuture.completedFuture(
+                    filePaths.stream().map(p -> "mock_file_hash_" + p.hashCode()).collect(java.util.stream.Collectors.toList())
+                );
             }
 
             @Override
@@ -535,7 +584,27 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                     public boolean isJniImplementation() {
                         return false;
                     }
+                    
+                    @Override
+                    public int getOptimalBufferSize() {
+                        return 8192;
+                    }
+                    
+                    @Override
+                    public boolean supportsConcurrentHashing() {
+                        return true;
+                    }
+                    
+                    @Override
+                    public int getMaxConcurrentThreads() {
+                        return Runtime.getRuntime().availableProcessors();
+                    }
                 };
+            }
+            
+            @Override
+            public boolean verify(byte[] data, String expectedHash) throws com.justsyncit.hash.HashingException {
+                return hashBuffer(data).equals(expectedHash);
             }
         };
     }

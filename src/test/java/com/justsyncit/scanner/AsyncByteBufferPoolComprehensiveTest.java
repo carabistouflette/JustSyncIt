@@ -31,24 +31,20 @@ import org.junit.jupiter.params.provider.Arguments;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Comprehensive unit tests for AsyncByteBufferPool following TDD principles.
- * Tests all aspects of async buffer pool behavior including edge cases, error conditions,
+ * Tests all aspects of async buffer pool behavior including edge cases, error
+ * conditions,
  * performance characteristics, and concurrent access patterns.
  */
 @DisplayName("AsyncByteBufferPool Comprehensive Tests")
@@ -74,7 +70,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 // Clear operation might fail due to thread pool shutdown, which is acceptable
                 // during test teardown
                 if (!(e.getCause() instanceof java.util.concurrent.RejectedExecutionException) &&
-                    !(e instanceof java.util.concurrent.RejectedExecutionException)) {
+                        !(e instanceof java.util.concurrent.RejectedExecutionException)) {
                     // Log other exceptions but don't fail the test
                     System.err.println("Warning: Clear operation failed during teardown: " + e.getMessage());
                 }
@@ -215,7 +211,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
     class EdgeCasesAndBoundaryConditions {
 
         @ParameterizedTest
-        @ValueSource(ints = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536})
+        @ValueSource(ints = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
         @DisplayName("Should handle various buffer sizes")
         void shouldHandleVariousBufferSizes(int bufferSize) throws Exception {
             // When
@@ -260,7 +256,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             } catch (Exception e) {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                 assertTrue(cause instanceof IllegalArgumentException,
-                    "Expected IllegalArgumentException but got: " + cause.getClass().getSimpleName());
+                        "Expected IllegalArgumentException but got: " + cause.getClass().getSimpleName());
             }
         }
 
@@ -268,13 +264,14 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
         @DisplayName("Should handle very large buffer size request")
         @org.junit.jupiter.api.Timeout(value = 10, unit = TimeUnit.SECONDS)
         void shouldHandleVeryLargeBufferSizeRequest() throws Exception {
-            // Given - Use a reasonable large size for testing (100MB cap for automated testing)
+            // Given - Use a reasonable large size for testing (100MB cap for automated
+            // testing)
             // This tests error handling without risking CI hangs
             int largeSize = 100 * 1024 * 1024; // 100MB - large enough to test edge cases, safe for CI
 
             // When
             CompletableFuture<ByteBuffer> future = bufferPool.acquireAsync(largeSize);
-            
+
             // Then
             // This might fail due to memory constraints, which is expected
             try {
@@ -290,9 +287,9 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 // Expected to fail with OutOfMemoryError or similar
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
                 assertTrue(cause instanceof OutOfMemoryError ||
-                          cause instanceof IllegalArgumentException ||
-                          cause instanceof RuntimeException ||
-                          cause instanceof Exception); // Test framework may wrap the exception
+                        cause instanceof IllegalArgumentException ||
+                        cause instanceof RuntimeException ||
+                        cause instanceof Exception); // Test framework may wrap the exception
             }
         }
 
@@ -303,7 +300,8 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             CompletableFuture<Void> future = bufferPool.releaseAsync(null);
 
             // Then
-            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.SHORT_TIMEOUT);
+            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class,
+                    AsyncTestUtils.SHORT_TIMEOUT);
         }
 
         @Test
@@ -323,7 +321,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             } catch (AsyncTestUtils.AsyncTestException e) {
                 // Failure is also acceptable
                 assertTrue(e.getCause() instanceof IllegalArgumentException ||
-                          e.getCause() instanceof IllegalStateException);
+                        e.getCause() instanceof IllegalStateException);
             }
         }
     }
@@ -351,7 +349,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
 
             // Then
             List<ByteBuffer> buffers = AsyncTestUtils.waitForAllAndGetResults(
-                AsyncTestUtils.DEFAULT_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.DEFAULT_TIMEOUT, futures.toArray(new CompletableFuture[0]));
 
             assertEquals(threadCount * operationsPerThread, buffers.size());
             buffers.forEach(buffer -> assertNotNull(buffer));
@@ -371,7 +369,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             // Given
             int bufferCount = 100;
             List<ByteBuffer> buffers = new ArrayList<>();
-            
+
             // Acquire buffers first
             for (int i = 0; i < bufferCount; i++) {
                 buffers.add(bufferPool.acquireAsync(1024).get());
@@ -410,10 +408,10 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                         try {
                             // Acquire
                             ByteBuffer buffer = bufferPool.acquireAsync(1024).get();
-                            
+
                             // Simulate work
                             Thread.sleep(1);
-                            
+
                             // Release
                             bufferPool.releaseAsync(buffer).get();
                         } catch (Exception e) {
@@ -463,7 +461,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             // Then
             int totalOperations = threadCount * operationsPerThread;
             assertEquals(totalOperations, successCount.get() + errorCount.get());
-            
+
             // Should have very few errors under normal conditions
             assertTrue(errorCount.get() < totalOperations * 0.01); // Less than 1% error rate
 
@@ -490,25 +488,25 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                     futures.add(bufferPool.acquireAsync(1024));
                 }
                 return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .thenApply(v -> futures.stream()
-                        .map(future -> {
-                            try {
-                                return future.get();
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
-                        .collect(java.util.stream.Collectors.toList()));
+                        .thenApply(v -> futures.stream()
+                                .map(future -> {
+                                    try {
+                                        return future.get();
+                                    } catch (Exception e) {
+                                        throw new RuntimeException(e);
+                                    }
+                                })
+                                .collect(java.util.stream.Collectors.toList()));
             });
 
             // Then
             List<ByteBuffer> buffers = result.getResult();
             assertEquals(operationCount, buffers.size());
-            
+
             double averageTimePerOperation = result.getDurationMillis() / operationCount;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
-                String.format("Average time per operation (%.2f ms) exceeds target (%.2f ms)",
-                    (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                    String.format("Average time per operation (%.2f ms) exceeds target (%.2f ms)",
+                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
 
             // Cleanup
             for (ByteBuffer buffer : buffers) {
@@ -522,7 +520,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             // Given
             int bufferCount = 1000;
             List<ByteBuffer> buffers = new ArrayList<>();
-            
+
             // Acquire buffers first
             for (int i = 0; i < bufferCount; i++) {
                 buffers.add(bufferPool.acquireAsync(1024).get());
@@ -542,8 +540,8 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             // Then
             double averageTimePerOperation = result.getDurationMillis() / bufferCount;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
-                String.format("Average time per operation (%.2f ms) exceeds target (%.2f ms)",
-                    (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                    String.format("Average time per operation (%.2f ms) exceeds target (%.2f ms)",
+                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
         }
 
         @Test
@@ -559,7 +557,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
 
             // When
             long startTime = System.nanoTime();
-            
+
             for (int i = 0; i < threadCount; i++) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     for (int j = 0; j < operationsPerThread; j++) {
@@ -575,7 +573,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             }
 
             AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
-            
+
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
             int totalOperations = threadCount * operationsPerThread * 2; // acquire + release
@@ -583,8 +581,8 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             // Then
             double averageTimePerOperation = totalDuration / 1_000_000.0 / totalOperations;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
-                String.format("Average time per operation under load (%.2f ms) exceeds target (%.2f ms)",
-                    (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                    String.format("Average time per operation under load (%.2f ms) exceeds target (%.2f ms)",
+                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
 
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
@@ -626,7 +624,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
         void shouldHandleResourceExhaustionGracefully() throws Exception {
             // This test is implementation-dependent and may need adjustment
             // based on the actual buffer pool implementation
-            
+
             // Given
             int maxAttempts = 10000; // Try to exhaust resources
             List<ByteBuffer> buffers = new ArrayList<>();
@@ -660,7 +658,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
         void shouldRecoverFromErrorConditions() throws Exception {
             // Given
             List<ByteBuffer> buffers = new ArrayList<>();
-            
+
             // Acquire some buffers
             for (int i = 0; i < 10; i++) {
                 buffers.add(bufferPool.acquireAsync(1024).get());
@@ -674,7 +672,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             } catch (Exception e) {
                 // Clear operation might fail due to thread pool shutdown, which is acceptable
                 if (!(e.getCause() instanceof java.util.concurrent.RejectedExecutionException) &&
-                    !(e instanceof java.util.concurrent.RejectedExecutionException)) {
+                        !(e instanceof java.util.concurrent.RejectedExecutionException)) {
                     // Skip the rest of the test if clear fails unexpectedly
                     return;
                 }
@@ -708,16 +706,16 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
         @DisplayName("Should work with AsyncTestMetricsCollector")
         void shouldWorkWithAsyncTestMetricsCollector() throws Exception {
             // Given
-            AsyncTestMetricsCollector.OperationTimer timer = 
-                metricsCollector.startOperation("acquire", "AsyncByteBufferPool");
+            AsyncTestMetricsCollector.OperationTimer timer = metricsCollector.startOperation("acquire",
+                    "AsyncByteBufferPool");
 
             // When
             ByteBuffer buffer = bufferPool.acquireAsync(1024).get();
             timer.complete((long) buffer.capacity());
 
             // Then
-            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = 
-                metricsCollector.getComponentMetrics("AsyncByteBufferPool");
+            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = metricsCollector
+                    .getComponentMetrics("AsyncByteBufferPool");
             assertEquals(1, componentMetrics.getTotalOperations());
             assertEquals(1, componentMetrics.getSuccessfulOperations());
             assertEquals(buffer.capacity(), componentMetrics.getTotalBytesProcessed());
@@ -731,20 +729,20 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
         void shouldWorkWithAsyncTestScenarioBuilder() throws Exception {
             // Given
             AsyncTestScenarioBuilder builder = AsyncTestScenarioBuilder.create();
-            
+
             // Create a concurrent operation
-            AsyncTestScenarioBuilder.ConcurrentOperation bufferOperation =
-                new AsyncTestScenarioBuilder.ConcurrentOperation("Buffer pool operation", () -> {
-                    try {
-                        ByteBuffer buffer = bufferPool.acquireAsync(1024).get();
-                        bufferPool.releaseAsync(buffer).get();
-                    } catch (Exception e) {
-                        throw new RuntimeException("Buffer pool operation failed", e);
-                    }
-                });
-            
+            AsyncTestScenarioBuilder.ConcurrentOperation bufferOperation = new AsyncTestScenarioBuilder.ConcurrentOperation(
+                    "Buffer pool operation", () -> {
+                        try {
+                            ByteBuffer buffer = bufferPool.acquireAsync(1024).get();
+                            bufferPool.releaseAsync(buffer).get();
+                        } catch (Exception e) {
+                            throw new RuntimeException("Buffer pool operation failed", e);
+                        }
+                    });
+
             builder.withConcurrentOperations(bufferOperation);
-            
+
             AsyncTestScenarioBuilder.AsyncTestScenario scenario = builder.build();
             CompletableFuture<AsyncTestScenarioBuilder.ScenarioResult> future = scenario.executeAsync();
             AsyncTestScenarioBuilder.ScenarioResult result = future.get();
@@ -757,8 +755,8 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
         @DisplayName("Should work with AsyncTestDataProvider")
         void shouldWorkWithAsyncTestDataProvider() throws Exception {
             // Given
-            AsyncTestDataProvider.BufferPoolDataProvider.PoolConfiguration[] configs =
-                AsyncTestDataProvider.BufferPoolDataProvider.getPoolConfigurations();
+            AsyncTestDataProvider.BufferPoolDataProvider.PoolConfiguration[] configs = AsyncTestDataProvider.BufferPoolDataProvider
+                    .getPoolConfigurations();
 
             for (AsyncTestDataProvider.BufferPoolDataProvider.PoolConfiguration config : configs) {
                 // When
@@ -804,7 +802,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
         void shouldHandleTimeoutScenarios() throws Exception {
             // Given - Create a delayed future that won't complete quickly
             CompletableFuture<ByteBuffer> delayedFuture = new CompletableFuture<>();
-            
+
             // When
             try {
                 AsyncTestUtils.getResultOrThrow(delayedFuture, AsyncTestUtils.ULTRA_SHORT_TIMEOUT);
@@ -847,12 +845,11 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
 
     static Stream<Arguments> provideBufferSizesAndCounts() {
         return Stream.of(
-            Arguments.of(1024, 10),
-            Arguments.of(2048, 20),
-            Arguments.of(4096, 50),
-            Arguments.of(8192, 100),
-            Arguments.of(16384, 200)
-        );
+                Arguments.of(1024, 10),
+                Arguments.of(2048, 20),
+                Arguments.of(4096, 50),
+                Arguments.of(8192, 100),
+                Arguments.of(16384, 200));
     }
 
     @ParameterizedTest

@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -41,17 +42,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Comprehensive unit tests for AsyncFileChunker following TDD principles.
- * Tests all aspects of async file chunking including edge cases, error conditions,
+ * Tests all aspects of async file chunking including edge cases, error
+ * conditions,
  * performance characteristics, and concurrent access patterns.
  */
 @DisplayName("AsyncFileChunker Comprehensive Tests")
@@ -59,7 +58,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
     @TempDir
     Path tempDir;
-    
+
     private AsyncFileChunker chunker;
     private AsyncByteBufferPool bufferPool;
     private AsyncTestMetricsCollector metricsCollector;
@@ -75,42 +74,84 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             public String hashFile(java.nio.file.Path filePath) throws java.io.IOException {
                 return "mock-hash-file-" + filePath.hashCode();
             }
-            
+
             @Override
             public String hashBuffer(byte[] data) throws com.justsyncit.hash.HashingException {
                 return "mock-hash-" + data.hashCode();
             }
-            
+
             @Override
-            public String hashStream(java.io.InputStream stream) throws java.io.IOException, com.justsyncit.hash.HashingException {
+            public String hashBuffer(byte[] data, int offset, int length) throws com.justsyncit.hash.HashingException {
+                return "mock-hash-" + Arrays.hashCode(Arrays.copyOfRange(data, offset, offset + length));
+            }
+
+            @Override
+            public String hashBuffer(java.nio.ByteBuffer buffer) throws com.justsyncit.hash.HashingException {
+                return "mock-hash-" + buffer.hashCode();
+            }
+
+            @Override
+            public String hashStream(java.io.InputStream stream)
+                    throws java.io.IOException, com.justsyncit.hash.HashingException {
                 return "mock-hash-stream";
             }
-            
+
             @Override
             public Blake3IncrementalHasher createIncrementalHasher() throws com.justsyncit.hash.HashingException {
                 return new Blake3IncrementalHasher() {
+                    private long bytesProcessed = 0;
+
                     @Override
                     public void update(byte[] data) {
-                        // Mock implementation
+                        bytesProcessed += data.length;
                     }
-                    
+
                     @Override
                     public void update(byte[] data, int offset, int length) {
-                        // Mock implementation
+                        bytesProcessed += length;
                     }
-                    
+
+                    @Override
+                    public void update(java.nio.ByteBuffer buffer) {
+                        bytesProcessed += buffer.remaining();
+                    }
+
                     @Override
                     public String digest() throws com.justsyncit.hash.HashingException {
                         return "mock-incremental-hash";
                     }
-                    
+
                     @Override
                     public void reset() {
-                        // Mock implementation
+                        bytesProcessed = 0;
+                    }
+
+                    @Override
+                    public String peek() throws com.justsyncit.hash.HashingException {
+                        return "mock-incremental-hash";
+                    }
+
+                    @Override
+                    public long getBytesProcessed() {
+                        return bytesProcessed;
                     }
                 };
             }
-            
+
+            @Override
+            public Blake3IncrementalHasher createKeyedIncrementalHasher(byte[] key)
+                    throws com.justsyncit.hash.HashingException {
+                return createIncrementalHasher();
+            }
+
+            @Override
+            public java.util.concurrent.CompletableFuture<java.util.List<String>> hashFilesParallel(
+                    java.util.List<java.nio.file.Path> filePaths) {
+                return java.util.concurrent.CompletableFuture.completedFuture(
+                        filePaths.stream().map(p -> "mock-hash-" + p.hashCode())
+                                .collect(java.util.stream.Collectors.toList()));
+            }
+
             @Override
             public Blake3Info getInfo() {
                 return new Blake3Info() {
@@ -118,22 +159,42 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                     public String getVersion() {
                         return "mock-1.0.0";
                     }
-                    
+
                     @Override
                     public boolean hasSimdSupport() {
                         return false;
                     }
-                    
+
                     @Override
                     public String getSimdInstructionSet() {
                         return "none";
                     }
-                    
+
                     @Override
                     public boolean isJniImplementation() {
                         return false;
                     }
+
+                    @Override
+                    public int getOptimalBufferSize() {
+                        return 8192;
+                    }
+
+                    @Override
+                    public boolean supportsConcurrentHashing() {
+                        return true;
+                    }
+
+                    @Override
+                    public int getMaxConcurrentThreads() {
+                        return Runtime.getRuntime().availableProcessors();
+                    }
                 };
+            }
+
+            @Override
+            public boolean verify(byte[] data, String expectedHash) throws com.justsyncit.hash.HashingException {
+                return hashBuffer(data).equals(expectedHash);
             }
         };
         chunker = AsyncFileChunkerImpl.create(mockBlake3Service);
@@ -151,7 +212,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // Thread pools may be shutting down from previous tests
             System.err.println("Warning: Chunker close failed during teardown: " + e.getMessage());
         }
-        
+
         try {
             if (bufferPool != null) {
                 bufferPool.clearAsync().get(2, TimeUnit.SECONDS);
@@ -161,7 +222,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // Thread pools may be shutting down from previous tests
             System.err.println("Warning: Buffer pool clear failed during teardown: " + e.getMessage());
         }
-        
+
         super.tearDown();
     }
 
@@ -170,13 +231,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class BasicAsyncOperationsCompletableFuture {
 
         @Test
+        @Timeout(10)
         @DisplayName("Should chunk small file successfully")
         void shouldChunkSmallFileSuccessfully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "small.txt", 1024);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(512)
-                .withUseAsyncIO(true);
+                    .withChunkSize(512)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -193,13 +255,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(15)
         @DisplayName("Should chunk medium file successfully")
         void shouldChunkMediumFileSuccessfully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "medium.txt", 65536); // 64KB
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(8192)
-                .withUseAsyncIO(true);
+                    .withChunkSize(8192)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -216,13 +279,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(10)
         @DisplayName("Should handle file with exact chunk size multiple")
         void shouldHandleFileWithExactChunkSizeMultiple() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "exact.txt", 4096);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -236,13 +300,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(10)
         @DisplayName("Should handle file with non-chunk size multiple")
         void shouldHandleFileWithNonChunkSizeMultiple() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "partial.txt", 5000);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(2048)
-                .withUseAsyncIO(true);
+                    .withChunkSize(2048)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -256,13 +321,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(5)
         @DisplayName("Should handle empty file")
         void shouldHandleEmptyFile() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "empty.txt", 0);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -283,14 +349,15 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class BasicAsyncOperationsCompletionHandler {
 
         @Test
+        @Timeout(10)
         @DisplayName("Should chunk file with CompletionHandler successfully")
         void shouldChunkFileWithCompletionHandlerSuccessfully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "handler.txt", 2048);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(512)
-                .withUseAsyncIO(true);
-            
+                    .withChunkSize(512)
+                    .withUseAsyncIO(true);
+
             CountDownLatch latch = new CountDownLatch(1);
             AtomicReference<FileChunker.ChunkingResult> resultRef = new AtomicReference<>();
             AtomicReference<Exception> errorRef = new AtomicReference<>();
@@ -321,32 +388,34 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(10)
         @DisplayName("Should handle error with CompletionHandler")
         void shouldHandleErrorWithCompletionHandler() throws Exception {
             // Given
             Path nonExistentFile = tempDir.resolve("nonexistent.txt");
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
-            
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
+
             CountDownLatch latch = new CountDownLatch(1);
             AtomicReference<FileChunker.ChunkingResult> resultRef = new AtomicReference<>();
             AtomicReference<Exception> errorRef = new AtomicReference<>();
 
             // When
-            chunker.chunkFileAsync(nonExistentFile, options, new CompletionHandler<FileChunker.ChunkingResult, Exception>() {
-                @Override
-                public void completed(FileChunker.ChunkingResult result) {
-                    resultRef.set(result);
-                    latch.countDown();
-                }
+            chunker.chunkFileAsync(nonExistentFile, options,
+                    new CompletionHandler<FileChunker.ChunkingResult, Exception>() {
+                        @Override
+                        public void completed(FileChunker.ChunkingResult result) {
+                            resultRef.set(result);
+                            latch.countDown();
+                        }
 
-                @Override
-                public void failed(Exception exc) {
-                    errorRef.set(exc);
-                    latch.countDown();
-                }
-            });
+                        @Override
+                        public void failed(Exception exc) {
+                            errorRef.set(exc);
+                            latch.countDown();
+                        }
+                    });
 
             // Then
             assertTrue(latch.await(5, TimeUnit.SECONDS));
@@ -363,14 +432,15 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class EdgeCasesAndBoundaryConditions {
 
         @ParameterizedTest
-        @ValueSource(ints = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536})
+        @Timeout(15)
+        @ValueSource(ints = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
         @DisplayName("Should handle various file sizes")
         void shouldHandleVariousFileSizes(int fileSize) throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "size_" + fileSize + ".txt", fileSize);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -385,14 +455,15 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536})
+        @Timeout(15)
+        @ValueSource(ints = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
         @DisplayName("Should handle various chunk sizes")
         void shouldHandleVariousChunkSizes(int chunkSize) throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "chunks_" + chunkSize + ".txt", 65536);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(chunkSize)
-                .withUseAsyncIO(true);
+                    .withChunkSize(chunkSize)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -407,13 +478,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(5)
         @DisplayName("Should handle single byte file")
         void shouldHandleSingleByteFile() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "single.txt", 1);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -427,14 +499,15 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(30)
         @DisplayName("Should handle very large file")
         void shouldHandleVeryLargeFile() throws Exception {
             // Given
             int largeFileSize = 10 * 1024 * 1024; // 10MB
             Path testFile = createTestFile(tempDir, "large.txt", largeFileSize);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(65536) // 64KB chunks
-                .withUseAsyncIO(true);
+                    .withChunkSize(65536) // 64KB chunks
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -449,19 +522,21 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(5)
         @DisplayName("Should handle non-existent file")
         void shouldHandleNonExistentFile() throws Exception {
             // Given
             Path nonExistentFile = tempDir.resolve("nonexistent.txt");
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(nonExistentFile, options);
 
             // Then
-            // AsyncFileChunkerImpl returns a successful CompletableFuture with a failed ChunkingResult
+            // AsyncFileChunkerImpl returns a successful CompletableFuture with a failed
+            // ChunkingResult
             FileChunker.ChunkingResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
             assertNotNull(result);
             assertFalse(result.isSuccess());
@@ -470,27 +545,31 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(5)
         @DisplayName("Should handle null file path")
         void shouldHandleNullFilePath() {
             // Given
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(null, options);
 
             // Then
             try {
-                AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.SHORT_TIMEOUT);
+                AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class,
+                        AsyncTestUtils.SHORT_TIMEOUT);
             } catch (AsyncTestUtils.AsyncTestAssertionError e) {
-                // If the assertion fails with a different exception type, that's also acceptable
+                // If the assertion fails with a different exception type, that's also
+                // acceptable
                 assertTrue(e.getCause() instanceof IllegalArgumentException ||
-                          e.getCause() instanceof RuntimeException);
+                        e.getCause() instanceof RuntimeException);
             }
         }
 
         @Test
+        @Timeout(5)
         @DisplayName("Should handle null options")
         void shouldHandleNullOptions() throws Exception {
             // Given
@@ -500,7 +579,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, null);
 
             // Then
-            // AsyncFileChunkerImpl creates default options when null is passed, so operation should succeed
+            // AsyncFileChunkerImpl creates default options when null is passed, so
+            // operation should succeed
             FileChunker.ChunkingResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
             assertNotNull(result);
             assertTrue(result.isSuccess());
@@ -508,23 +588,24 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(5)
         @DisplayName("Should handle invalid chunk size")
         void shouldHandleInvalidChunkSize() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "invalid_chunk.txt", 1024);
-            
+
             // When - Test that creating options with invalid chunk size throws exception
             assertThrows(IllegalArgumentException.class, () -> {
                 new FileChunker.ChunkingOptions()
-                    .withChunkSize(-1)
-                    .withUseAsyncIO(true);
+                        .withChunkSize(-1)
+                        .withUseAsyncIO(true);
             });
-            
+
             // Test that zero chunk size also throws exception
             assertThrows(IllegalArgumentException.class, () -> {
                 new FileChunker.ChunkingOptions()
-                    .withChunkSize(0)
-                    .withUseAsyncIO(true);
+                        .withChunkSize(0)
+                        .withUseAsyncIO(true);
             });
         }
     }
@@ -534,6 +615,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class ConcurrentAccessPatterns {
 
         @Test
+        @Timeout(20)
         @DisplayName("Should handle concurrent chunking operations")
         void shouldHandleConcurrentChunkingOperations() throws Exception {
             // Given
@@ -544,18 +626,18 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             for (int i = 0; i < fileCount; i++) {
                 Path testFile = createTestFile(tempDir, "concurrent_" + i + ".txt", 4096);
                 testFiles.add(testFile);
-                
+
                 FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                    .withChunkSize(1024)
-                    .withUseAsyncIO(true);
-                
+                        .withChunkSize(1024)
+                        .withUseAsyncIO(true);
+
                 CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
                 futures.add(future);
             }
 
             // When
             List<FileChunker.ChunkingResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
 
             // Then
             assertEquals(fileCount, results.size());
@@ -568,6 +650,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(25)
         @DisplayName("Should handle mixed concurrent operations")
         void shouldHandleMixedConcurrentOperations() throws Exception {
             // Given
@@ -584,9 +667,9 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                         try {
                             Path testFile = createTestFile(tempDir, "mixed_" + threadIndex + "_" + j + ".txt", 2048);
                             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                                .withChunkSize(512)
-                                .withUseAsyncIO(true);
-                            
+                                    .withChunkSize(512)
+                                    .withUseAsyncIO(true);
+
                             FileChunker.ChunkingResult result = chunker.chunkFileAsync(testFile, options).get();
                             assertNotNull(result);
                             assertTrue(result.isSuccess());
@@ -607,6 +690,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(20)
         @DisplayName("Should respect max concurrent operations limit")
         void shouldRespectMaxConcurrentOperationsLimit() throws Exception {
             // Given
@@ -620,18 +704,18 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             for (int i = 0; i < fileCount; i++) {
                 Path testFile = createTestFile(tempDir, "limited_" + i + ".txt", 8192);
                 testFiles.add(testFile);
-                
+
                 FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                    .withChunkSize(2048)
-                    .withUseAsyncIO(true);
-                
+                        .withChunkSize(2048)
+                        .withUseAsyncIO(true);
+
                 CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
                 futures.add(future);
             }
 
             // When
             List<FileChunker.ChunkingResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
 
             // Then
             assertEquals(fileCount, results.size());
@@ -639,7 +723,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 assertNotNull(result);
                 assertTrue(result.isSuccess());
             });
-            
+
             // Should not exceed max concurrent operations at any point
             assertTrue(chunker.getMaxConcurrentOperations() >= 2);
         }
@@ -650,6 +734,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class PerformanceCharacteristics {
 
         @Test
+        @Timeout(20)
         @DisplayName("Should meet performance targets for small files")
         void shouldMeetPerformanceTargetsForSmallFiles() throws Exception {
             // Given
@@ -660,44 +745,46 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             List<CompletableFuture<FileChunker.ChunkingResult>> futures = new ArrayList<>();
 
             // When
-            AsyncTestUtils.TimedResult<List<FileChunker.ChunkingResult>> result = AsyncTestUtils.measureAsyncTime(() -> {
-                for (int i = 0; i < fileCount; i++) {
-                    try {
-                        Path testFile = createTestFile(tempDir, "perf_small_" + i + ".txt", fileSize,
-                            AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
-                    FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                        .withChunkSize(256)
-                        .withUseAsyncIO(true);
-                    
-                        futures.add(chunker.chunkFileAsync(testFile, options));
-                    } catch (IOException e) {
-                        throw new RuntimeException("Failed to create test file", e);
-                    }
-                }
-                
-                return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .thenApply(v -> futures.stream()
-                        .map(future -> {
+            AsyncTestUtils.TimedResult<List<FileChunker.ChunkingResult>> result = AsyncTestUtils
+                    .measureAsyncTime(() -> {
+                        for (int i = 0; i < fileCount; i++) {
                             try {
-                                return future.get();
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
+                                Path testFile = createTestFile(tempDir, "perf_small_" + i + ".txt", fileSize,
+                                        AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
+                                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                                        .withChunkSize(256)
+                                        .withUseAsyncIO(true);
+
+                                futures.add(chunker.chunkFileAsync(testFile, options));
+                            } catch (IOException e) {
+                                throw new RuntimeException("Failed to create test file", e);
                             }
-                        })
-                        .collect(java.util.stream.Collectors.toList()));
-            });
+                        }
+
+                        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                                .thenApply(v -> futures.stream()
+                                        .map(future -> {
+                                            try {
+                                                return future.get();
+                                            } catch (Exception e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        })
+                                        .collect(java.util.stream.Collectors.toList()));
+                    });
 
             // Then
             List<FileChunker.ChunkingResult> results = result.getResult();
             assertEquals(fileCount, results.size());
-            
+
             double averageTimePerFile = result.getDurationMillis() / fileCount;
             assertTrue(averageTimePerFile <= maxAverageTime.toMillis(),
-                String.format("Average time per file (%.2f ms) exceeds target (%.2f ms)",
-                    (double) averageTimePerFile, (double) maxAverageTime.toMillis()));
+                    String.format("Average time per file (%.2f ms) exceeds target (%.2f ms)",
+                            (double) averageTimePerFile, (double) maxAverageTime.toMillis()));
         }
 
         @Test
+        @Timeout(30)
         @DisplayName("Should maintain performance under load")
         void shouldMaintainPerformanceUnderLoad() throws Exception {
             // Given
@@ -711,7 +798,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             long startTime = System.nanoTime();
-            
+
             for (int i = 0; i < threadCount; i++) {
                 final int threadIndex = i;
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -719,9 +806,9 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                         try {
                             Path testFile = createTestFile(tempDir, "load_" + threadIndex + "_" + j + ".txt", fileSize);
                             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                                .withChunkSize(1024)
-                                .withUseAsyncIO(true);
-                            
+                                    .withChunkSize(1024)
+                                    .withUseAsyncIO(true);
+
                             FileChunker.ChunkingResult result = chunker.chunkFileAsync(testFile, options).get();
                             assertNotNull(result);
                             assertTrue(result.isSuccess());
@@ -734,7 +821,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             }
 
             AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
-            
+
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
             int totalOperations = threadCount * filesPerThread;
@@ -742,8 +829,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // Then
             double averageTimePerOperation = totalDuration / 1_000_000.0 / totalOperations;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
-                String.format("Average time per operation under load (%.2f ms) exceeds target (%.2f ms)",
-                    (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                    String.format("Average time per operation under load (%.2f ms) exceeds target (%.2f ms)",
+                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
 
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
@@ -755,6 +842,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class ResourceManagement {
 
         @Test
+        @Timeout(10)
         @DisplayName("Should properly track active operations")
         void shouldProperlyTrackActiveOperations() throws Exception {
             // Given
@@ -763,8 +851,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // When
             Path testFile = createTestFile(tempDir, "tracking.txt", 2048);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(512)
-                .withUseAsyncIO(true);
+                    .withChunkSize(512)
+                    .withUseAsyncIO(true);
 
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
 
@@ -781,6 +869,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(10)
         @DisplayName("Should handle buffer pool integration")
         void shouldHandleBufferPoolIntegration() throws Exception {
             // Given
@@ -790,8 +879,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // When
             Path testFile = createTestFile(tempDir, "buffer_integration.txt", 4096);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(1024)
-                .withUseAsyncIO(true);
+                    .withChunkSize(1024)
+                    .withUseAsyncIO(true);
 
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
             FileChunker.ChunkingResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
@@ -806,6 +895,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(10)
         @DisplayName("Should handle chunk handler integration")
         void shouldHandleChunkHandlerIntegration() throws Exception {
             // Given
@@ -816,8 +906,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // When
             Path testFile = createTestFile(tempDir, "handler_integration.txt", 2048);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(512)
-                .withUseAsyncIO(true);
+                    .withChunkSize(512)
+                    .withUseAsyncIO(true);
 
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
             FileChunker.ChunkingResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
@@ -833,31 +923,33 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class IntegrationWithTestingInfrastructure {
 
         @Test
+        @Timeout(10)
         @DisplayName("Should work with AsyncTestMetricsCollector")
         void shouldWorkWithAsyncTestMetricsCollector() throws Exception {
             // Given
-            AsyncTestMetricsCollector.OperationTimer timer = 
-                metricsCollector.startOperation("chunkFile", "AsyncFileChunker");
+            AsyncTestMetricsCollector.OperationTimer timer = metricsCollector.startOperation("chunkFile",
+                    "AsyncFileChunker");
 
             // When
             Path testFile = createTestFile(tempDir, "metrics.txt", 2048);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(512)
-                .withUseAsyncIO(true);
+                    .withChunkSize(512)
+                    .withUseAsyncIO(true);
 
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
             FileChunker.ChunkingResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
             timer.complete(result.getTotalSize());
 
             // Then
-            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = 
-                metricsCollector.getComponentMetrics("AsyncFileChunker");
+            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = metricsCollector
+                    .getComponentMetrics("AsyncFileChunker");
             assertEquals(1, componentMetrics.getTotalOperations());
             assertEquals(1, componentMetrics.getSuccessfulOperations());
             assertEquals(result.getTotalSize(), componentMetrics.getTotalBytesProcessed());
         }
 
         @Test
+        @Timeout(15)
         @DisplayName("Should work with AsyncTestScenarioBuilder")
         void shouldWorkWithAsyncTestScenarioBuilder() throws Exception {
             // Given
@@ -865,53 +957,55 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             for (int i = 0; i < 5; i++) {
                 final int operationIndex = i;
                 operations.add(new AsyncTestScenarioBuilder.ConcurrentOperation(
-                    "Chunking operation " + operationIndex,
-                    () -> {
-                        try {
-                            Path testFile = createTestFile(tempDir, "scenario_" + operationIndex + "_" + System.currentTimeMillis() + ".txt", 1024,
-                                AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
-                            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                                .withChunkSize(256)
-                                .withUseAsyncIO(true);
-                            
-                            FileChunker.ChunkingResult result = chunker.chunkFileAsync(testFile, options).get();
-                            assertNotNull(result);
-                            assertTrue(result.isSuccess());
-                        } catch (Exception e) {
-                            throw new RuntimeException("Operation failed", e);
-                        }
-                    }
-                ));
+                        "Chunking operation " + operationIndex,
+                        () -> {
+                            try {
+                                Path testFile = createTestFile(tempDir,
+                                        "scenario_" + operationIndex + "_" + System.currentTimeMillis() + ".txt", 1024,
+                                        AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
+                                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                                        .withChunkSize(256)
+                                        .withUseAsyncIO(true);
+
+                                FileChunker.ChunkingResult result = chunker.chunkFileAsync(testFile, options).get();
+                                assertNotNull(result);
+                                assertTrue(result.isSuccess());
+                            } catch (Exception e) {
+                                throw new RuntimeException("Operation failed", e);
+                            }
+                        }));
             }
-            
+
             AsyncTestScenarioBuilder.ScenarioResult result = AsyncTestScenarioBuilder
-                .create()
-                .withConcurrentOperations(operations.toArray(new AsyncTestScenarioBuilder.ConcurrentOperation[0]))
-                .build()
-                .executeAsync()
-                .get();
+                    .create()
+                    .withConcurrentOperations(operations.toArray(new AsyncTestScenarioBuilder.ConcurrentOperation[0]))
+                    .build()
+                    .executeAsync()
+                    .get();
 
             // Then
             assertTrue(result.isSuccess());
         }
 
         @Test
+        @Timeout(15)
         @DisplayName("Should work with AsyncTestDataProvider")
         void shouldWorkWithAsyncTestDataProvider() throws Exception {
             // Given
-            AsyncTestDataProvider.ChunkingDataProvider.TestFile[] testFiles = 
-                AsyncTestDataProvider.ChunkingDataProvider.getTestFiles();
+            AsyncTestDataProvider.ChunkingDataProvider.TestFile[] testFiles = AsyncTestDataProvider.ChunkingDataProvider
+                    .getTestFiles();
 
             for (AsyncTestDataProvider.ChunkingDataProvider.TestFile testFileData : testFiles) {
                 // When
-                Path testFile = createTestFile(tempDir, testFileData.getFileName(), 
-                    testFileData.getSize(), testFileData.getPattern());
+                Path testFile = createTestFile(tempDir, testFileData.getFileName(),
+                        testFileData.getSize(), testFileData.getPattern());
                 FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                    .withChunkSize(1024)
-                    .withUseAsyncIO(true);
+                        .withChunkSize(1024)
+                        .withUseAsyncIO(true);
 
                 CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
-                FileChunker.ChunkingResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.DEFAULT_TIMEOUT);
+                FileChunker.ChunkingResult result = AsyncTestUtils.getResultOrThrow(future,
+                        AsyncTestUtils.DEFAULT_TIMEOUT);
 
                 // Then
                 assertNotNull(result);
@@ -926,13 +1020,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     class ErrorHandlingAndRecovery {
 
         @Test
+        @Timeout(10)
         @DisplayName("Should handle interrupted operations gracefully")
         void shouldHandleInterruptedOperationsGracefully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "interrupt.txt", 2048);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(512)
-                .withUseAsyncIO(true);
+                    .withChunkSize(512)
+                    .withUseAsyncIO(true);
 
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
 
@@ -944,8 +1039,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
                 fail("Should have thrown exception due to interruption");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getCause() instanceof InterruptedException || 
-                          e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof InterruptedException ||
+                        e.getCause() instanceof RuntimeException);
             } finally {
                 // Clear interrupt status
                 Thread.interrupted();
@@ -953,14 +1048,16 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(15)
         @DisplayName("Should handle timeout scenarios")
         void shouldHandleTimeoutScenarios() throws Exception {
             // Given - Create a very large file that will take time to process
-            // Use a larger file (50MB) with very small chunks (64 bytes) to ensure it takes longer than 1 second
+            // Use a larger file (50MB) with very small chunks (64 bytes) to ensure it takes
+            // longer than 1 second
             Path testFile = createTestFile(tempDir, "timeout.txt", 50 * 1024 * 1024); // 50MB
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(64) // Very small chunk size to increase processing time
-                .withUseAsyncIO(true);
+                    .withChunkSize(64) // Very small chunk size to increase processing time
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -970,19 +1067,20 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 fail("Should have timed out");
             } catch (AsyncTestUtils.AsyncTestException e) {
                 assertTrue(e.getMessage().contains("timed out") ||
-                          e.getCause() instanceof java.util.concurrent.TimeoutException);
+                        e.getCause() instanceof java.util.concurrent.TimeoutException);
             }
         }
 
         @Test
+        @Timeout(10)
         @DisplayName("Should maintain consistency after errors")
         void shouldMaintainConsistencyAfterErrors() throws Exception {
             // Given
             // First, successful operation
             Path goodFile = createTestFile(tempDir, "good.txt", 1024);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(256)
-                .withUseAsyncIO(true);
+                    .withChunkSize(256)
+                    .withUseAsyncIO(true);
 
             FileChunker.ChunkingResult goodResult = chunker.chunkFileAsync(goodFile, options).get();
             assertNotNull(goodResult);
@@ -1002,6 +1100,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         }
 
         @Test
+        @Timeout(10)
         @DisplayName("Should handle closed chunker gracefully")
         void shouldHandleClosedChunkerGracefully() throws Exception {
             // Given
@@ -1010,44 +1109,46 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             Path testFile = createTestFile(tempDir, "closed.txt", 1024);
             FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-                .withChunkSize(256)
-                .withUseAsyncIO(true);
+                    .withChunkSize(256)
+                    .withUseAsyncIO(true);
 
             // When
             CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
 
             // Then
             try {
-                AsyncTestUtils.assertFailsWithException(future, IllegalStateException.class, AsyncTestUtils.SHORT_TIMEOUT);
+                AsyncTestUtils.assertFailsWithException(future, IllegalStateException.class,
+                        AsyncTestUtils.SHORT_TIMEOUT);
             } catch (AsyncTestUtils.AsyncTestAssertionError e) {
-                // If the assertion fails with a different exception type, that's also acceptable
+                // If the assertion fails with a different exception type, that's also
+                // acceptable
                 assertTrue(e.getCause() instanceof IllegalStateException ||
-                          e.getCause() instanceof RuntimeException);
+                        e.getCause() instanceof RuntimeException);
             }
         }
     }
 
     static Stream<Arguments> provideFileAndChunkSizes() {
         return Stream.of(
-            Arguments.of(1024, 256),
-            Arguments.of(2048, 512),
-            Arguments.of(4096, 1024),
-            Arguments.of(8192, 2048),
-            Arguments.of(16384, 4096),
-            Arguments.of(32768, 8192),
-            Arguments.of(65536, 16384)
-        );
+                Arguments.of(1024, 256),
+                Arguments.of(2048, 512),
+                Arguments.of(4096, 1024),
+                Arguments.of(8192, 2048),
+                Arguments.of(16384, 4096),
+                Arguments.of(32768, 8192),
+                Arguments.of(65536, 16384));
     }
 
     @ParameterizedTest
+    @Timeout(15)
     @MethodSource("provideFileAndChunkSizes")
     @DisplayName("Should handle various combinations of file and chunk sizes")
     void shouldHandleVariousCombinationsOfFileAndChunkSizes(int fileSize, int chunkSize) throws Exception {
         // Given
         Path testFile = createTestFile(tempDir, "combo_" + fileSize + "_" + chunkSize + ".txt", fileSize);
         FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
-            .withChunkSize(chunkSize)
-            .withUseAsyncIO(true);
+                .withChunkSize(chunkSize)
+                .withUseAsyncIO(true);
 
         // When
         CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(testFile, options);
@@ -1066,17 +1167,18 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
      * Helper method to create test files with specific content patterns.
      */
     private Path createTestFile(Path directory, String fileName, int size) throws IOException {
-        return createTestFile(directory, fileName, size, AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
+        return createTestFile(directory, fileName, size,
+                AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
     }
 
     /**
      * Helper method to create test files with specific content patterns.
      */
-    private Path createTestFile(Path directory, String fileName, int size, 
-                              AsyncTestDataProvider.ChunkingDataProvider.ContentPattern pattern) throws IOException {
+    private Path createTestFile(Path directory, String fileName, int size,
+            AsyncTestDataProvider.ChunkingDataProvider.ContentPattern pattern) throws IOException {
         Path file = directory.resolve(fileName);
         byte[] data;
-        
+
         switch (pattern) {
             case EMPTY:
                 data = new byte[0];
@@ -1105,7 +1207,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 break;
             case REPEATING:
                 data = new byte[size];
-                byte[] dataPattern = {0x42, 0x43, 0x44, 0x45};
+                byte[] dataPattern = { 0x42, 0x43, 0x44, 0x45 };
                 for (int i = 0; i < size; i++) {
                     data[i] = dataPattern[i % dataPattern.length];
                 }
@@ -1125,7 +1227,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 new java.util.Random().nextBytes(data);
                 break;
         }
-        
+
         Files.write(file, data);
         return file;
     }

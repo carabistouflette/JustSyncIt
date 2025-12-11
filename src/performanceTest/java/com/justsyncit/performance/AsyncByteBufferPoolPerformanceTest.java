@@ -24,6 +24,7 @@ import com.justsyncit.scanner.AsyncByteBufferPoolImpl;
 import com.justsyncit.scanner.ByteBufferPool;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.RepeatedTest;
@@ -100,6 +101,7 @@ public class AsyncByteBufferPoolPerformanceTest {
     class ThroughputTests {
 
         @Test
+        @Timeout(value = 5, unit = TimeUnit.MINUTES)
         @DisplayName("Test high-throughput buffer acquisition and release")
         void testHighThroughputOperations() throws Exception {
             // Test target: >3GB/s throughput
@@ -178,6 +180,7 @@ public class AsyncByteBufferPoolPerformanceTest {
 
         @ParameterizedTest
         @ValueSource(ints = {1024, 4096, 65536, 262144, 1048576})
+        @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test throughput for specific buffer sizes")
         void testThroughputForBufferSize(int bufferSize) throws Exception {
             // Warm up
@@ -233,6 +236,7 @@ public class AsyncByteBufferPoolPerformanceTest {
     class LatencyTests {
 
         @Test
+        @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test low-latency small buffer operations")
         void testLowLatencySmallBuffers() throws Exception {
             // Focus on small buffers (1KB-4KB) for reduced latency
@@ -283,6 +287,7 @@ public class AsyncByteBufferPoolPerformanceTest {
         }
 
         @RepeatedTest(5)
+        @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test latency under concurrent load")
         void testLatencyUnderLoad() throws Exception {
             int bufferSize = 65536; // 64KB
@@ -344,6 +349,7 @@ public class AsyncByteBufferPoolPerformanceTest {
     class MemoryEfficiencyTests {
 
         @Test
+        @Timeout(value = 5, unit = TimeUnit.MINUTES)
         @DisplayName("Test memory efficiency and GC pressure")
         void testMemoryEfficiency() throws Exception {
             System.gc(); // Clean up before test
@@ -399,6 +405,7 @@ public class AsyncByteBufferPoolPerformanceTest {
         }
 
         @Test
+        @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test buffer pool memory limits")
         void testMemoryLimits() throws Exception {
             OptimizedAsyncByteBufferPool.PoolConfiguration limitedConfig = 
@@ -455,6 +462,7 @@ public class AsyncByteBufferPoolPerformanceTest {
     class ComparisonTests {
 
         @Test
+        @Timeout(value = 5, unit = TimeUnit.MINUTES)
         @DisplayName("Compare optimized vs original async pool performance")
         void compareWithOriginalAsyncPool() throws Exception {
             System.out.println("=== Performance Comparison: Optimized vs Original Async Pool ===");
@@ -483,6 +491,7 @@ public class AsyncByteBufferPoolPerformanceTest {
         }
 
         @Test
+        @Timeout(value = 5, unit = TimeUnit.MINUTES)
         @DisplayName("Compare async vs sync pool performance")
         void compareWithSyncPool() throws Exception {
             System.out.println("=== Performance Comparison: Async vs Sync Pool ===");
@@ -511,6 +520,7 @@ public class AsyncByteBufferPoolPerformanceTest {
     class StressTests {
 
         @Test
+        @Timeout(value = 5, unit = TimeUnit.MINUTES)
         @DisplayName("Test under extreme memory pressure")
         void testUnderMemoryPressure() throws Exception {
             // Create memory pressure by allocating large objects
@@ -567,6 +577,7 @@ public class AsyncByteBufferPoolPerformanceTest {
         }
 
         @Test
+        @Timeout(value = 5, unit = TimeUnit.MINUTES)
         @DisplayName("Test sustained high load")
         void testSustainedHighLoad() throws Exception {
             int durationSeconds = 30;

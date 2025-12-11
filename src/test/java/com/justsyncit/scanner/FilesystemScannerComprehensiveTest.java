@@ -34,17 +34,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -52,16 +46,18 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Comprehensive unit tests for FilesystemScanner following TDD principles.
- * Tests all aspects of filesystem scanning including edge cases, error conditions,
+ * Tests all aspects of filesystem scanning including edge cases, error
+ * conditions,
  * performance characteristics, and concurrent access patterns.
- * Tests are wrapped in CompletableFuture to simulate async behavior for testing infrastructure.
+ * Tests are wrapped in CompletableFuture to simulate async behavior for testing
+ * infrastructure.
  */
 @DisplayName("FilesystemScanner Comprehensive Tests")
 class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
     @TempDir
     Path tempDir;
-    
+
     private FilesystemScanner scanner;
     private AsyncTestMetricsCollector metricsCollector;
 
@@ -87,8 +83,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
         void shouldScanEmptyDirectory() throws Exception {
             // Given
             ScanOptions options = new ScanOptions()
-                .withIncludeHiddenFiles(false)
-                .withFollowLinks(false);
+                    .withIncludeHiddenFiles(false)
+                    .withFollowLinks(false);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -109,8 +105,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Given
             createTestFiles(tempDir, "file", 5, 1024);
             ScanOptions options = new ScanOptions()
-                .withIncludeHiddenFiles(false)
-                .withFollowLinks(false);
+                    .withIncludeHiddenFiles(false)
+                    .withFollowLinks(false);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -133,14 +129,14 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             Path subdir2 = tempDir.resolve("subdir2");
             Files.createDirectories(subdir1);
             Files.createDirectories(subdir2);
-            
+
             createTestFiles(subdir1, "file", 3, 512);
             createTestFiles(subdir2, "file", 2, 2048);
-            
+
             ScanOptions options = new ScanOptions()
-                .withMaxDepth(Integer.MAX_VALUE) // Recursive
-                .withIncludeHiddenFiles(false)
-                .withFollowLinks(false);
+                    .withMaxDepth(Integer.MAX_VALUE) // Recursive
+                    .withIncludeHiddenFiles(false)
+                    .withFollowLinks(false);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -166,7 +162,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             CompletableFuture<ScanResult> future = scanner.scanDirectory(nonExistentDir, options);
 
             // Then
-            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.SHORT_TIMEOUT);
+            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class,
+                    AsyncTestUtils.SHORT_TIMEOUT);
         }
 
         @Test
@@ -180,7 +177,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             CompletableFuture<ScanResult> future = scanner.scanDirectory(file, options);
 
             // Then
-            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.SHORT_TIMEOUT);
+            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class,
+                    AsyncTestUtils.SHORT_TIMEOUT);
         }
     }
 
@@ -189,14 +187,14 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
     class EdgeCasesAndBoundaryConditions {
 
         @ParameterizedTest
-        @ValueSource(ints = {0, 1, 10, 100, 1000})
+        @ValueSource(ints = { 0, 1, 10, 100, 1000 })
         @DisplayName("Should handle various file counts")
         void shouldHandleVariousFileCounts(int fileCount) throws Exception {
             // Given
             createTestFiles(tempDir, "various", fileCount, 1024);
             ScanOptions options = new ScanOptions()
-                .withIncludeHiddenFiles(false)
-                .withFollowLinks(false);
+                    .withIncludeHiddenFiles(false)
+                    .withFollowLinks(false);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -209,14 +207,14 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {1, 1024, 4096, 65536, 1048576})
+        @ValueSource(ints = { 1, 1024, 4096, 65536, 1048576 })
         @DisplayName("Should handle various file sizes")
         void shouldHandleVariousFileSizes(int fileSize) throws Exception {
             // Given
             createTestFiles(tempDir, "size", 5, fileSize);
             ScanOptions options = new ScanOptions()
-                .withIncludeHiddenFiles(false)
-                .withFollowLinks(false);
+                    .withIncludeHiddenFiles(false)
+                    .withFollowLinks(false);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -239,11 +237,11 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 Files.createDirectories(current);
                 createTestFiles(current, "deep", 2, 512);
             }
-            
+
             ScanOptions options = new ScanOptions()
-                .withMaxDepth(Integer.MAX_VALUE) // Recursive
-                .withIncludeHiddenFiles(false)
-                .withFollowLinks(false);
+                    .withMaxDepth(Integer.MAX_VALUE) // Recursive
+                    .withIncludeHiddenFiles(false)
+                    .withFollowLinks(false);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -261,24 +259,24 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Given
             createTestFiles(tempDir, "visible", 3, 1024);
             createTestFiles(tempDir, ".hidden", 2, 512);
-            
+
             Path hiddenDir = tempDir.resolve(".hiddenDir");
             Files.createDirectories(hiddenDir);
             createTestFiles(hiddenDir, "hidden", 2, 256);
 
             // When - exclude hidden
             ScanOptions excludeHidden = new ScanOptions()
-                .withIncludeHiddenFiles(false)
-                .withMaxDepth(Integer.MAX_VALUE);
-            
+                    .withIncludeHiddenFiles(false)
+                    .withMaxDepth(Integer.MAX_VALUE);
+
             CompletableFuture<ScanResult> excludeFuture = scanner.scanDirectory(tempDir, excludeHidden);
             ScanResult excludeResult = AsyncTestUtils.getResultOrThrow(excludeFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
             // When - include hidden
             ScanOptions includeHidden = new ScanOptions()
-                .withIncludeHiddenFiles(true)
-                .withMaxDepth(Integer.MAX_VALUE);
-            
+                    .withIncludeHiddenFiles(true)
+                    .withMaxDepth(Integer.MAX_VALUE);
+
             CompletableFuture<ScanResult> includeFuture = scanner.scanDirectory(tempDir, includeHidden);
             ScanResult includeResult = AsyncTestUtils.getResultOrThrow(includeFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
@@ -297,10 +295,10 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
         void shouldHandleSymbolicLinks() throws Exception {
             // Given
             createTestFiles(tempDir, "original", 2, 1024);
-            
+
             Path linkTarget = tempDir.resolve("original0.txt");
             Path symlink = tempDir.resolve("symlink.txt");
-            
+
             try {
                 Files.createSymbolicLink(symlink, linkTarget);
             } catch (UnsupportedOperationException e) {
@@ -311,17 +309,17 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
             // When - don't follow symlinks
             ScanOptions noFollow = new ScanOptions()
-                .withFollowLinks(false)
-                .withSymlinkStrategy(SymlinkStrategy.SKIP);
-            
+                    .withFollowLinks(false)
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
+
             CompletableFuture<ScanResult> noFollowFuture = scanner.scanDirectory(tempDir, noFollow);
             ScanResult noFollowResult = AsyncTestUtils.getResultOrThrow(noFollowFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
             // When - follow symlinks
             ScanOptions follow = new ScanOptions()
-                .withFollowLinks(true)
-                .withSymlinkStrategy(SymlinkStrategy.FOLLOW);
-            
+                    .withFollowLinks(true)
+                    .withSymlinkStrategy(SymlinkStrategy.FOLLOW);
+
             CompletableFuture<ScanResult> followFuture = scanner.scanDirectory(tempDir, follow);
             ScanResult followResult = AsyncTestUtils.getResultOrThrow(followFuture, AsyncTestUtils.SHORT_TIMEOUT);
 
@@ -353,7 +351,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 Files.createDirectories(scanDir);
                 createTestFiles(scanDir, "concurrent", 3, 1024);
                 scanDirs.add(scanDir);
-                
+
                 ScanOptions options = new ScanOptions();
                 CompletableFuture<ScanResult> future = scanner.scanDirectory(scanDir, options);
                 futures.add(future);
@@ -362,7 +360,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // When
             CompletableFuture<ScanResult>[] futureArray = futures.toArray(new CompletableFuture[0]);
             List<ScanResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                AsyncTestUtils.LONG_TIMEOUT, futureArray);
+                    AsyncTestUtils.LONG_TIMEOUT, futureArray);
 
             // Then
             assertEquals(scanCount, results.size());
@@ -391,7 +389,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                             Path scanDir = tempDir.resolve("mixed_" + threadIndex + "_" + j);
                             Files.createDirectories(scanDir);
                             createTestFiles(scanDir, "mixed", 2, 512);
-                            
+
                             ScanOptions options = new ScanOptions();
                             CompletableFuture<ScanResult> resultFuture = scanner.scanDirectory(scanDir, options);
                             ScanResult result = resultFuture.get();
@@ -437,11 +435,11 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             ScanResult scanResult = result.getResult();
             assertNotNull(scanResult);
             assertEquals(fileCount, scanResult.getScannedFileCount());
-            
-            double averageTimePerFile = result.getDurationMillis() / (double)fileCount;
+
+            double averageTimePerFile = result.getDurationMillis() / (double) fileCount;
             assertTrue(averageTimePerFile <= maxAverageTime.toMillis(),
-                String.format("Average time per file (%.2f ms) exceeds target (%.2f ms)",
-                    averageTimePerFile, (double)maxAverageTime.toMillis()));
+                    String.format("Average time per file (%.2f ms) exceeds target (%.2f ms)",
+                            averageTimePerFile, (double) maxAverageTime.toMillis()));
         }
 
         @Test
@@ -458,7 +456,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
             // When
             long startTime = System.nanoTime();
-            
+
             for (int i = 0; i < threadCount; i++) {
                 final int threadIndex = i;
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -467,7 +465,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                             Path scanDir = tempDir.resolve("load_" + threadIndex + "_" + j);
                             Files.createDirectories(scanDir);
                             createTestFiles(scanDir, "load", filesPerScan, 1024);
-                            
+
                             ScanOptions options = new ScanOptions();
                             CompletableFuture<ScanResult> resultFuture = scanner.scanDirectory(scanDir, options);
                             ScanResult result = resultFuture.get();
@@ -482,7 +480,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             }
 
             AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
-            
+
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
             int totalScans = threadCount * scansPerThread;
@@ -490,8 +488,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Then
             double averageTimePerScan = totalDuration / 1_000_000.0 / totalScans;
             assertTrue(averageTimePerScan <= maxAverageTime.toMillis(),
-                String.format("Average time per scan under load (%.2f ms) exceeds target (%.2f ms)",
-                    averageTimePerScan, (double)maxAverageTime.toMillis()));
+                    String.format("Average time per scan under load (%.2f ms) exceeds target (%.2f ms)",
+                            averageTimePerScan, (double) maxAverageTime.toMillis()));
 
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
@@ -506,8 +504,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
         @DisplayName("Should work with AsyncTestMetricsCollector")
         void shouldWorkWithAsyncTestMetricsCollector() throws Exception {
             // Given
-            AsyncTestMetricsCollector.OperationTimer timer = 
-                metricsCollector.startOperation("scan", "FilesystemScanner");
+            AsyncTestMetricsCollector.OperationTimer timer = metricsCollector.startOperation("scan",
+                    "FilesystemScanner");
 
             createTestFiles(tempDir, "metrics", 5, 2048);
             ScanOptions options = new ScanOptions();
@@ -518,8 +516,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             timer.complete(result.getTotalSize());
 
             // Then
-            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = 
-                metricsCollector.getComponentMetrics("FilesystemScanner");
+            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = metricsCollector
+                    .getComponentMetrics("FilesystemScanner");
             assertEquals(1, componentMetrics.getTotalOperations());
             assertEquals(1, componentMetrics.getSuccessfulOperations());
             assertEquals(result.getTotalSize(), componentMetrics.getTotalBytesProcessed());
@@ -530,26 +528,26 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
         void shouldWorkWithAsyncTestScenarioBuilder() throws Exception {
             // Given
             AsyncTestScenarioBuilder builder = AsyncTestScenarioBuilder.create();
-            
+
             // Create a concurrent operation
-            AsyncTestScenarioBuilder.ConcurrentOperation scanOperation =
-                new AsyncTestScenarioBuilder.ConcurrentOperation("Filesystem scan", () -> {
-                    try {
-                        Path scanDir = tempDir.resolve("scenario_" + System.currentTimeMillis());
-                        Files.createDirectories(scanDir);
-                        createTestFiles(scanDir, "scenario", 2, 1024);
-                        
-                        ScanOptions options = new ScanOptions();
-                        CompletableFuture<ScanResult> resultFuture = scanner.scanDirectory(scanDir, options);
-                        ScanResult scanResult = resultFuture.get(30, TimeUnit.SECONDS);
-                        assertNotNull(scanResult);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Scan operation failed", e);
-                    }
-                });
-            
+            AsyncTestScenarioBuilder.ConcurrentOperation scanOperation = new AsyncTestScenarioBuilder.ConcurrentOperation(
+                    "Filesystem scan", () -> {
+                        try {
+                            Path scanDir = tempDir.resolve("scenario_" + System.currentTimeMillis());
+                            Files.createDirectories(scanDir);
+                            createTestFiles(scanDir, "scenario", 2, 1024);
+
+                            ScanOptions options = new ScanOptions();
+                            CompletableFuture<ScanResult> resultFuture = scanner.scanDirectory(scanDir, options);
+                            ScanResult scanResult = resultFuture.get(30, TimeUnit.SECONDS);
+                            assertNotNull(scanResult);
+                        } catch (Exception e) {
+                            throw new RuntimeException("Scan operation failed", e);
+                        }
+                    });
+
             builder.withConcurrentOperations(scanOperation);
-            
+
             AsyncTestScenarioBuilder.AsyncTestScenario scenario = builder.build();
             CompletableFuture<AsyncTestScenarioBuilder.ScenarioResult> future = scenario.executeAsync();
             AsyncTestScenarioBuilder.ScenarioResult result = future.get();
@@ -562,14 +560,14 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
         @DisplayName("Should work with AsyncTestDataProvider")
         void shouldWorkWithAsyncTestDataProvider() throws Exception {
             // Given
-            AsyncTestDataProvider.FilesystemDataProvider.FilesystemScanScenario[] scenarios = 
-                AsyncTestDataProvider.FilesystemDataProvider.getScanScenarios();
+            AsyncTestDataProvider.FilesystemDataProvider.FilesystemScanScenario[] scenarios = AsyncTestDataProvider.FilesystemDataProvider
+                    .getScanScenarios();
 
             for (AsyncTestDataProvider.FilesystemDataProvider.FilesystemScanScenario scenario : scenarios) {
                 // When
                 scenario.setup(tempDir);
                 ScanOptions options = scenario.getScanOptions();
-                
+
                 CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
                 ScanResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.DEFAULT_TIMEOUT);
 
@@ -591,7 +589,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             Path scanDir = tempDir.resolve("interrupt");
             Files.createDirectories(scanDir);
             createTestFiles(scanDir, "interrupt", 10, 1024);
-            
+
             ScanOptions options = new ScanOptions();
             CompletableFuture<ScanResult> future = scanner.scanDirectory(scanDir, options);
 
@@ -603,8 +601,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
                 fail("Should have thrown exception due to interruption");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getCause() instanceof InterruptedException || 
-                          e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof InterruptedException ||
+                        e.getCause() instanceof RuntimeException);
             } finally {
                 // Clear interrupt status
                 Thread.interrupted();
@@ -617,25 +615,27 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Given
             Path scanDir = tempDir.resolve("timeout");
             Files.createDirectories(scanDir);
-            
+
             // Create a CompletableFuture that will never complete to simulate timeout
             CompletableFuture<ScanResult> neverCompletingFuture = new CompletableFuture<>();
-            
+
             // Create a custom scanner that returns the never-completing future
             FilesystemScanner slowScanner = new FilesystemScanner() {
                 @Override
                 public CompletableFuture<ScanResult> scanDirectory(Path directory, ScanOptions options) {
                     return neverCompletingFuture;
                 }
-                
+
                 // Add default implementations for other methods
                 @Override
-                public void setFileVisitor(FileVisitor visitor) {}
-                
+                public void setFileVisitor(FileVisitor visitor) {
+                }
+
                 @Override
-                public void setProgressListener(ProgressListener listener) {}
+                public void setProgressListener(ProgressListener listener) {
+                }
             };
-            
+
             ScanOptions options = new ScanOptions();
             CompletableFuture<ScanResult> future = slowScanner.scanDirectory(scanDir, options);
 
@@ -659,7 +659,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             Path goodDir = tempDir.resolve("good");
             Files.createDirectories(goodDir);
             createTestFiles(goodDir, "good", 3, 1024);
-            
+
             ScanOptions options = new ScanOptions();
             CompletableFuture<ScanResult> goodFuture = scanner.scanDirectory(goodDir, options);
             ScanResult goodResult = AsyncTestUtils.getResultOrThrow(goodFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -680,7 +680,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             Path anotherGoodDir = tempDir.resolve("another_good");
             Files.createDirectories(anotherGoodDir);
             createTestFiles(anotherGoodDir, "another", 2, 2048);
-            
+
             CompletableFuture<ScanResult> anotherFuture = scanner.scanDirectory(anotherGoodDir, options);
             ScanResult anotherResult = AsyncTestUtils.getResultOrThrow(anotherFuture, AsyncTestUtils.SHORT_TIMEOUT);
             assertNotNull(anotherResult);
@@ -690,12 +690,11 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
     static Stream<Arguments> provideFileCountsAndSizes() {
         return Stream.of(
-            Arguments.of(1, 1024),
-            Arguments.of(10, 2048),
-            Arguments.of(50, 4096),
-            Arguments.of(100, 8192),
-            Arguments.of(500, 16384)
-        );
+                Arguments.of(1, 1024),
+                Arguments.of(10, 2048),
+                Arguments.of(50, 4096),
+                Arguments.of(100, 8192),
+                Arguments.of(500, 16384));
     }
 
     @ParameterizedTest

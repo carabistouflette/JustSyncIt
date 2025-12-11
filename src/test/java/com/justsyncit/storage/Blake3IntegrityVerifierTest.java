@@ -22,12 +22,14 @@ import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.hash.HashingException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Unit tests for Blake3IntegrityVerifier.
@@ -48,12 +50,14 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testConstructorWithNullService() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> new Blake3IntegrityVerifier(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testVerifyIntegrityWithValidData() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -66,6 +70,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testVerifyIntegrityWithNullData() {
         // Arrange
         String expectedHash = "abcdef1234567890";
@@ -75,6 +80,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testVerifyIntegrityWithNullHash() {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -84,6 +90,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testVerifyIntegrityWithMismatchedHash() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -105,6 +112,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCalculateHashWithValidData() throws HashingException {
         // Arrange
         byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -120,12 +128,14 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCalculateHashWithNullData() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> integrityVerifier.calculateHash(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithValidHash() {
         // Arrange
         String validHash = "abcdef1234567890";
@@ -135,12 +145,14 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithNullHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> integrityVerifier.validateHash(null));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithEmptyHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> integrityVerifier.validateHash(""));
@@ -148,12 +160,14 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testValidateHashWithWhitespaceOnlyHash() {
         // Act & Assert
         assertThrows(IllegalArgumentException.class, () -> integrityVerifier.validateHash("\t\n\r"));
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testVerifyIntegrityWithEmptyData() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = new byte[0];
@@ -166,6 +180,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCalculateHashWithEmptyData() throws HashingException {
         // Arrange
         byte[] data = new byte[0];
@@ -181,6 +196,7 @@ class Blake3IntegrityVerifierTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testVerifyIntegrityWithLargeData() throws HashingException, StorageIntegrityException {
         // Arrange
         byte[] data = new byte[1024 * 1024]; // 1MB

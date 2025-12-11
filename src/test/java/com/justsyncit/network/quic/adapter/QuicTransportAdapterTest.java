@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Timeout;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -96,6 +97,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should start and stop successfully")
     void testStartStop() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -122,6 +124,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should handle connection events")
     void testConnectionEvents() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -147,6 +150,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should handle disconnection")
     void testDisconnection() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -170,6 +174,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should send messages")
     void testMessageSending() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -194,6 +199,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should send files")
     void testFileSending() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -226,6 +232,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should create streams")
     void testStreamCreation() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -255,6 +262,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should check connection status")
     void testConnectionStatus() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -277,6 +285,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should report active connections")
     void testActiveConnectionCount() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -296,6 +305,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should provide configuration")
     void testConfiguration() {
         QuicConfiguration config = adapter.getConfiguration();
@@ -303,6 +313,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should provide QUIC client")
     void testQuicClient() {
         QuicClient client = adapter.getQuicClient();
@@ -310,6 +321,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should provide statistics")
     void testStatistics() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -328,6 +340,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should handle connection errors")
     void testConnectionErrors() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start
@@ -358,6 +371,7 @@ public class QuicTransportAdapterTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     @DisplayName("Adapter should handle message sending errors")
     void testMessageSendingErrors() throws ExecutionException, InterruptedException, TimeoutException {
         // Mock client start

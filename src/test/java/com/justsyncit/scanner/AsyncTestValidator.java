@@ -18,14 +18,14 @@
 
 package com.justsyncit.scanner;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * Validates test coverage and quality requirements.
- * Provides comprehensive validation of test results against predefined criteria.
+ * Provides comprehensive validation of test results against predefined
+ * criteria.
  */
 public final class AsyncTestValidator {
 
@@ -61,8 +61,8 @@ public final class AsyncTestValidator {
         double successRate = result.getSuccessRate();
         if (successRate < configuration.getMinSuccessRate()) {
             isValid = false;
-            message.append(String.format("Success rate %.2f%% is below minimum %.2f%%. ", 
-                successRate * 100, configuration.getMinSuccessRate() * 100));
+            message.append(String.format("Success rate %.2f%% is below minimum %.2f%%. ",
+                    successRate * 100, configuration.getMinSuccessRate() * 100));
         }
 
         // Validate test coverage
@@ -105,8 +105,8 @@ public final class AsyncTestValidator {
             }
         }
 
-        String finalMessage = message.length() > 0 ? message.toString().trim() : 
-            (isValid ? "All validation criteria met" : "Validation failed");
+        String finalMessage = message.length() > 0 ? message.toString().trim()
+                : (isValid ? "All validation criteria met" : "Validation failed");
 
         return new AsyncTestSuite.ValidationResult(isValid, finalMessage, warnings);
     }
@@ -121,8 +121,8 @@ public final class AsyncTestValidator {
 
         // Check if all required test categories are present
         List<String> presentCategories = result.getCategoryResults().stream()
-            .map(AsyncTestSuite.TestCategoryResult::getCategoryName)
-            .toList();
+                .map(AsyncTestSuite.TestCategoryResult::getCategoryName)
+                .toList();
 
         for (String requiredCategory : configuration.getRequiredTestCategories()) {
             if (!presentCategories.contains(requiredCategory)) {
@@ -135,10 +135,10 @@ public final class AsyncTestValidator {
         for (AsyncTestSuite.TestCategoryResult category : result.getCategoryResults()) {
             int testCount = category.getTotalTestMethods();
             int minTests = configuration.getMinTestsPerCategory();
-            
+
             if (testCount < minTests) {
-                warnings.add(String.format("Category '%s' has only %d tests (minimum: %d)", 
-                    category.getCategoryName(), testCount, minTests));
+                warnings.add(String.format("Category '%s' has only %d tests (minimum: %d)",
+                        category.getCategoryName(), testCount, minTests));
             }
         }
 
@@ -152,8 +152,8 @@ public final class AsyncTestValidator {
             }
         }
 
-        String finalMessage = message.length() > 0 ? message.toString().trim() : 
-            (isValid ? "Test coverage validation passed" : "Test coverage validation failed");
+        String finalMessage = message.length() > 0 ? message.toString().trim()
+                : (isValid ? "Test coverage validation passed" : "Test coverage validation failed");
 
         return new CoverageValidationResult(isValid, finalMessage, warnings);
     }
@@ -167,18 +167,15 @@ public final class AsyncTestValidator {
 
         // Check if core async components have tests
         List<String> coreComponents = Arrays.asList(
-            "AsyncByteBufferPool",
-            "AsyncFileChunker", 
-            "ThreadPoolManager",
-            "AsyncBatchProcessor"
-        );
+                "AsyncByteBufferPool",
+                "AsyncFileChunker",
+                "ThreadPoolManager",
+                "AsyncBatchProcessor");
 
         for (String component : coreComponents) {
             boolean hasTests = result.getCategoryResults().stream()
-                .anyMatch(category -> 
-                    category.getClassResults().stream()
-                        .anyMatch(classResult -> 
-                            classResult.getClassName().contains(component)));
+                    .anyMatch(category -> category.getClassResults().stream()
+                            .anyMatch(classResult -> classResult.getClassName().contains(component)));
 
             if (!hasTests) {
                 warnings.add("Missing tests for core async component: " + component);
@@ -198,16 +195,16 @@ public final class AsyncTestValidator {
         // Check execution time limits
         if (result.getDuration().toMillis() > configuration.getMaxSuiteExecutionTimeMs()) {
             isValid = false;
-            warnings.add(String.format("Suite execution time %dms exceeds maximum %dms", 
-                result.getDuration().toMillis(), configuration.getMaxSuiteExecutionTimeMs()));
+            warnings.add(String.format("Suite execution time %dms exceeds maximum %dms",
+                    result.getDuration().toMillis(), configuration.getMaxSuiteExecutionTimeMs()));
         }
 
         // Check individual category performance
         for (AsyncTestSuite.TestCategoryResult category : result.getCategoryResults()) {
             if (category.getDuration().toMillis() > configuration.getMaxCategoryExecutionTimeMs()) {
-                warnings.add(String.format("Category '%s' execution time %dms exceeds maximum %dms", 
-                    category.getCategoryName(), category.getDuration().toMillis(), 
-                    configuration.getMaxCategoryExecutionTimeMs()));
+                warnings.add(String.format("Category '%s' execution time %dms exceeds maximum %dms",
+                        category.getCategoryName(), category.getDuration().toMillis(),
+                        configuration.getMaxCategoryExecutionTimeMs()));
             }
         }
 
@@ -223,7 +220,7 @@ public final class AsyncTestValidator {
 
         // Check if error handling tests are present
         boolean hasErrorHandlingTests = result.getCategoryResults().stream()
-            .anyMatch(category -> category.getCategoryName().contains("Error Handling"));
+                .anyMatch(category -> category.getCategoryName().contains("Error Handling"));
 
         if (!hasErrorHandlingTests) {
             warnings.add("Missing error handling test category");
@@ -232,8 +229,8 @@ public final class AsyncTestValidator {
         // Check for proper test failure handling (no uncaught exceptions)
         for (AsyncTestSuite.TestCategoryResult category : result.getCategoryResults()) {
             for (AsyncTestSuite.ClassTestResult classResult : category.getClassResults()) {
-                if (classResult.getErrorMessage() != null && 
-                    classResult.getErrorMessage().contains("uncaught")) {
+                if (classResult.getErrorMessage() != null &&
+                        classResult.getErrorMessage().contains("uncaught")) {
                     warnings.add("Uncaught exception detected in test: " + classResult.getClassName());
                 }
             }
@@ -251,9 +248,8 @@ public final class AsyncTestValidator {
 
         // Check if resource management tests are present
         boolean hasResourceTests = result.getCategoryResults().stream()
-            .anyMatch(category -> 
-                category.getCategoryName().contains("Resource") ||
-                category.getCategoryName().contains("Leak"));
+                .anyMatch(category -> category.getCategoryName().contains("Resource") ||
+                        category.getCategoryName().contains("Leak"));
 
         if (!hasResourceTests) {
             warnings.add("Missing resource management test category");
@@ -299,16 +295,45 @@ public final class AsyncTestValidator {
         }
 
         // Getters
-        public double getMinSuccessRate() { return minSuccessRate; }
-        public boolean isValidateCoverage() { return validateCoverage; }
-        public boolean isValidatePerformance() { return validatePerformance; }
-        public boolean isValidateErrorHandling() { return validateErrorHandling; }
-        public boolean isValidateResourceManagement() { return validateResourceManagement; }
-        public boolean isValidateAsyncComponentCoverage() { return validateAsyncComponentCoverage; }
-        public List<String> getRequiredTestCategories() { return requiredTestCategories; }
-        public int getMinTestsPerCategory() { return minTestsPerCategory; }
-        public long getMaxSuiteExecutionTimeMs() { return maxSuiteExecutionTimeMs; }
-        public long getMaxCategoryExecutionTimeMs() { return maxCategoryExecutionTimeMs; }
+        public double getMinSuccessRate() {
+            return minSuccessRate;
+        }
+
+        public boolean isValidateCoverage() {
+            return validateCoverage;
+        }
+
+        public boolean isValidatePerformance() {
+            return validatePerformance;
+        }
+
+        public boolean isValidateErrorHandling() {
+            return validateErrorHandling;
+        }
+
+        public boolean isValidateResourceManagement() {
+            return validateResourceManagement;
+        }
+
+        public boolean isValidateAsyncComponentCoverage() {
+            return validateAsyncComponentCoverage;
+        }
+
+        public List<String> getRequiredTestCategories() {
+            return requiredTestCategories;
+        }
+
+        public int getMinTestsPerCategory() {
+            return minTestsPerCategory;
+        }
+
+        public long getMaxSuiteExecutionTimeMs() {
+            return maxSuiteExecutionTimeMs;
+        }
+
+        public long getMaxCategoryExecutionTimeMs() {
+            return maxCategoryExecutionTimeMs;
+        }
 
         /**
          * Builder for ValidatorConfiguration.
@@ -321,7 +346,7 @@ public final class AsyncTestValidator {
             private boolean validateResourceManagement = true;
             private boolean validateAsyncComponentCoverage = true;
             private List<String> requiredTestCategories = Arrays.asList(
-                "Unit Tests", "Integration Tests", "Performance Tests", "Error Handling Tests");
+                    "Unit Tests", "Integration Tests", "Performance Tests", "Error Handling Tests");
             private int minTestsPerCategory = 5;
             private long maxSuiteExecutionTimeMs = 30 * 60 * 1000; // 30 minutes
             private long maxCategoryExecutionTimeMs = 10 * 60 * 1000; // 10 minutes
@@ -396,9 +421,17 @@ public final class AsyncTestValidator {
             this.warnings = new ArrayList<>(warnings);
         }
 
-        public boolean isValid() { return valid; }
-        public String getMessage() { return message; }
-        public List<String> getWarnings() { return warnings; }
+        public boolean isValid() {
+            return valid;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public List<String> getWarnings() {
+            return warnings;
+        }
     }
 
     /**
@@ -413,8 +446,13 @@ public final class AsyncTestValidator {
             this.warnings = new ArrayList<>(warnings);
         }
 
-        public boolean isValid() { return valid; }
-        public List<String> getWarnings() { return warnings; }
+        public boolean isValid() {
+            return valid;
+        }
+
+        public List<String> getWarnings() {
+            return warnings;
+        }
     }
 
     /**
@@ -429,8 +467,13 @@ public final class AsyncTestValidator {
             this.warnings = new ArrayList<>(warnings);
         }
 
-        public boolean isValid() { return valid; }
-        public List<String> getWarnings() { return warnings; }
+        public boolean isValid() {
+            return valid;
+        }
+
+        public List<String> getWarnings() {
+            return warnings;
+        }
     }
 
     /**
@@ -445,8 +488,13 @@ public final class AsyncTestValidator {
             this.warnings = new ArrayList<>(warnings);
         }
 
-        public boolean isValid() { return valid; }
-        public List<String> getWarnings() { return warnings; }
+        public boolean isValid() {
+            return valid;
+        }
+
+        public List<String> getWarnings() {
+            return warnings;
+        }
     }
 
     /**
@@ -461,7 +509,12 @@ public final class AsyncTestValidator {
             this.warnings = new ArrayList<>(warnings);
         }
 
-        public boolean isValid() { return valid; }
-        public List<String> getWarnings() { return warnings; }
+        public boolean isValid() {
+            return valid;
+        }
+
+        public List<String> getWarnings() {
+            return warnings;
+        }
     }
 }

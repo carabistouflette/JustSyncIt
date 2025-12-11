@@ -18,9 +18,6 @@
 
 package com.justsyncit.scanner;
 
-import org.junit.jupiter.api.Assertions;
-import org.mockito.Mockito;
-
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -35,18 +32,14 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Enhanced utility class for async testing scenarios with comprehensive timeout handling.
+ * Enhanced utility class for async testing scenarios with comprehensive timeout
+ * handling.
  * Provides advanced testing patterns for async operations, error scenarios,
  * and performance validation following TDD principles.
  */
@@ -77,11 +70,12 @@ public final class AsyncTestUtils {
     public static final Duration ULTRA_SHORT_TIMEOUT = Duration.ofSeconds(1);
 
     /**
-     * Executes a CompletableFuture and returns the result with enhanced error handling.
+     * Executes a CompletableFuture and returns the result with enhanced error
+     * handling.
      *
-     * @param future the future to execute
+     * @param future  the future to execute
      * @param timeout timeout duration
-     * @param <T> result type
+     * @param <T>     result type
      * @return the result of the future
      * @throws AsyncTestException if the future fails or times out
      */
@@ -106,7 +100,7 @@ public final class AsyncTestUtils {
      * Executes a CompletableFuture with default timeout.
      *
      * @param future the future to execute
-     * @param <T> result type
+     * @param <T>    result type
      * @return the result of the future
      * @throws AsyncTestException if the future fails or times out
      */
@@ -117,13 +111,14 @@ public final class AsyncTestUtils {
     /**
      * Executes a CompletableFuture and consumes the result with the given consumer.
      *
-     * @param future the future to execute
+     * @param future   the future to execute
      * @param consumer the consumer to handle the result
-     * @param timeout timeout duration
-     * @param <T> result type
+     * @param timeout  timeout duration
+     * @param <T>      result type
      * @throws AsyncTestException if the future fails or times out
      */
-    public static <T> void consumeResult(CompletableFuture<T> future, Consumer<T> consumer, Duration timeout) throws AsyncTestException {
+    public static <T> void consumeResult(CompletableFuture<T> future, Consumer<T> consumer, Duration timeout)
+            throws AsyncTestException {
         T result = getResultOrThrow(future, timeout);
         consumer.accept(result);
     }
@@ -131,9 +126,9 @@ public final class AsyncTestUtils {
     /**
      * Executes a CompletableFuture and consumes the result with default timeout.
      *
-     * @param future the future to execute
+     * @param future   the future to execute
      * @param consumer the consumer to handle the result
-     * @param <T> result type
+     * @param <T>      result type
      * @throws AsyncTestException if the future fails or times out
      */
     public static <T> void consumeResult(CompletableFuture<T> future, Consumer<T> consumer) throws AsyncTestException {
@@ -141,19 +136,22 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Asserts that a CompletableFuture completes successfully within the specified timeout.
+     * Asserts that a CompletableFuture completes successfully within the specified
+     * timeout.
      *
-     * @param future the future to check
+     * @param future  the future to check
      * @param timeout timeout duration
-     * @param <T> result type
+     * @param <T>     result type
      * @throws AsyncTestAssertionError if the assertion fails
      */
-    public static <T> void assertCompletesSuccessfully(CompletableFuture<T> future, Duration timeout) throws AsyncTestAssertionError {
+    public static <T> void assertCompletesSuccessfully(CompletableFuture<T> future, Duration timeout)
+            throws AsyncTestAssertionError {
         try {
             T result = future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             // If we get here, the future completed successfully
         } catch (Exception e) {
-            throw new AsyncTestAssertionError("Future should have completed successfully, but failed: " + e.getMessage(), e);
+            throw new AsyncTestAssertionError(
+                    "Future should have completed successfully, but failed: " + e.getMessage(), e);
         }
     }
 
@@ -161,7 +159,7 @@ public final class AsyncTestUtils {
      * Asserts that a CompletableFuture completes successfully with default timeout.
      *
      * @param future the future to check
-     * @param <T> result type
+     * @param <T>    result type
      * @throws AsyncTestAssertionError if the assertion fails
      */
     public static <T> void assertCompletesSuccessfully(CompletableFuture<T> future) throws AsyncTestAssertionError {
@@ -171,15 +169,15 @@ public final class AsyncTestUtils {
     /**
      * Asserts that a CompletableFuture fails with the expected exception type.
      *
-     * @param future the future to check
+     * @param future                the future to check
      * @param expectedExceptionType the expected exception type
-     * @param timeout timeout duration
-     * @param <T> result type
+     * @param timeout               timeout duration
+     * @param <T>                   result type
      * @throws AsyncTestAssertionError if the assertion fails
      */
-    public static <T> void assertFailsWithException(CompletableFuture<T> future, 
-                                                      Class<? extends Throwable> expectedExceptionType, 
-                                                      Duration timeout) throws AsyncTestAssertionError {
+    public static <T> void assertFailsWithException(CompletableFuture<T> future,
+            Class<? extends Throwable> expectedExceptionType,
+            Duration timeout) throws AsyncTestAssertionError {
         try {
             future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             throw new AsyncTestAssertionError("Future completed successfully but was expected to fail");
@@ -187,23 +185,25 @@ public final class AsyncTestUtils {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             if (!expectedExceptionType.isInstance(cause)) {
                 throw new AsyncTestAssertionError(
-                    String.format("Future failed with %s but expected %s", 
-                        cause.getClass().getSimpleName(), expectedExceptionType.getSimpleName()), e);
+                        String.format("Future failed with %s but expected %s",
+                                cause.getClass().getSimpleName(), expectedExceptionType.getSimpleName()),
+                        e);
             }
             // Expected exception type - test passes
         }
     }
 
     /**
-     * Asserts that a CompletableFuture fails with the expected exception type using default timeout.
+     * Asserts that a CompletableFuture fails with the expected exception type using
+     * default timeout.
      *
-     * @param future the future to check
+     * @param future                the future to check
      * @param expectedExceptionType the expected exception type
-     * @param <T> result type
+     * @param <T>                   result type
      * @throws AsyncTestAssertionError if the assertion fails
      */
-    public static <T> void assertFailsWithException(CompletableFuture<T> future, 
-                                                      Class<? extends Throwable> expectedExceptionType) throws AsyncTestAssertionError {
+    public static <T> void assertFailsWithException(CompletableFuture<T> future,
+            Class<? extends Throwable> expectedExceptionType) throws AsyncTestAssertionError {
         assertFailsWithException(future, expectedExceptionType, DEFAULT_TIMEOUT);
     }
 
@@ -223,7 +223,8 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Waits for multiple CompletableFuture instances to complete with default timeout.
+     * Waits for multiple CompletableFuture instances to complete with default
+     * timeout.
      *
      * @param futures the futures to wait for
      * @throws AsyncTestException if any future fails or times out
@@ -233,19 +234,21 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Waits for multiple CompletableFuture instances to complete and returns results.
+     * Waits for multiple CompletableFuture instances to complete and returns
+     * results.
      *
      * @param timeout timeout duration
      * @param futures the futures to wait for
-     * @param <T> result type
+     * @param <T>     result type
      * @return list of results
      * @throws AsyncTestException if any future fails or times out
      */
-    public static <T> List<T> waitForAllAndGetResults(Duration timeout, CompletableFuture<T>... futures) throws AsyncTestException {
+    public static <T> List<T> waitForAllAndGetResults(Duration timeout, CompletableFuture<T>... futures)
+            throws AsyncTestException {
         try {
             CompletableFuture<Void> allFutures = CompletableFuture.allOf(futures);
             allFutures.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            
+
             // Collect results into a list
             return Arrays.stream(futures)
                     .map(future -> {
@@ -262,10 +265,11 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Waits for multiple CompletableFuture instances to complete and returns results with default timeout.
+     * Waits for multiple CompletableFuture instances to complete and returns
+     * results with default timeout.
      *
      * @param futures the futures to wait for
-     * @param <T> result type
+     * @param <T>     result type
      * @return list of results
      * @throws AsyncTestException if any future fails or times out
      */
@@ -277,8 +281,8 @@ public final class AsyncTestUtils {
      * Creates a CompletableFuture that completes after the specified delay.
      *
      * @param result the result to complete with
-     * @param delay the delay before completion
-     * @param <T> result type
+     * @param delay  the delay before completion
+     * @param <T>    result type
      * @return a delayed CompletableFuture
      */
     public static <T> CompletableFuture<T> delayedFuture(T result, Duration delay) {
@@ -289,11 +293,12 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Creates a CompletableFuture that fails with the specified exception after a delay.
+     * Creates a CompletableFuture that fails with the specified exception after a
+     * delay.
      *
      * @param exception the exception to fail with
-     * @param delay the delay before failure
-     * @param <T> result type
+     * @param delay     the delay before failure
+     * @param <T>       result type
      * @return a failing CompletableFuture
      */
     public static <T> CompletableFuture<T> failedFuture(Throwable exception, Duration delay) {
@@ -304,10 +309,11 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Creates a CompletableFuture that fails immediately with the specified exception.
+     * Creates a CompletableFuture that fails immediately with the specified
+     * exception.
      *
      * @param exception the exception to fail with
-     * @param <T> result type
+     * @param <T>       result type
      * @return a failing CompletableFuture
      */
     public static <T> CompletableFuture<T> failedFuture(Throwable exception) {
@@ -315,10 +321,11 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Creates a CompletableFuture that completes immediately with the specified result.
+     * Creates a CompletableFuture that completes immediately with the specified
+     * result.
      *
      * @param result the result to complete with
-     * @param <T> result type
+     * @param <T>    result type
      * @return a completed CompletableFuture
      */
     public static <T> CompletableFuture<T> completedFuture(T result) {
@@ -329,10 +336,11 @@ public final class AsyncTestUtils {
      * Measures the execution time of an async operation.
      *
      * @param operation the operation to measure
-     * @param <T> result type
+     * @param <T>       result type
      * @return a TimedResult containing the result and execution time
      */
-    public static <T> TimedResult<T> measureAsyncTime(Supplier<CompletableFuture<T>> operation) throws AsyncTestException {
+    public static <T> TimedResult<T> measureAsyncTime(Supplier<CompletableFuture<T>> operation)
+            throws AsyncTestException {
         long startTime = System.nanoTime();
         CompletableFuture<T> future = operation.get();
         T result = getResultOrThrow(future, LONG_TIMEOUT);
@@ -345,7 +353,7 @@ public final class AsyncTestUtils {
      * Measures the execution time of a sync operation.
      *
      * @param operation the operation to measure
-     * @param <T> result type
+     * @param <T>       result type
      * @return a TimedResult containing the result and execution time
      */
     public static <T> TimedResult<T> measureSyncTime(Supplier<T> operation) {
@@ -359,13 +367,14 @@ public final class AsyncTestUtils {
     /**
      * Executes an operation multiple times and collects performance metrics.
      *
-     * @param operation the operation to execute
-     * @param iterations number of iterations
+     * @param operation        the operation to execute
+     * @param iterations       number of iterations
      * @param warmupIterations number of warmup iterations
-     * @param <T> result type
+     * @param <T>              result type
      * @return PerformanceMetrics for the operation
      */
-    public static <T> PerformanceMetrics measurePerformance(Supplier<T> operation, int iterations, int warmupIterations) {
+    public static <T> PerformanceMetrics measurePerformance(Supplier<T> operation, int iterations,
+            int warmupIterations) {
         // Warmup
         for (int i = 0; i < warmupIterations; i++) {
             try {
@@ -396,13 +405,14 @@ public final class AsyncTestUtils {
      * Creates a test file with the specified size and content pattern.
      *
      * @param directory the directory to create the file in
-     * @param fileName the name of the file
-     * @param size the size of the file in bytes
-     * @param pattern the content pattern to use
+     * @param fileName  the name of the file
+     * @param size      the size of the file in bytes
+     * @param pattern   the content pattern to use
      * @return the path to the created file
      * @throws AsyncTestException if file creation fails
      */
-    public static Path createTestFile(Path directory, String fileName, int size, byte pattern) throws AsyncTestException {
+    public static Path createTestFile(Path directory, String fileName, int size, byte pattern)
+            throws AsyncTestException {
         try {
             Path file = directory.resolve(fileName);
             byte[] data = new byte[size];
@@ -420,8 +430,8 @@ public final class AsyncTestUtils {
      * Creates a test file with the specified size and default pattern.
      *
      * @param directory the directory to create the file in
-     * @param fileName the name of the file
-     * @param size the size of the file in bytes
+     * @param fileName  the name of the file
+     * @param size      the size of the file in bytes
      * @return the path to the created file
      * @throws AsyncTestException if file creation fails
      */
@@ -433,8 +443,8 @@ public final class AsyncTestUtils {
      * Creates a test file with text content.
      *
      * @param directory the directory to create the file in
-     * @param fileName the name of the file
-     * @param content the text content to write
+     * @param fileName  the name of the file
+     * @param content   the text content to write
      * @return the path to the created file
      * @throws AsyncTestException if file creation fails
      */
@@ -452,8 +462,8 @@ public final class AsyncTestUtils {
      * Creates multiple test files with varying sizes.
      *
      * @param directory the directory to create files in
-     * @param baseName the base name for files
-     * @param sizes array of file sizes in bytes
+     * @param baseName  the base name for files
+     * @param sizes     array of file sizes in bytes
      * @return list of created file paths
      * @throws AsyncTestException if file creation fails
      */
@@ -620,12 +630,12 @@ public final class AsyncTestUtils {
         @Override
         public String toString() {
             return String.format(
-                "PerformanceMetrics{count=%d, avg=%.2fμs, min=%.2fμs, max=%.2fμs, throughput=%.0f ops/s}",
-                durations.size(),
-                getAverageDurationMillis() * 1000,
-                getMinDurationMillis() * 1000,
-                getMaxDurationMillis() * 1000,
-                throughputOpsPerSecond);
+                    "PerformanceMetrics{count=%d, avg=%.2fμs, min=%.2fμs, max=%.2fμs, throughput=%.0f ops/s}",
+                    durations.size(),
+                    getAverageDurationMillis() * 1000,
+                    getMinDurationMillis() * 1000,
+                    getMaxDurationMillis() * 1000,
+                    throughputOpsPerSecond);
         }
     }
 
@@ -797,7 +807,8 @@ public final class AsyncTestUtils {
         }
 
         @Override
-        public void chunkFileAsync(Path file, ChunkingOptions options, CompletionHandler<ChunkingResult, Exception> handler) {
+        public void chunkFileAsync(Path file, ChunkingOptions options,
+                CompletionHandler<ChunkingResult, Exception> handler) {
             if (closed) {
                 handler.failed(new IllegalStateException("Chunker is closed"));
                 return;
@@ -947,17 +958,20 @@ public final class AsyncTestUtils {
         }
 
         @Override
-        public CompletableFuture<String> processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file) {
+        public CompletableFuture<String> processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks,
+                Path file) {
             processedChunks.incrementAndGet();
             return CompletableFuture.completedFuture("mock-chunk-" + chunkIndex);
         }
 
         @Override
-        public void processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file, CompletionHandler<String, Exception> handler) {
+        public void processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file,
+                CompletionHandler<String, Exception> handler) {
             processChunkAsync(chunkData, chunkIndex, totalChunks, file)
                     .whenComplete((result, throwable) -> {
                         if (throwable != null) {
-                            handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                            handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                    : new RuntimeException(throwable));
                         } else {
                             handler.completed(result);
                         }
@@ -979,7 +993,8 @@ public final class AsyncTestUtils {
             processChunksAsync(chunks, file)
                     .whenComplete((results, throwable) -> {
                         if (throwable != null) {
-                            handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                            handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                    : new RuntimeException(throwable));
                         } else {
                             handler.completed(results);
                         }
@@ -1013,17 +1028,18 @@ public final class AsyncTestUtils {
     }
 
     /**
-     * Safe runner for isolated pool testing - prevents state bleeding between tests.
+     * Safe runner for isolated pool testing - prevents state bleeding between
+     * tests.
      * Creates a new executor and pool for each test, ensuring complete isolation.
      *
-     * @param poolSize the size of the buffer pool
+     * @param poolSize   the size of the buffer pool
      * @param bufferSize the buffer size
-     * @param testBody the test logic to execute
+     * @param testBody   the test logic to execute
      */
     public static void runWithIsolatedPool(int poolSize, int bufferSize, Consumer<AsyncByteBufferPool> testBody) {
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);
         AsyncByteBufferPool pool = AsyncByteBufferPoolImpl.create(bufferSize, poolSize);
-        
+
         try {
             // Execute test directly (not async) to avoid executor issues
             testBody.accept(pool);
@@ -1036,13 +1052,13 @@ public final class AsyncTestUtils {
             } catch (Exception e) {
                 System.err.println("Error clearing pool: " + e.getMessage());
             }
-            
+
             // 2. Hard Shutdown of Executor
             executor.shutdownNow();
             try {
                 // Wait a tiny bit to ensure threads die
                 if (!executor.awaitTermination(100, TimeUnit.MILLISECONDS)) {
-                     System.err.println("Executor did not terminate in time");
+                    System.err.println("Executor did not terminate in time");
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -1063,9 +1079,9 @@ public final class AsyncTestUtils {
     /**
      * Gets the result of a CompletableFuture with timeout handling for tests.
      *
-     * @param future the future to get result from
+     * @param future  the future to get result from
      * @param timeout the timeout duration
-     * @param <T> the result type
+     * @param <T>     the result type
      * @return the result
      * @throws Exception if the future fails or times out
      */
@@ -1080,19 +1096,22 @@ public final class AsyncTestUtils {
     /**
      * Expects a future to fail with the specified exception type.
      *
-     * @param future the future to check
-     * @param timeout the timeout duration
+     * @param future                the future to check
+     * @param timeout               the timeout duration
      * @param expectedExceptionType the expected exception type
-     * @param <T> the result type
+     * @param <T>                   the result type
      */
-    public static <T> void expectFailedFuture(CompletableFuture<T> future, Duration timeout, Class<? extends Throwable> expectedExceptionType) {
+    public static <T> void expectFailedFuture(CompletableFuture<T> future, Duration timeout,
+            Class<? extends Throwable> expectedExceptionType) {
         try {
             future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
-            fail("Expected future to fail with " + expectedExceptionType.getSimpleName() + " but it completed successfully");
+            fail("Expected future to fail with " + expectedExceptionType.getSimpleName()
+                    + " but it completed successfully");
         } catch (Exception e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             if (!expectedExceptionType.isInstance(cause)) {
-                fail("Expected " + expectedExceptionType.getSimpleName() + " but got " + cause.getClass().getSimpleName() + ": " + cause.getMessage());
+                fail("Expected " + expectedExceptionType.getSimpleName() + " but got "
+                        + cause.getClass().getSimpleName() + ": " + cause.getMessage());
             }
         }
     }

@@ -80,20 +80,19 @@ class SqliteTransactionTest {
         Connection connection = connectionManager.beginTransaction();
 
         // When
-        Transaction transaction = new SqliteTransaction(connection, connectionManager);
-
-        // Then
-        assertNotNull(transaction);
-        assertTrue(transaction.isActive());
-        assertEquals(connection, ((SqliteTransaction) transaction).getConnection());
+        try (Transaction transaction = new SqliteTransaction(connection, connectionManager)) {
+            // Then
+            assertNotNull(transaction);
+            assertTrue(transaction.isActive());
+            assertEquals(connection, ((SqliteTransaction) transaction).getConnection());
+        }
     }
 
     @Test
     @DisplayName("Should reject null connection")
     void shouldRejectNullConnection() {
         // When/Then
-        assertThrows(IllegalArgumentException.class, () ->
-                new SqliteTransaction(null, connectionManager));
+        assertThrows(IllegalArgumentException.class, () -> new SqliteTransaction(null, connectionManager));
     }
 
     @Test
@@ -103,8 +102,7 @@ class SqliteTransactionTest {
         Connection connection = connectionManager.beginTransaction();
 
         // When/Then
-        assertThrows(IllegalArgumentException.class, () ->
-                new SqliteTransaction(connection, null));
+        assertThrows(IllegalArgumentException.class, () -> new SqliteTransaction(connection, null));
     }
 
     @Test
@@ -157,14 +155,14 @@ class SqliteTransactionTest {
     void shouldGetConnectionWhenActive() throws SQLException, IOException {
         // Given
         Connection connection = connectionManager.beginTransaction();
-        Transaction transaction = new SqliteTransaction(connection, connectionManager);
+        try (Transaction transaction = new SqliteTransaction(connection, connectionManager)) {
+            // When
+            Connection retrievedConnection = ((SqliteTransaction) transaction).getConnection();
 
-        // When
-        Connection retrievedConnection = ((SqliteTransaction) transaction).getConnection();
-
-        // Then
-        assertEquals(connection, retrievedConnection);
-        assertTrue(transaction.isActive());
+            // Then
+            assertEquals(connection, retrievedConnection);
+            assertTrue(transaction.isActive());
+        }
     }
 
     @Test
@@ -176,8 +174,7 @@ class SqliteTransactionTest {
         transaction.close();
 
         // When/Then
-        assertThrows(IllegalStateException.class, () ->
-                ((SqliteTransaction) transaction).getConnection());
+        assertThrows(IllegalStateException.class, () -> ((SqliteTransaction) transaction).getConnection());
     }
 
     @Test
@@ -204,9 +201,7 @@ class SqliteTransactionTest {
         transaction.close();
 
         // When/Then
-        assertThrows(IllegalStateException.class, () ->
-                transaction.commit());
-        assertThrows(IllegalStateException.class, () ->
-                transaction.rollback());
+        assertThrows(IllegalStateException.class, () -> transaction.commit());
+        assertThrows(IllegalStateException.class, () -> transaction.rollback());
     }
 }
