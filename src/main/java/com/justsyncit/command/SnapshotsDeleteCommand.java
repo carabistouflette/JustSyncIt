@@ -30,9 +30,14 @@ import java.util.Scanner;
 
 /**
  * Command for deleting snapshots.
- * Follows Single Responsibility Principle by handling only snapshot deletion operations.
+ * Follows Single Responsibility Principle by handling only snapshot deletion
+ * operations.
  */
 public class SnapshotsDeleteCommand implements Command {
+
+    private static final long KB = 1024;
+    private static final long MB = KB * 1024;
+    private static final long GB = MB * 1024;
 
     private final MetadataService metadataService;
     private final ServiceFactory serviceFactory;
@@ -65,7 +70,7 @@ public class SnapshotsDeleteCommand implements Command {
     @Override
     public boolean execute(String[] args, CommandContext context) {
         // Handle help option first
-        if (args.length == 1 && args[0].equals("--help")) {
+        if (isHelpRequested(args)) {
             displayHelp();
             return true;
         }
@@ -80,8 +85,50 @@ public class SnapshotsDeleteCommand implements Command {
 
         String snapshotId = args[1];
 
-        // Parse options
-        boolean force = false;
+        DeleteOptions options;
+        try {
+            options = parseOptions(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
+
+        if (options == null) {
+            return false; // Help was displayed
+        }
+
+        MetadataService localService = null;
+
+        try {
+            MetadataService service = this.metadataService;
+            if (service == null) {
+                try {
+                    localService = serviceFactory.createMetadataService();
+                    service = localService;
+                } catch (ServiceException e) {
+                    System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
+                    return false;
+                }
+            }
+
+            return deleteSnapshot(service, snapshotId, options);
+
+        } catch (IOException e) {
+            System.err.println("Error: Failed to delete snapshot: " + e.getMessage());
+            return false;
+        } finally {
+            closeQuietly(localService);
+        }
+    }
+
+    /**
+     * Parses command-line options.
+     *
+     * @param args command-line arguments
+     * @return parsed options, or null if help was displayed
+     * @throws IllegalArgumentException if invalid options are provided
+     */
+    private DeleteOptions parseOptions(String[] args) {
         boolean confirm = true;
 
         for (int i = 2; i < args.length; i++) {
@@ -89,101 +136,122 @@ public class SnapshotsDeleteCommand implements Command {
             switch (arg) {
                 case "--force":
                 case "-f":
-                    force = true;
-                    confirm = false;
-                    break;
                 case "--no-confirm":
                     confirm = false;
                     break;
                 case "--help":
                     displayHelp();
-                    return true;
+                    return null;
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
+                        throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
             }
         }
 
-        // Create service if not provided
-        MetadataService service = metadataService;
-        if (service == null) {
-            try {
-                service = serviceFactory.createMetadataService();
-            } catch (ServiceException e) {
-                System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
-                return false;
-            }
-        }
+        return new DeleteOptions(confirm);
+    }
 
-        try {
-            // Get snapshot information
-            Optional<Snapshot> snapshotOpt = service.getSnapshot(snapshotId);
-            if (snapshotOpt.isEmpty()) {
-                System.err.println("Error: Snapshot not found: " + snapshotId);
-                return false;
-            }
-
-            Snapshot snapshot = snapshotOpt.get();
-
-            // Display snapshot information
-            System.out.println("Snapshot to Delete:");
-            System.out.println("====================");
-            System.out.println("ID: " + snapshot.getId());
-            System.out.println("Name: " + snapshot.getName());
-            if (snapshot.getDescription() != null && !snapshot.getDescription().trim().isEmpty()) {
-                System.out.println("Description: " + snapshot.getDescription());
-            }
-            System.out.println("Created: " + snapshot.getCreatedAt());
-            System.out.println("Total Files: " + snapshot.getTotalFiles());
-            System.out.println("Total Size: " + formatFileSize(snapshot.getTotalSize()));
-            System.out.println();
-
-            // Check for dependent snapshots or references if needed
-            List<Snapshot> allSnapshots = service.listSnapshots();
-            System.out.println("Note: This will permanently delete the snapshot and all its file metadata.");
-            System.out.println("The actual file chunks will remain in storage if referenced by other snapshots.");
-            System.out.println();
-
-            // Confirmation prompt
-            if (confirm && !force) {
-                Scanner scanner = new Scanner(System.in);
-                System.out.print("Are you sure you want to delete this snapshot? (y/N): ");
-                String response = scanner.nextLine().trim().toLowerCase();
-                
-                if (!response.equals("y") && !response.equals("yes")) {
-                    System.out.println("Snapshot deletion cancelled.");
-                    return true;
-                }
-            }
-
-            // Delete the snapshot
-            System.out.println("Deleting snapshot...");
-            service.deleteSnapshot(snapshotId);
-            
-            System.out.println("Snapshot deleted successfully: " + snapshotId);
-
-            // Show updated statistics
-            List<Snapshot> remainingSnapshots = service.listSnapshots();
-            System.out.println("Remaining snapshots: " + remainingSnapshots.size());
-
-        } catch (IOException e) {
-            System.err.println("Error: Failed to delete snapshot: " + e.getMessage());
+    /**
+     * Deletes a snapshot with the given options.
+     *
+     * @param service    metadata service
+     * @param snapshotId snapshot ID to delete
+     * @param options    delete options
+     * @return true if successful
+     * @throws IOException if deletion fails
+     */
+    private boolean deleteSnapshot(MetadataService service, String snapshotId, DeleteOptions options)
+            throws IOException {
+        // Get snapshot information
+        Optional<Snapshot> snapshotOpt = service.getSnapshot(snapshotId);
+        if (snapshotOpt.isEmpty()) {
+            System.err.println("Error: Snapshot not found: " + snapshotId);
             return false;
-        } finally {
-            // Clean up resources if we created them
-            if (metadataService == null && service != null) {
-                try {
-                    service.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
-                }
-            }
         }
+
+        Snapshot snapshot = snapshotOpt.get();
+
+        // Display snapshot information
+        displaySnapshotInfo(snapshot);
+
+        // Show deletion warning
+        displayDeletionWarning();
+
+        // Confirmation prompt
+        if (options.confirm && !confirmDeletion()) {
+            System.out.println("Snapshot deletion cancelled.");
+            return true;
+        }
+
+        // Delete the snapshot
+        System.out.println("Deleting snapshot...");
+        service.deleteSnapshot(snapshotId);
+
+        System.out.println("Snapshot deleted successfully: " + snapshotId);
+
+        // Show updated statistics
+        List<Snapshot> remainingSnapshots = service.listSnapshots();
+        System.out.println("Remaining snapshots: " + remainingSnapshots.size());
 
         return true;
+    }
+
+    /**
+     * Displays snapshot information.
+     *
+     * @param snapshot the snapshot to display
+     */
+    private void displaySnapshotInfo(Snapshot snapshot) {
+        System.out.println("Snapshot to Delete:");
+        System.out.println("====================");
+        System.out.println("ID: " + snapshot.getId());
+        System.out.println("Name: " + snapshot.getName());
+        if (snapshot.getDescription() != null && !snapshot.getDescription().trim().isEmpty()) {
+            System.out.println("Description: " + snapshot.getDescription());
+        }
+        System.out.println("Created: " + snapshot.getCreatedAt());
+        System.out.println("Total Files: " + snapshot.getTotalFiles());
+        System.out.println("Total Size: " + formatFileSize(snapshot.getTotalSize()));
+        System.out.println();
+    }
+
+    /**
+     * Displays deletion warning.
+     */
+    private void displayDeletionWarning() {
+        System.out.println("Note: This will permanently delete the snapshot and all its file metadata.");
+        System.out.println("The actual file chunks will remain in storage if referenced by other snapshots.");
+        System.out.println();
+    }
+
+    /**
+     * Prompts for deletion confirmation.
+     *
+     * @return true if user confirms
+     */
+    private boolean confirmDeletion() {
+        try (Scanner scanner = new Scanner(System.in)) {
+            System.out.print("Are you sure you want to delete this snapshot? (y/N): ");
+            String response = scanner.nextLine().trim().toLowerCase();
+            return response.equals("y") || response.equals("yes");
+        }
+    }
+
+    /**
+     * Safely closes a resource.
+     *
+     * @param resource resource to close
+     */
+    private void closeQuietly(AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -224,14 +292,35 @@ public class SnapshotsDeleteCommand implements Command {
      * @return formatted size string
      */
     private String formatFileSize(long bytes) {
-        if (bytes < 1024) {
+        if (bytes < KB) {
             return bytes + " B";
-        } else if (bytes < 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / 1024.0) + " KB";
-        } else if (bytes < 1024 * 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024)) + " MB";
+        } else if (bytes < MB) {
+            return formatWithDecimal(bytes / (double) KB) + " KB";
+        } else if (bytes < GB) {
+            return formatWithDecimal(bytes / (double) MB) + " MB";
         } else {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024 * 1024)) + " GB";
+            return formatWithDecimal(bytes / (double) GB) + " GB";
+        }
+    }
+
+    /**
+     * Formats a number with one decimal place.
+     *
+     * @param value the value to format
+     * @return formatted string
+     */
+    private String formatWithDecimal(double value) {
+        return new java.text.DecimalFormat("#,##0.#").format(value);
+    }
+
+    /**
+     * Simple data class to hold delete options.
+     */
+    private static class DeleteOptions {
+        final boolean confirm;
+
+        DeleteOptions(boolean confirm) {
+            this.confirm = confirm;
         }
     }
 }

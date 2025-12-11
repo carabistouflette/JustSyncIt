@@ -18,16 +18,13 @@
 
 package com.justsyncit.command;
 
-import com.justsyncit.ServiceException;
-import com.justsyncit.ServiceFactory;
-import com.justsyncit.network.NetworkService;
-
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Registry for managing commands.
- * Follows Open/Closed Principle by allowing new commands to be registered without modification.
+ * Follows Open/Closed Principle by allowing new commands to be registered
+ * without modification.
  */
 public class CommandRegistry {
 
@@ -40,13 +37,13 @@ public class CommandRegistry {
     public CommandRegistry() {
         // Register existing commands
         register(new com.justsyncit.command.HashCommand(null)); // Will be injected properly
-        register(new com.justsyncit.command.VerifyCommand(null)); // Will be injected properly
+        register(new com.justsyncit.command.VerifyCommand()); // Uses CommandContext for injection
         register(new com.justsyncit.command.BackupCommand(null)); // Will be injected properly
         register(new com.justsyncit.command.RestoreCommand(null)); // Will be injected properly
-        
+
         // Register new snapshot management commands
         register(new SnapshotsCommandGroup());
-        
+
         // Register new network operation commands
         register(new ServerCommandGroup());
         register(new com.justsyncit.command.TransferCommand(null)); // Will be injected properly

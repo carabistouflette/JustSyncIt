@@ -21,20 +21,40 @@ package com.justsyncit.command;
 /**
  * Command group for server operations.
  * This command delegates to specific server subcommands.
+ * Follows Composite Pattern by grouping related commands together.
  */
 public class ServerCommandGroup implements Command {
+
+    private static final String SUBCOMMAND_START = "start";
+    private static final String SUBCOMMAND_STOP = "stop";
+    private static final String SUBCOMMAND_STATUS = "status";
 
     private final ServerStartCommand startCommand;
     private final ServerStopCommand stopCommand;
     private final ServerStatusCommand statusCommand;
 
     /**
-     * Creates a server command group.
+     * Creates a server command group with default subcommands.
      */
     public ServerCommandGroup() {
-        this.startCommand = new ServerStartCommand(null);
-        this.stopCommand = new ServerStopCommand(null);
-        this.statusCommand = new ServerStatusCommand(null);
+        this(new ServerStartCommand(null),
+                new ServerStopCommand(null),
+                new ServerStatusCommand(null));
+    }
+
+    /**
+     * Creates a server command group with injected subcommands.
+     *
+     * @param startCommand  the start command
+     * @param stopCommand   the stop command
+     * @param statusCommand the status command
+     */
+    public ServerCommandGroup(ServerStartCommand startCommand,
+            ServerStopCommand stopCommand,
+            ServerStatusCommand statusCommand) {
+        this.startCommand = startCommand;
+        this.stopCommand = stopCommand;
+        this.statusCommand = statusCommand;
     }
 
     @Override
@@ -54,34 +74,62 @@ public class ServerCommandGroup implements Command {
 
     @Override
     public boolean execute(String[] args, CommandContext context) {
+        // Check for help first
+        if (isHelpRequested(args)) {
+            displayHelp();
+            return true;
+        }
+
         if (args.length == 0) {
-            System.err.println("Error: Missing subcommand");
-            System.err.println("Available subcommands: start, stop, status");
-            System.err.println("Use 'help server' for more information");
+            displayMissingSubcommandError();
             return false;
         }
 
         String subcommand = args[0];
-        String[] subcommandArgs = new String[args.length - 1];
-        System.arraycopy(args, 1, subcommandArgs, 0, args.length - 1);
+        // We pass the full args array to subcommands because they validation
+        // expects the subcommand name to be the first argument (e.g. "start", "stop")
 
         switch (subcommand) {
-            case "start":
-                return startCommand.execute(subcommandArgs, context);
-            case "stop":
-                return stopCommand.execute(subcommandArgs, context);
-            case "status":
-                return statusCommand.execute(subcommandArgs, context);
-            case "--help":
+            case SUBCOMMAND_START:
+                return startCommand.execute(args, context);
+            case SUBCOMMAND_STOP:
+                return stopCommand.execute(args, context);
+            case SUBCOMMAND_STATUS:
+                return statusCommand.execute(args, context);
             case "help":
                 displayHelp();
                 return true;
             default:
-                System.err.println("Error: Unknown subcommand: " + subcommand);
-                System.err.println("Available subcommands: start, stop, status");
-                System.err.println("Use 'help server' for more information");
+                displayUnknownSubcommandError(subcommand);
                 return false;
         }
+    }
+
+    /**
+     * Displays error message for missing subcommand.
+     */
+    private void displayMissingSubcommandError() {
+        System.err.println("Error: Missing subcommand");
+        displayAvailableSubcommands();
+    }
+
+    /**
+     * Displays error message for unknown subcommand.
+     *
+     * @param subcommand the unknown subcommand
+     */
+    private void displayUnknownSubcommandError(String subcommand) {
+        System.err.println("Error: Unknown subcommand: " + subcommand);
+        displayAvailableSubcommands();
+    }
+
+    /**
+     * Displays the list of available subcommands.
+     */
+    private void displayAvailableSubcommands() {
+        System.err.println("Available subcommands: " + SUBCOMMAND_START + ", "
+                + SUBCOMMAND_STOP + ", " + SUBCOMMAND_STATUS);
+        System.err.println("Use 'help server' for more information");
     }
 
     /**
@@ -97,18 +145,18 @@ public class ServerCommandGroup implements Command {
         System.out.println("  " + getDescription());
         System.out.println();
         System.out.println("Subcommands:");
-        System.out.println("  start        Start a backup server");
-        System.out.println("  stop         Stop a running backup server");
-        System.out.println("  status       Show server status and configuration");
+        System.out.println("  " + SUBCOMMAND_START + "        Start a backup server");
+        System.out.println("  " + SUBCOMMAND_STOP + "         Stop a running backup server");
+        System.out.println("  " + SUBCOMMAND_STATUS + "       Show server status and configuration");
         System.out.println();
         System.out.println("Examples:");
-        System.out.println("  server start");
-        System.out.println("  server stop");
-        System.out.println("  server status");
+        System.out.println("  server " + SUBCOMMAND_START);
+        System.out.println("  server " + SUBCOMMAND_STOP);
+        System.out.println("  server " + SUBCOMMAND_STATUS);
         System.out.println();
         System.out.println("For detailed help on a specific subcommand, use:");
-        System.out.println("  help server start");
-        System.out.println("  help server stop");
-        System.out.println("  help server status");
+        System.out.println("  help server " + SUBCOMMAND_START);
+        System.out.println("  help server " + SUBCOMMAND_STOP);
+        System.out.println("  help server " + SUBCOMMAND_STATUS);
     }
 }

@@ -18,17 +18,23 @@
 
 package com.justsyncit.command;
 
-import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 
-import java.io.IOException;
-
 /**
  * Command for stopping a backup server.
- * Follows Single Responsibility Principle by handling only server stop operations.
+ * Follows Single Responsibility Principle by handling only server stop
+ * operations.
  */
 public class ServerStopCommand implements Command {
+
+    private static final long KB = 1024;
+    private static final long MB = KB * 1024;
+    private static final long GB = MB * 1024;
+    private static final long MILLIS_PER_SECOND = 1000;
+    private static final long SECONDS_PER_MINUTE = 60;
+    private static final long MINUTES_PER_HOUR = 60;
+    private static final long HOURS_PER_DAY = 24;
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
@@ -61,7 +67,7 @@ public class ServerStopCommand implements Command {
     @Override
     public boolean execute(String[] args, CommandContext context) {
         // Handle help option first
-        if (args.length == 1 && args[0].equals("--help")) {
+        if (isHelpRequested(args)) {
             displayHelp();
             return true;
         }
@@ -74,7 +80,53 @@ public class ServerStopCommand implements Command {
             return false;
         }
 
-        // Parse options
+        StopOptions options;
+        try {
+            options = parseOptions(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
+
+        if (options == null) {
+            return false; // Help was displayed
+        }
+
+        NetworkService localService = null;
+
+        try {
+            NetworkService service = this.networkService;
+            if (service == null && context != null) {
+                service = context.getNetworkService();
+            }
+            if (service == null) {
+                try {
+                    localService = serviceFactory.createNetworkService();
+                    service = localService;
+                } catch (Exception e) {
+                    System.err.println("Error: Failed to initialize network service: " + e.getMessage());
+                    return false;
+                }
+            }
+
+            return stopServer(service, options);
+
+        } catch (Exception e) {
+            System.err.println("Error: Failed to stop server: " + e.getMessage());
+            return false;
+        } finally {
+            closeQuietly(localService);
+        }
+    }
+
+    /**
+     * Parses command-line options.
+     *
+     * @param args command-line arguments
+     * @return parsed options, or null if help was displayed
+     * @throws IllegalArgumentException if invalid options are provided
+     */
+    private StopOptions parseOptions(String[] args) {
         boolean force = false;
         boolean verbose = true;
 
@@ -82,7 +134,7 @@ public class ServerStopCommand implements Command {
             String arg = args[i];
             switch (arg) {
                 case "--force":
-                force = true;
+                    force = true;
                     break;
                 case "--quiet":
                 case "-q":
@@ -90,86 +142,114 @@ public class ServerStopCommand implements Command {
                     break;
                 case "--help":
                     displayHelp();
-                    return true;
+                    return null;
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
+                        throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
             }
         }
 
-        // Create service if not provided
-        final NetworkService service;
-        if (networkService == null) {
-            try {
-                service = serviceFactory.createNetworkService();
-            } catch (Exception e) {
-                System.err.println("Error: Failed to initialize network service: " + e.getMessage());
-                return false;
-            }
-        } else {
-            service = networkService;
+        return new StopOptions(force, verbose);
+    }
+
+    /**
+     * Stops the server with the given options.
+     *
+     * @param service network service
+     * @param options stop options
+     * @return true if successful
+     * @throws Exception if server fails to stop
+     */
+    private boolean stopServer(NetworkService service, StopOptions options) throws Exception {
+        // Check if server is running
+        if (!service.isServerRunning()) {
+            System.err.println("Error: Server is not running");
+            return false;
         }
 
-        try {
-            // Check if server is running
-            if (!service.isServerRunning()) {
-                System.err.println("Error: Server is not running");
-                return false;
-            }
-
-            // Show server status before stopping
-            if (verbose) {
-                System.out.println("Server Status Before Stop:");
-                System.out.println("=========================");
-                displayServerStatus(service);
-                System.out.println();
-            }
-
-            // Stop the server
-            if (verbose) {
-                System.out.println("Stopping server...");
-            }
-
-            service.stopServer().get();
-
-            if (verbose) {
-                System.out.println("Server stopped successfully!");
-                
-                // Show final statistics
-                NetworkService.NetworkStatistics stats = service.getStatistics();
-                System.out.println();
-                System.out.println("Final Statistics:");
-                System.out.println("=================");
-                System.out.println("Total bytes sent: " + formatFileSize(stats.getTotalBytesSent()));
-                System.out.println("Total bytes received: " + formatFileSize(stats.getTotalBytesReceived()));
-                System.out.println("Total messages sent: " + stats.getTotalMessagesSent());
-                System.out.println("Total messages received: " + stats.getTotalMessagesReceived());
-                System.out.println("Completed transfers: " + stats.getCompletedTransfers());
-                System.out.println("Failed transfers: " + stats.getFailedTransfers());
-                System.out.println("Average transfer rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
-                System.out.println("Uptime: " + formatUptime(stats.getUptimeMillis()));
-            } else {
-                System.out.println("Server stopped.");
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error: Failed to stop server: " + e.getMessage());
+        // Check for active transfers and warn if not forcing
+        int activeTransfers = service.getActiveTransferCount();
+        if (activeTransfers > 0 && !options.force) {
+            System.err.println("Error: Server has " + activeTransfers + " active transfer(s) in progress");
+            System.err.println("Use --force to stop the server anyway");
             return false;
-        } finally {
-            // Clean up resources if we created them
-            if (networkService == null && service != null) {
-                try {
-                    service.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close network service: " + e.getMessage());
-                }
+        }
+
+        // Show server status before stopping
+        if (options.verbose) {
+            displayPreStopStatus(service);
+            if (activeTransfers > 0 && options.force) {
+                System.out.println("Warning: Forcing server stop with " + activeTransfers + " active transfer(s)");
             }
+        }
+
+        // Stop the server
+        if (options.verbose) {
+            System.out.println("Stopping server...");
+        }
+
+        service.stopServer().get();
+
+        // Display results
+        if (options.verbose) {
+            displayStopSuccess(service);
+        } else {
+            System.out.println("Server stopped.");
         }
 
         return true;
+    }
+
+    /**
+     * Displays server status before stopping.
+     *
+     * @param service network service
+     */
+    private void displayPreStopStatus(NetworkService service) {
+        System.out.println("Server Status Before Stop:");
+        System.out.println("=========================");
+        displayServerStatus(service);
+        System.out.println();
+    }
+
+    /**
+     * Displays success message and final statistics.
+     *
+     * @param service network service
+     */
+    private void displayStopSuccess(NetworkService service) {
+        System.out.println("Server stopped successfully!");
+
+        // Show final statistics
+        NetworkService.NetworkStatistics stats = service.getStatistics();
+        System.out.println();
+        System.out.println("Final Statistics:");
+        System.out.println("=================");
+        System.out.println("Total bytes sent: " + formatFileSize(stats.getTotalBytesSent()));
+        System.out.println("Total bytes received: " + formatFileSize(stats.getTotalBytesReceived()));
+        System.out.println("Total messages sent: " + stats.getTotalMessagesSent());
+        System.out.println("Total messages received: " + stats.getTotalMessagesReceived());
+        System.out.println("Completed transfers: " + stats.getCompletedTransfers());
+        System.out.println("Failed transfers: " + stats.getFailedTransfers());
+        System.out.println("Average transfer rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+        System.out.println("Uptime: " + formatUptime(stats.getUptimeMillis()));
+    }
+
+    /**
+     * Safely closes a resource.
+     *
+     * @param resource resource to close
+     */
+    private void closeQuietly(AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -203,7 +283,7 @@ public class ServerStopCommand implements Command {
     private void displayServerStatus(NetworkService service) {
         try {
             NetworkService.NetworkStatistics stats = service.getStatistics();
-            
+
             System.out.println("Server Status: " + (service.isServerRunning() ? "RUNNING" : "STOPPED"));
             System.out.println("Listening Port: " + service.getServerPort());
             System.out.println("Active Connections: " + service.getActiveConnectionCount());
@@ -217,9 +297,10 @@ public class ServerStopCommand implements Command {
             System.out.println("  Messages received: " + stats.getTotalMessagesReceived());
             System.out.println("  Completed transfers: " + stats.getCompletedTransfers());
             System.out.println("  Failed transfers: " + stats.getFailedTransfers());
-            System.out.println("  Average transfer rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+            System.out.println(
+                    "  Average transfer rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
             System.out.println("  Uptime: " + formatUptime(stats.getUptimeMillis()));
-            
+
         } catch (Exception e) {
             System.err.println("Error retrieving server status: " + e.getMessage());
         }
@@ -232,15 +313,25 @@ public class ServerStopCommand implements Command {
      * @return formatted size string
      */
     private String formatFileSize(long bytes) {
-        if (bytes < 1024) {
+        if (bytes < KB) {
             return bytes + " B";
-        } else if (bytes < 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / 1024.0) + " KB";
-        } else if (bytes < 1024 * 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024)) + " MB";
+        } else if (bytes < MB) {
+            return formatWithDecimal(bytes / (double) KB) + " KB";
+        } else if (bytes < GB) {
+            return formatWithDecimal(bytes / (double) MB) + " MB";
         } else {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024 * 1024)) + " GB";
+            return formatWithDecimal(bytes / (double) GB) + " GB";
         }
+    }
+
+    /**
+     * Formats a number with one decimal place.
+     *
+     * @param value the value to format
+     * @return formatted string
+     */
+    private String formatWithDecimal(double value) {
+        return new java.text.DecimalFormat("#,##0.#").format(value);
     }
 
     /**
@@ -250,15 +341,15 @@ public class ServerStopCommand implements Command {
      * @return formatted uptime string
      */
     private String formatUptime(long uptimeMillis) {
-        long seconds = uptimeMillis / 1000;
-        long minutes = seconds / 60;
-        long hours = minutes / 60;
-        long days = hours / 24;
-        
-        seconds = seconds % 60;
-        minutes = minutes % 60;
-        hours = hours % 24;
-        
+        long seconds = uptimeMillis / MILLIS_PER_SECOND;
+        long minutes = seconds / SECONDS_PER_MINUTE;
+        long hours = minutes / MINUTES_PER_HOUR;
+        long days = hours / HOURS_PER_DAY;
+
+        seconds = seconds % SECONDS_PER_MINUTE;
+        minutes = minutes % MINUTES_PER_HOUR;
+        hours = hours % HOURS_PER_DAY;
+
         StringBuilder sb = new StringBuilder();
         if (days > 0) {
             sb.append(days).append("d ");
@@ -270,7 +361,20 @@ public class ServerStopCommand implements Command {
             sb.append(minutes).append("m ");
         }
         sb.append(seconds).append("s");
-        
+
         return sb.toString();
+    }
+
+    /**
+     * Simple data class to hold stop options.
+     */
+    private static class StopOptions {
+        final boolean force;
+        final boolean verbose;
+
+        StopOptions(boolean force, boolean verbose) {
+            this.force = force;
+            this.verbose = verbose;
+        }
     }
 }

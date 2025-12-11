@@ -35,9 +35,18 @@ import java.util.Optional;
 
 /**
  * Command for showing detailed information about a specific snapshot.
- * Follows Single Responsibility Principle by handling only snapshot information display.
+ * Follows Single Responsibility Principle by handling only snapshot information
+ * display.
  */
 public class SnapshotsInfoCommand implements Command {
+
+    private static final long KB = 1024;
+    private static final long MB = KB * 1024;
+    private static final long GB = MB * 1024;
+    private static final int DEFAULT_FILE_LIMIT = 20;
+    private static final int PATH_COLUMN_WIDTH = 50;
+    private static final int TABLE_WIDTH = 100;
+    private static final int ELLIPSIS_LENGTH = 3;
 
     private final MetadataService metadataService;
     private final ServiceFactory serviceFactory;
@@ -70,7 +79,7 @@ public class SnapshotsInfoCommand implements Command {
     @Override
     public boolean execute(String[] args, CommandContext context) {
         // Handle help option first
-        if (args.length == 1 && args[0].equals("--help")) {
+        if (isHelpRequested(args)) {
             displayHelp();
             return true;
         }
@@ -85,9 +94,52 @@ public class SnapshotsInfoCommand implements Command {
 
         String snapshotId = args[1];
 
-        // Parse options
+        InfoOptions options;
+        try {
+            options = parseOptions(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
+
+        if (options == null) {
+            return false; // Help was displayed
+        }
+
+        MetadataService localService = null;
+
+        try {
+            MetadataService service = this.metadataService;
+            if (service == null) {
+                try {
+                    localService = serviceFactory.createMetadataService();
+                    service = localService;
+                } catch (ServiceException e) {
+                    System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
+                    return false;
+                }
+            }
+
+            return displaySnapshotInfo(service, snapshotId, options);
+
+        } catch (IOException e) {
+            System.err.println("Error: Failed to get snapshot information: " + e.getMessage());
+            return false;
+        } finally {
+            closeQuietly(localService);
+        }
+    }
+
+    /**
+     * Parses command-line options.
+     *
+     * @param args command-line arguments
+     * @return parsed options, or null if help was displayed
+     * @throws IllegalArgumentException if invalid options are provided
+     */
+    private InfoOptions parseOptions(String[] args) {
         boolean showFiles = false;
-        int fileLimit = 20;
+        int fileLimit = DEFAULT_FILE_LIMIT;
         boolean showStatistics = true;
 
         for (int i = 2; i < args.length; i++) {
@@ -101,17 +153,14 @@ public class SnapshotsInfoCommand implements Command {
                         try {
                             fileLimit = Integer.parseInt(args[i + 1]);
                             if (fileLimit <= 0) {
-                                System.err.println("Error: File limit must be positive");
-                                return false;
+                                throw new IllegalArgumentException("Error: File limit must be positive");
                             }
                             i++; // Skip the next argument
                         } catch (NumberFormatException e) {
-                            System.err.println("Error: Invalid file limit: " + args[i + 1]);
-                            return false;
+                            throw new IllegalArgumentException("Error: Invalid file limit: " + args[i + 1]);
                         }
                     } else {
-                        System.err.println("Error: --file-limit requires a value");
-                        return false;
+                        throw new IllegalArgumentException("Error: --file-limit requires a value");
                     }
                     break;
                 case "--no-statistics":
@@ -119,149 +168,184 @@ public class SnapshotsInfoCommand implements Command {
                     break;
                 case "--help":
                     displayHelp();
-                    return true;
+                    return null;
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
+                        throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
             }
         }
 
-        // Create service if not provided
-        MetadataService service = metadataService;
-        if (service == null) {
-            try {
-                service = serviceFactory.createMetadataService();
-            } catch (ServiceException e) {
-                System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
-                return false;
-            }
+        return new InfoOptions(showFiles, fileLimit, showStatistics);
+    }
+
+    /**
+     * Displays snapshot information.
+     *
+     * @param service    metadata service
+     * @param snapshotId snapshot ID
+     * @param options    info options
+     * @return true if successful
+     * @throws IOException if operation fails
+     */
+    private boolean displaySnapshotInfo(MetadataService service, String snapshotId, InfoOptions options)
+            throws IOException {
+        // Get snapshot information
+        Optional<Snapshot> snapshotOpt = service.getSnapshot(snapshotId);
+        if (snapshotOpt.isEmpty()) {
+            System.err.println("Error: Snapshot not found: " + snapshotId);
+            return false;
         }
 
-        try {
-            // Get snapshot information
-            Optional<Snapshot> snapshotOpt = service.getSnapshot(snapshotId);
-            if (snapshotOpt.isEmpty()) {
-                System.err.println("Error: Snapshot not found: " + snapshotId);
-                return false;
-            }
+        Snapshot snapshot = snapshotOpt.get();
 
-            Snapshot snapshot = snapshotOpt.get();
+        // Display basic snapshot information
+        displayBasicInfo(snapshot);
 
-            // Display snapshot information
-            System.out.println("Snapshot Information");
-            System.out.println("====================");
-            System.out.println();
-            System.out.println("ID: " + snapshot.getId());
-            System.out.println("Name: " + snapshot.getName());
-            if (snapshot.getDescription() != null && !snapshot.getDescription().trim().isEmpty()) {
-                System.out.println("Description: " + snapshot.getDescription());
-            }
-            
-            ZonedDateTime zdt = ZonedDateTime.ofInstant(snapshot.getCreatedAt(), ZoneId.systemDefault());
-            DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL);
-            System.out.println("Created: " + zdt.format(formatter));
-            
-            System.out.println("Total Files: " + snapshot.getTotalFiles());
-            System.out.println("Total Size: " + formatFileSize(snapshot.getTotalSize()));
+        // Get files once and reuse
+        List<FileMetadata> files = null;
+        if (options.showStatistics || options.showFiles) {
+            files = service.getFilesInSnapshot(snapshotId);
+        }
 
-            if (showStatistics) {
-                System.out.println();
-                System.out.println("Statistics");
-                System.out.println("----------");
-                
-                // Get file statistics
-                List<FileMetadata> files = service.getFilesInSnapshot(snapshotId);
-                
-                long totalRegularFiles = 0;
-                long totalDirectories = 0;
-                long totalSymlinks = 0;
-                long totalSize = 0;
-                long maxFileSize = 0;
-                long minFileSize = Long.MAX_VALUE;
-                String largestFile = "";
-                String smallestFile = "";
-                
-                for (FileMetadata file : files) {
-                    totalSize += file.getSize();
-                    
-                    // Since FileMetadata doesn't have isDirectory() or isSymbolicLink() methods,
-                    // we'll treat all files as regular files for now
-                    // In a real implementation, we might need to add file type information to FileMetadata
-                    totalRegularFiles++;
-                    if (file.getSize() > maxFileSize) {
-                        maxFileSize = file.getSize();
-                        largestFile = file.getPath();
-                    }
-                    if (file.getSize() < minFileSize && file.getSize() > 0) {
-                        minFileSize = file.getSize();
-                        smallestFile = file.getPath();
-                    }
-                }
-                
-                System.out.println("Regular Files: " + totalRegularFiles);
-                System.out.println("Directories: " + totalDirectories);
-                System.out.println("Symbolic Links: " + totalSymlinks);
-                System.out.println("Average File Size: " + 
-                    (totalRegularFiles > 0 ? formatFileSize(totalSize / totalRegularFiles) : "0 B"));
-                
-                if (!largestFile.isEmpty()) {
-                    System.out.println("Largest File: " + largestFile + " (" + formatFileSize(maxFileSize) + ")");
-                }
-                if (minFileSize != Long.MAX_VALUE && !smallestFile.isEmpty()) {
-                    System.out.println("Smallest File: " + smallestFile + " (" + formatFileSize(minFileSize) + ")");
-                }
-            }
+        // Display statistics if requested
+        if (options.showStatistics && files != null) {
+            displayStatistics(files);
+        }
 
-            if (showFiles) {
-                System.out.println();
-                System.out.println("Files (showing first " + Math.min(fileLimit, service.getFilesInSnapshot(snapshotId).size()) + "):");
-                System.out.println("------");
-                
-                List<FileMetadata> files = service.getFilesInSnapshot(snapshotId);
-                int displayCount = Math.min(fileLimit, files.size());
-                
-                System.out.printf("%-50s %-8s %-12s %s%n", "Path", "Type", "Size", "Modified");
-                System.out.println("-".repeat(100));
-                
-                DateTimeFormatter fileFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
-                
-                for (int i = 0; i < displayCount; i++) {
-                    FileMetadata file = files.get(i);
-                    String type = "FILE"; // Since FileMetadata doesn't have type info
-                    String size = formatFileSize(file.getSize());
-                    ZonedDateTime fileZdt = ZonedDateTime.ofInstant(file.getModifiedTime(), ZoneId.systemDefault());
-                    
-                    System.out.printf("%-50s %-8s %-12s %s%n",
-                        truncateString(file.getPath(), 50),
-                        type,
-                        size,
-                        fileZdt.format(fileFormatter));
-                }
-                
-                if (files.size() > fileLimit) {
-                    System.out.println();
-                    System.out.println("... and " + (files.size() - fileLimit) + " more files");
-                }
-            }
-
-        } catch (IOException e) {
-            System.err.println("Error: Failed to get snapshot information: " + e.getMessage());
-            return false;
-        } finally {
-            // Clean up resources if we created them
-            if (metadataService == null && service != null) {
-                try {
-                    service.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
-                }
-            }
+        // Display file list if requested
+        if (options.showFiles && files != null) {
+            displayFileList(files, options.fileLimit);
         }
 
         return true;
+    }
+
+    /**
+     * Displays basic snapshot information.
+     *
+     * @param snapshot the snapshot
+     */
+    private void displayBasicInfo(Snapshot snapshot) {
+        System.out.println("Snapshot Information");
+        System.out.println("====================");
+        System.out.println();
+        System.out.println("ID: " + snapshot.getId());
+        System.out.println("Name: " + snapshot.getName());
+        if (snapshot.getDescription() != null && !snapshot.getDescription().trim().isEmpty()) {
+            System.out.println("Description: " + snapshot.getDescription());
+        }
+
+        ZonedDateTime zdt = ZonedDateTime.ofInstant(snapshot.getCreatedAt(), ZoneId.systemDefault());
+        DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL);
+        System.out.println("Created: " + zdt.format(formatter));
+
+        System.out.println("Total Files: " + snapshot.getTotalFiles());
+        System.out.println("Total Size: " + formatFileSize(snapshot.getTotalSize()));
+    }
+
+    /**
+     * Displays file statistics.
+     *
+     * @param files list of file metadata
+     */
+    private void displayStatistics(List<FileMetadata> files) {
+        System.out.println();
+        System.out.println("Statistics");
+        System.out.println("----------");
+
+        long totalRegularFiles = 0;
+        long totalDirectories = 0;
+        long totalSymlinks = 0;
+        long totalSize = 0;
+        long maxFileSize = 0;
+        long minFileSize = Long.MAX_VALUE;
+        String largestFile = "";
+        String smallestFile = "";
+
+        for (FileMetadata file : files) {
+            totalSize += file.getSize();
+
+            // Since FileMetadata doesn't have isDirectory() or isSymbolicLink() methods,
+            // we'll treat all files as regular files for now
+            // In a real implementation, we might need to add file type information to
+            // FileMetadata
+            totalRegularFiles++;
+            if (file.getSize() > maxFileSize) {
+                maxFileSize = file.getSize();
+                largestFile = file.getPath();
+            }
+            if (file.getSize() < minFileSize && file.getSize() > 0) {
+                minFileSize = file.getSize();
+                smallestFile = file.getPath();
+            }
+        }
+
+        System.out.println("Regular Files: " + totalRegularFiles);
+        System.out.println("Directories: " + totalDirectories);
+        System.out.println("Symbolic Links: " + totalSymlinks);
+        System.out.println("Average File Size: " +
+                (totalRegularFiles > 0 ? formatFileSize(totalSize / totalRegularFiles) : "0 B"));
+
+        if (!largestFile.isEmpty()) {
+            System.out.println("Largest File: " + largestFile + " (" + formatFileSize(maxFileSize) + ")");
+        }
+        if (minFileSize != Long.MAX_VALUE && !smallestFile.isEmpty()) {
+            System.out.println("Smallest File: " + smallestFile + " (" + formatFileSize(minFileSize) + ")");
+        }
+    }
+
+    /**
+     * Displays file list.
+     *
+     * @param files     list of file metadata
+     * @param fileLimit maximum number of files to show
+     */
+    private void displayFileList(List<FileMetadata> files, int fileLimit) {
+        System.out.println();
+        System.out.println("Files (showing first " + Math.min(fileLimit, files.size()) + "):");
+        System.out.println("------");
+
+        int displayCount = Math.min(fileLimit, files.size());
+
+        System.out.printf("%-50s %-8s %-12s %s%n", "Path", "Type", "Size", "Modified");
+        System.out.println("-".repeat(TABLE_WIDTH));
+
+        DateTimeFormatter fileFormatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
+
+        for (int i = 0; i < displayCount; i++) {
+            FileMetadata file = files.get(i);
+            String type = "FILE"; // Since FileMetadata doesn't have type info
+            String size = formatFileSize(file.getSize());
+            ZonedDateTime fileZdt = ZonedDateTime.ofInstant(file.getModifiedTime(), ZoneId.systemDefault());
+
+            System.out.printf("%-50s %-8s %-12s %s%n",
+                    truncateString(file.getPath(), PATH_COLUMN_WIDTH),
+                    type,
+                    size,
+                    fileZdt.format(fileFormatter));
+        }
+
+        if (files.size() > fileLimit) {
+            System.out.println();
+            System.out.println("... and " + (files.size() - fileLimit) + " more files");
+        }
+    }
+
+    /**
+     * Safely closes a resource.
+     *
+     * @param resource resource to close
+     */
+    private void closeQuietly(AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -281,7 +365,8 @@ public class SnapshotsInfoCommand implements Command {
         System.out.println();
         System.out.println("Options:");
         System.out.println("  --show-files          Show list of files in the snapshot");
-        System.out.println("  --file-limit NUM       Limit number of files to show (default: 20)");
+        System.out.println(
+                "  --file-limit NUM       Limit number of files to show (default: " + DEFAULT_FILE_LIMIT + ")");
         System.out.println("  --no-statistics        Don't show file statistics");
         System.out.println("  --help                 Show this help message");
         System.out.println();
@@ -299,21 +384,31 @@ public class SnapshotsInfoCommand implements Command {
      * @return formatted size string
      */
     private String formatFileSize(long bytes) {
-        if (bytes < 1024) {
+        if (bytes < KB) {
             return bytes + " B";
-        } else if (bytes < 1024 * 1024) {
-            return new DecimalFormat("#,##0.#").format(bytes / 1024.0) + " KB";
-        } else if (bytes < 1024 * 1024 * 1024) {
-            return new DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024)) + " MB";
+        } else if (bytes < MB) {
+            return formatWithDecimal(bytes / (double) KB) + " KB";
+        } else if (bytes < GB) {
+            return formatWithDecimal(bytes / (double) MB) + " MB";
         } else {
-            return new DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024 * 1024)) + " GB";
+            return formatWithDecimal(bytes / (double) GB) + " GB";
         }
+    }
+
+    /**
+     * Formats a number with one decimal place.
+     *
+     * @param value the value to format
+     * @return formatted string
+     */
+    private String formatWithDecimal(double value) {
+        return new DecimalFormat("#,##0.#").format(value);
     }
 
     /**
      * Truncates a string to the specified length, adding ellipsis if needed.
      *
-     * @param str the string to truncate
+     * @param str       the string to truncate
      * @param maxLength the maximum length
      * @return truncated string
      */
@@ -324,6 +419,21 @@ public class SnapshotsInfoCommand implements Command {
         if (str.length() <= maxLength) {
             return str;
         }
-        return str.substring(0, maxLength - 3) + "...";
+        return str.substring(0, maxLength - ELLIPSIS_LENGTH) + "...";
+    }
+
+    /**
+     * Simple data class to hold info options.
+     */
+    private static class InfoOptions {
+        final boolean showFiles;
+        final int fileLimit;
+        final boolean showStatistics;
+
+        InfoOptions(boolean showFiles, int fileLimit, boolean showStatistics) {
+            this.showFiles = showFiles;
+            this.fileLimit = fileLimit;
+            this.showStatistics = showStatistics;
+        }
     }
 }

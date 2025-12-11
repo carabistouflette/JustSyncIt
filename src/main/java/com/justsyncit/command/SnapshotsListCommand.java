@@ -23,9 +23,7 @@ import com.justsyncit.ServiceFactory;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
 
-import java.io.IOException;
 import java.text.DecimalFormat;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
@@ -34,7 +32,8 @@ import java.util.List;
 
 /**
  * Command for listing all available snapshots.
- * Follows Single Responsibility Principle by handling only snapshot listing operations.
+ * Follows Single Responsibility Principle by handling only snapshot listing
+ * operations.
  */
 public class SnapshotsListCommand implements Command {
 
@@ -127,7 +126,7 @@ public class SnapshotsListCommand implements Command {
 
         try {
             List<Snapshot> snapshots = service.listSnapshots();
-            
+
             if (snapshots.isEmpty()) {
                 System.out.println("No snapshots found.");
                 return true;
@@ -147,51 +146,51 @@ public class SnapshotsListCommand implements Command {
 
             if (verbose) {
                 // Verbose output with all details
-                System.out.printf("%-20s %-20s %-15s %-12s %-12s %s%n", 
-                    "ID", "Name", "Created", "Files", "Size", "Description");
+                System.out.printf("%-20s %-20s %-15s %-12s %-12s %s%n",
+                        "ID", "Name", "Created", "Files", "Size", "Description");
                 System.out.println("-".repeat(100));
-                
+
                 DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
                 DecimalFormat sizeFormat = new DecimalFormat("#,##0.#");
-                
+
                 for (Snapshot snapshot : snapshots) {
                     String sizeStr = formatFileSize(snapshot.getTotalSize(), sizeFormat);
                     ZonedDateTime zdt = ZonedDateTime.ofInstant(snapshot.getCreatedAt(), ZoneId.systemDefault());
                     System.out.printf("%-20s %-20s %-15s %-12d %-12s %s%n",
-                        truncateString(snapshot.getId(), 20),
-                        truncateString(snapshot.getName(), 20),
-                        zdt.format(formatter),
-                        snapshot.getTotalFiles(),
-                        sizeStr,
-                        snapshot.getDescription() != null ? snapshot.getDescription() : "");
+                            truncateString(snapshot.getId(), 20),
+                            truncateString(snapshot.getName(), 20),
+                            zdt.format(formatter),
+                            snapshot.getTotalFiles(),
+                            sizeStr,
+                            snapshot.getDescription() != null ? snapshot.getDescription() : "");
                 }
             } else {
                 // Compact output
-                System.out.printf("%-12s %-20s %-15s %-10s %s%n", 
-                    "ID", "Name", "Created", "Files", "Size");
+                System.out.printf("%-12s %-20s %-15s %-10s %s%n",
+                        "ID", "Name", "Created", "Files", "Size");
                 System.out.println("-".repeat(80));
-                
+
                 DateTimeFormatter formatter = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT);
-                
+
                 for (Snapshot snapshot : snapshots) {
                     String sizeStr = formatFileSize(snapshot.getTotalSize());
                     ZonedDateTime zdt = ZonedDateTime.ofInstant(snapshot.getCreatedAt(), ZoneId.systemDefault());
                     System.out.printf("%-12s %-20s %-15s %-10d %s%n",
-                        truncateString(snapshot.getId(), 12),
-                        truncateString(snapshot.getName(), 20),
-                        zdt.format(formatter),
-                        snapshot.getTotalFiles(),
-                        sizeStr);
+                            truncateString(snapshot.getId(), 12),
+                            truncateString(snapshot.getName(), 20),
+                            zdt.format(formatter),
+                            snapshot.getTotalFiles(),
+                            sizeStr);
                 }
             }
-            
+
             System.out.println();
             System.out.println("Total: " + snapshots.size() + " snapshot(s)");
-            
+
             // Calculate total statistics
             long totalFiles = snapshots.stream().mapToLong(Snapshot::getTotalFiles).sum();
             long totalSize = snapshots.stream().mapToLong(Snapshot::getTotalSize).sum();
-            
+
             System.out.println("Total files across all snapshots: " + totalFiles);
             System.out.println("Total size across all snapshots: " + formatFileSize(totalSize));
 
@@ -250,7 +249,7 @@ public class SnapshotsListCommand implements Command {
     /**
      * Formats file size in human-readable format using the specified formatter.
      *
-     * @param bytes the size in bytes
+     * @param bytes     the size in bytes
      * @param formatter the decimal formatter to use
      * @return formatted size string
      */
@@ -269,7 +268,7 @@ public class SnapshotsListCommand implements Command {
     /**
      * Truncates a string to the specified length, adding ellipsis if needed.
      *
-     * @param str the string to truncate
+     * @param str       the string to truncate
      * @param maxLength the maximum length
      * @return truncated string
      */

@@ -22,7 +22,7 @@ import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.restore.RestoreOptions;
 import com.justsyncit.restore.RestoreService;
-import com.justsyncit.restore.ConsoleRestoreProgressTracker;
+
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
@@ -56,9 +56,10 @@ public class RestoreCommand implements Command {
         this.networkService = networkService;
         this.serviceFactory = new ServiceFactory();
     }
-    
+
     /**
-     * Creates a restore command with only restore service (for backward compatibility).
+     * Creates a restore command with only restore service (for backward
+     * compatibility).
      *
      * @param restoreService restore service (may be null for lazy initialization)
      */
@@ -83,7 +84,6 @@ public class RestoreCommand implements Command {
 
     @Override
     public boolean execute(String[] args, CommandContext context) {
-
         // Handle help option first
         if (args.length == 1 && args[0].equals("--help")) {
             displayHelp();
@@ -107,16 +107,89 @@ public class RestoreCommand implements Command {
         String targetDir = args[1];
         Path targetPath = Paths.get(targetDir);
 
-        // Validate target directory
+        if (!validateTargetPath(targetPath, targetDir)) {
+            return false;
+        }
+
+        RestoreOptions options;
+        try {
+            options = parseOptions(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
+
+        if (options == null) {
+            return false; // Help was displayed
+        }
+
+        // Services to close if locally created
+        ContentStore localContentStore = null;
+        MetadataService localMetadataService = null;
+        NetworkService localNetworkService = null;
+
+        try {
+            RestoreService service = this.restoreService;
+            NetworkService netService = this.networkService;
+
+            // Initialize services if not provided
+            if (service == null) {
+                try {
+                    Blake3Service blake3Service = serviceFactory.createBlake3Service();
+                    localContentStore = serviceFactory.createSqliteContentStore(blake3Service);
+                    localMetadataService = serviceFactory.createMetadataService();
+                    service = serviceFactory.createRestoreService(localContentStore, localMetadataService,
+                            blake3Service);
+
+                    if (options.isRemoteRestore() && netService == null) {
+                        localNetworkService = serviceFactory.createNetworkService();
+                        netService = localNetworkService;
+                    }
+                } catch (ServiceException e) {
+                    System.err.println("Error: Failed to initialize restore service: " + e.getMessage());
+                    return false;
+                }
+            }
+
+            return performRestore(service, netService, snapshotId, targetPath, options);
+
+        } catch (Exception e) {
+            System.err.println("\nRestore failed: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("Cause: " + e.getCause().getMessage());
+            }
+            return false;
+        } finally {
+            closeQuietly(localContentStore);
+            closeQuietly(localMetadataService);
+            closeQuietly(localNetworkService);
+        }
+    }
+
+    /**
+     * Validates the target path.
+     *
+     * @param targetPath target path
+     * @param targetDir  target directory string
+     * @return true if valid
+     */
+    private boolean validateTargetPath(Path targetPath, String targetDir) {
         if (Files.exists(targetPath) && !Files.isDirectory(targetPath)) {
             System.err.println("Error: Target path exists but is not a directory: " + targetDir);
             return false;
         }
+        return true;
+    }
 
-        // Parse options
+    /**
+     * Parses command-line options.
+     *
+     * @param args command-line arguments
+     * @return parsed options, or null if help was displayed
+     * @throws IllegalArgumentException if invalid options are provided
+     */
+    private RestoreOptions parseOptions(String[] args) {
         RestoreOptions.Builder optionsBuilder = new RestoreOptions.Builder();
-        InetSocketAddress remoteAddress = null;
-        TransportType transportType = TransportType.TCP;
 
         for (int i = 2; i < args.length; i++) {
             String arg = args[i];
@@ -137,19 +210,17 @@ public class RestoreCommand implements Command {
                 case "--include":
                     if (i + 1 < args.length) {
                         optionsBuilder.includePattern(args[i + 1]);
-                        i++; // Skip the next argument
+                        i++;
                     } else {
-                        System.err.println("Error: --include requires a pattern");
-                        return false;
+                        throw new IllegalArgumentException("Error: --include requires a pattern");
                     }
                     break;
                 case "--exclude":
                     if (i + 1 < args.length) {
                         optionsBuilder.excludePattern(args[i + 1]);
-                        i++; // Skip the next argument
+                        i++;
                     } else {
-                        System.err.println("Error: --exclude requires a pattern");
-                        return false;
+                        throw new IllegalArgumentException("Error: --exclude requires a pattern");
                     }
                     break;
                 case "--remote":
@@ -160,162 +231,143 @@ public class RestoreCommand implements Command {
                         try {
                             String[] parts = args[i + 1].split(":");
                             if (parts.length != 2) {
-                                System.err.println("Error: Invalid server format. Use host:port");
-                                return false;
+                                throw new IllegalArgumentException("Error: Invalid server format. Use host:port");
                             }
                             String host = parts[0];
                             int port = Integer.parseInt(parts[1]);
-                            remoteAddress = new InetSocketAddress(host, port);
-                            optionsBuilder.remoteAddress(remoteAddress);
-                            i++; // Skip the next argument
+                            optionsBuilder.remoteAddress(new InetSocketAddress(host, port));
+                            i++;
                         } catch (NumberFormatException e) {
-                            System.err.println("Error: Invalid port number: " + args[i + 1]);
-                            return false;
+                            throw new IllegalArgumentException("Error: Invalid port number: " + args[i + 1]);
                         }
                     } else {
-                        System.err.println("Error: --server requires a value (host:port)");
-                        return false;
+                        throw new IllegalArgumentException("Error: --server requires a value (host:port)");
                     }
                     break;
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            TransportType transportType = TransportType.valueOf(args[i + 1].toUpperCase());
                             optionsBuilder.transportType(transportType);
-                            i++; // Skip the next argument
+                            i++;
                         } catch (IllegalArgumentException e) {
-                            System.err.println("Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
-                            return false;
+                            throw new IllegalArgumentException(
+                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
                         }
                     } else {
-                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
-                        return false;
+                        throw new IllegalArgumentException("Error: --transport requires a value (TCP|QUIC)");
                     }
                     break;
                 case "--help":
                     displayHelp();
-                    return true;
+                    return null; // Signal to stop parsing and exit
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
+                        throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
             }
         }
 
         RestoreOptions options = optionsBuilder.build();
-        
+
         // Validate remote restore options
         if (options.isRemoteRestore()) {
             if (options.getRemoteAddress() == null) {
-                System.err.println("Error: Remote restore requires --server option");
-                return false;
+                throw new IllegalArgumentException("Error: Remote restore requires --server option");
             }
         }
 
-        // Create services if not provided
-        RestoreService service = restoreService;
-        ContentStore contentStore = null;
-        MetadataService metadataService = null;
-        NetworkService netService = networkService;
+        return options;
+    }
 
-        if (service == null) {
+    /**
+     * Performs the restore operation.
+     *
+     * @param service    restore service
+     * @param netService network service
+     * @param snapshotId snapshot ID
+     * @param targetPath target path
+     * @param options    restore options
+     * @return true if successful
+     * @throws Exception if restore fails
+     */
+    private boolean performRestore(RestoreService service, NetworkService netService,
+            String snapshotId, Path targetPath, RestoreOptions options) throws Exception {
+        System.out.println("Starting restore of snapshot: " + snapshotId);
+        System.out.println("Target directory: " + targetPath);
+        System.out.println("Options: " + options);
+
+        if (options.isRemoteRestore()) {
+            System.out.println(
+                    "Remote restore from: " + options.getRemoteAddress() + " using " + options.getTransportType());
+
+            // Connect to remote server first
+            netService.connectToNode(options.getRemoteAddress(), options.getTransportType()).get();
+
             try {
-                Blake3Service blake3Service = serviceFactory.createBlake3Service();
-                contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-                metadataService = serviceFactory.createMetadataService();
-                service = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
-                
-                // Create network service if needed for remote restore
-                if (options.isRemoteRestore() && netService == null) {
-                    netService = serviceFactory.createNetworkService();
-                }
-            } catch (ServiceException e) {
-                System.err.println("Error: Failed to initialize restore service: " + e.getMessage());
-                return false;
-            }
-        }
-
-        // Execute restore
-        ConsoleRestoreProgressTracker progressTracker = new ConsoleRestoreProgressTracker();
-
-        try {
-            System.out.println("Starting restore of snapshot: " + snapshotId);
-            System.out.println("Target directory: " + targetDir);
-            System.out.println("Options: " + options);
-
-            if (options.isRemoteRestore()) {
-                System.out.println("Remote restore from: " + options.getRemoteAddress() + " using " + options.getTransportType());
-                
-                // Connect to remote server first
-                netService.connectToNode(options.getRemoteAddress(), options.getTransportType()).get();
-                
-                // For remote restore, we would typically receive the snapshot data from the remote server
+                // For remote restore, we would typically receive the snapshot data from the
+                // remote server
                 // For now, we'll simulate receiving it and then restore locally
                 System.out.println("Receiving snapshot data from remote server...");
-                
-                // In a real implementation, we would receive the snapshot and chunks from the remote server
-                // For demonstration, we'll just show what would happen and then do a local restore
-                CompletableFuture<RestoreService.RestoreResult> restoreFuture = service.restore(snapshotId, targetPath, options);
+
+                // In a real implementation, we would receive the snapshot and chunks from the
+                // remote server
+                // For demonstration, we'll just show what would happen and then do a local
+                // restore
+                CompletableFuture<RestoreService.RestoreResult> restoreFuture = service.restore(snapshotId, targetPath,
+                        options);
                 RestoreService.RestoreResult result = restoreFuture.get();
-                
+
+                printResult(result, true);
+            } finally {
                 // Disconnect from remote server
                 netService.disconnectFromNode(options.getRemoteAddress()).get();
-                
-                System.out.println("\nRemote restore completed successfully!");
-                System.out.println("Files restored: " + result.getFilesRestored());
-                System.out.println("Files skipped: " + result.getFilesSkipped());
-                System.out.println("Files with errors: " + result.getFilesWithErrors());
-                System.out.println("Total bytes: " + result.getTotalBytesRestored());
-                System.out.println("Integrity verified: " + result.isIntegrityVerified());
-            } else {
-                // Local restore
-                CompletableFuture<RestoreService.RestoreResult> restoreFuture = service.restore(snapshotId, targetPath, options);
-                RestoreService.RestoreResult result = restoreFuture.get();
+            }
+        } else {
+            // Local restore
+            CompletableFuture<RestoreService.RestoreResult> restoreFuture = service.restore(snapshotId, targetPath,
+                    options);
+            RestoreService.RestoreResult result = restoreFuture.get();
 
-                System.out.println("\nRestore completed successfully!");
-                System.out.println("Files restored: " + result.getFilesRestored());
-                System.out.println("Files skipped: " + result.getFilesSkipped());
-                System.out.println("Files with errors: " + result.getFilesWithErrors());
-                System.out.println("Total bytes: " + result.getTotalBytesRestored());
-                System.out.println("Integrity verified: " + result.isIntegrityVerified());
-            }
-
-        } catch (Exception e) {
-            System.err.println("\nRestore failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
-            return false;
-        } finally {
-            // Clean up resources if we created them
-            if (contentStore != null) {
-                try {
-                    contentStore.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close content store: " + e.getMessage());
-                }
-            }
-            if (metadataService != null) {
-                try {
-                    metadataService.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
-                }
-            }
-            if (netService != null && options.isRemoteRestore()) {
-                try {
-                    netService.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close network service: " + e.getMessage());
-                }
-            }
+            printResult(result, false);
         }
 
-        // Force JVM exit to prevent hanging due to background threads
-        System.exit(0);
-        return true; // This line won't be reached but keeps compiler happy
+        return true;
+    }
+
+    /**
+     * Prints restore result.
+     *
+     * @param result restore result
+     * @param remote whether this was a remote restore
+     */
+    private void printResult(RestoreService.RestoreResult result, boolean remote) {
+        if (remote) {
+            System.out.println("\nRemote restore completed successfully!");
+        } else {
+            System.out.println("\nRestore completed successfully!");
+        }
+        System.out.println("Files restored: " + result.getFilesRestored());
+        System.out.println("Files skipped: " + result.getFilesSkipped());
+        System.out.println("Files with errors: " + result.getFilesWithErrors());
+        System.out.println("Total bytes: " + result.getTotalBytesRestored());
+        System.out.println("Integrity verified: " + result.isIntegrityVerified());
+    }
+
+    /**
+     * Safely closes a resource.
+     *
+     * @param resource resource to close
+     */
+    private void closeQuietly(AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -351,6 +403,7 @@ public class RestoreCommand implements Command {
         System.out.println("  restore abc123-def456 /home/user/restore --overwrite");
         System.out.println("  restore abc123-def456 /home/user/restore --include \"*.txt\" --exclude \"*.tmp\"");
         System.out.println("  restore abc123-def456 /home/user/restore --remote --server 192.168.1.100:8080");
-        System.out.println("  restore abc123-def456 /home/user/restore --remote --server backup.example.com:8080 --transport QUIC");
+        System.out.println(
+                "  restore abc123-def456 /home/user/restore --remote --server backup.example.com:8080 --transport QUIC");
     }
 }

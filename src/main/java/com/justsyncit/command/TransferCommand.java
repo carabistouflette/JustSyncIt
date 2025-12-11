@@ -18,22 +18,17 @@
 
 package com.justsyncit.command;
 
-import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
-import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
-import com.justsyncit.network.transfer.FileTransferResult;
-import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Command for transferring snapshots to another server.
@@ -101,7 +96,15 @@ public class TransferCommand implements Command {
                             return false;
                         }
                         String host = parts[0];
+                        if (host == null || host.trim().isEmpty()) {
+                            System.err.println("Error: Hostname cannot be empty");
+                            return false;
+                        }
                         int port = Integer.parseInt(parts[1]);
+                        if (port < 1 || port > 65535) {
+                            System.err.println("Error: Port must be between 1 and 65535");
+                            return false;
+                        }
                         serverAddress = new InetSocketAddress(host, port);
                         foundTo = true;
                         i++; // Skip the server address
@@ -173,14 +176,10 @@ public class TransferCommand implements Command {
         // Create services if not provided
         final NetworkService netService;
         final MetadataService metadataService;
-        final ContentStore contentStore;
-        final Blake3Service blake3Service;
 
         try {
             netService = networkService != null ? networkService : serviceFactory.createNetworkService();
             metadataService = serviceFactory.createMetadataService();
-            blake3Service = serviceFactory.createBlake3Service();
-            contentStore = serviceFactory.createSqliteContentStore(blake3Service);
         } catch (Exception e) {
             System.err.println("Error: Failed to initialize services: " + e.getMessage());
             return false;
@@ -224,7 +223,12 @@ public class TransferCommand implements Command {
             }
 
             CompletableFuture<Void> connectFuture = netService.connectToNode(serverAddress, transportType);
-            connectFuture.get();
+            try {
+                connectFuture.get(30, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                System.err.println("Error: Connection timeout after 30 seconds");
+                return false;
+            }
 
             if (verbose) {
                 System.out.println("Connected to server successfully.");
@@ -232,26 +236,30 @@ public class TransferCommand implements Command {
             }
 
             // Create a temporary file for the snapshot metadata
-            Path snapshotFile = Paths.get("temp_snapshot_" + snapshotId + ".json");
-            
             // In a real implementation, we would serialize the snapshot and transfer it
             // For now, we'll simulate the transfer process
             long totalBytes = snapshot.getTotalSize();
             long bytesTransferred = 0;
             int chunksTransferred = 0;
-            int totalChunks = (int) Math.ceil(totalBytes / (64.0 * 1024)); // Assume 64KB chunks
+            int totalChunks = totalBytes > 0 ? (int) Math.ceil(totalBytes / (64.0 * 1024)) : 1; // Assume 64KB chunks
 
             // Simulate transfer progress
             while (bytesTransferred < totalBytes) {
                 long chunkSize = Math.min(64 * 1024, totalBytes - bytesTransferred);
                 
                 // Simulate chunk transfer
-                Thread.sleep(100); // Simulate network delay
+                try {
+                    Thread.sleep(100); // Simulate network delay
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.println("Error: Transfer interrupted");
+                    return false;
+                }
                 bytesTransferred += chunkSize;
                 chunksTransferred++;
 
                 if (verbose) {
-                    double progress = (bytesTransferred * 100.0) / totalBytes;
+                    double progress = totalBytes > 0 ? (bytesTransferred * 100.0) / totalBytes : 100.0;
                     System.out.printf("\rProgress: %.1f%% (%d/%d chunks, %s/%s)",
                         progress, chunksTransferred, totalChunks,
                         formatFileSize(bytesTransferred), formatFileSize(totalBytes));
@@ -274,7 +282,13 @@ public class TransferCommand implements Command {
 
                 // In a real implementation, we would verify the transfer with the remote server
                 // For now, we'll simulate verification
-                Thread.sleep(1000); // Simulate verification time
+                try {
+                    Thread.sleep(1000); // Simulate verification time
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.err.println("Error: Verification interrupted");
+                    return false;
+                }
 
                 if (verbose) {
                     System.out.println("Transfer verification completed successfully.");
@@ -282,7 +296,11 @@ public class TransferCommand implements Command {
             }
 
             // Disconnect from remote server
-            netService.disconnectFromNode(serverAddress).get();
+            try {
+                netService.disconnectFromNode(serverAddress).get(10, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                System.err.println("Warning: Disconnect timeout after 10 seconds");
+            }
 
             if (verbose) {
                 System.out.println("Disconnected from remote server.");
@@ -321,13 +339,7 @@ public class TransferCommand implements Command {
                     System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
                 }
             }
-            if (contentStore != null) {
-                try {
-                    contentStore.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close content store: " + e.getMessage());
-                }
-            }
+            
         }
 
         return true;

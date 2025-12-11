@@ -18,27 +18,24 @@
 
 package com.justsyncit.command;
 
-import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
-import com.justsyncit.backup.BackupOptions;
-import com.justsyncit.backup.BackupService;
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
-import com.justsyncit.restore.RestoreOptions;
-import com.justsyncit.restore.RestoreService;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Command for synchronizing local directory with remote server.
@@ -114,7 +111,15 @@ public class SyncCommand implements Command {
                 return false;
             }
             String host = parts[0];
+            if (host == null || host.trim().isEmpty()) {
+                System.err.println("Error: Hostname cannot be empty");
+                return false;
+            }
             int port = Integer.parseInt(parts[1]);
+            if (port < 1 || port > 65535) {
+                System.err.println("Error: Port must be between 1 and 65535");
+                return false;
+            }
             serverAddress = new InetSocketAddress(host, port);
         } catch (NumberFormatException e) {
             System.err.println("Error: Invalid port number in server address: " + remoteServer);
@@ -179,16 +184,12 @@ public class SyncCommand implements Command {
         final MetadataService metadataService;
         final ContentStore contentStore;
         final Blake3Service blake3Service;
-        final BackupService backupService;
-        final RestoreService restoreService;
 
         try {
             netService = networkService != null ? networkService : serviceFactory.createNetworkService();
             metadataService = serviceFactory.createMetadataService();
             blake3Service = serviceFactory.createBlake3Service();
             contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-            backupService = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
-            restoreService = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
         } catch (Exception e) {
             System.err.println("Error: Failed to initialize services: " + e.getMessage());
             return false;
@@ -219,7 +220,12 @@ public class SyncCommand implements Command {
             }
 
             CompletableFuture<Void> connectFuture = netService.connectToNode(serverAddress, transportType);
-            connectFuture.get();
+            try {
+                connectFuture.get(30, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                System.err.println("Error: Connection timeout after 30 seconds");
+                return false;
+            }
 
             if (verbose) {
                 System.out.println("Connected to server successfully.");
@@ -227,11 +233,22 @@ public class SyncCommand implements Command {
             }
 
             // Get local and remote snapshots
-            List<Snapshot> localSnapshots = metadataService.listSnapshots();
+            List<Snapshot> localSnapshots;
+            List<Snapshot> remoteSnapshots;
+            
+            try {
+                localSnapshots = metadataService.listSnapshots();
+                if (localSnapshots == null) {
+                    localSnapshots = List.of();
+                }
+            } catch (Exception e) {
+                System.err.println("Error: Failed to retrieve local snapshots: " + e.getMessage());
+                return false;
+            }
             
             // In a real implementation, we would query the remote server for its snapshots
             // For now, we'll simulate this
-            List<Snapshot> remoteSnapshots = simulateRemoteSnapshots();
+            remoteSnapshots = simulateRemoteSnapshots();
 
             if (verbose) {
                 System.out.println("Local snapshots: " + localSnapshots.size());
@@ -245,13 +262,30 @@ public class SyncCommand implements Command {
             int conflicts = 0;
             long totalBytesTransferred = 0;
 
+            // Create sets for efficient lookup
+            Set<String> localSnapshotIds = new HashSet<>();
+            Set<String> remoteSnapshotIds = new HashSet<>();
+            
+            for (Snapshot snapshot : localSnapshots) {
+                if (snapshot != null && snapshot.getId() != null) {
+                    localSnapshotIds.add(snapshot.getId());
+                }
+            }
+            
+            for (Snapshot snapshot : remoteSnapshots) {
+                if (snapshot != null && snapshot.getId() != null) {
+                    remoteSnapshotIds.add(snapshot.getId());
+                }
+            }
+
             if (bidirectional) {
                 // Sync local to remote
                 for (Snapshot localSnapshot : localSnapshots) {
-                    boolean existsOnRemote = remoteSnapshots.stream()
-                        .anyMatch(rs -> rs.getId().equals(localSnapshot.getId()));
+                    if (localSnapshot == null || localSnapshot.getId() == null) {
+                        continue;
+                    }
                     
-                    if (!existsOnRemote) {
+                    if (!remoteSnapshotIds.contains(localSnapshot.getId())) {
                         if (verbose) {
                             System.out.println("Syncing to remote: " + localSnapshot.getName() + " (" + localSnapshot.getId() + ")");
                         }
@@ -267,10 +301,11 @@ public class SyncCommand implements Command {
 
                 // Sync remote to local
                 for (Snapshot remoteSnapshot : remoteSnapshots) {
-                    boolean existsOnLocal = localSnapshots.stream()
-                        .anyMatch(ls -> ls.getId().equals(remoteSnapshot.getId()));
+                    if (remoteSnapshot == null || remoteSnapshot.getId() == null) {
+                        continue;
+                    }
                     
-                    if (!existsOnLocal) {
+                    if (!localSnapshotIds.contains(remoteSnapshot.getId())) {
                         if (verbose) {
                             System.out.println("Syncing to local: " + remoteSnapshot.getName() + " (" + remoteSnapshot.getId() + ")");
                         }
@@ -286,10 +321,11 @@ public class SyncCommand implements Command {
             } else {
                 // One-way sync (local to remote only)
                 for (Snapshot localSnapshot : localSnapshots) {
-                    boolean existsOnRemote = remoteSnapshots.stream()
-                        .anyMatch(rs -> rs.getId().equals(localSnapshot.getId()));
+                    if (localSnapshot == null || localSnapshot.getId() == null) {
+                        continue;
+                    }
                     
-                    if (!existsOnRemote) {
+                    if (!remoteSnapshotIds.contains(localSnapshot.getId())) {
                         if (verbose) {
                             System.out.println("Syncing to remote: " + localSnapshot.getName() + " (" + localSnapshot.getId() + ")");
                         }
@@ -304,7 +340,11 @@ public class SyncCommand implements Command {
             }
 
             // Disconnect from remote server
-            netService.disconnectFromNode(serverAddress).get();
+            try {
+                netService.disconnectFromNode(serverAddress).get(10, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                System.err.println("Warning: Disconnect timeout after 10 seconds");
+            }
 
             if (verbose) {
                 System.out.println();
@@ -352,6 +392,8 @@ public class SyncCommand implements Command {
                     System.err.println("Warning: Failed to close content store: " + e.getMessage());
                 }
             }
+            // Note: Blake3Service, BackupService, and RestoreService don't implement AutoCloseable
+            // They will be garbage collected when no longer needed
         }
 
         return true;
@@ -375,6 +417,10 @@ public class SyncCommand implements Command {
      * @param bytes size to transfer
      */
     private void simulateTransfer(long bytes) throws InterruptedException {
+        if (bytes <= 0) {
+            return;
+        }
+        
         long chunkSize = 64 * 1024; // 64KB chunks
         long transferred = 0;
         

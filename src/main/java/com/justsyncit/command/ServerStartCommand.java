@@ -18,19 +18,24 @@
 
 package com.justsyncit.command;
 
-import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Command for starting a backup server.
- * Follows Single Responsibility Principle by handling only server start operations.
+ * Follows Single Responsibility Principle by handling only server start
+ * operations.
  */
 public class ServerStartCommand implements Command {
+
+    private static final int DEFAULT_PORT = 8080;
+    private static final int MIN_PORT = 1;
+    private static final int MAX_PORT = 65535;
+    private static final int STARTUP_WAIT_MS = 1000;
+    private static final int STATUS_UPDATE_INTERVAL_MS = 1000;
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
@@ -76,23 +81,57 @@ public class ServerStartCommand implements Command {
             return false;
         }
 
-        // Parse options
-        final int port;
-        final TransportType transportType;
-        final boolean daemon;
-        final boolean verbose;
+        StartOptions options;
+        try {
+            options = parseOptions(args);
+        } catch (IllegalArgumentException e) {
+            System.err.println(e.getMessage());
+            return false;
+        }
 
-        // Set defaults
-        int defaultPort = 8080;
-        TransportType defaultTransportType = TransportType.TCP;
-        boolean defaultDaemon = false;
-        boolean defaultVerbose = true;
+        if (options == null) {
+            return false; // Help was displayed
+        }
 
-        // Parse options
-        int currentPort = defaultPort;
-        TransportType currentTransportType = defaultTransportType;
-        boolean currentDaemon = defaultDaemon;
-        boolean currentVerbose = defaultVerbose;
+        NetworkService localService = null;
+
+        try {
+            NetworkService service = this.networkService;
+            if (service == null && context != null) {
+                service = context.getNetworkService();
+            }
+            if (service == null) {
+                try {
+                    localService = serviceFactory.createNetworkService();
+                    service = localService;
+                } catch (Exception e) {
+                    System.err.println("Error: Failed to initialize network service: " + e.getMessage());
+                    return false;
+                }
+            }
+
+            return startServer(service, options);
+
+        } catch (Exception e) {
+            System.err.println("Error: Failed to start server: " + e.getMessage());
+            return false;
+        } finally {
+            closeQuietly(localService);
+        }
+    }
+
+    /**
+     * Parses command-line options.
+     *
+     * @param args command-line arguments
+     * @return parsed options, or null if help was displayed
+     * @throws IllegalArgumentException if invalid options are provided
+     */
+    private StartOptions parseOptions(String[] args) {
+        int port = DEFAULT_PORT;
+        TransportType transportType = TransportType.TCP;
+        boolean daemon = false;
+        boolean verbose = true;
 
         for (int i = 1; i < args.length; i++) {
             String arg = args[i];
@@ -100,189 +139,224 @@ public class ServerStartCommand implements Command {
                 case "--port":
                     if (i + 1 < args.length) {
                         try {
-                            currentPort = Integer.parseInt(args[i + 1]);
-                            if (currentPort < 1 || currentPort > 65535) {
-                                System.err.println("Error: Port must be between 1 and 65535");
-                                return false;
+                            port = Integer.parseInt(args[i + 1]);
+                            if (port < MIN_PORT || port > MAX_PORT) {
+                                throw new IllegalArgumentException(
+                                        "Error: Port must be between " + MIN_PORT + " and " + MAX_PORT);
                             }
-                            i++; // Skip the next argument
+                            i++;
                         } catch (NumberFormatException e) {
-                            System.err.println("Error: Invalid port number: " + args[i + 1]);
-                            return false;
+                            throw new IllegalArgumentException("Error: Invalid port number: " + args[i + 1]);
                         }
                     } else {
-                        System.err.println("Error: --port requires a value");
-                        return false;
+                        throw new IllegalArgumentException("Error: --port requires a value");
                     }
                     break;
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            currentTransportType = TransportType.valueOf(args[i + 1].toUpperCase());
-                            i++; // Skip the next argument
+                            transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            i++;
                         } catch (IllegalArgumentException e) {
-                            System.err.println("Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
-                            return false;
+                            throw new IllegalArgumentException(
+                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
                         }
                     } else {
-                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
-                        return false;
+                        throw new IllegalArgumentException("Error: --transport requires a value (TCP|QUIC)");
                     }
                     break;
                 case "--daemon":
                 case "-d":
-                    currentDaemon = true;
+                    daemon = true;
                     break;
                 case "--quiet":
                 case "-q":
-                    currentVerbose = false;
+                    verbose = false;
                     break;
                 case "--help":
                     displayHelp();
-                    return true;
+                    return null;
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
+                        throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
             }
         }
 
-        // Assign final values
-        port = currentPort;
-        transportType = currentTransportType;
-        daemon = currentDaemon;
-        verbose = currentVerbose;
+        return new StartOptions(port, transportType, daemon, verbose);
+    }
 
-        // Create service if not provided
-        final NetworkService service;
-        if (networkService == null) {
-            try {
-                service = serviceFactory.createNetworkService();
-            } catch (Exception e) {
-                System.err.println("Error: Failed to initialize network service: " + e.getMessage());
-                return false;
-            }
-        } else {
-            service = networkService;
-        }
-
-        try {
-            // Check if server is already running
-            if (service.isServerRunning()) {
-                System.err.println("Error: Server is already running on port " + service.getServerPort());
-                return false;
-            }
-
-            // Start the server
-            if (verbose) {
-                System.out.println("Starting JustSyncIt backup server...");
-                System.out.println("Port: " + port);
-                System.out.println("Transport: " + transportType);
-                System.out.println("Daemon mode: " + (daemon ? "enabled" : "disabled"));
-                System.out.println();
-            }
-
-            CompletableFuture<Void> startFuture = service.startServer(port, transportType);
-            
-            if (verbose) {
-                System.out.println("Server starting...");
-                
-                // Wait for server to start
-                startFuture.whenComplete((result, throwable) -> {
-                    if (throwable != null) {
-                        System.err.println("Failed to start server: " + throwable.getMessage());
-                        if (!daemon) {
-                            System.exit(1);
-                        }
-                    } else {
-                        System.out.println("Server started successfully!");
-                        System.out.println("Listening on port " + port + " using " + transportType);
-                        System.out.println("Press Ctrl+C to stop the server");
-                        
-                        if (!daemon) {
-                            // Add shutdown hook
-                            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                                try {
-                                    System.out.println("\nShutting down server...");
-                                    service.stopServer().get();
-                                    System.out.println("Server stopped.");
-                                } catch (Exception e) {
-                                    System.err.println("Error stopping server: " + e.getMessage());
-                                }
-                            }));
-                            
-                            // Keep the server running
-                            try {
-                                Thread.currentThread().join();
-                            } catch (InterruptedException e) {
-                                // Thread interrupted, shutdown
-                            }
-                        }
-                    }
-                });
-                
-                // Wait a bit to see if server starts immediately
-                Thread.sleep(1000);
-                
-                if (service.isServerRunning()) {
-                    if (daemon) {
-                        System.out.println("Server started successfully in daemon mode.");
-                        System.out.println("Server is running in background on port " + port);
-                        return true;
-                    } else {
-                        // Keep main thread alive for interactive mode
-                        while (service.isServerRunning()) {
-                            try {
-                                Thread.sleep(1000);
-                                
-                                // Show status periodically
-                                NetworkService.NetworkStatistics stats = service.getStatistics();
-                                System.out.printf("\rConnections: %d, Transfers: %d, Bytes sent: %s, Bytes received: %s",
-                            stats.getActiveConnections(),
-                            stats.getCompletedTransfers(),
-                            formatFileSize(stats.getTotalBytesSent()),
-                            formatFileSize(stats.getTotalBytesReceived()));
-                                System.out.flush();
-                                
-                            } catch (InterruptedException e) {
-                                break;
-                            }
-                        }
-                    }
-                } else {
-                    System.err.println("Server failed to start");
-                    return false;
-                }
-            } else {
-                // Quiet mode - just start and exit
-                startFuture.get();
-                if (daemon) {
-                    return true;
-                } else {
-                    // In quiet mode without daemon, we still need to keep the server running
-                    while (service.isServerRunning()) {
-                        Thread.sleep(1000);
-                    }
-                }
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error: Failed to start server: " + e.getMessage());
+    /**
+     * Starts the server with the given options.
+     *
+     * @param service network service
+     * @param options start options
+     * @return true if successful
+     * @throws Exception if server fails to start
+     */
+    private boolean startServer(NetworkService service, StartOptions options) throws Exception {
+        // Check if server is already running
+        if (service.isServerRunning()) {
+            System.err.println("Error: Server is already running on port " + service.getServerPort());
             return false;
-        } finally {
-            // Clean up resources if we created them
-            if (networkService == null && service != null && !service.isServerRunning()) {
-                try {
-                    service.close();
-                } catch (Exception e) {
-                    System.err.println("Warning: Failed to close network service: " + e.getMessage());
-                }
-            }
         }
 
-        return true;
+        if (options.verbose) {
+            displayStartupInfo(options);
+        }
+
+        CompletableFuture<Void> startFuture = service.startServer(options.port, options.transportType);
+
+        if (options.verbose) {
+            System.out.println("Server starting...");
+        }
+
+        // Setup completion handler
+        setupCompletionHandler(service, startFuture, options);
+
+        // Wait for server to start
+        Thread.sleep(STARTUP_WAIT_MS);
+
+        if (!service.isServerRunning()) {
+            System.err.println("Server failed to start");
+            return false;
+        }
+
+        if (options.daemon) {
+            handleDaemonMode(options);
+            return true;
+        } else {
+            handleInteractiveMode(service, options);
+            return true;
+        }
+    }
+
+    /**
+     * Displays startup information.
+     *
+     * @param options start options
+     */
+    private void displayStartupInfo(StartOptions options) {
+        System.out.println("Starting JustSyncIt backup server...");
+        System.out.println("Port: " + options.port);
+        System.out.println("Transport: " + options.transportType);
+        System.out.println("Daemon mode: " + (options.daemon ? "enabled" : "disabled"));
+        System.out.println();
+    }
+
+    /**
+     * Sets up completion handler for server startup.
+     *
+     * @param service     network service
+     * @param startFuture future for server start
+     * @param options     start options
+     */
+    private void setupCompletionHandler(NetworkService service, CompletableFuture<Void> startFuture,
+            StartOptions options) {
+        startFuture.whenComplete((result, throwable) -> {
+            if (throwable != null) {
+                System.err.println("Failed to start server: " + throwable.getMessage());
+            } else if (options.verbose) {
+                System.out.println("Server started successfully!");
+                System.out.println("Listening on port " + options.port + " using " + options.transportType);
+                if (!options.daemon) {
+                    System.out.println("Press Ctrl+C to stop the server");
+                    setupShutdownHook(service);
+                }
+            }
+        });
+    }
+
+    /**
+     * Sets up shutdown hook for graceful server shutdown.
+     *
+     * @param service network service
+     */
+    private void setupShutdownHook(NetworkService service) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                System.out.println("\nShutting down server...");
+                service.stopServer().get();
+                System.out.println("Server stopped.");
+            } catch (Exception e) {
+                System.err.println("Error stopping server: " + e.getMessage());
+            }
+        }));
+    }
+
+    /**
+     * Handles daemon mode operation.
+     *
+     * @param options start options
+     */
+    private void handleDaemonMode(StartOptions options) {
+        if (options.verbose) {
+            System.out.println("Server started successfully in daemon mode.");
+            System.out.println("Server is running in background on port " + options.port);
+        }
+    }
+
+    /**
+     * Handles interactive mode operation.
+     *
+     * @param service network service
+     * @param options start options
+     * @throws InterruptedException if interrupted while waiting
+     */
+    private void handleInteractiveMode(NetworkService service, StartOptions options) throws InterruptedException {
+        if (options.verbose) {
+            monitorServerWithStatus(service);
+        } else {
+            monitorServerQuiet(service);
+        }
+    }
+
+    /**
+     * Monitors server with periodic status updates.
+     *
+     * @param service network service
+     * @throws InterruptedException if interrupted
+     */
+    private void monitorServerWithStatus(NetworkService service) throws InterruptedException {
+        while (service.isServerRunning()) {
+            Thread.sleep(STATUS_UPDATE_INTERVAL_MS);
+
+            NetworkService.NetworkStatistics stats = service.getStatistics();
+            System.out.printf("\rConnections: %d, Transfers: %d, Bytes sent: %s, Bytes received: %s",
+                    stats.getActiveConnections(),
+                    stats.getCompletedTransfers(),
+                    formatFileSize(stats.getTotalBytesSent()),
+                    formatFileSize(stats.getTotalBytesReceived()));
+            System.out.flush();
+        }
+    }
+
+    /**
+     * Monitors server in quiet mode.
+     *
+     * @param service network service
+     * @throws InterruptedException if interrupted
+     */
+    private void monitorServerQuiet(NetworkService service) throws InterruptedException {
+        while (service.isServerRunning()) {
+            Thread.sleep(STATUS_UPDATE_INTERVAL_MS);
+        }
+    }
+
+    /**
+     * Safely closes a resource.
+     *
+     * @param resource resource to close
+     */
+    private void closeQuietly(AutoCloseable resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Exception e) {
+                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+            }
+        }
     }
 
     /**
@@ -298,7 +372,7 @@ public class ServerStartCommand implements Command {
         System.out.println("  " + getDescription());
         System.out.println();
         System.out.println("Options:");
-        System.out.println("  --port PORT           Port to listen on (default: 8080)");
+        System.out.println("  --port PORT           Port to listen on (default: " + DEFAULT_PORT + ")");
         System.out.println("  --transport TYPE       Transport protocol (TCP|QUIC, default: TCP)");
         System.out.println("  --daemon, -d          Run in daemon mode (background)");
         System.out.println("  --quiet, -q           Quiet mode with minimal output");
@@ -319,14 +393,45 @@ public class ServerStartCommand implements Command {
      * @return formatted size string
      */
     private String formatFileSize(long bytes) {
-        if (bytes < 1024) {
+        final long KB = 1024;
+        final long MB = KB * 1024;
+        final long GB = MB * 1024;
+
+        if (bytes < KB) {
             return bytes + " B";
-        } else if (bytes < 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / 1024.0) + " KB";
-        } else if (bytes < 1024 * 1024 * 1024) {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024)) + " MB";
+        } else if (bytes < MB) {
+            return formatWithDecimal(bytes / (double) KB) + " KB";
+        } else if (bytes < GB) {
+            return formatWithDecimal(bytes / (double) MB) + " MB";
         } else {
-            return new java.text.DecimalFormat("#,##0.#").format(bytes / (1024.0 * 1024 * 1024)) + " GB";
+            return formatWithDecimal(bytes / (double) GB) + " GB";
+        }
+    }
+
+    /**
+     * Formats a number with one decimal place.
+     *
+     * @param value the value to format
+     * @return formatted string
+     */
+    private String formatWithDecimal(double value) {
+        return new java.text.DecimalFormat("#,##0.#").format(value);
+    }
+
+    /**
+     * Simple data class to hold start options.
+     */
+    private static class StartOptions {
+        final int port;
+        final TransportType transportType;
+        final boolean daemon;
+        final boolean verbose;
+
+        StartOptions(int port, TransportType transportType, boolean daemon, boolean verbose) {
+            this.port = port;
+            this.transportType = transportType;
+            this.daemon = daemon;
+            this.verbose = verbose;
         }
     }
 }
