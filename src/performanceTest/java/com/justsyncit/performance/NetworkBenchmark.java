@@ -660,21 +660,4 @@ public class NetworkBenchmark extends E2ETestBase {
                 .filter(Files::isRegularFile)
                 .count();
     }
-
-    /**
-     * Cleans up a directory by removing all files.
-     */
-    private void cleanupDirectory(Path directory) throws IOException {
-        if (Files.exists(directory)) {
-            Files.walk(directory)
-                    .filter(Files::isRegularFile)
-                    .forEach(file -> {
-                        try {
-                            Files.delete(file);
-                        } catch (IOException e) {
-                            // Ignore cleanup errors
-                        }
-                    });
-        }
-    }
 }

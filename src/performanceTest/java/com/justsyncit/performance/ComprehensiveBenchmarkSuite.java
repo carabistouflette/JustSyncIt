@@ -53,13 +53,11 @@ public class ComprehensiveBenchmarkSuite {
 
     private List<PerformanceMetrics> allMetrics;
     private ExecutorService executorService;
-    private BenchmarkDataGenerator dataGenerator;
 
     @BeforeEach
     void setUp() {
         allMetrics = new ArrayList<>();
         executorService = Executors.newFixedThreadPool(4);
-        // BenchmarkDataGenerator uses static methods, no instance needed
     }
 
     @AfterEach
@@ -669,7 +667,7 @@ public class ComprehensiveBenchmarkSuite {
     }
 
     @FunctionalInterface
-    private interface BenchmarkOperation {
+    interface BenchmarkOperation {
         Path execute() throws Exception;
     }
 }

@@ -249,7 +249,6 @@ public class ThroughputBenchmark {
 
             // Create and backup dataset first
             BenchmarkDataGenerator.createMixedDataset(sourceDir, sizeMB);
-            long totalSize = calculateTotalSize(sourceDir);
 
             BackupOptions backupOptions = new BackupOptions.Builder()
                     .verifyIntegrity(true)
@@ -462,19 +461,26 @@ public class ThroughputBenchmark {
     }
 
     /**
-     * Cleans up a directory by removing all files.
+     * Cleans up a directory by removing all files and subdirectories.
      */
     private void cleanupDirectory(Path directory) throws IOException {
         if (Files.exists(directory)) {
-            Files.walk(directory)
-                    .filter(Files::isRegularFile)
-                    .forEach(file -> {
-                        try {
-                            Files.delete(file);
-                        } catch (IOException e) {
-                            // Ignore cleanup errors
-                        }
-                    });
+            Files.walkFileTree(directory, new java.nio.file.SimpleFileVisitor<Path>() {
+                @Override
+                public java.nio.file.FileVisitResult visitFile(Path file,
+                        java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    if (!dir.equals(directory)) {
+                        Files.delete(dir);
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            });
         }
     }
 }
