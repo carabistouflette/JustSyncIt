@@ -89,11 +89,7 @@ public abstract class E2ETestBase {
     @AfterEach
     void tearDown() throws Exception {
         // Wait for async operations to complete before cleanup
-        try {
-            Thread.sleep(2000); // Give time for async operations to complete
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        waitForAsyncOperations(2000);
 
         // Clean up resources in reverse order of creation
         for (int i = resourcesToCleanup.size() - 1; i >= 0; i--) {
@@ -104,13 +100,18 @@ public abstract class E2ETestBase {
                 }
             } catch (Exception e) {
                 System.err.println("Error closing resource: " + e.getMessage());
+                e.printStackTrace();
             }
         }
         resourcesToCleanup.clear();
 
         // Additional cleanup wait
+        waitForAsyncOperations(1000);
+    }
+
+    protected void waitForAsyncOperations(long durationMs) {
         try {
-            Thread.sleep(1000); // Ensure cleanup completes
+            Thread.sleep(durationMs);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
@@ -303,8 +304,10 @@ public abstract class E2ETestBase {
                 } else if (resource instanceof java.lang.AutoCloseable) {
                     ((java.lang.AutoCloseable) resource).close();
                 }
+            } catch (IOException e) {
+                throw e;
             } catch (Exception e) {
-                throw new IOException("Failed to close resource", e);
+                throw new IOException("Failed to close resource: " + e.getMessage(), e);
             }
         }
     }
