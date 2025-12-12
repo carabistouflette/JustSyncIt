@@ -672,25 +672,29 @@ public class DeduplicationBenchmark {
      * Calculates total size of files in a directory.
      */
     private long calculateTotalSize(Path directory) throws IOException {
-        return Files.walk(directory)
-                .filter(Files::isRegularFile)
-                .mapToLong(file -> {
-                    try {
-                        return Files.size(file);
-                    } catch (IOException e) {
-                        return 0;
-                    }
-                })
-                .sum();
+        try (java.util.stream.Stream<Path> stream = Files.walk(directory)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .mapToLong(file -> {
+                        try {
+                            return Files.size(file);
+                        } catch (IOException e) {
+                            return 0;
+                        }
+                    })
+                    .sum();
+        }
     }
 
     /**
      * Counts files in a directory.
      */
     private int countFiles(Path directory) throws IOException {
-        return (int) Files.walk(directory)
-                .filter(Files::isRegularFile)
-                .count();
+        try (java.util.stream.Stream<Path> stream = Files.walk(directory)) {
+            return (int) stream
+                    .filter(Files::isRegularFile)
+                    .count();
+        }
     }
 
     /**
@@ -698,15 +702,17 @@ public class DeduplicationBenchmark {
      */
     private void cleanupDirectory(Path directory) throws IOException {
         if (Files.exists(directory)) {
-            Files.walk(directory)
-                    .filter(Files::isRegularFile)
-                    .forEach(file -> {
-                        try {
-                            Files.delete(file);
-                        } catch (IOException e) {
-                            // Ignore cleanup errors
-                        }
-                    });
+            try (java.util.stream.Stream<Path> stream = Files.walk(directory)) {
+                stream
+                        .filter(Files::isRegularFile)
+                        .forEach(file -> {
+                            try {
+                                Files.delete(file);
+                            } catch (IOException e) {
+                                // Ignore cleanup errors
+                            }
+                        });
+            }
         }
     }
 }

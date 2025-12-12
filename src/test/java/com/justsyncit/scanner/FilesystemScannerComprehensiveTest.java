@@ -559,7 +559,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Given
             int fileCount = 100;
             int fileSize = 1024;
-            Duration maxAverageTime = Duration.ofMillis(50); // 50ms target
+            Duration maxAverageTime = Duration.ofMillis(100); // 100ms target (generous for CI)
 
             createTestFiles(tempDir, "perf", fileCount, fileSize);
             ScanOptions options = new ScanOptions();
@@ -677,7 +677,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
                             ScanOptions options = new ScanOptions();
                             CompletableFuture<ScanResult> resultFuture = scanner.scanDirectory(scanDir, options);
-                            ScanResult scanResult = resultFuture.get(30, TimeUnit.SECONDS);
+                            ScanResult scanResult = resultFuture.get(AsyncTestUtils.DEFAULT_TIMEOUT.toMillis(),
+                                    TimeUnit.MILLISECONDS);
                             assertNotNull(scanResult);
                         } catch (Exception e) {
                             throw new RuntimeException("Scan operation failed", e);

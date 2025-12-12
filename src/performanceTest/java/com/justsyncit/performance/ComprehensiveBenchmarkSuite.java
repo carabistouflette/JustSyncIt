@@ -371,13 +371,16 @@ public class ComprehensiveBenchmarkSuite {
 
     private Path simulateBackupOperation(Path source) throws Exception {
         // Simulate backup operation with realistic timing
-        long fileSize = Files.walk(source).mapToLong(p -> {
-            try {
-                return Files.size(p);
-            } catch (IOException e) {
-                return 0;
-            }
-        }).sum();
+        long fileSize;
+        try (java.util.stream.Stream<Path> stream = Files.walk(source)) {
+            fileSize = stream.mapToLong(p -> {
+                try {
+                    return Files.size(p);
+                } catch (IOException e) {
+                    return 0;
+                }
+            }).sum();
+        }
 
         // Simulate processing time based on file size
         long processingTime = Math.max(100, fileSize / (10 * 1024 * 1024)); // ~10MB/s processing
@@ -527,8 +530,8 @@ public class ComprehensiveBenchmarkSuite {
 
     private double calculateDeduplicationRatio(Path data) {
         // Simple heuristic based on file naming patterns
-        try {
-            return Files.walk(data)
+        try (java.util.stream.Stream<Path> stream = Files.walk(data)) {
+            return stream
                     .filter(Files::isRegularFile)
                     .mapToInt(p -> {
                         String fileName = p.getFileName().toString();
@@ -547,16 +550,18 @@ public class ComprehensiveBenchmarkSuite {
             if (Files.isRegularFile(path)) {
                 return Files.size(path);
             } else if (Files.isDirectory(path)) {
-                return Files.walk(path)
-                        .filter(Files::isRegularFile)
-                        .mapToLong(p -> {
-                            try {
-                                return Files.size(p);
-                            } catch (IOException e) {
-                                return 0;
-                            }
-                        })
-                        .sum();
+                try (java.util.stream.Stream<Path> stream = Files.walk(path)) {
+                    return stream
+                            .filter(Files::isRegularFile)
+                            .mapToLong(p -> {
+                                try {
+                                    return Files.size(p);
+                                } catch (IOException e) {
+                                    return 0;
+                                }
+                            })
+                            .sum();
+                }
             }
         } catch (IOException e) {
             return 0;

@@ -135,26 +135,30 @@ public class AsyncVsSyncBenchmarkSuite {
         // Clean up temporary directories aggressively
         try {
             if (asyncDataDir != null && java.nio.file.Files.exists(asyncDataDir)) {
-                java.nio.file.Files.walk(asyncDataDir)
-                        .sorted(java.util.Comparator.reverseOrder())
-                        .forEach(path -> {
-                            try {
-                                java.nio.file.Files.deleteIfExists(path);
-                            } catch (Exception e) {
-                                // Ignore cleanup errors
-                            }
-                        });
+                try (java.util.stream.Stream<Path> stream = java.nio.file.Files.walk(asyncDataDir)) {
+                    stream
+                            .sorted(java.util.Comparator.reverseOrder())
+                            .forEach(path -> {
+                                try {
+                                    java.nio.file.Files.deleteIfExists(path);
+                                } catch (Exception e) {
+                                    // Ignore cleanup errors
+                                }
+                            });
+                }
             }
             if (syncDataDir != null && java.nio.file.Files.exists(syncDataDir)) {
-                java.nio.file.Files.walk(syncDataDir)
-                        .sorted(java.util.Comparator.reverseOrder())
-                        .forEach(path -> {
-                            try {
-                                java.nio.file.Files.deleteIfExists(path);
-                            } catch (Exception e) {
-                                // Ignore cleanup errors
-                            }
-                        });
+                try (java.util.stream.Stream<Path> stream = java.nio.file.Files.walk(syncDataDir)) {
+                    stream
+                            .sorted(java.util.Comparator.reverseOrder())
+                            .forEach(path -> {
+                                try {
+                                    java.nio.file.Files.deleteIfExists(path);
+                                } catch (Exception e) {
+                                    // Ignore cleanup errors
+                                }
+                            });
+                }
             }
         } catch (Exception e) {
             // Ignore cleanup errors
@@ -718,16 +722,18 @@ public class AsyncVsSyncBenchmarkSuite {
             if (Files.isRegularFile(path)) {
                 return Files.size(path);
             } else if (Files.isDirectory(path)) {
-                return Files.walk(path)
-                        .filter(Files::isRegularFile)
-                        .mapToLong(p -> {
-                            try {
-                                return Files.size(p);
-                            } catch (IOException e) {
-                                return 0;
-                            }
-                        })
-                        .sum();
+                try (java.util.stream.Stream<Path> stream = Files.walk(path)) {
+                    return stream
+                            .filter(Files::isRegularFile)
+                            .mapToLong(p -> {
+                                try {
+                                    return Files.size(p);
+                                } catch (IOException e) {
+                                    return 0;
+                                }
+                            })
+                            .sum();
+                }
             }
         } catch (IOException e) {
             return 0;
@@ -836,11 +842,16 @@ public class AsyncVsSyncBenchmarkSuite {
         System.out.println("\n=== Validating Performance Targets ===");
 
         // Calculate overall improvements
-        double avgThroughputImprovement = calculateAverageImprovement("throughput_mbps");
-        double avgCpuReduction = calculateAverageReduction("cpu_usage_percent");
-        double avgLatencyImprovement = calculateAverageImprovement("average_latency_ms");
-        double avgScalabilityImprovement = calculateAverageImprovement("scalability_throughput");
-        double avgMemoryImprovement = calculateAverageImprovement("peak_memory_mb");
+        double avgThroughputImprovement = calculateAverageMetricChange("throughput_mbps",
+                (async, sync) -> (async - sync) / sync);
+        double avgCpuReduction = calculateAverageMetricChange("cpu_usage_percent",
+                (async, sync) -> (sync - async) / sync);
+        double avgLatencyImprovement = calculateAverageMetricChange("average_latency_ms",
+                (async, sync) -> (sync - async) / sync);
+        double avgScalabilityImprovement = calculateAverageMetricChange("scalability_throughput",
+                (async, sync) -> (async - sync) / sync);
+        double avgMemoryImprovement = calculateAverageMetricChange("peak_memory_mb",
+                (async, sync) -> (sync - async) / sync);
 
         // Validate targets
         validateTarget("NVMe Throughput (>3GB/s)", avgThroughputImprovement, TARGET_THROUGHPUT_NVME_GBPS * 1024);
@@ -853,41 +864,13 @@ public class AsyncVsSyncBenchmarkSuite {
         System.out.println("\nPerformance target validation completed");
     }
 
-    private double calculateAverageImprovement(String metricKey) {
-        // Calculate average improvement across all comparable async/sync pairs
-        double totalImprovement = 0.0;
-        int count = 0;
-
-        for (int i = 0; i < Math.min(allAsyncMetrics.size(), allSyncMetrics.size()); i++) {
-            PerformanceMetrics asyncMetric = allAsyncMetrics.get(i);
-            PerformanceMetrics syncMetric = allSyncMetrics.get(i);
-
-            if (asyncMetric.getMetrics().containsKey(metricKey) &&
-                    syncMetric.getMetrics().containsKey(metricKey)) {
-
-                Object asyncValueObj = asyncMetric.getMetrics().get(metricKey);
-                Object syncValueObj = syncMetric.getMetrics().get(metricKey);
-
-                double asyncValue = (asyncValueObj instanceof Long)
-                        ? ((Long) asyncValueObj).doubleValue()
-                        : ((Double) asyncValueObj);
-                double syncValue = (syncValueObj instanceof Long)
-                        ? ((Long) syncValueObj).doubleValue()
-                        : ((Double) syncValueObj);
-
-                if (syncValue > 0) {
-                    totalImprovement += ((asyncValue - syncValue) / syncValue) * 100.0;
-                    count++;
-                }
-            }
-        }
-
-        return count > 0 ? totalImprovement / count : 0.0;
+    @FunctionalInterface
+    private interface MetricCalculator {
+        double calculate(double asyncValue, double syncValue);
     }
 
-    private double calculateAverageReduction(String metricKey) {
-        // Calculate average reduction (for metrics where lower is better)
-        double totalReduction = 0.0;
+    private double calculateAverageMetricChange(String metricKey, MetricCalculator calculator) {
+        double totalChange = 0.0;
         int count = 0;
 
         for (int i = 0; i < Math.min(allAsyncMetrics.size(), allSyncMetrics.size()); i++) {
@@ -897,24 +880,28 @@ public class AsyncVsSyncBenchmarkSuite {
             if (asyncMetric.getMetrics().containsKey(metricKey) &&
                     syncMetric.getMetrics().containsKey(metricKey)) {
 
-                Object asyncValueObj = asyncMetric.getMetrics().get(metricKey);
-                Object syncValueObj = syncMetric.getMetrics().get(metricKey);
-
-                double asyncValue = (asyncValueObj instanceof Long)
-                        ? ((Long) asyncValueObj).doubleValue()
-                        : ((Double) asyncValueObj);
-                double syncValue = (syncValueObj instanceof Long)
-                        ? ((Long) syncValueObj).doubleValue()
-                        : ((Double) syncValueObj);
+                double asyncValue = getDoubleValue(asyncMetric.getMetrics().get(metricKey));
+                double syncValue = getDoubleValue(syncMetric.getMetrics().get(metricKey));
 
                 if (syncValue > 0) {
-                    totalReduction += ((syncValue - asyncValue) / syncValue) * 100.0;
+                    totalChange += calculator.calculate(asyncValue, syncValue) * 100.0;
                     count++;
                 }
             }
         }
 
-        return count > 0 ? totalReduction / count : 0.0;
+        return count > 0 ? totalChange / count : 0.0;
+    }
+
+    private double getDoubleValue(Object value) {
+        if (value instanceof Long) {
+            return ((Long) value).doubleValue();
+        } else if (value instanceof Double) {
+            return (Double) value;
+        } else if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        return 0.0;
     }
 
     private void validateTarget(String targetName, double actualValue, double targetValue) {
@@ -923,6 +910,17 @@ public class AsyncVsSyncBenchmarkSuite {
 
         System.out.println(String.format("%s: %.1f%% (%s) - Target: %.1f%%",
                 targetName, actualValue, status, targetValue));
+    }
+
+    /**
+     * Sets the directories for the benchmark suite.
+     * This allows manual configuration without using reflection.
+     */
+    public void setDirectories(Path tempDir, Path reportDir, Path asyncDataDir, Path syncDataDir) {
+        this.tempDir = tempDir;
+        this.reportDir = reportDir;
+        this.asyncDataDir = asyncDataDir;
+        this.syncDataDir = syncDataDir;
     }
 
     /**
@@ -949,39 +947,17 @@ public class AsyncVsSyncBenchmarkSuite {
             java.nio.file.Files.createDirectories(asyncDataDir);
             java.nio.file.Files.createDirectories(syncDataDir);
 
-            // Use reflection to set the temporary directories
-            java.lang.reflect.Field tempDirField = AsyncVsSyncBenchmarkSuite.class.getDeclaredField("tempDir");
-            tempDirField.setAccessible(true);
-            tempDirField.set(benchmarkSuite, tempDir);
+            // Configure directories directly
+            benchmarkSuite.setDirectories(tempDir, reportDir, asyncDataDir, syncDataDir);
 
-            java.lang.reflect.Field reportDirField = AsyncVsSyncBenchmarkSuite.class.getDeclaredField("reportDir");
-            reportDirField.setAccessible(true);
-            reportDirField.set(benchmarkSuite, reportDir);
+            // Run the lifecycle
+            benchmarkSuite.setUp();
 
-            java.lang.reflect.Field asyncDataDirField = AsyncVsSyncBenchmarkSuite.class
-                    .getDeclaredField("asyncDataDir");
-            asyncDataDirField.setAccessible(true);
-            asyncDataDirField.set(benchmarkSuite, asyncDataDir);
-
-            java.lang.reflect.Field syncDataDirField = AsyncVsSyncBenchmarkSuite.class.getDeclaredField("syncDataDir");
-            syncDataDirField.setAccessible(true);
-            syncDataDirField.set(benchmarkSuite, syncDataDir);
-
-            // Call setUp method
-            java.lang.reflect.Method setUpMethod = AsyncVsSyncBenchmarkSuite.class.getDeclaredMethod("setUp");
-            setUpMethod.setAccessible(true);
-            setUpMethod.invoke(benchmarkSuite);
-
-            // Run the comprehensive benchmark suite
-            java.lang.reflect.Method runMethod = AsyncVsSyncBenchmarkSuite.class
-                    .getDeclaredMethod("runComprehensiveBenchmarkSuite");
-            runMethod.setAccessible(true);
-            runMethod.invoke(benchmarkSuite);
-
-            // Call tearDown method
-            java.lang.reflect.Method tearDownMethod = AsyncVsSyncBenchmarkSuite.class.getDeclaredMethod("tearDown");
-            tearDownMethod.setAccessible(true);
-            tearDownMethod.invoke(benchmarkSuite);
+            try {
+                benchmarkSuite.runComprehensiveBenchmarkSuite();
+            } finally {
+                benchmarkSuite.tearDown();
+            }
 
             System.out.println("\nBenchmark suite completed successfully!");
             System.out.println("Reports available in: " + reportDir);

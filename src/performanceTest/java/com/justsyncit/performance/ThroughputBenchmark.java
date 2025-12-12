@@ -448,16 +448,18 @@ public class ThroughputBenchmark {
      * Calculates total size of files in a directory.
      */
     private long calculateTotalSize(Path directory) throws IOException {
-        return Files.walk(directory)
-                .filter(Files::isRegularFile)
-                .mapToLong(file -> {
-                    try {
-                        return Files.size(file);
-                    } catch (IOException e) {
-                        return 0;
-                    }
-                })
-                .sum();
+        try (java.util.stream.Stream<Path> stream = Files.walk(directory)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .mapToLong(file -> {
+                        try {
+                            return Files.size(file);
+                        } catch (IOException e) {
+                            return 0;
+                        }
+                    })
+                    .sum();
+        }
     }
 
     /**

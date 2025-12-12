@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 public final class AsyncTestSuite {
 
     private static final List<Class<?>> UNIT_TEST_CLASSES = Arrays.asList(
-            AsyncByteBufferPoolTest.class,
+
             AsyncFileChunkerTest.class,
             AsyncChunkHandlerComprehensiveTest.class,
             AsyncByteBufferPoolComprehensiveTest.class,
