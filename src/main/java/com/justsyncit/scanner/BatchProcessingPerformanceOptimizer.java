@@ -21,9 +21,6 @@ package com.justsyncit.scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousFileChannel;
-import java.nio.channels.CompletionHandler;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,7 +48,7 @@ public class BatchProcessingPerformanceOptimizer {
     /**
      * Creates a new BatchProcessingPerformanceOptimizer.
      *
-     * @param config the batch configuration
+     * @param config     the batch configuration
      * @param systemInfo system resource information
      */
     public BatchProcessingPerformanceOptimizer(BatchConfiguration config, SystemResourceInfo systemInfo) {
@@ -66,19 +63,19 @@ public class BatchProcessingPerformanceOptimizer {
     /**
      * Optimizes batch I/O operations for improved throughput.
      *
-     * @param files list of files to process
+     * @param files     list of files to process
      * @param operation the I/O operation to perform
      * @return a CompletableFuture that completes with the operation result
      */
-    public <T> CompletableFuture<T> optimizeBatchIo(List<java.nio.file.Path> files, 
-                                                Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
+    public <T> CompletableFuture<T> optimizeBatchIo(List<java.nio.file.Path> files,
+            Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
         long startTime = System.nanoTime();
-        
+
         // Determine optimal I/O strategy based on system capabilities
         IoStrategy strategy = determineOptimalIoStrategy(files);
-        
+
         logger.debug("Using I/O strategy {} for {} files", strategy, files.size());
-        
+
         // Apply I/O optimizations
         CompletableFuture<T> result = switch (strategy) {
             case VECTORED_IO -> applyVectoredIo(files, operation);
@@ -87,15 +84,15 @@ public class BatchProcessingPerformanceOptimizer {
             case SEQUENTIAL_IO -> applySequentialIo(files, operation);
             default -> operation.apply(files);
         };
-        
+
         // Track performance metrics
         return result.whenComplete((r, throwable) -> {
             long endTime = System.nanoTime();
             long duration = endTime - startTime;
-            
+
             updateMetrics("batch-io", duration, files.size());
-            logger.debug("Batch I/O operation completed in {}ms using strategy {}", 
-                        duration / 1_000_000, strategy);
+            logger.debug("Batch I/O operation completed in {}ms using strategy {}",
+                    duration / 1_000_000, strategy);
         });
     }
 
@@ -107,12 +104,12 @@ public class BatchProcessingPerformanceOptimizer {
      */
     public CompletableFuture<List<String>> optimizeBatchHashing(List<byte[]> data) {
         long startTime = System.nanoTime();
-        
+
         // Determine optimal hashing strategy
         HashingStrategy strategy = determineOptimalHashingStrategy(data);
-        
+
         logger.debug("Using hashing strategy {} for {} chunks", strategy, data.size());
-        
+
         // Apply hashing optimizations
         CompletableFuture<List<String>> result = switch (strategy) {
             case SIMD_PARALLEL -> applySimdParallelHashing(data);
@@ -121,21 +118,21 @@ public class BatchProcessingPerformanceOptimizer {
             case STANDARD_HASHING -> applyStandardHashing(data);
             default -> applyStandardHashing(data);
         };
-        
+
         // Track performance metrics
         return result.whenComplete((hashes, throwable) -> {
             long endTime = System.nanoTime();
             long duration = endTime - startTime;
-            
+
             long totalBytes = data.stream().mapToLong(arr -> arr.length).sum();
             totalBytesProcessed.addAndGet(totalBytes);
             totalOperationsProcessed.addAndGet(data.size());
             totalProcessingTimeNs.addAndGet(duration);
-            
+
             updateMetrics("batch-hashing", duration, data.size());
-            logger.debug("Batch hashing completed in {}ms using strategy {}, throughput: {} MB/s", 
-                        duration / 1_000_000, strategy, 
-                        calculateThroughput(totalBytes, duration));
+            logger.debug("Batch hashing completed in {}ms using strategy {}, throughput: {} MB/s",
+                    duration / 1_000_000, strategy,
+                    calculateThroughput(totalBytes, duration));
         });
     }
 
@@ -146,14 +143,14 @@ public class BatchProcessingPerformanceOptimizer {
      * @return a CompletableFuture that completes with the operation result
      */
     public <T> CompletableFuture<T> optimizeBatchStorage(List<StorageOperation> operations,
-                                                     Function<List<StorageOperation>, CompletableFuture<T>> executor) {
+            Function<List<StorageOperation>, CompletableFuture<T>> executor) {
         long startTime = System.nanoTime();
-        
+
         // Determine optimal storage strategy
         StorageStrategy strategy = determineOptimalStorageStrategy(operations);
-        
+
         logger.debug("Using storage strategy {} for {} operations", strategy, operations.size());
-        
+
         // Apply storage optimizations
         CompletableFuture<T> result = switch (strategy) {
             case TRANSACTIONAL -> applyTransactionalStorage(operations, executor);
@@ -162,15 +159,15 @@ public class BatchProcessingPerformanceOptimizer {
             case SEQUENTIAL_STORAGE -> applySequentialStorage(operations, executor);
             default -> executor.apply(operations);
         };
-        
+
         // Track performance metrics
         return result.whenComplete((r, throwable) -> {
             long endTime = System.nanoTime();
             long duration = endTime - startTime;
-            
+
             updateMetrics("batch-storage", duration, operations.size());
-            logger.debug("Batch storage completed in {}ms using strategy {}", 
-                        duration / 1_000_000, strategy);
+            logger.debug("Batch storage completed in {}ms using strategy {}",
+                    duration / 1_000_000, strategy);
         });
     }
 
@@ -182,12 +179,12 @@ public class BatchProcessingPerformanceOptimizer {
      */
     public CompletableFuture<List<CompressedChunk>> optimizeBatchCompression(List<byte[]> data) {
         long startTime = System.nanoTime();
-        
+
         // Determine optimal compression strategy
         CompressionStrategy strategy = determineOptimalCompressionStrategy(data);
-        
+
         logger.debug("Using compression strategy {} for {} chunks", strategy, data.size());
-        
+
         // Apply compression optimizations
         CompletableFuture<List<CompressedChunk>> result = switch (strategy) {
             case PARALLEL_COMPRESSION -> applyParallelCompression(data);
@@ -196,19 +193,19 @@ public class BatchProcessingPerformanceOptimizer {
             case STANDARD_COMPRESSION -> applyStandardCompression(data);
             default -> applyStandardCompression(data);
         };
-        
+
         // Track performance metrics
         return result.whenComplete((chunks, throwable) -> {
             long endTime = System.nanoTime();
             long duration = endTime - startTime;
-            
+
             long totalInputBytes = data.stream().mapToLong(arr -> arr.length).sum();
             long totalOutputBytes = chunks.stream().mapToLong(chunk -> chunk.getCompressedData().length).sum();
             double compressionRatio = (double) totalOutputBytes / totalInputBytes;
-            
+
             updateMetrics("batch-compression", duration, data.size());
-            logger.debug("Batch compression completed in {}ms using strategy {}, compression ratio: {:.2f}", 
-                        duration / 1_000_000, strategy, compressionRatio);
+            logger.debug("Batch compression completed in {}ms using strategy {}, compression ratio: {:.2f}",
+                    duration / 1_000_000, strategy, compressionRatio);
         });
     }
 
@@ -219,10 +216,10 @@ public class BatchProcessingPerformanceOptimizer {
         long totalBytes = totalBytesProcessed.get();
         int totalOps = totalOperationsProcessed.get();
         long totalTime = totalProcessingTimeNs.get();
-        
+
         double throughputMbps = totalTime > 0 ? (totalBytes * 8.0 / 1_000_000) / (totalTime / 1_000_000_000) : 0.0;
         double avgLatencyMs = totalOps > 0 ? (totalTime / 1_000_000.0) / totalOps : 0.0;
-        
+
         return new ComprehensivePerformanceMetrics(totalBytes, totalOps, totalTime, throughputMbps, avgLatencyMs);
     }
 
@@ -240,7 +237,8 @@ public class BatchProcessingPerformanceOptimizer {
     // Private helper methods
 
     /**
-     * Determines optimal I/O strategy based on file characteristics and system capabilities.
+     * Determines optimal I/O strategy based on file characteristics and system
+     * capabilities.
      */
     private IoStrategy determineOptimalIoStrategy(List<java.nio.file.Path> files) {
         if (files.size() > 10) {
@@ -255,11 +253,12 @@ public class BatchProcessingPerformanceOptimizer {
     }
 
     /**
-     * Determines optimal hashing strategy based on data characteristics and system capabilities.
+     * Determines optimal hashing strategy based on data characteristics and system
+     * capabilities.
      */
     private HashingStrategy determineOptimalHashingStrategy(List<byte[]> data) {
         long totalSize = data.stream().mapToLong(arr -> arr.length).sum();
-        
+
         if (totalSize > 1024 * 1024) {
             return HashingStrategy.SIMD_PARALLEL;
         } else if (data.size() > 50) {
@@ -291,7 +290,7 @@ public class BatchProcessingPerformanceOptimizer {
      */
     private CompressionStrategy determineOptimalCompressionStrategy(List<byte[]> data) {
         long totalSize = data.stream().mapToLong(arr -> arr.length).sum();
-        
+
         if (systemInfo.getAvailableProcessors() > 4 && totalSize > 10 * 1024 * 1024) {
             return CompressionStrategy.PARALLEL_COMPRESSION;
         } else if (data.size() > 100) {
@@ -305,29 +304,29 @@ public class BatchProcessingPerformanceOptimizer {
 
     // I/O optimization implementations
 
-    private <T> CompletableFuture<T> applyVectoredIo(List<java.nio.file.Path> files, 
-                                                Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
+    private <T> CompletableFuture<T> applyVectoredIo(List<java.nio.file.Path> files,
+            Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
         // Implementation for vectored I/O (simulated)
         logger.debug("Applying vectored I/O optimization");
         return operation.apply(files);
     }
 
-    private <T> CompletableFuture<T> applyMemoryMappedIo(List<java.nio.file.Path> files, 
-                                                     Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
+    private <T> CompletableFuture<T> applyMemoryMappedIo(List<java.nio.file.Path> files,
+            Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
         // Implementation for memory-mapped I/O (simulated)
         logger.debug("Applying memory-mapped I/O optimization");
         return operation.apply(files);
     }
 
-    private <T> CompletableFuture<T> applyParallelIo(List<java.nio.file.Path> files, 
-                                                  Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
+    private <T> CompletableFuture<T> applyParallelIo(List<java.nio.file.Path> files,
+            Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
         // Implementation for parallel I/O (simulated)
         logger.debug("Applying parallel I/O optimization");
         return operation.apply(files);
     }
 
-    private <T> CompletableFuture<T> applySequentialIo(List<java.nio.file.Path> files, 
-                                                   Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
+    private <T> CompletableFuture<T> applySequentialIo(List<java.nio.file.Path> files,
+            Function<List<java.nio.file.Path>, CompletableFuture<T>> operation) {
         // Implementation for sequential I/O (simulated)
         logger.debug("Applying sequential I/O optimization");
         return operation.apply(files);
@@ -365,28 +364,28 @@ public class BatchProcessingPerformanceOptimizer {
     // Storage optimization implementations
 
     private <T> CompletableFuture<T> applyTransactionalStorage(List<StorageOperation> operations,
-                                                        Function<List<StorageOperation>, CompletableFuture<T>> executor) {
+            Function<List<StorageOperation>, CompletableFuture<T>> executor) {
         // Implementation for transactional storage (simulated)
         logger.debug("Applying transactional storage optimization");
         return executor.apply(operations);
     }
 
     private <T> CompletableFuture<T> applyBatchWriteStorage(List<StorageOperation> operations,
-                                                        Function<List<StorageOperation>, CompletableFuture<T>> executor) {
+            Function<List<StorageOperation>, CompletableFuture<T>> executor) {
         // Implementation for batch write storage (simulated)
         logger.debug("Applying batch write storage optimization");
         return executor.apply(operations);
     }
 
     private <T> CompletableFuture<T> applyParallelStorage(List<StorageOperation> operations,
-                                                       Function<List<StorageOperation>, CompletableFuture<T>> executor) {
+            Function<List<StorageOperation>, CompletableFuture<T>> executor) {
         // Implementation for parallel storage (simulated)
         logger.debug("Applying parallel storage optimization");
         return executor.apply(operations);
     }
 
     private <T> CompletableFuture<T> applySequentialStorage(List<StorageOperation> operations,
-                                                        Function<List<StorageOperation>, CompletableFuture<T>> executor) {
+            Function<List<StorageOperation>, CompletableFuture<T>> executor) {
         // Implementation for sequential storage (simulated)
         logger.debug("Applying sequential storage optimization");
         return executor.apply(operations);
@@ -416,7 +415,8 @@ public class BatchProcessingPerformanceOptimizer {
         // Standard compression implementation
         return CompletableFuture.supplyAsync(() -> {
             return data.stream()
-                    .map(chunk -> new CompressedChunk(chunk, "compressed-" + chunk.hashCode())) // Simplified compression
+                    .map(chunk -> new CompressedChunk(chunk, "compressed-" + chunk.hashCode())) // Simplified
+                                                                                                // compression
                     .toList();
         });
     }
@@ -471,9 +471,17 @@ public class BatchProcessingPerformanceOptimizer {
             this.requiresTransaction = requiresTransaction;
         }
 
-        public String getOperation() { return operation; }
-        public byte[] getData() { return data; }
-        public boolean requiresTransaction() { return requiresTransaction; }
+        public String getOperation() {
+            return operation;
+        }
+
+        public byte[] getData() {
+            return data;
+        }
+
+        public boolean requiresTransaction() {
+            return requiresTransaction;
+        }
     }
 
     /**
@@ -490,9 +498,17 @@ public class BatchProcessingPerformanceOptimizer {
             this.compressionAlgorithm = compressionAlgorithm;
         }
 
-        public byte[] getOriginalData() { return originalData; }
-        public byte[] getCompressedData() { return compressedData; }
-        public String getCompressionAlgorithm() { return compressionAlgorithm; }
+        public byte[] getOriginalData() {
+            return originalData;
+        }
+
+        public byte[] getCompressedData() {
+            return compressedData;
+        }
+
+        public String getCompressionAlgorithm() {
+            return compressionAlgorithm;
+        }
     }
 
     /**
@@ -517,22 +533,34 @@ public class BatchProcessingPerformanceOptimizer {
             return new PerformanceMetrics(
                     operationType,
                     totalDurationNs + durationNs,
-                    totalOperations + operationCount
-            );
+                    totalOperations + operationCount);
         }
 
-        public String getOperationType() { return operationType; }
-        public long getTotalDurationNs() { return totalDurationNs; }
-        public int getTotalOperations() { return totalOperations; }
-        public double getAverageDurationNs() { return averageDurationNs; }
-        public long getTimestamp() { return timestamp; }
+        public String getOperationType() {
+            return operationType;
+        }
+
+        public long getTotalDurationNs() {
+            return totalDurationNs;
+        }
+
+        public int getTotalOperations() {
+            return totalOperations;
+        }
+
+        public double getAverageDurationNs() {
+            return averageDurationNs;
+        }
+
+        public long getTimestamp() {
+            return timestamp;
+        }
 
         @Override
         public String toString() {
             return String.format(
                     "PerformanceMetrics{type='%s', duration=%dms, operations=%d, avg=%.2fms}",
-                    operationType, totalDurationNs / 1_000_000, totalOperations, averageDurationNs / 1_000_000
-            );
+                    operationType, totalDurationNs / 1_000_000, totalOperations, averageDurationNs / 1_000_000);
         }
     }
 
@@ -547,7 +575,7 @@ public class BatchProcessingPerformanceOptimizer {
         private final double averageLatencyMs;
 
         public ComprehensivePerformanceMetrics(long totalBytesProcessed, int totalOperationsProcessed,
-                                       long totalProcessingTimeNs, double throughputMbps, double averageLatencyMs) {
+                long totalProcessingTimeNs, double throughputMbps, double averageLatencyMs) {
             this.totalBytesProcessed = totalBytesProcessed;
             this.totalOperationsProcessed = totalOperationsProcessed;
             this.totalProcessingTimeNs = totalProcessingTimeNs;
@@ -555,18 +583,31 @@ public class BatchProcessingPerformanceOptimizer {
             this.averageLatencyMs = averageLatencyMs;
         }
 
-        public long getTotalBytesProcessed() { return totalBytesProcessed; }
-        public int getTotalOperationsProcessed() { return totalOperationsProcessed; }
-        public long getTotalProcessingTimeNs() { return totalProcessingTimeNs; }
-        public double getThroughputMbps() { return throughputMbps; }
-        public double getAverageLatencyMs() { return averageLatencyMs; }
+        public long getTotalBytesProcessed() {
+            return totalBytesProcessed;
+        }
+
+        public int getTotalOperationsProcessed() {
+            return totalOperationsProcessed;
+        }
+
+        public long getTotalProcessingTimeNs() {
+            return totalProcessingTimeNs;
+        }
+
+        public double getThroughputMbps() {
+            return throughputMbps;
+        }
+
+        public double getAverageLatencyMs() {
+            return averageLatencyMs;
+        }
 
         @Override
         public String toString() {
             return String.format(
                     "PerformanceMetrics{bytes=%dMB, operations=%d, throughput=%.2fMbps, latency=%.2fms}",
-                    totalBytesProcessed / (1024 * 1024), totalOperationsProcessed, throughputMbps, averageLatencyMs
-            );
+                    totalBytesProcessed / (1024 * 1024), totalOperationsProcessed, throughputMbps, averageLatencyMs);
         }
     }
 }
