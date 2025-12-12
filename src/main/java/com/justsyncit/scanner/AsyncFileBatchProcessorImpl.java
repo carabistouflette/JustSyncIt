@@ -790,9 +790,9 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
             case RESOURCE_AWARE:
                 return executeResourceAwareBatch(batchId, files, options, startTime);
             case NVME_OPTIMIZED:
-                return executeNVMeOptimizedBatch(batchId, files, options, startTime);
+                return executeNvmeOptimizedBatch(batchId, files, options, startTime);
             case HDD_OPTIMIZED:
-                return executeHDDOptimizedBatch(batchId, files, options, startTime);
+                return executeHddOptimizedBatch(batchId, files, options, startTime);
             default:
                 return executeDefaultBatch(batchId, files, options, startTime);
         }
@@ -888,7 +888,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     /**
      * Executes NVMe-optimized batch processing.
      */
-    private BatchResult executeNVMeOptimizedBatch(String batchId, List<Path> files, BatchOptions options,
+    private BatchResult executeNvmeOptimizedBatch(String batchId, List<Path> files, BatchOptions options,
             Instant startTime) {
         // Optimize for NVMe with larger batches and parallel I/O
         Map<Path, BatchResult.FileProcessingResult> fileResults = new ConcurrentHashMap<>();
@@ -909,7 +909,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     /**
      * Executes HDD-optimized batch processing.
      */
-    private BatchResult executeHDDOptimizedBatch(String batchId, List<Path> files, BatchOptions options,
+    private BatchResult executeHddOptimizedBatch(String batchId, List<Path> files, BatchOptions options,
             Instant startTime) {
         // Optimize for HDD with sequential processing and larger batches
         Map<Path, BatchResult.FileProcessingResult> fileResults = new ConcurrentHashMap<>();

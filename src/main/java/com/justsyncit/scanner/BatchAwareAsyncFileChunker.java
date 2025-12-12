@@ -223,7 +223,7 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
         BatchOperation.ResourceRequirements requirements = new BatchOperation.ResourceRequirements(
                 calculateMemoryRequirement(file, options),
                 1, // 1 CPU core for chunking
-                (int) (calculateIORequirement(file, options) / (1024 * 1024)), // Convert to MB/s
+                (int) (calculateIoRequirement(file, options) / (1024 * 1024)), // Convert to MB/s
                 batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
         );
 
@@ -292,7 +292,7 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     /**
      * Calculates I/O requirement for chunking the file.
      */
-    private long calculateIORequirement(Path file, ChunkingOptions options) {
+    private long calculateIoRequirement(Path file, ChunkingOptions options) {
         try {
             long fileSize = java.nio.file.Files.size(file);
             // I/O requirement in bytes per second

@@ -121,7 +121,7 @@ public enum BatchOperationType {
      *
      * @return true if I/O intensive, false otherwise
      */
-    public boolean isIOIntensive() {
+    public boolean isIoIntensive() {
         return this == CHUNKING || this == STORAGE || this == TRANSFER
                 || this == COMPRESSION || this == RECOVERY;
     }
@@ -131,7 +131,7 @@ public enum BatchOperationType {
      *
      * @return true if CPU intensive, false otherwise
      */
-    public boolean isCPUIntensive() {
+    public boolean isCpuIntensive() {
         return this == HASHING || this == COMPRESSION || this == DEDUPLICATION;
     }
 
