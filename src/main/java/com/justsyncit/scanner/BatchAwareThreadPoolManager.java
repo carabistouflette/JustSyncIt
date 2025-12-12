@@ -411,12 +411,12 @@ public class BatchAwareThreadPoolManager {
             int active = activeBatchOperations.get();
 
             return String.format(
-                    "BatchAwareThreadPoolManager Stats\n" +
-                            "Delegate: %s\n" +
-                            "Total Tasks Submitted: %d\n" +
-                            "Total Tasks Completed: %d\n" +
-                            "Active Batch Operations: %d\n" +
-                            "Success Rate: %.2f%%",
+                    "BatchAwareThreadPoolManager Stats\n"
+                            + "Delegate: %s\n"
+                            + "Total Tasks Submitted: %d\n"
+                            + "Total Tasks Completed: %d\n"
+                            + "Active Batch Operations: %d\n"
+                            + "Success Rate: %.2f%%",
                     delegateStats.toString(), submitted, completed, active,
                     submitted > 0 ? (completed * 100.0 / submitted) : 0.0);
         });

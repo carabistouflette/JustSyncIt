@@ -87,8 +87,8 @@ public class BatchProcessingStats {
      * Records the completion of a batch operation.
      *
      * @param processingTimeMs time taken to process the batch
-     * @param filesProcessed number of files processed in the batch
-     * @param bytesProcessed total bytes processed in the batch
+     * @param filesProcessed   number of files processed in the batch
+     * @param bytesProcessed   total bytes processed in the batch
      */
     public void recordBatchCompletion(long processingTimeMs, int filesProcessed, long bytesProcessed) {
         activeBatchOperations.decrementAndGet();
@@ -101,7 +101,7 @@ public class BatchProcessingStats {
     /**
      * Records a successful file operation.
      *
-     * @param fileSize size of the file processed
+     * @param fileSize         size of the file processed
      * @param processingTimeMs time taken to process the file
      */
     public void recordSuccessfulFileOperation(long fileSize, long processingTimeMs) {
@@ -114,7 +114,7 @@ public class BatchProcessingStats {
     /**
      * Records a failed file operation.
      *
-     * @param fileSize size of the file that failed
+     * @param fileSize         size of the file that failed
      * @param processingTimeMs time taken before failure
      */
     public void recordFailedFileOperation(long fileSize, long processingTimeMs) {
@@ -309,9 +309,9 @@ public class BatchProcessingStats {
     @Override
     public String toString() {
         return String.format(
-                "BatchProcessingStats{batches=%d, files=%d, successful=%d, failed=%d, " +
-                "bytes=%dMB, time=%ds, avgBatchTime=%.1fms, avgFileTime=%.1fms, " +
-                "successRate=%.2f%%, throughput=%.2fMB/s, activeBatches=%d, activeFiles=%d}",
+                "BatchProcessingStats{batches=%d, files=%d, successful=%d, failed=%d, "
+                        + "bytes=%dMB, time=%ds, avgBatchTime=%.1fms, avgFileTime=%.1fms, "
+                        + "successRate=%.2f%%, throughput=%.2fMB/s, activeBatches=%d, activeFiles=%d}",
                 getTotalBatchesProcessed(), getTotalFilesProcessed(),
                 getSuccessfulFileOperations(), getFailedFileOperations(),
                 getTotalBytesProcessed() / (1024 * 1024),
@@ -320,8 +320,7 @@ public class BatchProcessingStats {
                 getAverageProcessingTimePerFileMs(),
                 getSuccessRate(),
                 getThroughputMBps(),
-                getActiveBatchOperations(), getActiveFileOperations()
-        );
+                getActiveBatchOperations(), getActiveFileOperations());
     }
 
     /**
@@ -343,8 +342,7 @@ public class BatchProcessingStats {
                 getPeakConcurrentFileOps(),
                 getSuccessRate(),
                 getThroughputMBps(),
-                getUptimeMs()
-        );
+                getUptimeMs());
     }
 
     /**
@@ -366,11 +364,11 @@ public class BatchProcessingStats {
         public final long uptimeMs;
 
         public BatchProcessingStatsSnapshot(long totalBatchesProcessed, long totalFilesProcessed,
-                                      long successfulFileOperations, long failedFileOperations,
-                                      long totalBytesProcessed, long totalProcessingTimeMs,
-                                      int activeBatchOperations, int activeFileOperations,
-                                      int peakConcurrentBatches, int peakConcurrentFileOps,
-                                      double successRate, double throughputMBps, long uptimeMs) {
+                long successfulFileOperations, long failedFileOperations,
+                long totalBytesProcessed, long totalProcessingTimeMs,
+                int activeBatchOperations, int activeFileOperations,
+                int peakConcurrentBatches, int peakConcurrentFileOps,
+                double successRate, double throughputMBps, long uptimeMs) {
             this.totalBatchesProcessed = totalBatchesProcessed;
             this.totalFilesProcessed = totalFilesProcessed;
             this.successfulFileOperations = successfulFileOperations;
@@ -389,11 +387,10 @@ public class BatchProcessingStats {
         @Override
         public String toString() {
             return String.format(
-                        "BatchProcessingStatsSnapshot{batches=%d, files=%d, successRate=%.2f%%, " +
-                        "throughput=%.2fMB/s, uptime=%ds}",
-                        totalBatchesProcessed, totalFilesProcessed, successRate * 100,
-                        throughputMBps, uptimeMs / 1000
-            );
+                    "BatchProcessingStatsSnapshot{batches=%d, files=%d, successRate=%.2f%%, "
+                            + "throughput=%.2fMB/s, uptime=%ds}",
+                    totalBatchesProcessed, totalFilesProcessed, successRate * 100,
+                    throughputMBps, uptimeMs / 1000);
         }
     }
 }

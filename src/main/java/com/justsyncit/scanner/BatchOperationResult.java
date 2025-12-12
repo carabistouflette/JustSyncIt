@@ -276,15 +276,15 @@ public class BatchOperationResult {
     public String toString() {
         if (success) {
             return String.format(
-                    "BatchOperationResult{id='%s', type=%s, success=true, time=%dms, " +
-                            "files=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
+                    "BatchOperationResult{id='%s', type=%s, success=true, time=%dms, "
+                            + "files=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
                     operationId, operationType, processingTimeMs,
                     filesProcessed, filesFailed, bytesProcessed / (1024 * 1024),
                     getThroughputMBps());
         } else {
             return String.format(
-                    "BatchOperationResult{id='%s', type=%s, success=false, time=%dms, " +
-                            "error='%s'}",
+                    "BatchOperationResult{id='%s', type=%s, success=false, time=%dms, "
+                            + "error='%s'}",
                     operationId, operationType, processingTimeMs,
                     error != null ? error.getMessage() : "Unknown");
         }

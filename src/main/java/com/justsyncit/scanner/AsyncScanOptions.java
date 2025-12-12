@@ -505,10 +505,10 @@ public class AsyncScanOptions extends ScanOptions {
     @Override
     public String toString() {
         return String.format(
-                "AsyncScanOptions{parallelism=%d, batchSize=%d, streaming=%b, watchService=%b, " +
-                        "recursiveWatching=%b, eventDebouncing=%b, backpressureThreshold=%.2f, " +
-                        "adaptiveSizing=%b, memoryLimit=%d bytes, maxConcurrentFileOps=%d, " +
-                        "prefetching=%b, numaAware=%b, zeroCopy=%b, progressMonitoring=%b}",
+                "AsyncScanOptions{parallelism=%d, batchSize=%d, streaming=%b, watchService=%b, "
+                        + "recursiveWatching=%b, eventDebouncing=%b, backpressureThreshold=%.2f, "
+                        + "adaptiveSizing=%b, memoryLimit=%d bytes, maxConcurrentFileOps=%d, "
+                        + "prefetching=%b, numaAware=%b, zeroCopy=%b, progressMonitoring=%b}",
                 parallelism, batchSize, streamingEnabled, watchServiceEnabled,
                 recursiveWatching, eventDebouncingEnabled, backpressureThreshold,
                 adaptiveSizingEnabled, memoryLimitBytes, maxConcurrentFileOps,

@@ -149,10 +149,10 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
         return delegate.getStatsAsync()
                 .thenCombine(CompletableFuture.completedFuture("Batch processor stats available"),
                         (chunkerStats, batchStats) -> String.format(
-                                "BatchAwareAsyncFileChunker Stats\n" +
-                                        "Chunker: %s\n" +
-                                        "Batch: %s\n" +
-                                        "Active Batch Operations: %d",
+                                "BatchAwareAsyncFileChunker Stats\n"
+                                        + "Chunker: %s\n"
+                                        + "Batch: %s\n"
+                                        + "Active Batch Operations: %d",
                                 chunkerStats, batchStats, activeBatchOperations.get()));
     }
 

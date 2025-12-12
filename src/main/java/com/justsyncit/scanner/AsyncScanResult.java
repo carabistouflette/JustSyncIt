@@ -63,29 +63,29 @@ public class AsyncScanResult extends ScanResult {
     /**
      * Creates a new AsyncScanResult.
      *
-     * @param scanId unique identifier for this scan
-     * @param rootDirectory the root directory that was scanned
-     * @param scannedFiles list of successfully scanned files
-     * @param errors list of errors that occurred
-     * @param startTime when the scan started
-     * @param endTime when the scan completed
-     * @param metadata additional scan metadata
-     * @param threadCount number of threads used
-     * @param throughput average throughput in files per second
-     * @param peakMemoryUsage peak memory usage in bytes
-     * @param directoriesScanned number of directories scanned
+     * @param scanId                   unique identifier for this scan
+     * @param rootDirectory            the root directory that was scanned
+     * @param scannedFiles             list of successfully scanned files
+     * @param errors                   list of errors that occurred
+     * @param startTime                when the scan started
+     * @param endTime                  when the scan completed
+     * @param metadata                 additional scan metadata
+     * @param threadCount              number of threads used
+     * @param throughput               average throughput in files per second
+     * @param peakMemoryUsage          peak memory usage in bytes
+     * @param directoriesScanned       number of directories scanned
      * @param symbolicLinksEncountered number of symbolic links encountered
-     * @param sparseFilesDetected number of sparse files detected
-     * @param backpressureEvents backpressure events encountered
-     * @param wasCancelled whether the scan was cancelled
-     * @param asyncMetadata async-specific metadata
+     * @param sparseFilesDetected      number of sparse files detected
+     * @param backpressureEvents       backpressure events encountered
+     * @param wasCancelled             whether the scan was cancelled
+     * @param asyncMetadata            async-specific metadata
      */
     public AsyncScanResult(String scanId, Path rootDirectory, List<ScannedFile> scannedFiles,
-                         List<ScanError> errors, Instant startTime, Instant endTime,
-                         Map<String, Object> metadata, int threadCount, double throughput,
-                         long peakMemoryUsage, long directoriesScanned, long symbolicLinksEncountered,
-                         long sparseFilesDetected, long backpressureEvents, boolean wasCancelled,
-                         Map<String, Object> asyncMetadata) {
+            List<ScanError> errors, Instant startTime, Instant endTime,
+            Map<String, Object> metadata, int threadCount, double throughput,
+            long peakMemoryUsage, long directoriesScanned, long symbolicLinksEncountered,
+            long sparseFilesDetected, long backpressureEvents, boolean wasCancelled,
+            Map<String, Object> asyncMetadata) {
         super(rootDirectory, scannedFiles, errors, startTime, endTime, metadata);
         this.scanId = scanId;
         this.threadCount = threadCount;
@@ -245,7 +245,8 @@ public class AsyncScanResult extends ScanResult {
      */
     private String toCsv() {
         StringBuilder csv = new StringBuilder();
-        csv.append("scanId,rootDirectory,startTime,endTime,durationMillis,scannedFileCount,errorCount,totalSize,threadCount,throughput,peakMemoryUsage,directoriesScanned,symbolicLinksEncountered,sparseFilesDetected,backpressureEvents,wasCancelled\n");
+        csv.append(
+                "scanId,rootDirectory,startTime,endTime,durationMillis,scannedFileCount,errorCount,totalSize,threadCount,throughput,peakMemoryUsage,directoriesScanned,symbolicLinksEncountered,sparseFilesDetected,backpressureEvents,wasCancelled\n");
         csv.append(scanId).append(",");
         csv.append(getRootDirectory()).append(",");
         csv.append(getStartTime()).append(",");
@@ -286,7 +287,8 @@ public class AsyncScanResult extends ScanResult {
         xml.append("  <throughput>").append(throughput).append("</throughput>\n");
         xml.append("  <peakMemoryUsage>").append(peakMemoryUsage).append("</peakMemoryUsage>\n");
         xml.append("  <directoriesScanned>").append(directoriesScanned).append("</directoriesScanned>\n");
-        xml.append("  <symbolicLinksEncountered>").append(symbolicLinksEncountered).append("</symbolicLinksEncountered>\n");
+        xml.append("  <symbolicLinksEncountered>").append(symbolicLinksEncountered)
+                .append("</symbolicLinksEncountered>\n");
         xml.append("  <sparseFilesDetected>").append(sparseFilesDetected).append("</sparseFilesDetected>\n");
         xml.append("  <backpressureEvents>").append(backpressureEvents).append("</backpressureEvents>\n");
         xml.append("  <wasCancelled>").append(wasCancelled).append("</wasCancelled>\n");
@@ -297,13 +299,12 @@ public class AsyncScanResult extends ScanResult {
     @Override
     public String toString() {
         return String.format(
-            "AsyncScanResult{scanId='%s', rootDirectory=%s, scannedFiles=%d, errors=%d, " +
-            "duration=%dms, threadCount=%d, throughput=%.2f files/sec, peakMemory=%d bytes, " +
-            "directories=%d, symlinks=%d, sparseFiles=%d, backpressure=%d, cancelled=%b}",
-            scanId, getRootDirectory(), getScannedFileCount(), getErrorCount(),
-            getDurationMillis(), threadCount, throughput, peakMemoryUsage,
-            directoriesScanned, symbolicLinksEncountered, sparseFilesDetected,
-            backpressureEvents, wasCancelled
-        );
+                "AsyncScanResult{scanId='%s', rootDirectory=%s, scannedFiles=%d, errors=%d, "
+                        + "duration=%dms, threadCount=%d, throughput=%.2f files/sec, peakMemory=%d bytes, "
+                        + "directories=%d, symlinks=%d, sparseFiles=%d, backpressure=%d, cancelled=%b}",
+                scanId, getRootDirectory(), getScannedFileCount(), getErrorCount(),
+                getDurationMillis(), threadCount, throughput, peakMemoryUsage,
+                directoriesScanned, symbolicLinksEncountered, sparseFilesDetected,
+                backpressureEvents, wasCancelled);
     }
 }

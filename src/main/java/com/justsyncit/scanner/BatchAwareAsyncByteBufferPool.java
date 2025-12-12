@@ -184,11 +184,11 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                     int active = activeBatchOperations.get();
 
                     return String.format(
-                            "BatchAwareAsyncByteBufferPool Stats\n" +
-                                    "Total Allocated: %d\n" +
-                                    "Total Released: %d\n" +
-                                    "Active Batch Operations: %d\n" +
-                                    "Net Buffers: %d",
+                            "BatchAwareAsyncByteBufferPool Stats\n"
+                                    + "Total Allocated: %d\n"
+                                    + "Total Released: %d\n"
+                                    + "Active Batch Operations: %d\n"
+                                    + "Net Buffers: %d",
                             allocated, released, active, allocated - released);
                 }), (delegateStats, batchStats) -> delegateStats + "\n" + batchStats);
     }
