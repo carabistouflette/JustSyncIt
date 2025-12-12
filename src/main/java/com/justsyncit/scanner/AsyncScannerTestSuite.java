@@ -248,10 +248,8 @@ public class AsyncScannerTestSuite {
 
         public boolean meetsTargets(TestConfiguration config) {
             return throughputFilesPerSec >= config.getPerformanceTargetThroughputFilesPerSec()
-                &&
-                    averageLatencyMs <= config.getPerformanceTargetLatencyMs()
-                &&
-                    memoryEfficiency >= config.getPerformanceTargetMemoryEfficiency();
+                    && averageLatencyMs <= config.getPerformanceTargetLatencyMs()
+                    && memoryEfficiency >= config.getPerformanceTargetMemoryEfficiency();
         }
 
         @Override
@@ -652,8 +650,8 @@ public class AsyncScannerTestSuite {
             long endTime = System.currentTimeMillis();
 
             long durationMs = endTime - startTime;
-            boolean passed = durationMs <= (config.getStressTestDurationMinutes() + 2) * 60 * 1000; // Allow 2 minute
-                                                                                                    // buffer
+            // Allow 2 minute buffer
+            boolean passed = durationMs <= (config.getStressTestDurationMinutes() + 2) * 60 * 1000;
 
             results.recordTest(testName, passed, passed ? null : "High concurrency stress test failed");
 

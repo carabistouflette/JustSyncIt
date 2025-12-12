@@ -203,13 +203,12 @@ public class ResourceCoordinator {
      */
     public ResourceStats getResourceStats() {
         return new ResourceStats(
-            activeThreads.get(),
-            totalMemoryAllocated.get(),
-            totalCpuTime.get(),
-            resourceConflicts.get(),
-            calculateMemoryUsageRatio(),
-            calculateCpuUsageRatio()
-        );
+                activeThreads.get(),
+                totalMemoryAllocated.get(),
+                totalCpuTime.get(),
+                resourceConflicts.get(),
+                calculateMemoryUsageRatio(),
+                calculateCpuUsageRatio());
     }
 
     /**
@@ -224,7 +223,7 @@ public class ResourceCoordinator {
         public final double cpuUsageRatio;
 
         ResourceStats(int activeThreads, long totalMemoryAllocated, long totalCpuTime,
-                     int resourceConflicts, double memoryUsageRatio, double cpuUsageRatio) {
+                int resourceConflicts, double memoryUsageRatio, double cpuUsageRatio) {
             this.activeThreads = activeThreads;
             this.totalMemoryAllocated = totalMemoryAllocated;
             this.totalCpuTime = totalCpuTime;
@@ -236,11 +235,10 @@ public class ResourceCoordinator {
         @Override
         public String toString() {
             return String.format(
-                    "ResourceStats{activeThreads=%d, memoryAllocated=%dMB, cpuTime=%ds, " +
-                    "conflicts=%d, memoryUsage=%.2f%%, cpuUsage=%.2f%%}",
+                    "ResourceStats{activeThreads=%d, memoryAllocated=%dMB, cpuTime=%ds, "
+                            + "conflicts=%d, memoryUsage=%.2f%%, cpuUsage=%.2f%%}",
                     activeThreads, totalMemoryAllocated / 1024 / 1024, totalCpuTime / 1000000000,
-                    resourceConflicts, memoryUsageRatio * 100, cpuUsageRatio * 100
-            );
+                    resourceConflicts, memoryUsageRatio * 100, cpuUsageRatio * 100);
         }
     }
 

@@ -28,7 +28,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Validation utility for async directory scanning implementation.
- * Validates that all components are properly integrated and performance targets are met.
+ * Validates that all components are properly integrated and performance targets
+ * are met.
  */
 public class AsyncDirectoryScanningValidation {
 
@@ -126,7 +127,7 @@ public class AsyncDirectoryScanningValidation {
             AsyncScanOptions options = new AsyncScanOptions().withParallelism(2);
 
             AsyncScanResult scanResult = scanner.scanDirectoryAsync(testPath, options)
-                .get(30, TimeUnit.SECONDS);
+                    .get(30, TimeUnit.SECONDS);
 
             result.addSuccess("Async scanning completed successfully");
             result.addMetric("Files scanned", scanResult.getScannedFileCount());
@@ -135,7 +136,7 @@ public class AsyncDirectoryScanningValidation {
 
             // Test parallel scanning
             AsyncScanResult parallelResult = scanner.scanDirectoryParallel(testPath, options, 4)
-                .get(30, TimeUnit.SECONDS);
+                    .get(30, TimeUnit.SECONDS);
 
             result.addSuccess("Parallel scanning completed successfully");
             result.addMetric("Parallel throughput", parallelResult.getThroughput());
@@ -157,14 +158,14 @@ public class AsyncDirectoryScanningValidation {
             ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
             AsyncByteBufferPool bufferPool = AsyncByteBufferPoolImpl.create(1024 * 1024, 4);
             AsyncScanOptions options = new AsyncScanOptions();
-            AsyncWatchServiceManager watchManager = new AsyncWatchServiceManager(threadPoolManager, bufferPool, options);
+            AsyncWatchServiceManager watchManager = new AsyncWatchServiceManager(threadPoolManager, bufferPool,
+                    options);
 
             // Test watch service creation
             result.addSuccess("AsyncWatchServiceManager created successfully");
 
             // Test event processing
-            AsyncFileEventProcessor.EventProcessorConfig eventConfig =
-                new AsyncFileEventProcessor.EventProcessorConfig()
+            AsyncFileEventProcessor.EventProcessorConfig eventConfig = new AsyncFileEventProcessor.EventProcessorConfig()
                     .withThreadPoolSize(2)
                     .withBatchSize(10)
                     .withDebounceDelay(100);
@@ -190,8 +191,7 @@ public class AsyncDirectoryScanningValidation {
      */
     private static void validateEventProcessing(ValidationResult result) {
         try {
-            AsyncFileEventProcessor.EventProcessorConfig eventConfig =
-                new AsyncFileEventProcessor.EventProcessorConfig()
+            AsyncFileEventProcessor.EventProcessorConfig eventConfig = new AsyncFileEventProcessor.EventProcessorConfig()
                     .withThreadPoolSize(2)
                     .withBatchSize(5)
                     .withDebounceDelay(50);
@@ -200,17 +200,16 @@ public class AsyncDirectoryScanningValidation {
 
             // Test event processing
             FileChangeEvent testEvent = FileChangeEvent.createEntryCreate(
-                Paths.get("test-file.txt"), "test-registration");
+                    Paths.get("test-file.txt"), "test-registration");
 
             eventProcessor.processEventAsync(testEvent).get(5, TimeUnit.SECONDS);
             result.addSuccess("Single event processing completed");
 
             // Test batch processing
             java.util.List<FileChangeEvent> events = java.util.Arrays.asList(
-                FileChangeEvent.createEntryCreate(Paths.get("test1.txt"), "test"),
-                FileChangeEvent.createEntryModify(Paths.get("test2.txt"), "test"),
-                FileChangeEvent.createEntryDelete(Paths.get("test3.txt"), "test")
-            );
+                    FileChangeEvent.createEntryCreate(Paths.get("test1.txt"), "test"),
+                    FileChangeEvent.createEntryModify(Paths.get("test2.txt"), "test"),
+                    FileChangeEvent.createEntryDelete(Paths.get("test3.txt"), "test"));
 
             eventProcessor.processEventsAsync(events).get(5, TimeUnit.SECONDS);
             result.addSuccess("Batch event processing completed");
@@ -231,7 +230,8 @@ public class AsyncDirectoryScanningValidation {
             // Test optimizer creation
             ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
             PerformanceMonitor performanceMonitor = new PerformanceMonitor();
-            AsyncDirectoryScanningOptimizer optimizer = new AsyncDirectoryScanningOptimizer(threadPoolManager, performanceMonitor);
+            AsyncDirectoryScanningOptimizer optimizer = new AsyncDirectoryScanningOptimizer(threadPoolManager,
+                    performanceMonitor);
             result.addSuccess("AsyncDirectoryScanningOptimizer created successfully");
 
             // Test optimization features
@@ -289,8 +289,7 @@ public class AsyncDirectoryScanningValidation {
         try {
             // Test integration creation
             ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
-            AsyncScannerIntegration.IntegrationConfig integrationConfig =
-                new AsyncScannerIntegration.IntegrationConfig()
+            AsyncScannerIntegration.IntegrationConfig integrationConfig = new AsyncScannerIntegration.IntegrationConfig()
                     .withMaxConcurrentScans(4)
                     .withChunkSize(64 * 1024)
                     .withBufferSize(1024 * 1024)
@@ -323,8 +322,7 @@ public class AsyncDirectoryScanningValidation {
     private static void validateTestSuite(ValidationResult result) {
         try {
             // Test suite creation
-            AsyncScannerTestSuite.TestConfiguration testConfig =
-                new AsyncScannerTestSuite.TestConfiguration()
+            AsyncScannerTestSuite.TestConfiguration testConfig = new AsyncScannerTestSuite.TestConfiguration()
                     .withMaxDirectories(10)
                     .withMaxFilesPerDirectory(5)
                     .withPerformanceTargets(100, 50, 0.7)
@@ -336,7 +334,7 @@ public class AsyncDirectoryScanningValidation {
             // Test configuration validation
             result.addMetric("Test directories configured", testConfig.getMaxDirectories());
             result.addMetric("Performance targets set",
-                testConfig.getPerformanceTargetThroughputFilesPerSec());
+                    testConfig.getPerformanceTargetThroughputFilesPerSec());
 
             result.addSuccess("Test suite validation completed");
 
@@ -370,8 +368,8 @@ public class AsyncDirectoryScanningValidation {
             // Overall success if no critical errors and at least 80% of tests passed
             int totalTests = successes.size() + errors.size();
             overallSuccess = errors.isEmpty()
-                &&
-                           (totalTests == 0 || (double) successes.size() / totalTests >= 0.8);
+                    &&
+                    (totalTests == 0 || (double) successes.size() / totalTests >= 0.8);
         }
 
         public boolean isOverallSuccess() {
@@ -393,9 +391,8 @@ public class AsyncDirectoryScanningValidation {
         @Override
         public String toString() {
             return String.format(
-                "ValidationResult{overallSuccess=%b, successes=%d, errors=%d, metrics=%d}",
-                overallSuccess, successes.size(), errors.size(), metrics.size()
-            );
+                    "ValidationResult{overallSuccess=%b, successes=%d, errors=%d, metrics=%d}",
+                    overallSuccess, successes.size(), errors.size(), metrics.size());
         }
     }
 
@@ -422,8 +419,7 @@ public class AsyncDirectoryScanningValidation {
             }
 
             System.out.println("\n=== Metrics ===");
-            result.getMetrics().forEach((key, value) ->
-                System.out.println(key + ": " + value));
+            result.getMetrics().forEach((key, value) -> System.out.println(key + ": " + value));
 
             System.exit(result.isOverallSuccess() ? 0 : 1);
 

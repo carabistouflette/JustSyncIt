@@ -519,8 +519,7 @@ public class AsyncFileEventProcessor {
             synchronized (debounceMap) {
                 Instant lastEventTime = debounceMap.get(eventKey);
                 if (lastEventTime != null
-                &&
-                        now.toEpochMilli() - lastEventTime.toEpochMilli() < debounceDelayMs) {
+                        && now.toEpochMilli() - lastEventTime.toEpochMilli() < debounceDelayMs) {
                     stats.incrementDebounced();
                     return false;
                 }

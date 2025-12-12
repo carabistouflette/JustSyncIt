@@ -34,7 +34,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Command for verifying the integrity of a snapshot.
- * Follows Single Responsibility Principle by handling only snapshot verification operations.
+ * Follows Single Responsibility Principle by handling only snapshot
+ * verification operations.
  */
 public class SnapshotsVerifyCommand implements Command {
 
@@ -46,7 +47,7 @@ public class SnapshotsVerifyCommand implements Command {
      * Creates a snapshots verify command with dependency injection.
      *
      * @param metadataService metadata service (may be null for lazy initialization)
-     * @param blake3Service BLAKE3 service (may be null for lazy initialization)
+     * @param blake3Service   BLAKE3 service (may be null for lazy initialization)
      */
     public SnapshotsVerifyCommand(MetadataService metadataService, Blake3Service blake3Service) {
         this.metadataService = metadataService;
@@ -233,7 +234,7 @@ public class SnapshotsVerifyCommand implements Command {
                 if (showProgress && !quiet && (i % 10 == 0 || i == files.size() - 1)) {
                     double progress = (i + 1) * 100.0 / files.size();
                     System.out.printf("\rProgress: %d/%d files (%.1f%%)",
-                        i + 1, files.size(), progress);
+                            i + 1, files.size(), progress);
                     System.out.flush();
                 }
 
@@ -270,7 +271,8 @@ public class SnapshotsVerifyCommand implements Command {
                                 // Validate chunk hash
                                 if (chunkHash == null || chunkHash.isEmpty()) {
                                     if (!quiet) {
-                                        System.out.println("\nWarning: Encountered null or empty chunk hash in file: " + file.getPath());
+                                        System.out.println("\nWarning: Encountered null or empty chunk hash in file: "
+                                                + file.getPath());
                                     }
                                     chunksWithErrors.incrementAndGet();
                                     errors.incrementAndGet();
@@ -284,7 +286,8 @@ public class SnapshotsVerifyCommand implements Command {
                                 // The retrieveChunk method already verifies integrity
                                 try {
                                     if (contentStore.existsChunk(chunkHash)) {
-                                        // Verify chunk integrity by retrieving it - the retrieveChunk method verifies the hash
+                                        // Verify chunk integrity by retrieving it - the retrieveChunk method verifies
+                                        // the hash
                                         // We don't need to store the data since retrieval itself verifies integrity
                                         contentStore.retrieveChunk(chunkHash);
                                         // If we get here without exception, chunk integrity is verified
@@ -294,7 +297,8 @@ public class SnapshotsVerifyCommand implements Command {
                                         fileIntegrityOk = false;
 
                                         if (!quiet) {
-                                            System.out.println("\nChunk not found: " + chunkHash + " (file: " + file.getPath() + ")");
+                                            System.out.println("\nChunk not found: " + chunkHash + " (file: "
+                                                    + file.getPath() + ")");
                                         }
                                     }
                                 } catch (IOException e) {
@@ -303,7 +307,8 @@ public class SnapshotsVerifyCommand implements Command {
                                     fileIntegrityOk = false;
 
                                     if (!quiet) {
-                                        System.out.println("\nChunk integrity error: " + chunkHash + " (file: " + file.getPath() + ") - " + e.getMessage());
+                                        System.out.println("\nChunk integrity error: " + chunkHash + " (file: "
+                                                + file.getPath() + ") - " + e.getMessage());
                                     }
                                 } catch (Exception e) {
                                     chunksWithErrors.incrementAndGet();
@@ -311,7 +316,8 @@ public class SnapshotsVerifyCommand implements Command {
                                     fileIntegrityOk = false;
 
                                     if (!quiet) {
-                                        System.out.println("\nUnexpected chunk error: " + chunkHash + " (file: " + file.getPath() + ") - " + e.getMessage());
+                                        System.out.println("\nUnexpected chunk error: " + chunkHash + " (file: "
+                                                + file.getPath() + ") - " + e.getMessage());
                                     }
                                 }
                             }
@@ -384,7 +390,8 @@ public class SnapshotsVerifyCommand implements Command {
                     System.err.println("Warning: Failed to close content store: " + e.getMessage());
                 }
             }
-            // Clean up Blake3Service if we created it (though it typically doesn't need explicit cleanup)
+            // Clean up Blake3Service if we created it (though it typically doesn't need
+            // explicit cleanup)
             if (createdBlake3Service && blake3Service != null) {
                 try {
                     // Blake3Service doesn't have a close method, but we track it for consistency
@@ -434,10 +441,11 @@ public class SnapshotsVerifyCommand implements Command {
     }
 
     /**
-     * Verifies the file hash by reconstructing the file from chunks and computing its hash.
+     * Verifies the file hash by reconstructing the file from chunks and computing
+     * its hash.
      *
-     * @param file the file metadata to verify
-     * @param contentStore the content store to retrieve chunks from
+     * @param file          the file metadata to verify
+     * @param contentStore  the content store to retrieve chunks from
      * @param blake3Service the BLAKE3 service for hashing
      * @return true if the file hash is valid, false otherwise
      */

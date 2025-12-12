@@ -270,8 +270,8 @@ public class WatchServiceRegistration {
      */
     public String createSummary() {
         return String.format(
-                "WatchServiceRegistration{id='%s', directory='%s', events=%d, errors=%d, " +
-                        "duration=%dms, rate=%.2f events/sec, active=%b}",
+                "WatchServiceRegistration{id='%s', directory='%s', events=%d, errors=%d, "
+                        + "duration=%dms, rate=%.2f events/sec, active=%b}",
                 registrationId, monitoredDirectory, eventsProcessed.get(), errorsEncountered.get(),
                 getRegistrationDurationMs(), getAverageEventRate(), isActive());
     }

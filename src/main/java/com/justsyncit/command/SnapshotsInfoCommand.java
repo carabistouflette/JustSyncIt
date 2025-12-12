@@ -285,8 +285,8 @@ public class SnapshotsInfoCommand implements Command {
         System.out.println("Regular Files: " + totalRegularFiles);
         System.out.println("Directories: " + totalDirectories);
         System.out.println("Symbolic Links: " + totalSymlinks);
-        System.out.println("Average File Size: " +
-                (totalRegularFiles > 0 ? formatFileSize(totalSize / totalRegularFiles) : "0 B"));
+        System.out.println("Average File Size: "
+                + (totalRegularFiles > 0 ? formatFileSize(totalSize / totalRegularFiles) : "0 B"));
 
         if (!largestFile.isEmpty()) {
             System.out.println("Largest File: " + largestFile + " (" + formatFileSize(maxFileSize) + ")");

@@ -90,7 +90,7 @@ public enum BatchOperationType {
     /**
      * Creates a new BatchOperationType.
      *
-     * @param name operation type name
+     * @param name        operation type name
      * @param description operation type description
      */
     BatchOperationType(String name, String description) {
@@ -122,8 +122,8 @@ public enum BatchOperationType {
      * @return true if I/O intensive, false otherwise
      */
     public boolean isIOIntensive() {
-        return this == CHUNKING || this == STORAGE || this == TRANSFER ||
-               this == COMPRESSION || this == RECOVERY;
+        return this == CHUNKING || this == STORAGE || this == TRANSFER
+                || this == COMPRESSION || this == RECOVERY;
     }
 
     /**

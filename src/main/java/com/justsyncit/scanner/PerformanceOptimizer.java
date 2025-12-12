@@ -29,7 +29,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Optimizes performance for async directory scanning operations.
- * Provides adaptive sizing, memory management, and system resource optimization.
+ * Provides adaptive sizing, memory management, and system resource
+ * optimization.
  */
 public class PerformanceOptimizer {
 
@@ -107,8 +108,9 @@ public class PerformanceOptimizer {
             lastOptimizationTime.set(System.currentTimeMillis());
             optimizationCount.incrementAndGet();
 
-            logger.debug("Performance optimization completed: threads={}, bufferSize={}, memoryPressure={:.2f}, cpuLoad={:.2f}",
-                newThreadCount, newBufferSize, memoryPressure, cpuLoad);
+            logger.debug(
+                    "Performance optimization completed: threads={}, bufferSize={}, memoryPressure={:.2f}, cpuLoad={:.2f}",
+                    newThreadCount, newBufferSize, memoryPressure, cpuLoad);
 
         } catch (Exception e) {
             logger.warn("Performance optimization failed", e);
@@ -186,7 +188,7 @@ public class PerformanceOptimizer {
      * Calculates the optimal thread count based on system load.
      *
      * @param memoryPressure current memory pressure
-     * @param cpuLoad current CPU load
+     * @param cpuLoad        current CPU load
      * @return optimal thread count
      */
     private int calculateOptimalThreadCount(double memoryPressure, double cpuLoad) {
@@ -253,10 +255,9 @@ public class PerformanceOptimizer {
      */
     public String getSummary() {
         return String.format(
-            "PerformanceOptimizer{threads=%d, bufferSize=%dKB, optimizations=%d, lastOpt=%dms ago}",
-            getOptimalThreadCount(), getOptimalBufferSize() / 1024, getOptimizationCount(),
-            System.currentTimeMillis() - getLastOptimizationTime()
-        );
+                "PerformanceOptimizer{threads=%d, bufferSize=%dKB, optimizations=%d, lastOpt=%dms ago}",
+                getOptimalThreadCount(), getOptimalBufferSize() / 1024, getOptimizationCount(),
+                System.currentTimeMillis() - getLastOptimizationTime());
     }
 
     @Override

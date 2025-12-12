@@ -245,8 +245,10 @@ public class AsyncScanResult extends ScanResult {
      */
     private String toCsv() {
         StringBuilder csv = new StringBuilder();
-        csv.append(
-                "scanId,rootDirectory,startTime,endTime,durationMillis,scannedFileCount,errorCount,totalSize,threadCount,throughput,peakMemoryUsage,directoriesScanned,symbolicLinksEncountered,sparseFilesDetected,backpressureEvents,wasCancelled\n");
+        csv.append("scanId,rootDirectory,startTime,endTime,durationMillis,")
+                .append("scannedFileCount,errorCount,totalSize,threadCount,throughput,")
+                .append("peakMemoryUsage,directoriesScanned,symbolicLinksEncountered,")
+                .append("sparseFilesDetected,backpressureEvents,wasCancelled\n");
         csv.append(scanId).append(",");
         csv.append(getRootDirectory()).append(",");
         csv.append(getStartTime()).append(",");

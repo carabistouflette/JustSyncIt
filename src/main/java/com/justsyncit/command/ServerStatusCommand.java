@@ -233,8 +233,8 @@ public class ServerStatusCommand implements Command {
         System.out.println("Total Transfers Attempted: " + totalTransfers);
 
         if (service.isServerRunning()) {
-            System.out.println("Current Transfer Rate: " +
-                    formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+            System.out.println("Current Transfer Rate: "
+                    + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
         }
 
         System.out.println("Connection Capacity: " + service.getActiveConnectionCount() + " active");

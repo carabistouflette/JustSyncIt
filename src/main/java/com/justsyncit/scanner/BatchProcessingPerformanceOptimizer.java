@@ -415,8 +415,8 @@ public class BatchProcessingPerformanceOptimizer {
         // Standard compression implementation
         return CompletableFuture.supplyAsync(() -> {
             return data.stream()
-                    .map(chunk -> new CompressedChunk(chunk, "compressed-" + chunk.hashCode())) // Simplified
-                                                                                                // compression
+                    // Simplified compression
+                    .map(chunk -> new CompressedChunk(chunk, "compressed-" + chunk.hashCode()))
                     .toList();
         });
     }

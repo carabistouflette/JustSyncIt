@@ -28,9 +28,11 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Stream hashing implementation using BLAKE3 algorithm.
- * Follows Single Responsibility Principle by focusing only on stream operations.
+ * Follows Single Responsibility Principle by focusing only on stream
+ * operations.
  *
- * This class is thread-safe. Multiple threads can safely use this instance to hash
+ * This class is thread-safe. Multiple threads can safely use this instance to
+ * hash
  * different streams concurrently, as each hashing operation uses its own buffer
  * and hasher instance.
  */
@@ -58,7 +60,8 @@ public class Blake3StreamHasher implements StreamHasher {
     private final AtomicLong activeOperations = new AtomicLong(0);
 
     /**
-     * Creates a new Blake3StreamHasher with the provided factory using default buffer size.
+     * Creates a new Blake3StreamHasher with the provided factory using default
+     * buffer size.
      *
      * @param incrementalHasherFactory the factory for creating incremental hashers
      * @throws IllegalArgumentException if incrementalHasherFactory is null
@@ -68,11 +71,14 @@ public class Blake3StreamHasher implements StreamHasher {
     }
 
     /**
-     * Creates a new Blake3StreamHasher with the provided factory and custom buffer size.
+     * Creates a new Blake3StreamHasher with the provided factory and custom buffer
+     * size.
      *
      * @param incrementalHasherFactory the factory for creating incremental hashers
-     * @param bufferSize the buffer size to use for streaming operations (must be > 0)
-     * @param maxStreamSize the maximum allowed stream size in bytes (must be > 0)
+     * @param bufferSize               the buffer size to use for streaming
+     *                                 operations (must be > 0)
+     * @param maxStreamSize            the maximum allowed stream size in bytes
+     *                                 (must be > 0)
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
     public Blake3StreamHasher(IncrementalHasherFactory incrementalHasherFactory, int bufferSize, long maxStreamSize) {
@@ -90,7 +96,7 @@ public class Blake3StreamHasher implements StreamHasher {
         this.maxStreamSize = maxStreamSize;
 
         logger.debug("Blake3StreamHasher initialized with buffer size: {} bytes, max stream size: {} bytes",
-                    bufferSize, maxStreamSize);
+                bufferSize, maxStreamSize);
     }
 
     @Override
@@ -127,7 +133,8 @@ public class Blake3StreamHasher implements StreamHasher {
                     // Check stream size limit
                     totalBytesRead += bytesRead;
                     if (totalBytesRead > maxStreamSize) {
-                        throw new HashingException("Stream size exceeds maximum allowed size of " + maxStreamSize + " bytes");
+                        throw new HashingException(
+                                "Stream size exceeds maximum allowed size of " + maxStreamSize + " bytes");
                     }
 
                     hasher.update(buffer, 0, bytesRead);
@@ -180,7 +187,7 @@ public class Blake3StreamHasher implements StreamHasher {
 
     @Override
     public String hashStreamRange(InputStream inputStream, long offset, long length,
-                                StreamHasher.HashProgressListener progressListener)
+            StreamHasher.HashProgressListener progressListener)
             throws IOException, HashingException {
         Objects.requireNonNull(inputStream, "Input stream cannot be null");
 
@@ -199,8 +206,8 @@ public class Blake3StreamHasher implements StreamHasher {
             if (offset > 0) {
                 long skipped = inputStream.skip(offset);
                 if (skipped != offset) {
-                    throw new IOException("Failed to skip to offset " + offset +
-                                          ". Only skipped " + skipped + " bytes.");
+                    throw new IOException("Failed to skip to offset " + offset
+                            + ". Only skipped " + skipped + " bytes.");
                 }
             }
 
@@ -218,7 +225,8 @@ public class Blake3StreamHasher implements StreamHasher {
 
                     // Check stream size limit
                     if (totalBytesRead > maxStreamSize) {
-                        throw new HashingException("Stream size exceeds maximum allowed size of " + maxStreamSize + " bytes");
+                        throw new HashingException(
+                                "Stream size exceeds maximum allowed size of " + maxStreamSize + " bytes");
                     }
 
                     hasher.update(buffer, 0, bytesRead);

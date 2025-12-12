@@ -328,8 +328,8 @@ public class BatchOperationResult {
         @Override
         public String toString() {
             return String.format(
-                    "ResourceUtilization{cpu=%.1f%%, memory=%.1f%%, io=%.1f%%, " +
-                            "maxConcurrent=%d, peakMemory=%dMB, read=%dMB, written=%dMB}",
+                    "ResourceUtilization{cpu=%.1f%%, memory=%.1f%%, io=%.1f%%, "
+                            + "maxConcurrent=%d, peakMemory=%dMB, read=%dMB, written=%dMB}",
                     cpuUtilizationPercent, memoryUtilizationPercent, ioUtilizationPercent,
                     maxConcurrentOperations, peakMemoryUsageMB,
                     totalBytesRead / (1024 * 1024), totalBytesWritten / (1024 * 1024));

@@ -165,15 +165,13 @@ public final class AdaptiveSizingController implements Runnable {
             recommendation.action = SizingAction.INCREASE;
             recommendation.reason = "High utilization or failure rate";
             recommendation.magnitude = calculateIncreaseMagnitude(utilization, failureRate);
-        }
-        // Low utilization and low failure rate - can reduce buffers
-        else if (utilization < 0.3 && failureRate < 0.01 && avgWaitTime < 100000) {
+        } else if (utilization < 0.3 && failureRate < 0.01 && avgWaitTime < 100000) {
+            // Low utilization and low failure rate - can reduce buffers
             recommendation.action = SizingAction.DECREASE;
             recommendation.reason = "Low utilization and failure rate";
             recommendation.magnitude = calculateDecreaseMagnitude(utilization);
-        }
-        // Stable workload - maintain current size
-        else {
+        } else {
+            // Stable workload - maintain current size
             recommendation.action = SizingAction.MAINTAIN;
             recommendation.reason = "Stable workload";
             recommendation.magnitude = 0.0;
@@ -302,8 +300,8 @@ public final class AdaptiveSizingController implements Runnable {
         @Override
         public String toString() {
             return String.format(
-                    "AdaptiveSizingStats{avg_util=%.2f%%, peak_util=%.2f%%, " +
-                            "high_streak=%d, low_streak=%d, last_analysis=%d}",
+                    "AdaptiveSizingStats{avg_util=%.2f%%, peak_util=%.2f%%, "
+                            + "high_streak=%d, low_streak=%d, last_analysis=%d}",
                     averageUtilization * 100, peakUtilization * 100,
                     consecutiveHighUtilization, consecutiveLowUtilization, lastAnalysisTime);
         }

@@ -26,15 +26,24 @@ import java.util.Optional;
 
 /**
  * SHA-256 hash algorithm implementation.
- * This class implements the HashAlgorithm interface using Java's built-in SHA-256.
- * Note: This is currently used as a fallback until a true BLAKE3 implementation is available.
+ * This class implements the HashAlgorithm interface using Java's built-in
+ * SHA-256.
+ * Note: This is currently used as a fallback until a true BLAKE3 implementation
+ * is available.
  *
- * <p><strong>Thread Safety:</strong></p>
- * This implementation is thread-safe and uses synchronization on the MessageDigest instance
- * to ensure thread-safe operations. Multiple threads can safely use the same instance.
+ * <p>
+ * <strong>Thread Safety:</strong>
+ * </p>
+ * This implementation is thread-safe and uses synchronization on the
+ * MessageDigest instance
+ * to ensure thread-safe operations. Multiple threads can safely use the same
+ * instance.
  *
- * <p><strong>Resource Management:</strong></p>
- * This implementation properly manages resources and implements Closeable for cleanup.
+ * <p>
+ * <strong>Resource Management:</strong>
+ * </p>
+ * This implementation properly manages resources and implements Closeable for
+ * cleanup.
  * The close() method is idempotent and can be called multiple times safely.
  */
 public final class Sha256HashAlgorithm implements HashAlgorithm {
@@ -56,6 +65,7 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
 
     /**
      * Creates a new SHA-256 hash algorithm instance.
+     *
      * @throws HashingException if SHA-256 algorithm is not available
      */
     private Sha256HashAlgorithm() throws HashingException {
@@ -68,6 +78,7 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
 
     /**
      * Creates a new SHA-256 hash algorithm instance.
+     *
      * @return a new Sha256HashAlgorithm instance
      * @throws HashingException if SHA-256 algorithm is not available
      */
@@ -94,8 +105,8 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
             throw new IllegalArgumentException("Data cannot be null");
         }
         if (offset < 0 || length < 0 || offset + length > data.length) {
-            throw new IllegalArgumentException("Invalid offset or length: offset=" + offset +
-                                              ", length=" + length + ", array length=" + data.length);
+            throw new IllegalArgumentException("Invalid offset or length: offset=" + offset
+                    + ", length=" + length + ", array length=" + data.length);
         }
         synchronized (digest) {
             digest.update(data, offset, length);
@@ -212,8 +223,8 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
         }
 
         if (expectedHash.length != getHashLength()) {
-            throw new IllegalArgumentException("Expected hash length " + expectedHash.length +
-                                             " does not match algorithm hash length " + getHashLength());
+            throw new IllegalArgumentException("Expected hash length " + expectedHash.length
+                    + " does not match algorithm hash length " + getHashLength());
         }
 
         byte[] computedHash;
@@ -256,6 +267,7 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
 
     /**
      * Checks if the algorithm is in a valid state for operations.
+     *
      * @throws IllegalStateException if the algorithm has been closed
      */
     private void checkState() {

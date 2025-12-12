@@ -32,7 +32,8 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Command for transferring snapshots to another server.
- * Follows Single Responsibility Principle by handling only snapshot transfer operations.
+ * Follows Single Responsibility Principle by handling only snapshot transfer
+ * operations.
  */
 public class TransferCommand implements Command {
 
@@ -140,7 +141,8 @@ public class TransferCommand implements Command {
                             transportType = TransportType.valueOf(args[i + 1].toUpperCase());
                             i++; // Skip the next argument
                         } catch (IllegalArgumentException e) {
-                            System.err.println("Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
+                            System.err.println(
+                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
                             return false;
                         }
                     } else {
@@ -261,8 +263,8 @@ public class TransferCommand implements Command {
                 if (verbose) {
                     double progress = totalBytes > 0 ? (bytesTransferred * 100.0) / totalBytes : 100.0;
                     System.out.printf("\rProgress: %.1f%% (%d/%d chunks, %s/%s)",
-                        progress, chunksTransferred, totalChunks,
-                        formatFileSize(bytesTransferred), formatFileSize(totalBytes));
+                            progress, chunksTransferred, totalChunks,
+                            formatFileSize(bytesTransferred), formatFileSize(totalBytes));
                     System.out.flush();
                 }
             }

@@ -28,7 +28,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Controls backpressure for async directory scanning operations.
- * Provides flow control to prevent resource exhaustion and maintain system stability.
+ * Provides flow control to prevent resource exhaustion and maintain system
+ * stability.
  */
 public class BackpressureController {
 
@@ -81,7 +82,7 @@ public class BackpressureController {
                 lastBackpressureTime = System.currentTimeMillis();
 
                 logger.info("Applied backpressure at level: {:.2f} (previous: {:.2f})",
-                    pressureLevel, previousLevel);
+                        pressureLevel, previousLevel);
             } else if (pressureLevel == 0.0 && backpressureApplied.get()) {
                 backpressureApplied.set(false);
                 lastBackpressureTime = System.currentTimeMillis();
@@ -165,10 +166,9 @@ public class BackpressureController {
      */
     public String getSummary() {
         return String.format(
-            "BackpressureController{level=%.2f, applied=%b, totalEvents=%d, lastEvent=%dms ago}",
-            getCurrentPressureLevel(), isBackpressureApplied(), getTotalBackpressureEvents(),
-            getTimeSinceLastBackpressure()
-        );
+                "BackpressureController{level=%.2f, applied=%b, totalEvents=%d, lastEvent=%dms ago}",
+                getCurrentPressureLevel(), isBackpressureApplied(), getTotalBackpressureEvents(),
+                getTimeSinceLastBackpressure());
     }
 
     @Override

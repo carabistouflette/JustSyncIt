@@ -22,15 +22,23 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 /**
- * Adapter to bridge IncrementalHasherFactory.IncrementalHasher to Blake3Service.Blake3IncrementalHasher.
+ * Adapter to bridge IncrementalHasherFactory.IncrementalHasher to
+ * Blake3Service.Blake3IncrementalHasher.
  * Follows Adapter pattern to maintain compatibility while using new interfaces.
  *
- * <p>This adapter is thread-safe and implements proper error handling for all operations.
- * It maintains byte counting functionality and provides a best-effort implementation
- * of peek operations through state cloning.</p>
+ * <p>
+ * This adapter is thread-safe and implements proper error handling for all
+ * operations.
+ * It maintains byte counting functionality and provides a best-effort
+ * implementation
+ * of peek operations through state cloning.
+ * </p>
  *
- * <p>Instances of this class are not thread-safe and should not be shared between threads,
- * following the contract of Blake3IncrementalHasher interface.</p>
+ * <p>
+ * Instances of this class are not thread-safe and should not be shared between
+ * threads,
+ * following the contract of Blake3IncrementalHasher interface.
+ * </p>
  */
 public class IncrementalHasherAdapter implements Blake3Service.Blake3IncrementalHasher {
 
@@ -72,8 +80,8 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
         }
         if (offset < 0 || length < 0 || offset + length > data.length) {
             throw new IllegalArgumentException(
-                String.format("Invalid offset/length: offset=%d, length=%d, data.length=%d",
-                             offset, length, data.length));
+                    String.format("Invalid offset/length: offset=%d, length=%d, data.length=%d",
+                            offset, length, data.length));
         }
 
         adaptedHasher.update(data, offset, length);
@@ -119,8 +127,8 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
             // Restore original position on error
             buffer.position(originalPosition);
             throw new HashingException("Failed to update hash with ByteBuffer data",
-                                      HashingException.ErrorCode.ALGORITHM_FAILURE,
-                                      "BLAKE3", "ByteBuffer update", e);
+                    HashingException.ErrorCode.ALGORITHM_FAILURE,
+                    "BLAKE3", "ByteBuffer update", e);
         }
     }
 
@@ -135,18 +143,19 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
             throw e;
         } catch (Exception e) {
             throw new HashingException("Failed to compute digest",
-                                      HashingException.ErrorCode.ALGORITHM_FAILURE,
-                                      "BLAKE3", "digest computation", e);
+                    HashingException.ErrorCode.ALGORITHM_FAILURE,
+                    "BLAKE3", "digest computation", e);
         }
     }
 
     public String peek() throws HashingException {
         // Peek operation not supported by this adapter implementation
-        // The underlying hasher doesn't support state cloning and we don't store processed data
-        throw new HashingException("Peek operation not supported by this adapter implementation. " +
-                                  "The underlying hasher doesn't support state cloning.",
-                                  HashingException.ErrorCode.CONFIGURATION_ERROR,
-                                  "BLAKE3", "peek operation");
+        // The underlying hasher doesn't support state cloning and we don't store
+        // processed data
+        throw new HashingException("Peek operation not supported by this adapter implementation. "
+                + "The underlying hasher doesn't support state cloning.",
+                HashingException.ErrorCode.CONFIGURATION_ERROR,
+                "BLAKE3", "peek operation");
     }
 
     public void reset() {

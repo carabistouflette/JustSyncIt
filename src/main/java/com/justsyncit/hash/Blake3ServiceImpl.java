@@ -53,11 +53,11 @@ public class Blake3ServiceImpl implements Blake3Service {
     /**
      * Creates a new Blake3ServiceRefactored with all required dependencies.
      *
-     * @param fileHasher the file hashing service
-     * @param bufferHasher the buffer hashing service
-     * @param streamHasher the stream hashing service
+     * @param fileHasher               the file hashing service
+     * @param bufferHasher             the buffer hashing service
+     * @param streamHasher             the stream hashing service
      * @param incrementalHasherFactory the incremental hasher factory
-     * @param simdDetectionService the SIMD detection service
+     * @param simdDetectionService     the SIMD detection service
      */
     public Blake3ServiceImpl(
             FileHasher fileHasher,
@@ -66,18 +66,19 @@ public class Blake3ServiceImpl implements Blake3Service {
             IncrementalHasherFactory incrementalHasherFactory,
             SimdDetectionService simdDetectionService) {
         this(fileHasher, bufferHasher, streamHasher, incrementalHasherFactory,
-             simdDetectionService, ForkJoinPool.commonPool());
+                simdDetectionService, ForkJoinPool.commonPool());
     }
 
     /**
-     * Creates a new Blake3ServiceImpl with all required dependencies and a custom executor.
+     * Creates a new Blake3ServiceImpl with all required dependencies and a custom
+     * executor.
      *
-     * @param fileHasher the file hashing service
-     * @param bufferHasher the buffer hashing service
-     * @param streamHasher the stream hashing service
+     * @param fileHasher               the file hashing service
+     * @param bufferHasher             the buffer hashing service
+     * @param streamHasher             the stream hashing service
      * @param incrementalHasherFactory the incremental hasher factory
-     * @param simdDetectionService the SIMD detection service
-     * @param executor the executor for parallel operations
+     * @param simdDetectionService     the SIMD detection service
+     * @param executor                 the executor for parallel operations
      */
     public Blake3ServiceImpl(
             FileHasher fileHasher,
@@ -90,9 +91,9 @@ public class Blake3ServiceImpl implements Blake3Service {
         this.bufferHasher = Objects.requireNonNull(bufferHasher, "BufferHasher cannot be null");
         this.streamHasher = Objects.requireNonNull(streamHasher, "StreamHasher cannot be null");
         this.incrementalHasherFactory = Objects.requireNonNull(incrementalHasherFactory,
-                                                               "IncrementalHasherFactory cannot be null");
+                "IncrementalHasherFactory cannot be null");
         this.blake3Info = new Blake3InfoImpl(Objects.requireNonNull(simdDetectionService,
-                                                                    "SimdDetectionService cannot be null"));
+                "SimdDetectionService cannot be null"));
         this.executor = Objects.requireNonNull(executor, "Executor cannot be null");
     }
 
@@ -119,8 +120,8 @@ public class Blake3ServiceImpl implements Blake3Service {
         }
         if (offset < 0 || length < 0 || offset + length > data.length) {
             throw new IllegalArgumentException(
-                String.format("Invalid offset/length: offset=%d, length=%d, array.length=%d",
-                              offset, length, data.length));
+                    String.format("Invalid offset/length: offset=%d, length=%d, array.length=%d",
+                            offset, length, data.length));
         }
         // Allow empty arrays (offset=0, length=0) even when data.length=0
         if (data.length == 0 && offset == 0 && length == 0) {
@@ -129,8 +130,8 @@ public class Blake3ServiceImpl implements Blake3Service {
         // For non-empty arrays, ensure offset is within bounds
         if (data.length > 0 && offset >= data.length) {
             throw new IllegalArgumentException(
-                String.format("Invalid offset/length: offset=%d, length=%d, array.length=%d",
-                              offset, length, data.length));
+                    String.format("Invalid offset/length: offset=%d, length=%d, array.length=%d",
+                            offset, length, data.length));
         }
         return bufferHasher.hashBuffer(data, offset, length);
     }
@@ -211,8 +212,7 @@ public class Blake3ServiceImpl implements Blake3Service {
             }
         }
 
-        return CompletableFuture.supplyAsync(() ->
-            filePaths.parallelStream()
+        return CompletableFuture.supplyAsync(() -> filePaths.parallelStream()
                 .map(path -> {
                     try {
                         return hashFile(path);
@@ -221,18 +221,17 @@ public class Blake3ServiceImpl implements Blake3Service {
                     }
                 })
                 .collect(Collectors.toList()),
-            executor
-        ).handle((result, throwable) -> {
-            if (throwable != null) {
-                // Unwrap the RuntimeException to get the original cause
-                Throwable cause = throwable.getCause();
-                if (cause instanceof RuntimeException && cause.getCause() != null) {
-                    throw new RuntimeException(cause.getCause());
-                }
-                throw new RuntimeException(throwable);
-            }
-            return result;
-        });
+                executor).handle((result, throwable) -> {
+                    if (throwable != null) {
+                        // Unwrap the RuntimeException to get the original cause
+                        Throwable cause = throwable.getCause();
+                        if (cause instanceof RuntimeException && cause.getCause() != null) {
+                            throw new RuntimeException(cause.getCause());
+                        }
+                        throw new RuntimeException(throwable);
+                    }
+                    return result;
+                });
     }
 
     @Override
@@ -255,7 +254,8 @@ public class Blake3ServiceImpl implements Blake3Service {
     }
 
     /**
-     * Implementation of Blake3Info providing information about the BLAKE3 implementation.
+     * Implementation of Blake3Info providing information about the BLAKE3
+     * implementation.
      */
     private static class Blake3InfoImpl implements Blake3Info {
         /** SIMD detection service. */

@@ -359,8 +359,8 @@ public final class PerformanceMonitor implements Runnable {
         WindowSnapshot window = currentWindow.get().getSnapshot();
 
         return String.format(
-                "Acquisition Rate: %.2f/s, Failure Rate: %.2f%%, Avg Wait: %.2fμs, " +
-                        "Memory Usage: %d bytes, Total Acquisitions: %d, Total Releases: %d",
+                "Acquisition Rate: %.2f/s, Failure Rate: %.2f%%, Avg Wait: %.2fμs, "
+                        + "Memory Usage: %d bytes, Total Acquisitions: %d, Total Releases: %d",
                 window.getAcquisitionRate(), window.getFailureRate() * 100,
                 window.getAverageWaitTime() / 1000.0, currentMemoryUsage.get(),
                 totalAcquisitionRequests.get(), totalReleases.get());

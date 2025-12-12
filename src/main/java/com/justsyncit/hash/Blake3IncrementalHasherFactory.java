@@ -27,9 +27,11 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Factory for creating incremental hashers.
- * Note: Despite the class name containing "Blake3", this factory currently supports SHA-256
+ * Note: Despite the class name containing "Blake3", this factory currently
+ * supports SHA-256
  * as a fallback until a true BLAKE3 implementation is available.
- * Follows Single Responsibility Principle by focusing only on factory operations.
+ * Follows Single Responsibility Principle by focusing only on factory
+ * operations.
  */
 public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory {
 
@@ -42,7 +44,8 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
     private final HashAlgorithm hashAlgorithm;
 
     /**
-     * Creates a new Blake3IncrementalHasherFactory with the provided hash algorithm.
+     * Creates a new Blake3IncrementalHasherFactory with the provided hash
+     * algorithm.
      *
      * @param hashAlgorithm the hash algorithm to use as prototype
      * @throws IllegalArgumentException if hashAlgorithm is null
@@ -50,7 +53,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
     public Blake3IncrementalHasherFactory(HashAlgorithm hashAlgorithm) {
         this.hashAlgorithm = Objects.requireNonNull(hashAlgorithm, "Hash algorithm cannot be null");
         logger.debug("Created Blake3IncrementalHasherFactory with algorithm: {}",
-                    hashAlgorithm.getAlgorithmName());
+                hashAlgorithm.getAlgorithmName());
     }
 
     @Override
@@ -74,7 +77,8 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
     }
 
     /**
-     * Thread-safe implementation of IncrementalHasher using the provided hash algorithm.
+     * Thread-safe implementation of IncrementalHasher using the provided hash
+     * algorithm.
      */
     private static class IncrementalHasherImpl implements IncrementalHasher {
         /** Hash algorithm instance. */
@@ -100,7 +104,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
          *
          * @param prototypeHashAlgorithm the hash algorithm to use as prototype
          * @return a new IncrementalHasherImpl instance
-         * @throws HashingException if creation fails
+         * @throws HashingException         if creation fails
          * @throws IllegalArgumentException if prototypeHashAlgorithm is null
          */
         private static IncrementalHasher create(HashAlgorithm prototypeHashAlgorithm) throws HashingException {
@@ -117,14 +121,15 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
                     // This allows for extensibility without modifying this code
                     try {
                         newHasher = (HashAlgorithm) prototypeHashAlgorithm.getClass()
-                            .getMethod("create")
-                            .invoke(null);
+                                .getMethod("create")
+                                .invoke(null);
                         logger.debug("Created hasher instance using reflection: {}",
-                                    prototypeHashAlgorithm.getClass().getSimpleName());
+                                prototypeHashAlgorithm.getClass().getSimpleName());
                     } catch (Exception e) {
                         throw new HashingException(
-                            "Failed to create hasher instance: " + prototypeHashAlgorithm.getClass().getSimpleName() +
-                            ". Ensure the class has a static create() method.", e);
+                                "Failed to create hasher instance: " + prototypeHashAlgorithm.getClass().getSimpleName()
+                                        + ". Ensure the class has a static create() method.",
+                                e);
                     }
                 }
             } catch (HashingException e) {
@@ -152,8 +157,8 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
             }
             if (offset < 0 || length < 0 || offset > data.length || offset + length > data.length) {
                 throw new IllegalArgumentException(
-                    "Invalid offset or length: offset=" + offset + ", length=" + length +
-                    ", data.length=" + data.length);
+                        "Invalid offset or length: offset=" + offset + ", length=" + length
+                                + ", data.length=" + data.length);
             }
 
             lock.lock();

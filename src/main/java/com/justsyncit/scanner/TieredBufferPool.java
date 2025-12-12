@@ -458,8 +458,8 @@ public class TieredBufferPool {
                 : 0;
 
         return String.format(
-                "Total: %d, Available: %d, In Use: %d, Acquisitions: %d, Releases: %d, " +
-                        "Failures: %d, Avg Wait: %d ns, Min: %d, Max: %d",
+                "Total: %d, Available: %d, In Use: %d, Acquisitions: %d, Releases: %d, "
+                        + "Failures: %d, Avg Wait: %d ns, Min: %d, Max: %d",
                 totalBuffers.get(), availableCount.get(), inUseCount.get(),
                 totalAcquisitions.get(), totalReleases.get(), allocationFailures.get(),
                 avgWaitTime, currentMinBuffers, currentMaxBuffers);

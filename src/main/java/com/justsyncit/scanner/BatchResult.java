@@ -269,8 +269,8 @@ public class BatchResult {
     public String toString() {
         if (success) {
             return String.format(
-                    "BatchResult{id='%s', files=%d, success=true, time=%dms, " +
-                            "successful=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
+                    "BatchResult{id='%s', files=%d, success=true, time=%dms, "
+                            + "successful=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
                     batchId, files.size(), processingTimeMs, successfulFiles, failedFiles,
                     totalBytesProcessed / (1024 * 1024), getThroughputMBps());
         } else {

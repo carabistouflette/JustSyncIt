@@ -656,8 +656,8 @@ public class BatchScheduler {
         @Override
         public String toString() {
             return String.format(
-                    "SchedulingStatistics{scheduled=%d, completed=%d, failed=%d, " +
-                            "cancelled=%d, rejected=%d, successRate=%.1f%%}",
+                    "SchedulingStatistics{scheduled=%d, completed=%d, failed=%d, "
+                            + "cancelled=%d, rejected=%d, successRate=%.1f%%}",
                     getTotalScheduled(), getTotalCompleted(), getTotalFailed(),
                     getTotalCancelled(), getTotalRejected(), getSuccessRate());
         }

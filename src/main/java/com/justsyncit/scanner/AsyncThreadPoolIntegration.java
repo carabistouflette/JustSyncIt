@@ -327,8 +327,8 @@ public class AsyncThreadPoolIntegration {
         @Override
         public String toString() {
             return String.format(
-                    "IntegrationMetrics{throughput=%.2f, utilization=%.2f%%, " +
-                            "efficiency=%.2f%%, backpressure=%.2f}",
+                    "IntegrationMetrics{throughput=%.2f, utilization=%.2f%%, "
+                            + "efficiency=%.2f%%, backpressure=%.2f}",
                     throughput, utilizationRate * 100, efficiency * 100, backpressureLevel);
         }
     }

@@ -52,9 +52,9 @@ public class AsyncScanningValidationTest {
         // Test 2: Configuration classes
         try {
             AsyncScanOptions options = new AsyncScanOptions()
-                .withParallelism(4)
-                .withBatchSize(100)
-                .withWatchServiceEnabled(true);
+                    .withParallelism(4)
+                    .withBatchSize(100)
+                    .withWatchServiceEnabled(true);
             System.out.println("✓ AsyncScanOptions created successfully");
 
             AsyncScannerConfiguration config = new AsyncScannerConfiguration();
@@ -69,11 +69,10 @@ public class AsyncScanningValidationTest {
         // Test 3: Event processing
         try {
             FileChangeEvent event = FileChangeEvent.createEntryCreate(
-                java.nio.file.Paths.get("test.txt"), "test-reg");
+                    java.nio.file.Paths.get("test.txt"), "test-reg");
             System.out.println("✓ FileChangeEvent created successfully: " + event.getEventType());
 
-            AsyncFileEventProcessor.EventProcessorConfig eventConfig =
-                new AsyncFileEventProcessor.EventProcessorConfig()
+            AsyncFileEventProcessor.EventProcessorConfig eventConfig = new AsyncFileEventProcessor.EventProcessorConfig()
                     .withThreadPoolSize(2)
                     .withBatchSize(10)
                     .withDebounceDelay(100);
@@ -90,11 +89,10 @@ public class AsyncScanningValidationTest {
             System.out.println("✓ AsyncScannerStats created successfully");
 
             WatchServiceRegistration registration = new WatchServiceRegistration(
-                java.nio.file.Paths.get("."),
-                java.util.Set.of("ENTRY_CREATE", "ENTRY_MODIFY"),
-                true,
-                new AsyncScanOptions()
-            );
+                    java.nio.file.Paths.get("."),
+                    java.util.Set.of("ENTRY_CREATE", "ENTRY_MODIFY"),
+                    true,
+                    new AsyncScanOptions());
             System.out.println("✓ WatchServiceRegistration created successfully");
 
         } catch (Exception e) {
@@ -104,8 +102,7 @@ public class AsyncScanningValidationTest {
 
         // Test 5: Integration
         try {
-            AsyncScannerIntegration.IntegrationConfig integrationConfig =
-                new AsyncScannerIntegration.IntegrationConfig()
+            AsyncScannerIntegration.IntegrationConfig integrationConfig = new AsyncScannerIntegration.IntegrationConfig()
                     .withMaxConcurrentScans(4)
                     .withChunkSize(64 * 1024)
                     .withBufferSize(1024 * 1024)

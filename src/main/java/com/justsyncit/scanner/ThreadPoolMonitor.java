@@ -94,11 +94,10 @@ public class ThreadPoolMonitor {
             long execTime = executionTime.get();
 
             return new SystemStatsSnapshot(
-                submitted, completed, failures.get(), rejections.get(),
-                execTime, maxExecutionTime.get(), minExecutionTime.get(),
-                completed > 0 ? (double) execTime / completed : 0.0,
-                lastActivity.get()
-            );
+                    submitted, completed, failures.get(), rejections.get(),
+                    execTime, maxExecutionTime.get(), minExecutionTime.get(),
+                    completed > 0 ? (double) execTime / completed : 0.0,
+                    lastActivity.get());
         }
     }
 
@@ -117,8 +116,8 @@ public class ThreadPoolMonitor {
         public final long lastActivity;
 
         SystemStatsSnapshot(long totalSubmitted, long totalCompleted, long totalFailures, long totalRejections,
-                           long totalExecutionTime, long maxExecutionTime, long minExecutionTime,
-                           double averageExecutionTime, long lastActivity) {
+                long totalExecutionTime, long maxExecutionTime, long minExecutionTime,
+                double averageExecutionTime, long lastActivity) {
             this.totalSubmitted = totalSubmitted;
             this.totalCompleted = totalCompleted;
             this.totalFailures = totalFailures;
@@ -133,12 +132,11 @@ public class ThreadPoolMonitor {
         @Override
         public String toString() {
             return String.format(
-                "SystemStats{submitted=%d, completed=%d, failures=%d, rejections=%d, " +
-                "avgExecTime=%.2fms, maxExecTime=%dms, minExecTime=%dms, lastActivity=%d}",
-                totalSubmitted, totalCompleted, totalFailures, totalRejections,
-                averageExecutionTime / 1000000.0, maxExecutionTime / 1000000,
-                minExecutionTime / 1000000, lastActivity
-            );
+                    "SystemStats{submitted=%d, completed=%d, failures=%d, rejections=%d, "
+                            + "avgExecTime=%.2fms, maxExecTime=%dms, minExecTime=%dms, lastActivity=%d}",
+                    totalSubmitted, totalCompleted, totalFailures, totalRejections,
+                    averageExecutionTime / 1000000.0, maxExecutionTime / 1000000,
+                    minExecutionTime / 1000000, lastActivity);
         }
     }
 
@@ -198,7 +196,7 @@ public class ThreadPoolMonitor {
 
         if (logger.isDebugEnabled()) {
             logger.debug("System metrics: submitted={}, completed={}, avgExecTime={:.2f}ms",
-                submitted, completed, completed > 0 ? (double) execTime / completed / 1000000.0 : 0.0);
+                    submitted, completed, completed > 0 ? (double) execTime / completed / 1000000.0 : 0.0);
         }
     }
 
@@ -227,12 +225,12 @@ public class ThreadPoolMonitor {
             SystemStatsSnapshot snapshot = metrics.getSnapshot();
 
             double failureRate = snapshot.totalSubmitted > 0
-                ? (double) snapshot.totalFailures / snapshot.totalSubmitted
-                : 0.0;
+                    ? (double) snapshot.totalFailures / snapshot.totalSubmitted
+                    : 0.0;
 
             if (failureRate > 0.1) { // >10% failure rate
                 logger.warn("High failure rate detected for pool {}: {:.2f}%",
-                    entry.getKey().getName(), failureRate * 100);
+                        entry.getKey().getName(), failureRate * 100);
             }
         }
     }
@@ -277,10 +275,9 @@ public class ThreadPoolMonitor {
         long execTime = totalExecutionTime.get();
 
         return new SystemStatsSnapshot(
-            submitted, completed, 0, 0, execTime, 0, Long.MAX_VALUE,
-            completed > 0 ? (double) execTime / completed : 0.0,
-            System.currentTimeMillis()
-        );
+                submitted, completed, 0, 0, execTime, 0, Long.MAX_VALUE,
+                completed > 0 ? (double) execTime / completed : 0.0,
+                System.currentTimeMillis());
     }
 
     /**

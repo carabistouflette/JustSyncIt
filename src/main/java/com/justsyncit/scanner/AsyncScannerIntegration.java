@@ -431,9 +431,9 @@ public class AsyncScannerIntegration {
             logger.debug("Handling integrated file change event: {}", event);
 
             // For file creation/modification events, trigger chunking if needed
-            if ((event.getEventType() == FileChangeEvent.EventType.ENTRY_CREATE ||
-                    event.getEventType() == FileChangeEvent.EventType.ENTRY_MODIFY)
-                &&
+            if ((event.getEventType() == FileChangeEvent.EventType.ENTRY_CREATE
+                    || event.getEventType() == FileChangeEvent.EventType.ENTRY_MODIFY)
+                    &&
                     !event.isDirectory() && event.getFileSize() > asyncFileChunker.getChunkSize()) {
 
                 logger.debug("Triggering chunking for changed file: {}", event.getFilePath());
