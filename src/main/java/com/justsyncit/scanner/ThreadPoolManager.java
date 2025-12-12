@@ -349,22 +349,9 @@ public class ThreadPoolManager {
         }
 
         // Create a ThreadPoolStats with the simple constructor
-        return new ThreadPoolStats(
-                "AllPools", // poolName
-                0, // corePoolSize
-                0, // maximumPoolSize
-                0, // activeThreads
-                0, // totalTasks
-                0, // completedTasks
-                0, // queueSize
-                0, // submittedTasks
-                0, // completedSubmittedTasks
-                0, // currentQueueSize
-                0.0, // averageExecutionTime
-                0.0, // throughput
-                0.0, // utilizationRate
-                0.0 // efficiency
-        );
+        return new ThreadPoolStats.Builder()
+                .setPoolName("AllPools")
+                .build();
     }
 
     /**

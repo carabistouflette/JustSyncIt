@@ -328,21 +328,27 @@ public class BatchProcessingStats {
      *
      * @return immutable snapshot
      */
+    /**
+     * Creates a snapshot of current statistics.
+     *
+     * @return immutable snapshot
+     */
     public BatchProcessingStatsSnapshot createSnapshot() {
-        return new BatchProcessingStatsSnapshot(
-                getTotalBatchesProcessed(),
-                getTotalFilesProcessed(),
-                getSuccessfulFileOperations(),
-                getFailedFileOperations(),
-                getTotalBytesProcessed(),
-                getTotalProcessingTimeMs(),
-                getActiveBatchOperations(),
-                getActiveFileOperations(),
-                getPeakConcurrentBatches(),
-                getPeakConcurrentFileOps(),
-                getSuccessRate(),
-                getThroughputMBps(),
-                getUptimeMs());
+        return new BatchProcessingStatsSnapshot.Builder()
+                .setTotalBatchesProcessed(getTotalBatchesProcessed())
+                .setTotalFilesProcessed(getTotalFilesProcessed())
+                .setSuccessfulFileOperations(getSuccessfulFileOperations())
+                .setFailedFileOperations(getFailedFileOperations())
+                .setTotalBytesProcessed(getTotalBytesProcessed())
+                .setTotalProcessingTimeMs(getTotalProcessingTimeMs())
+                .setActiveBatchOperations(getActiveBatchOperations())
+                .setActiveFileOperations(getActiveFileOperations())
+                .setPeakConcurrentBatches(getPeakConcurrentBatches())
+                .setPeakConcurrentFileOps(getPeakConcurrentFileOps())
+                .setSuccessRate(getSuccessRate())
+                .setThroughputMBps(getThroughputMBps())
+                .setUptimeMs(getUptimeMs())
+                .build();
     }
 
     /**
@@ -363,25 +369,105 @@ public class BatchProcessingStats {
         public final double throughputMBps;
         public final long uptimeMs;
 
-        public BatchProcessingStatsSnapshot(long totalBatchesProcessed, long totalFilesProcessed,
-                long successfulFileOperations, long failedFileOperations,
-                long totalBytesProcessed, long totalProcessingTimeMs,
-                int activeBatchOperations, int activeFileOperations,
-                int peakConcurrentBatches, int peakConcurrentFileOps,
-                double successRate, double throughputMBps, long uptimeMs) {
-            this.totalBatchesProcessed = totalBatchesProcessed;
-            this.totalFilesProcessed = totalFilesProcessed;
-            this.successfulFileOperations = successfulFileOperations;
-            this.failedFileOperations = failedFileOperations;
-            this.totalBytesProcessed = totalBytesProcessed;
-            this.totalProcessingTimeMs = totalProcessingTimeMs;
-            this.activeBatchOperations = activeBatchOperations;
-            this.activeFileOperations = activeFileOperations;
-            this.peakConcurrentBatches = peakConcurrentBatches;
-            this.peakConcurrentFileOps = peakConcurrentFileOps;
-            this.successRate = successRate;
-            this.throughputMBps = throughputMBps;
-            this.uptimeMs = uptimeMs;
+        private BatchProcessingStatsSnapshot(Builder builder) {
+            this.totalBatchesProcessed = builder.totalBatchesProcessed;
+            this.totalFilesProcessed = builder.totalFilesProcessed;
+            this.successfulFileOperations = builder.successfulFileOperations;
+            this.failedFileOperations = builder.failedFileOperations;
+            this.totalBytesProcessed = builder.totalBytesProcessed;
+            this.totalProcessingTimeMs = builder.totalProcessingTimeMs;
+            this.activeBatchOperations = builder.activeBatchOperations;
+            this.activeFileOperations = builder.activeFileOperations;
+            this.peakConcurrentBatches = builder.peakConcurrentBatches;
+            this.peakConcurrentFileOps = builder.peakConcurrentFileOps;
+            this.successRate = builder.successRate;
+            this.throughputMBps = builder.throughputMBps;
+            this.uptimeMs = builder.uptimeMs;
+        }
+
+        public static class Builder {
+            private long totalBatchesProcessed;
+            private long totalFilesProcessed;
+            private long successfulFileOperations;
+            private long failedFileOperations;
+            private long totalBytesProcessed;
+            private long totalProcessingTimeMs;
+            private int activeBatchOperations;
+            private int activeFileOperations;
+            private int peakConcurrentBatches;
+            private int peakConcurrentFileOps;
+            private double successRate;
+            private double throughputMBps;
+            private long uptimeMs;
+
+            public Builder setTotalBatchesProcessed(long totalBatchesProcessed) {
+                this.totalBatchesProcessed = totalBatchesProcessed;
+                return this;
+            }
+
+            public Builder setTotalFilesProcessed(long totalFilesProcessed) {
+                this.totalFilesProcessed = totalFilesProcessed;
+                return this;
+            }
+
+            public Builder setSuccessfulFileOperations(long successfulFileOperations) {
+                this.successfulFileOperations = successfulFileOperations;
+                return this;
+            }
+
+            public Builder setFailedFileOperations(long failedFileOperations) {
+                this.failedFileOperations = failedFileOperations;
+                return this;
+            }
+
+            public Builder setTotalBytesProcessed(long totalBytesProcessed) {
+                this.totalBytesProcessed = totalBytesProcessed;
+                return this;
+            }
+
+            public Builder setTotalProcessingTimeMs(long totalProcessingTimeMs) {
+                this.totalProcessingTimeMs = totalProcessingTimeMs;
+                return this;
+            }
+
+            public Builder setActiveBatchOperations(int activeBatchOperations) {
+                this.activeBatchOperations = activeBatchOperations;
+                return this;
+            }
+
+            public Builder setActiveFileOperations(int activeFileOperations) {
+                this.activeFileOperations = activeFileOperations;
+                return this;
+            }
+
+            public Builder setPeakConcurrentBatches(int peakConcurrentBatches) {
+                this.peakConcurrentBatches = peakConcurrentBatches;
+                return this;
+            }
+
+            public Builder setPeakConcurrentFileOps(int peakConcurrentFileOps) {
+                this.peakConcurrentFileOps = peakConcurrentFileOps;
+                return this;
+            }
+
+            public Builder setSuccessRate(double successRate) {
+                this.successRate = successRate;
+                return this;
+            }
+
+            public Builder setThroughputMBps(double throughputMBps) {
+                this.throughputMBps = throughputMBps;
+                return this;
+            }
+
+            public Builder setUptimeMs(long uptimeMs) {
+                this.uptimeMs = uptimeMs;
+                return this;
+            }
+
+            public BatchProcessingStatsSnapshot build() {
+                return new BatchProcessingStatsSnapshot(this);
+            }
         }
 
         @Override

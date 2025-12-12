@@ -47,7 +47,7 @@ public class SimpleAsyncValidation {
 
             // Test AsyncScannerStats
             AsyncScannerStats stats = new AsyncScannerStats();
-            System.out.println("✓ AsyncScannerStats created successfully");
+            System.out.println("✓ AsyncScannerStats created successfully: " + stats.getClass().getSimpleName());
 
             // Test WatchServiceRegistration
             WatchServiceRegistration registration = new WatchServiceRegistration(
@@ -55,7 +55,8 @@ public class SimpleAsyncValidation {
                     java.util.Set.of("ENTRY_CREATE", "ENTRY_MODIFY"),
                     true,
                     options);
-            System.out.println("✓ WatchServiceRegistration created successfully");
+            System.out.println(
+                    "✓ WatchServiceRegistration created successfully for " + registration.getMonitoredDirectory());
 
         } catch (Exception e) {
             System.out.println("✗ Core component test failed: " + e.getMessage());
@@ -75,23 +76,24 @@ public class SimpleAsyncValidation {
 
         // Test 3: AsyncScanResult creation
         try {
-            AsyncScanResult result = new AsyncScanResult(
-                    "test-scan-id",
-                    Paths.get("."),
-                    java.util.Collections.emptyList(),
-                    java.util.Collections.emptyList(),
-                    java.time.Instant.now(),
-                    java.time.Instant.now().plusSeconds(1),
-                    java.util.Collections.emptyMap(),
-                    4,
-                    100.0,
-                    1024 * 1024,
-                    10,
-                    5,
-                    2,
-                    0,
-                    false,
-                    java.util.Collections.emptyMap());
+            AsyncScanResult result = new AsyncScanResult.Builder()
+                    .setScanId("test-scan-id")
+                    .setRootDirectory(Paths.get("."))
+                    .setScannedFiles(java.util.Collections.emptyList())
+                    .setErrors(java.util.Collections.emptyList())
+                    .setStartTime(java.time.Instant.now())
+                    .setEndTime(java.time.Instant.now().plusSeconds(1))
+                    .setMetadata(java.util.Collections.emptyMap())
+                    .setThreadCount(4)
+                    .setThroughput(100.0)
+                    .setPeakMemoryUsage(1024 * 1024)
+                    .setDirectoriesScanned(10)
+                    .setSymbolicLinksEncountered(5)
+                    .setSparseFilesDetected(2)
+                    .setBackpressureEvents(0)
+                    .setWasCancelled(false)
+                    .setAsyncMetadata(java.util.Collections.emptyMap())
+                    .build();
             System.out.println("✓ AsyncScanResult created successfully");
             System.out.println("  - Scan ID: " + result.getScanId());
             System.out.println("  - Thread count: " + result.getThreadCount());

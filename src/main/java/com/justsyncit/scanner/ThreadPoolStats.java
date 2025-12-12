@@ -50,80 +50,138 @@ public class ThreadPoolStats {
     /**
      * Creates new ThreadPoolStats.
      */
-    public ThreadPoolStats(String poolName, int corePoolSize, int maximumPoolSize,
-            int activeThreads, int totalTasks, int completedTasks,
-            int queueSize, long submittedTasks, long completedSubmittedTasks,
-            int currentQueueSize) {
-        this.poolName = poolName;
-        this.corePoolSize = corePoolSize;
-        this.maximumPoolSize = maximumPoolSize;
-        this.activeThreads = activeThreads;
-        this.totalTasks = totalTasks;
-        this.completedTasks = completedTasks;
-        this.queueSize = queueSize;
-        this.submittedTasks = submittedTasks;
-        this.completedSubmittedTasks = completedSubmittedTasks;
-        this.currentQueueSize = currentQueueSize;
-
-        // Calculate derived metrics
-        this.averageExecutionTime = calculateAverageExecutionTime();
-        this.throughput = calculateThroughput();
-        this.utilizationRate = calculateUtilizationRate();
-        this.efficiency = calculateEfficiency();
+    private ThreadPoolStats(Builder builder) {
+        this.poolName = builder.poolName;
+        this.corePoolSize = builder.corePoolSize;
+        this.maximumPoolSize = builder.maximumPoolSize;
+        this.activeThreads = builder.activeThreads;
+        this.totalTasks = builder.totalTasks;
+        this.completedTasks = builder.completedTasks;
+        this.queueSize = builder.queueSize;
+        this.submittedTasks = builder.submittedTasks;
+        this.completedSubmittedTasks = builder.completedSubmittedTasks;
+        this.currentQueueSize = builder.currentQueueSize;
+        this.averageExecutionTime = builder.averageExecutionTime;
+        this.throughput = builder.throughput;
+        this.utilizationRate = builder.utilizationRate;
+        this.efficiency = builder.efficiency;
     }
 
-    /**
-     * Creates ThreadPoolStats with performance metrics.
-     */
-    public ThreadPoolStats(String poolName, int corePoolSize, int maximumPoolSize,
-            int activeThreads, int totalTasks, int completedTasks,
-            int queueSize, long submittedTasks, long completedSubmittedTasks,
-            int currentQueueSize, double averageExecutionTime,
-            double throughput, double utilizationRate, double efficiency) {
-        this.poolName = poolName;
-        this.corePoolSize = corePoolSize;
-        this.maximumPoolSize = maximumPoolSize;
-        this.activeThreads = activeThreads;
-        this.totalTasks = totalTasks;
-        this.completedTasks = completedTasks;
-        this.queueSize = queueSize;
-        this.submittedTasks = submittedTasks;
-        this.completedSubmittedTasks = completedSubmittedTasks;
-        this.currentQueueSize = currentQueueSize;
-        this.averageExecutionTime = averageExecutionTime;
-        this.throughput = throughput;
-        this.utilizationRate = utilizationRate;
-        this.efficiency = efficiency;
+    public static class Builder {
+        private String poolName;
+        private int corePoolSize;
+        private int maximumPoolSize;
+        private int activeThreads;
+        private int totalTasks;
+        private int completedTasks;
+        private int queueSize;
+        private long submittedTasks;
+        private long completedSubmittedTasks;
+        private int currentQueueSize;
+        private double averageExecutionTime;
+        private double throughput;
+        private double utilizationRate;
+        private double efficiency;
+
+        public Builder setPoolName(String poolName) {
+            this.poolName = poolName;
+            return this;
+        }
+
+        public Builder setCorePoolSize(int corePoolSize) {
+            this.corePoolSize = corePoolSize;
+            return this;
+        }
+
+        public Builder setMaximumPoolSize(int maximumPoolSize) {
+            this.maximumPoolSize = maximumPoolSize;
+            return this;
+        }
+
+        public Builder setActiveThreads(int activeThreads) {
+            this.activeThreads = activeThreads;
+            return this;
+        }
+
+        public Builder setTotalTasks(int totalTasks) {
+            this.totalTasks = totalTasks;
+            return this;
+        }
+
+        public Builder setCompletedTasks(int completedTasks) {
+            this.completedTasks = completedTasks;
+            return this;
+        }
+
+        public Builder setQueueSize(int queueSize) {
+            this.queueSize = queueSize;
+            return this;
+        }
+
+        public Builder setSubmittedTasks(long submittedTasks) {
+            this.submittedTasks = submittedTasks;
+            return this;
+        }
+
+        public Builder setCompletedSubmittedTasks(long completedSubmittedTasks) {
+            this.completedSubmittedTasks = completedSubmittedTasks;
+            return this;
+        }
+
+        public Builder setCurrentQueueSize(int currentQueueSize) {
+            this.currentQueueSize = currentQueueSize;
+            return this;
+        }
+
+        public Builder setAverageExecutionTime(double averageExecutionTime) {
+            this.averageExecutionTime = averageExecutionTime;
+            return this;
+        }
+
+        public Builder setThroughput(double throughput) {
+            this.throughput = throughput;
+            return this;
+        }
+
+        public Builder setUtilizationRate(double utilizationRate) {
+            this.utilizationRate = utilizationRate;
+            return this;
+        }
+
+        public Builder setEfficiency(double efficiency) {
+            this.efficiency = efficiency;
+            return this;
+        }
+
+        public ThreadPoolStats build() {
+            // Calculate derived metrics if not set
+            if (this.averageExecutionTime == 0.0) {
+                this.averageExecutionTime = this.completedSubmittedTasks > 0
+                        ? 1000000.0 / this.completedSubmittedTasks
+                        : 0.0;
+            }
+            if (this.throughput == 0.0) {
+                this.throughput = this.averageExecutionTime > 0
+                        ? 1000000000.0 / this.averageExecutionTime
+                        : 0.0;
+            }
+            if (this.utilizationRate == 0.0) {
+                this.utilizationRate = this.maximumPoolSize > 0
+                        ? (double) this.activeThreads / this.maximumPoolSize
+                        : 0.0;
+            }
+            if (this.efficiency == 0.0) {
+                this.efficiency = this.throughput > 0
+                        ? this.utilizationRate * (1.0 - (this.averageExecutionTime / 1000000000.0))
+                        : 0.0;
+            }
+            return new ThreadPoolStats(this);
+        }
     }
 
     /**
      * Calculates average execution time.
      */
-    private double calculateAverageExecutionTime() {
-        return completedSubmittedTasks > 0 ? 1000000.0 / completedSubmittedTasks : 0.0;
-    }
-
-    /**
-     * Calculates throughput (tasks per second).
-     */
-    private double calculateThroughput() {
-        return averageExecutionTime > 0 ? 1000000000.0 / averageExecutionTime : 0.0;
-    }
-
-    /**
-     * Calculates utilization rate.
-     */
-    private double calculateUtilizationRate() {
-        return maximumPoolSize > 0 ? (double) activeThreads / maximumPoolSize : 0.0;
-    }
-
-    /**
-     * Calculates efficiency.
-     */
-    private double calculateEfficiency() {
-        return throughput > 0 ? utilizationRate * (1.0 - (averageExecutionTime / 1000000000.0)) : 0.0;
-    }
-
     /**
      * Gets pool name.
      */

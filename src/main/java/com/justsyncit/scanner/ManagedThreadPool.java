@@ -229,7 +229,7 @@ public abstract class ManagedThreadPool {
      */
     public ThreadPoolStats getStats() {
         if (executor == null) {
-            return new ThreadPoolStats(poolType.getName(), 0, 0, 0, 0, 0, 0, 0, 0, 0);
+            return new ThreadPoolStats.Builder().setPoolName(poolType.getName()).build();
         }
 
         int corePoolSize = executor.getCorePoolSize();
@@ -239,17 +239,18 @@ public abstract class ManagedThreadPool {
         long completedTaskCount = executor.getCompletedTaskCount();
         int queueSize = executor.getQueue().size();
 
-        return new ThreadPoolStats(
-                poolType.getName(),
-                corePoolSize,
-                maximumPoolSize,
-                activeCount,
-                (int) taskCount,
-                (int) completedTaskCount,
-                queueSize,
-                totalTasksSubmitted.get(),
-                totalTasksCompleted.get(),
-                currentQueueSize.get());
+        return new ThreadPoolStats.Builder()
+                .setPoolName(poolType.getName())
+                .setCorePoolSize(corePoolSize)
+                .setMaximumPoolSize(maximumPoolSize)
+                .setActiveThreads(activeCount)
+                .setTotalTasks((int) taskCount)
+                .setCompletedTasks((int) completedTaskCount)
+                .setQueueSize(queueSize)
+                .setSubmittedTasks(totalTasksSubmitted.get())
+                .setCompletedSubmittedTasks(totalTasksCompleted.get())
+                .setCurrentQueueSize(currentQueueSize.get())
+                .build();
     }
 
     /**

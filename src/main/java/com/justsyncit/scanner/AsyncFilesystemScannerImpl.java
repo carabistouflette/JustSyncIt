@@ -465,12 +465,24 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
             // Create result
             Instant endTime = Instant.now();
-            AsyncScanResult result = new AsyncScanResult(
-                    context.scanId, context.rootDirectory, scannedFiles, errors,
-                    context.startTime, endTime, metadata, 1,
-                    calculateThroughput(context), calculatePeakMemoryUsage(),
-                    context.directoriesProcessed.get(), 0, 0, 0, false,
-                    createAsyncMetadata(context));
+            AsyncScanResult result = new AsyncScanResult.Builder()
+                    .setScanId(context.scanId)
+                    .setRootDirectory(context.rootDirectory)
+                    .setScannedFiles(scannedFiles)
+                    .setErrors(errors)
+                    .setStartTime(context.startTime)
+                    .setEndTime(endTime)
+                    .setMetadata(metadata)
+                    .setThreadCount(1)
+                    .setThroughput(calculateThroughput(context))
+                    .setPeakMemoryUsage(calculatePeakMemoryUsage())
+                    .setDirectoriesScanned(context.directoriesProcessed.get())
+                    .setSymbolicLinksEncountered(0)
+                    .setSparseFilesDetected(0)
+                    .setBackpressureEvents(0)
+                    .setWasCancelled(false)
+                    .setAsyncMetadata(createAsyncMetadata(context))
+                    .build();
 
             // Update statistics
             stats.incrementScansCompleted();
@@ -565,12 +577,24 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
             // Create result
             Instant endTime = Instant.now();
-            AsyncScanResult result = new AsyncScanResult(
-                    context.scanId, context.rootDirectory, scannedFiles, errors,
-                    context.startTime, endTime, metadata, concurrency,
-                    calculateThroughput(context), calculatePeakMemoryUsage(),
-                    context.directoriesProcessed.get(), 0, 0, 0, false,
-                    createAsyncMetadata(context));
+            AsyncScanResult result = new AsyncScanResult.Builder()
+                    .setScanId(context.scanId)
+                    .setRootDirectory(context.rootDirectory)
+                    .setScannedFiles(scannedFiles)
+                    .setErrors(errors)
+                    .setStartTime(context.startTime)
+                    .setEndTime(endTime)
+                    .setMetadata(metadata)
+                    .setThreadCount(concurrency)
+                    .setThroughput(calculateThroughput(context))
+                    .setPeakMemoryUsage(calculatePeakMemoryUsage())
+                    .setDirectoriesScanned(context.directoriesProcessed.get())
+                    .setSymbolicLinksEncountered(0)
+                    .setSparseFilesDetected(0)
+                    .setBackpressureEvents(0)
+                    .setWasCancelled(false)
+                    .setAsyncMetadata(createAsyncMetadata(context))
+                    .build();
 
             // Update statistics
             stats.incrementScansCompleted();
@@ -628,14 +652,24 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
                             // Send incremental result every N files
                             if (scannedFiles.size() % 100 == 0) {
-                                AsyncScanResult incrementalResult = new AsyncScanResult(
-                                        context.scanId, context.rootDirectory,
-                                        new ArrayList<ScanResult.ScannedFile>(scannedFiles),
-                                        new ArrayList<ScanResult.ScanError>(errors),
-                                        context.startTime, Instant.now(), metadata, 1,
-                                        calculateThroughput(context), calculatePeakMemoryUsage(),
-                                        context.directoriesProcessed.get(), 0, 0, 0, false,
-                                        createAsyncMetadata(context));
+                                AsyncScanResult incrementalResult = new AsyncScanResult.Builder()
+                                        .setScanId(context.scanId)
+                                        .setRootDirectory(context.rootDirectory)
+                                        .setScannedFiles(new ArrayList<>(scannedFiles))
+                                        .setErrors(new ArrayList<>(errors))
+                                        .setStartTime(context.startTime)
+                                        .setEndTime(Instant.now())
+                                        .setMetadata(metadata)
+                                        .setThreadCount(1)
+                                        .setThroughput(calculateThroughput(context))
+                                        .setPeakMemoryUsage(calculatePeakMemoryUsage())
+                                        .setDirectoriesScanned(context.directoriesProcessed.get())
+                                        .setSymbolicLinksEncountered(0)
+                                        .setSparseFilesDetected(0)
+                                        .setBackpressureEvents(0)
+                                        .setWasCancelled(false)
+                                        .setAsyncMetadata(createAsyncMetadata(context))
+                                        .build();
                                 resultConsumer.accept(incrementalResult);
                             }
 
@@ -647,12 +681,24 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
             // Send final result
             Instant endTime = Instant.now();
-            AsyncScanResult finalResult = new AsyncScanResult(
-                    context.scanId, context.rootDirectory, scannedFiles, errors,
-                    context.startTime, endTime, metadata, 1,
-                    calculateThroughput(context), calculatePeakMemoryUsage(),
-                    context.directoriesProcessed.get(), 0, 0, 0, false,
-                    createAsyncMetadata(context));
+            AsyncScanResult finalResult = new AsyncScanResult.Builder()
+                    .setScanId(context.scanId)
+                    .setRootDirectory(context.rootDirectory)
+                    .setScannedFiles(scannedFiles)
+                    .setErrors(errors)
+                    .setStartTime(context.startTime)
+                    .setEndTime(endTime)
+                    .setMetadata(metadata)
+                    .setThreadCount(1)
+                    .setThroughput(calculateThroughput(context))
+                    .setPeakMemoryUsage(calculatePeakMemoryUsage())
+                    .setDirectoriesScanned(context.directoriesProcessed.get())
+                    .setSymbolicLinksEncountered(0)
+                    .setSparseFilesDetected(0)
+                    .setBackpressureEvents(0)
+                    .setWasCancelled(false)
+                    .setAsyncMetadata(createAsyncMetadata(context))
+                    .build();
 
             // Update statistics
             stats.incrementScansCompleted();

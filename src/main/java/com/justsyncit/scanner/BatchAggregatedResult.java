@@ -83,27 +83,98 @@ public class BatchAggregatedResult {
      * @param aggregatedMetrics    aggregated performance metrics
      * @param aggregatedStatistics aggregated statistics
      */
-    public BatchAggregatedResult(String operationId, List<BatchResult> batchResults,
-            Instant startTime, Instant endTime, int totalBatches,
-            int successfulBatches, int failedBatches,
-            int totalFilesProcessed, long totalBytesProcessed,
-            BatchPerformanceMetrics aggregatedMetrics,
-            Map<String, Object> aggregatedStatistics) {
-        this.operationId = operationId;
-        this.batchResults = new java.util.ArrayList<>(batchResults);
-        this.overallSuccess = successfulBatches > 0 && failedBatches == 0;
-        this.startTime = startTime;
-        this.endTime = endTime;
+    private BatchAggregatedResult(Builder builder) {
+        this.operationId = builder.operationId;
+        this.batchResults = new java.util.ArrayList<>(builder.batchResults);
+        this.overallSuccess = builder.successfulBatches > 0 && builder.failedBatches == 0;
+        this.startTime = builder.startTime;
+        this.endTime = builder.endTime;
         this.totalProcessingTimeMs = java.time.Duration.between(startTime, endTime).toMillis();
-        this.totalBatches = totalBatches;
-        this.successfulBatches = successfulBatches;
-        this.failedBatches = failedBatches;
-        this.totalFilesProcessed = totalFilesProcessed;
-        this.totalBytesProcessed = totalBytesProcessed;
-        this.aggregatedMetrics = aggregatedMetrics;
-        this.aggregatedStatistics = aggregatedStatistics != null
-                ? new java.util.HashMap<>(aggregatedStatistics)
+        this.totalBatches = builder.totalBatches;
+        this.successfulBatches = builder.successfulBatches;
+        this.failedBatches = builder.failedBatches;
+        this.totalFilesProcessed = builder.totalFilesProcessed;
+        this.totalBytesProcessed = builder.totalBytesProcessed;
+        this.aggregatedMetrics = builder.aggregatedMetrics;
+        this.aggregatedStatistics = builder.aggregatedStatistics != null
+                ? new java.util.HashMap<>(builder.aggregatedStatistics)
                 : new java.util.HashMap<>();
+    }
+
+    /**
+     * Builder for BatchAggregatedResult.
+     */
+    public static class Builder {
+        private String operationId;
+        private List<BatchResult> batchResults = new java.util.ArrayList<>();
+        private Instant startTime;
+        private Instant endTime;
+        private int totalBatches;
+        private int successfulBatches;
+        private int failedBatches;
+        private int totalFilesProcessed;
+        private long totalBytesProcessed;
+        private BatchPerformanceMetrics aggregatedMetrics;
+        private Map<String, Object> aggregatedStatistics;
+
+        public Builder setOperationId(String operationId) {
+            this.operationId = operationId;
+            return this;
+        }
+
+        public Builder setBatchResults(List<BatchResult> batchResults) {
+            this.batchResults = batchResults;
+            return this;
+        }
+
+        public Builder setStartTime(Instant startTime) {
+            this.startTime = startTime;
+            return this;
+        }
+
+        public Builder setEndTime(Instant endTime) {
+            this.endTime = endTime;
+            return this;
+        }
+
+        public Builder setTotalBatches(int totalBatches) {
+            this.totalBatches = totalBatches;
+            return this;
+        }
+
+        public Builder setSuccessfulBatches(int successfulBatches) {
+            this.successfulBatches = successfulBatches;
+            return this;
+        }
+
+        public Builder setFailedBatches(int failedBatches) {
+            this.failedBatches = failedBatches;
+            return this;
+        }
+
+        public Builder setTotalFilesProcessed(int totalFilesProcessed) {
+            this.totalFilesProcessed = totalFilesProcessed;
+            return this;
+        }
+
+        public Builder setTotalBytesProcessed(long totalBytesProcessed) {
+            this.totalBytesProcessed = totalBytesProcessed;
+            return this;
+        }
+
+        public Builder setAggregatedMetrics(BatchPerformanceMetrics aggregatedMetrics) {
+            this.aggregatedMetrics = aggregatedMetrics;
+            return this;
+        }
+
+        public Builder setAggregatedStatistics(Map<String, Object> aggregatedStatistics) {
+            this.aggregatedStatistics = aggregatedStatistics;
+            return this;
+        }
+
+        public BatchAggregatedResult build() {
+            return new BatchAggregatedResult(this);
+        }
     }
 
     /**

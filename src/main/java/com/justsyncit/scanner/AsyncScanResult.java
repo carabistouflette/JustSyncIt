@@ -80,23 +80,122 @@ public class AsyncScanResult extends ScanResult {
      * @param wasCancelled             whether the scan was cancelled
      * @param asyncMetadata            async-specific metadata
      */
-    public AsyncScanResult(String scanId, Path rootDirectory, List<ScannedFile> scannedFiles,
-            List<ScanError> errors, Instant startTime, Instant endTime,
-            Map<String, Object> metadata, int threadCount, double throughput,
-            long peakMemoryUsage, long directoriesScanned, long symbolicLinksEncountered,
-            long sparseFilesDetected, long backpressureEvents, boolean wasCancelled,
-            Map<String, Object> asyncMetadata) {
-        super(rootDirectory, scannedFiles, errors, startTime, endTime, metadata);
-        this.scanId = scanId;
-        this.threadCount = threadCount;
-        this.throughput = throughput;
-        this.peakMemoryUsage = peakMemoryUsage;
-        this.directoriesScanned = directoriesScanned;
-        this.symbolicLinksEncountered = symbolicLinksEncountered;
-        this.sparseFilesDetected = sparseFilesDetected;
-        this.backpressureEvents = backpressureEvents;
-        this.wasCancelled = wasCancelled;
-        this.asyncMetadata = asyncMetadata != null ? new java.util.HashMap<>(asyncMetadata) : null;
+    private AsyncScanResult(Builder builder) {
+        super(builder.rootDirectory, builder.scannedFiles, builder.errors,
+                builder.startTime, builder.endTime, builder.metadata);
+        this.scanId = builder.scanId;
+        this.threadCount = builder.threadCount;
+        this.throughput = builder.throughput;
+        this.peakMemoryUsage = builder.peakMemoryUsage;
+        this.directoriesScanned = builder.directoriesScanned;
+        this.symbolicLinksEncountered = builder.symbolicLinksEncountered;
+        this.sparseFilesDetected = builder.sparseFilesDetected;
+        this.backpressureEvents = builder.backpressureEvents;
+        this.wasCancelled = builder.wasCancelled;
+        this.asyncMetadata = builder.asyncMetadata != null ? new java.util.HashMap<>(builder.asyncMetadata) : null;
+    }
+
+    public static class Builder {
+        private String scanId;
+        private Path rootDirectory;
+        private List<ScannedFile> scannedFiles;
+        private List<ScanError> errors;
+        private Instant startTime;
+        private Instant endTime;
+        private Map<String, Object> metadata;
+        private int threadCount;
+        private double throughput;
+        private long peakMemoryUsage;
+        private long directoriesScanned;
+        private long symbolicLinksEncountered;
+        private long sparseFilesDetected;
+        private long backpressureEvents;
+        private boolean wasCancelled;
+        private Map<String, Object> asyncMetadata;
+
+        public Builder setScanId(String scanId) {
+            this.scanId = scanId;
+            return this;
+        }
+
+        public Builder setRootDirectory(Path rootDirectory) {
+            this.rootDirectory = rootDirectory;
+            return this;
+        }
+
+        public Builder setScannedFiles(List<ScannedFile> scannedFiles) {
+            this.scannedFiles = scannedFiles;
+            return this;
+        }
+
+        public Builder setErrors(List<ScanError> errors) {
+            this.errors = errors;
+            return this;
+        }
+
+        public Builder setStartTime(Instant startTime) {
+            this.startTime = startTime;
+            return this;
+        }
+
+        public Builder setEndTime(Instant endTime) {
+            this.endTime = endTime;
+            return this;
+        }
+
+        public Builder setMetadata(Map<String, Object> metadata) {
+            this.metadata = metadata;
+            return this;
+        }
+
+        public Builder setThreadCount(int threadCount) {
+            this.threadCount = threadCount;
+            return this;
+        }
+
+        public Builder setThroughput(double throughput) {
+            this.throughput = throughput;
+            return this;
+        }
+
+        public Builder setPeakMemoryUsage(long peakMemoryUsage) {
+            this.peakMemoryUsage = peakMemoryUsage;
+            return this;
+        }
+
+        public Builder setDirectoriesScanned(long directoriesScanned) {
+            this.directoriesScanned = directoriesScanned;
+            return this;
+        }
+
+        public Builder setSymbolicLinksEncountered(long symbolicLinksEncountered) {
+            this.symbolicLinksEncountered = symbolicLinksEncountered;
+            return this;
+        }
+
+        public Builder setSparseFilesDetected(long sparseFilesDetected) {
+            this.sparseFilesDetected = sparseFilesDetected;
+            return this;
+        }
+
+        public Builder setBackpressureEvents(long backpressureEvents) {
+            this.backpressureEvents = backpressureEvents;
+            return this;
+        }
+
+        public Builder setWasCancelled(boolean wasCancelled) {
+            this.wasCancelled = wasCancelled;
+            return this;
+        }
+
+        public Builder setAsyncMetadata(Map<String, Object> asyncMetadata) {
+            this.asyncMetadata = asyncMetadata;
+            return this;
+        }
+
+        public AsyncScanResult build() {
+            return new AsyncScanResult(this);
+        }
     }
 
     /**

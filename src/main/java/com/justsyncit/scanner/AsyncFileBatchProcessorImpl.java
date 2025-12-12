@@ -50,7 +50,6 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     /** Default maximum concurrent batch operations. */
     private static final int DEFAULT_MAX_CONCURRENT_BATCH_OPERATIONS = 10;
     /** Default batch size. */
-    private static final int DEFAULT_BATCH_SIZE = 50;
 
     /** Async file chunker for chunking operations. */
     private volatile AsyncFileChunker asyncFileChunker;
@@ -83,7 +82,6 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     private final BatchProcessingStats batchProcessingStats;
 
     /** Active batch operations tracking. */
-    private final Map<String, BatchOperationContext> activeOperations = new ConcurrentHashMap<>();
 
     /** Performance metrics collector. */
     private final Map<String, BatchPerformanceMetrics> performanceMetrics = new ConcurrentHashMap<>();
@@ -201,18 +199,27 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     public CompletableFuture<BatchAggregatedResult> processBatches(List<List<Path>> batches, BatchOptions options) {
         if (batches == null || batches.isEmpty()) {
             return CompletableFuture.completedFuture(
-                    new BatchAggregatedResult("empty-batches", new ArrayList<>(),
-                            Instant.now(), Instant.now(), 0, 0, 0, 0, 0L, null, null));
+                    new BatchAggregatedResult.Builder()
+                            .setOperationId("empty-batches")
+                            .setStartTime(Instant.now())
+                            .setEndTime(Instant.now())
+                            .build());
         }
         if (options == null) {
             return CompletableFuture.completedFuture(
-                    new BatchAggregatedResult("no-options", new ArrayList<>(),
-                            Instant.now(), Instant.now(), 0, 0, 0, 0, 0L, null, null));
+                    new BatchAggregatedResult.Builder()
+                            .setOperationId("no-options")
+                            .setStartTime(Instant.now())
+                            .setEndTime(Instant.now())
+                            .build());
         }
         if (closed.get()) {
             return CompletableFuture.completedFuture(
-                    new BatchAggregatedResult("closed-processor", new ArrayList<>(),
-                            Instant.now(), Instant.now(), 0, 0, 0, 0, 0L, null, null));
+                    new BatchAggregatedResult.Builder()
+                            .setOperationId("closed-processor")
+                            .setStartTime(Instant.now())
+                            .setEndTime(Instant.now())
+                            .build());
         }
 
         String operationId = UUID.randomUUID().toString();
@@ -418,7 +425,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
         this.maxConcurrentBatchOperations = maxConcurrentOperations;
 
         // Update semaphore permits
-        int currentPermits = batchOperationSemaphore.availablePermits();
+
         batchOperationSemaphore.drainPermits();
         batchOperationSemaphore.release(maxConcurrentOperations);
 
@@ -528,15 +535,27 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
                 // Create aggregated performance metrics
                 BatchPerformanceMetrics aggregatedMetrics = createAggregatedMetrics(batchResults);
 
-                return new BatchAggregatedResult(operationId, batchResults, startTime, endTime,
-                        batchResults.size(), totalSuccessfulBatches, totalFailedBatches,
-                        totalFilesProcessed, totalBytesProcessed,
-                        aggregatedMetrics, createAggregatedStatistics(batchResults));
+                return new BatchAggregatedResult.Builder()
+                        .setOperationId(operationId)
+                        .setBatchResults(batchResults)
+                        .setStartTime(startTime)
+                        .setEndTime(endTime)
+                        .setTotalBatches(batchResults.size())
+                        .setSuccessfulBatches(totalSuccessfulBatches)
+                        .setFailedBatches(totalFailedBatches)
+                        .setTotalFilesProcessed(totalFilesProcessed)
+                        .setTotalBytesProcessed(totalBytesProcessed)
+                        .setAggregatedMetrics(aggregatedMetrics)
+                        .setAggregatedStatistics(createAggregatedStatistics(batchResults))
+                        .build();
 
             } catch (Exception e) {
-                return new BatchAggregatedResult(operationId, new ArrayList<>(),
-                        startTime, Instant.now(), 0, 0, 0, 0, 0L,
-                        null, createAggregatedStatistics(new ArrayList<>()));
+                return new BatchAggregatedResult.Builder()
+                        .setOperationId(operationId)
+                        .setStartTime(startTime)
+                        .setEndTime(Instant.now())
+                        .setAggregatedStatistics(createAggregatedStatistics(new ArrayList<>()))
+                        .build();
             }
         }, threadPoolManager.getThreadPool(ThreadPoolManager.PoolType.BATCH_PROCESSING));
     }
@@ -1066,7 +1085,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
         double cpuUtilization = 0.3; // Lower estimated CPU for better performance grade
         double memoryUtilization = 0.4; // Lower estimated memory for better performance grade
         double ioUtilization = 0.5; // Lower estimated I/O for better performance grade
-        int maxConcurrentOps = activeBatchOperations.get();
+
         long peakMemoryUsageMB = totalBytes / (1024 * 1024); // Rough estimate
 
         // Calculate efficiency
@@ -1169,19 +1188,6 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     /**
      * Context for tracking active batch operations.
      */
-    private static class BatchOperationContext {
-        final String operationId;
-        final BatchOperation operation;
-        final Instant startTime;
-        final CompletableFuture<BatchOperationResult> future;
-
-        BatchOperationContext(String operationId, BatchOperation operation, Instant startTime) {
-            this.operationId = operationId;
-            this.operation = operation;
-            this.startTime = startTime;
-            this.future = new CompletableFuture<>();
-        }
-    }
 
     // Operation execution methods (simplified for brevity)
 
