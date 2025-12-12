@@ -26,7 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Comprehensive statistics for async filesystem scanner operations.
- * Provides detailed metrics about scanning performance, resource usage, and operational health.
+ * Provides detailed metrics about scanning performance, resource usage, and
+ * operational health.
  */
 public class AsyncScannerStats {
 
@@ -281,7 +282,7 @@ public class AsyncScannerStats {
     /**
      * Sets an operational metric.
      *
-     * @param key metric key
+     * @param key   metric key
      * @param value metric value
      */
     public void setOperationalMetric(String key, Object value) {
@@ -513,17 +514,16 @@ public class AsyncScannerStats {
      */
     public String createSummary() {
         return String.format(
-            "AsyncScannerStats{scans=%d(completed)/%d(failed)/%d(cancelled), " +
-            "active=%d, peakConcurrent=%d, successRate=%.1f%%, " +
-            "files=%d, dirs=%d, bytes=%d, throughput=%.2f/sec, " +
-            "watchRegs=%d(active)/%d(total), events=%d, errors=%d, " +
-            "uptime=%dms, peakMemory=%d bytes}",
-            getTotalScansCompleted(), getTotalScansFailed(), getTotalScansCancelled(),
-            getActiveScans(), getPeakConcurrentScans(), getScanSuccessRate(),
-            getTotalFilesScanned(), getTotalDirectoriesScanned(), getTotalBytesProcessed(),
-            averageThroughput, getActiveWatchRegistrations(), getTotalWatchRegistrations(),
-            getTotalFileChangeEvents(), getTotalWatchServiceErrors(), uptimeMs, peakMemoryUsage
-        );
+                "AsyncScannerStats{scans=%d(completed)/%d(failed)/%d(cancelled), "
+                        + "active=%d, peakConcurrent=%d, successRate=%.1f%%, "
+                        + "files=%d, dirs=%d, bytes=%d, throughput=%.2f/sec, "
+                        + "watchRegs=%d(active)/%d(total), events=%d, errors=%d, "
+                        + "uptime=%dms, peakMemory=%d bytes}",
+                getTotalScansCompleted(), getTotalScansFailed(), getTotalScansCancelled(),
+                getActiveScans(), getPeakConcurrentScans(), getScanSuccessRate(),
+                getTotalFilesScanned(), getTotalDirectoriesScanned(), getTotalBytesProcessed(),
+                averageThroughput, getActiveWatchRegistrations(), getTotalWatchRegistrations(),
+                getTotalFileChangeEvents(), getTotalWatchServiceErrors(), uptimeMs, peakMemoryUsage);
     }
 
     @Override

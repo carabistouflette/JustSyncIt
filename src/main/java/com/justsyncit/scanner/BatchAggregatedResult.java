@@ -71,24 +71,24 @@ public class BatchAggregatedResult {
     /**
      * Creates a new aggregated result.
      *
-     * @param operationId unique identifier for this operation
-     * @param batchResults individual batch results
-     * @param startTime start timestamp
-     * @param endTime end timestamp
-     * @param totalBatches total number of batches
-     * @param successfulBatches number of successful batches
-     * @param failedBatches number of failed batches
-     * @param totalFilesProcessed total files processed
-     * @param totalBytesProcessed total bytes processed
-     * @param aggregatedMetrics aggregated performance metrics
+     * @param operationId          unique identifier for this operation
+     * @param batchResults         individual batch results
+     * @param startTime            start timestamp
+     * @param endTime              end timestamp
+     * @param totalBatches         total number of batches
+     * @param successfulBatches    number of successful batches
+     * @param failedBatches        number of failed batches
+     * @param totalFilesProcessed  total files processed
+     * @param totalBytesProcessed  total bytes processed
+     * @param aggregatedMetrics    aggregated performance metrics
      * @param aggregatedStatistics aggregated statistics
      */
     public BatchAggregatedResult(String operationId, List<BatchResult> batchResults,
-                               Instant startTime, Instant endTime, int totalBatches,
-                               int successfulBatches, int failedBatches,
-                               int totalFilesProcessed, long totalBytesProcessed,
-                               BatchPerformanceMetrics aggregatedMetrics,
-                               Map<String, Object> aggregatedStatistics) {
+            Instant startTime, Instant endTime, int totalBatches,
+            int successfulBatches, int failedBatches,
+            int totalFilesProcessed, long totalBytesProcessed,
+            BatchPerformanceMetrics aggregatedMetrics,
+            Map<String, Object> aggregatedStatistics) {
         this.operationId = operationId;
         this.batchResults = new java.util.ArrayList<>(batchResults);
         this.overallSuccess = successfulBatches > 0 && failedBatches == 0;
@@ -101,8 +101,9 @@ public class BatchAggregatedResult {
         this.totalFilesProcessed = totalFilesProcessed;
         this.totalBytesProcessed = totalBytesProcessed;
         this.aggregatedMetrics = aggregatedMetrics;
-        this.aggregatedStatistics = aggregatedStatistics != null ?
-            new java.util.HashMap<>(aggregatedStatistics) : new java.util.HashMap<>();
+        this.aggregatedStatistics = aggregatedStatistics != null
+                ? new java.util.HashMap<>(aggregatedStatistics)
+                : new java.util.HashMap<>();
     }
 
     /**
@@ -237,8 +238,9 @@ public class BatchAggregatedResult {
      * @return throughput in MB/s
      */
     public double getOverallThroughputMBps() {
-        return totalProcessingTimeMs > 0 ?
-            (double) totalBytesProcessed / (1024 * 1024) / (totalProcessingTimeMs / 1000.0) : 0.0;
+        return totalProcessingTimeMs > 0
+                ? (double) totalBytesProcessed / (1024 * 1024) / (totalProcessingTimeMs / 1000.0)
+                : 0.0;
     }
 
     /**
@@ -263,21 +265,19 @@ public class BatchAggregatedResult {
     public String toString() {
         if (overallSuccess) {
             return String.format(
-                    "BatchAggregatedResult{id='%s', batches=%d, success=true, time=%dms, " +
-                    "successfulBatches=%d, failedBatches=%d, files=%d, bytes=%dMB, " +
-                    "throughput=%.2fMB/s, avgBatchTime=%.1fms, avgFileTime=%.1fms}",
+                    "BatchAggregatedResult{id='%s', batches=%d, success=true, time=%dms, "
+                            + "successfulBatches=%d, failedBatches=%d, files=%d, bytes=%dMB, "
+                            + "throughput=%.2fMB/s, avgBatchTime=%.1fms, avgFileTime=%.1fms}",
                     operationId, totalBatches, totalProcessingTimeMs,
                     successfulBatches, failedBatches, totalFilesProcessed,
                     totalBytesProcessed / (1024 * 1024), getOverallThroughputMBps(),
-                    getAverageProcessingTimePerBatchMs(), getAverageProcessingTimePerFileMs()
-            );
+                    getAverageProcessingTimePerBatchMs(), getAverageProcessingTimePerFileMs());
         } else {
             return String.format(
-                    "BatchAggregatedResult{id='%s', batches=%d, success=false, time=%dms, " +
-                    "successfulBatches=%d, failedBatches=%d}",
+                    "BatchAggregatedResult{id='%s', batches=%d, success=false, time=%dms, "
+                            + "successfulBatches=%d, failedBatches=%d}",
                     operationId, totalBatches, totalProcessingTimeMs,
-                    successfulBatches, failedBatches
-            );
+                    successfulBatches, failedBatches);
         }
     }
 }

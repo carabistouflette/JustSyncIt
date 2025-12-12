@@ -183,10 +183,10 @@ public class BatchPerformanceMetrics {
      * @return true if performance is optimal, false otherwise
      */
     public boolean isOptimal() {
-        return throughputMBps >= 100.0 && // >100MB/s throughput
-                averageProcessingTimePerFileMs <= 100.0 && // <100ms per file
-                cpuUtilizationPercent <= 80.0 && // <=80% CPU usage
-                batchEfficiencyPercent >= 80.0; // >=80% efficiency
+        return throughputMBps >= 100.0 // >100MB/s throughput
+                && averageProcessingTimePerFileMs <= 100.0 // <100ms per file
+                && cpuUtilizationPercent <= 80.0 // <=80% CPU usage
+                && batchEfficiencyPercent >= 80.0; // >=80% efficiency
     }
 
     /**
@@ -195,10 +195,10 @@ public class BatchPerformanceMetrics {
      * @return true if performance is acceptable, false otherwise
      */
     public boolean isAcceptable() {
-        return throughputMBps >= 50.0 && // >50MB/s throughput
-                averageProcessingTimePerFileMs <= 500.0 && // <500ms per file
-                cpuUtilizationPercent <= 90.0 && // <=90% CPU usage
-                batchEfficiencyPercent >= 60.0; // >=60% efficiency
+        return throughputMBps >= 50.0 // >50MB/s throughput
+                && averageProcessingTimePerFileMs <= 500.0 // <500ms per file
+                && cpuUtilizationPercent <= 90.0 // <=90% CPU usage
+                && batchEfficiencyPercent >= 60.0; // >=60% efficiency
     }
 
     /**

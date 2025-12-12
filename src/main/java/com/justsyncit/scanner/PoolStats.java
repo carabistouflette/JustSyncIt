@@ -43,12 +43,12 @@ public class PoolStats {
      * Creates a new PoolStats.
      */
     public PoolStats(ThreadPoolManager.PoolType poolType,
-                   int corePoolSize, int maximumPoolSize,
-                   int activeThreadCount, int queuedTaskCount,
-                   long completedTaskCount, long totalExecutionTime,
-                   double averageExecutionTime, double backpressureLevel,
-                   boolean isUnderBackpressure, long lastResizingTime,
-                   int resizingCount, double cpuUsage, long memoryUsage) {
+            int corePoolSize, int maximumPoolSize,
+            int activeThreadCount, int queuedTaskCount,
+            long completedTaskCount, long totalExecutionTime,
+            double averageExecutionTime, double backpressureLevel,
+            boolean isUnderBackpressure, long lastResizingTime,
+            int resizingCount, double cpuUsage, long memoryUsage) {
         this.poolType = poolType;
         this.corePoolSize = corePoolSize;
         this.maximumPoolSize = maximumPoolSize;
@@ -66,31 +66,71 @@ public class PoolStats {
     }
 
     // Getters
-    public ThreadPoolManager.PoolType getPoolType() { return poolType; }
-    public int getCorePoolSize() { return corePoolSize; }
-    public int getMaximumPoolSize() { return maximumPoolSize; }
-    public int getActiveThreadCount() { return activeThreadCount; }
-    public int getQueuedTaskCount() { return queuedTaskCount; }
-    public long getCompletedTaskCount() { return completedTaskCount; }
-    public long getTotalExecutionTime() { return totalExecutionTime; }
-    public double getAverageExecutionTime() { return averageExecutionTime; }
-    public double getBackpressureLevel() { return backpressureLevel; }
-    public boolean isUnderBackpressure() { return isUnderBackpressure; }
-    public long getLastResizingTime() { return lastResizingTime; }
-    public int getResizingCount() { return resizingCount; }
-    public double getCpuUsage() { return cpuUsage; }
-    public long getMemoryUsage() { return memoryUsage; }
+    public ThreadPoolManager.PoolType getPoolType() {
+        return poolType;
+    }
+
+    public int getCorePoolSize() {
+        return corePoolSize;
+    }
+
+    public int getMaximumPoolSize() {
+        return maximumPoolSize;
+    }
+
+    public int getActiveThreadCount() {
+        return activeThreadCount;
+    }
+
+    public int getQueuedTaskCount() {
+        return queuedTaskCount;
+    }
+
+    public long getCompletedTaskCount() {
+        return completedTaskCount;
+    }
+
+    public long getTotalExecutionTime() {
+        return totalExecutionTime;
+    }
+
+    public double getAverageExecutionTime() {
+        return averageExecutionTime;
+    }
+
+    public double getBackpressureLevel() {
+        return backpressureLevel;
+    }
+
+    public boolean isUnderBackpressure() {
+        return isUnderBackpressure;
+    }
+
+    public long getLastResizingTime() {
+        return lastResizingTime;
+    }
+
+    public int getResizingCount() {
+        return resizingCount;
+    }
+
+    public double getCpuUsage() {
+        return cpuUsage;
+    }
+
+    public long getMemoryUsage() {
+        return memoryUsage;
+    }
 
     @Override
     public String toString() {
         return String.format(
-            "PoolStats{type=%s, core=%d, max=%d, active=%d, queued=%d, " +
-            "completed=%d, avgExecTime=%.2fms, backpressure=%.2f, " +
-            "underPressure=%b, lastResize=%d, resizeCount=%d, cpu=%.2f%%, memory=%dMB}",
-            poolType.getName(), corePoolSize, maximumPoolSize, activeThreadCount,
-            queuedTaskCount, completedTaskCount, averageExecutionTime / 1000000.0,
-            backpressureLevel, isUnderBackpressure, lastResizingTime,
-            resizingCount, cpuUsage * 100, memoryUsage / 1024 / 1024
-        );
+                "PoolStats{type=%s, core=%d, max=%d, active=%d, queued=%d, "
+                        + "completed=%d, avgExecTime=%.2fms, backpressure=%.2f, "
+                        + "underPressure=%b, lastResize=%d, resizeCount=%d, cpu=%.2f%%, memory=%dMB}",
+                poolType.getName(), corePoolSize, maximumPoolSize, activeThreadCount,
+                queuedTaskCount, completedTaskCount, averageExecutionTime / 1000000.0,
+                backpressureLevel, isUnderBackpressure, lastResizingTime,
+                resizingCount, cpuUsage * 100, memoryUsage / 1024 / 1024);
     }
 }
