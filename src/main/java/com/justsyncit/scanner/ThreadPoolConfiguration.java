@@ -149,24 +149,49 @@ public class ThreadPoolConfiguration {
         }
 
         // Getters
-        public int getCorePoolSize() { return corePoolSize; }
-        public int getMaximumPoolSize() { return maximumPoolSize; }
-        public long getKeepAliveTimeMs() { return keepAliveTimeMs; }
-        public ThreadPoolManager.ThreadPriority getPriority() { return priority; }
-        public boolean isAllowCoreThreadTimeout() { return allowCoreThreadTimeout; }
-        public int getQueueCapacity() { return queueCapacity; }
-        public String getThreadNamePrefix() { return threadNamePrefix; }
-        public boolean isEnableAffinity() { return enableAffinity; }
-        public int[] getAffinityCores() { return affinityCores != null ? affinityCores.clone() : null; }
+        public int getCorePoolSize() {
+            return corePoolSize;
+        }
+
+        public int getMaximumPoolSize() {
+            return maximumPoolSize;
+        }
+
+        public long getKeepAliveTimeMs() {
+            return keepAliveTimeMs;
+        }
+
+        public ThreadPoolManager.ThreadPriority getPriority() {
+            return priority;
+        }
+
+        public boolean isAllowCoreThreadTimeout() {
+            return allowCoreThreadTimeout;
+        }
+
+        public int getQueueCapacity() {
+            return queueCapacity;
+        }
+
+        public String getThreadNamePrefix() {
+            return threadNamePrefix;
+        }
+
+        public boolean isEnableAffinity() {
+            return enableAffinity;
+        }
+
+        public int[] getAffinityCores() {
+            return affinityCores != null ? affinityCores.clone() : null;
+        }
 
         @Override
         public String toString() {
             return String.format(
-                "PoolConfig{core=%d, max=%d, keepAlive=%dms, priority=%s, " +
-                "allowCoreTimeout=%b, queueCapacity=%d, namePrefix=%s, affinity=%b}",
-                corePoolSize, maximumPoolSize, keepAliveTimeMs, priority,
-                allowCoreThreadTimeout, queueCapacity, threadNamePrefix, enableAffinity
-            );
+                    "PoolConfig{core=%d, max=%d, keepAlive=%dms, priority=%s, "
+                            + "allowCoreTimeout=%b, queueCapacity=%d, namePrefix=%s, affinity=%b}",
+                    corePoolSize, maximumPoolSize, keepAliveTimeMs, priority,
+                    allowCoreThreadTimeout, queueCapacity, threadNamePrefix, enableAffinity);
         }
     }
 
@@ -275,85 +300,85 @@ public class ThreadPoolConfiguration {
             // I/O pool - more threads for I/O bound operations
             if (!poolConfigs.containsKey(ThreadPoolManager.PoolType.IO)) {
                 poolConfigs.put(ThreadPoolManager.PoolType.IO, new PoolConfig.Builder()
-                    .corePoolSize(Math.max(2, processors / 2))
-                    .maximumPoolSize(processors * 2)
-                    .keepAliveTimeMs(120000) // 2 minutes
-                    .priority(ThreadPoolManager.ThreadPriority.NORMAL)
-                    .allowCoreThreadTimeout(true)
-                    .queueCapacity(500)
-                    .threadNamePrefix("IO-ThreadPool")
-                    .enableAffinity(enableThreadAffinity)
-                    .build());
+                        .corePoolSize(Math.max(2, processors / 2))
+                        .maximumPoolSize(processors * 2)
+                        .keepAliveTimeMs(120000) // 2 minutes
+                        .priority(ThreadPoolManager.ThreadPriority.NORMAL)
+                        .allowCoreThreadTimeout(true)
+                        .queueCapacity(500)
+                        .threadNamePrefix("IO-ThreadPool")
+                        .enableAffinity(enableThreadAffinity)
+                        .build());
             }
 
             // CPU pool - fewer threads for CPU-bound operations
             if (!poolConfigs.containsKey(ThreadPoolManager.PoolType.CPU)) {
                 poolConfigs.put(ThreadPoolManager.PoolType.CPU, new PoolConfig.Builder()
-                    .corePoolSize(processors)
-                    .maximumPoolSize(processors)
-                    .keepAliveTimeMs(300000) // 5 minutes
-                    .priority(ThreadPoolManager.ThreadPriority.HIGH)
-                    .allowCoreThreadTimeout(false)
-                    .queueCapacity(1000) // Increased queue capacity for better efficiency
-                    .threadNamePrefix("CPU-ThreadPool")
-                    .enableAffinity(enableThreadAffinity)
-                    .build());
+                        .corePoolSize(processors)
+                        .maximumPoolSize(processors)
+                        .keepAliveTimeMs(300000) // 5 minutes
+                        .priority(ThreadPoolManager.ThreadPriority.HIGH)
+                        .allowCoreThreadTimeout(false)
+                        .queueCapacity(1000) // Increased queue capacity for better efficiency
+                        .threadNamePrefix("CPU-ThreadPool")
+                        .enableAffinity(enableThreadAffinity)
+                        .build());
             }
 
             // CompletionHandler pool - high priority for callbacks
             if (!poolConfigs.containsKey(ThreadPoolManager.PoolType.COMPLETION_HANDLER)) {
                 poolConfigs.put(ThreadPoolManager.PoolType.COMPLETION_HANDLER, new PoolConfig.Builder()
-                    .corePoolSize(4)
-                    .maximumPoolSize(8)
-                    .keepAliveTimeMs(60000) // 1 minute
-                    .priority(ThreadPoolManager.ThreadPriority.HIGH)
-                    .allowCoreThreadTimeout(true)
-                    .queueCapacity(1000)
-                    .threadNamePrefix("CompletionHandler-ThreadPool")
-                    .enableAffinity(enableThreadAffinity)
-                    .build());
+                        .corePoolSize(4)
+                        .maximumPoolSize(8)
+                        .keepAliveTimeMs(60000) // 1 minute
+                        .priority(ThreadPoolManager.ThreadPriority.HIGH)
+                        .allowCoreThreadTimeout(true)
+                        .queueCapacity(1000)
+                        .threadNamePrefix("CompletionHandler-ThreadPool")
+                        .enableAffinity(enableThreadAffinity)
+                        .build());
             }
 
             // Batch processing pool - medium priority for batch operations
             if (!poolConfigs.containsKey(ThreadPoolManager.PoolType.BATCH_PROCESSING)) {
                 poolConfigs.put(ThreadPoolManager.PoolType.BATCH_PROCESSING, new PoolConfig.Builder()
-                    .corePoolSize(Math.max(2, processors / 4))
-                    .maximumPoolSize(processors)
-                    .keepAliveTimeMs(180000) // 3 minutes
-                    .priority(ThreadPoolManager.ThreadPriority.NORMAL)
-                    .allowCoreThreadTimeout(true)
-                    .queueCapacity(200)
-                    .threadNamePrefix("Batch-ThreadPool")
-                    .enableAffinity(enableThreadAffinity)
-                    .build());
+                        .corePoolSize(Math.max(2, processors / 4))
+                        .maximumPoolSize(processors)
+                        .keepAliveTimeMs(180000) // 3 minutes
+                        .priority(ThreadPoolManager.ThreadPriority.NORMAL)
+                        .allowCoreThreadTimeout(true)
+                        .queueCapacity(200)
+                        .threadNamePrefix("Batch-ThreadPool")
+                        .enableAffinity(enableThreadAffinity)
+                        .build());
             }
 
             // WatchService pool - low priority for monitoring
             if (!poolConfigs.containsKey(ThreadPoolManager.PoolType.WATCH_SERVICE)) {
                 poolConfigs.put(ThreadPoolManager.PoolType.WATCH_SERVICE, new PoolConfig.Builder()
-                    .corePoolSize(2)
-                    .maximumPoolSize(4)
-                    .keepAliveTimeMs(300000) // 5 minutes
-                    .priority(ThreadPoolManager.ThreadPriority.LOW)
-                    .allowCoreThreadTimeout(true)
-                    .queueCapacity(50)
-                    .threadNamePrefix("WatchService-ThreadPool")
-                    .enableAffinity(enableThreadAffinity)
-                    .build());
+                        .corePoolSize(2)
+                        .maximumPoolSize(4)
+                        .keepAliveTimeMs(300000) // 5 minutes
+                        .priority(ThreadPoolManager.ThreadPriority.LOW)
+                        .allowCoreThreadTimeout(true)
+                        .queueCapacity(50)
+                        .threadNamePrefix("WatchService-ThreadPool")
+                        .enableAffinity(enableThreadAffinity)
+                        .build());
             }
 
             // Management pool - low priority for internal operations
             if (!poolConfigs.containsKey(ThreadPoolManager.PoolType.MANAGEMENT)) {
                 poolConfigs.put(ThreadPoolManager.PoolType.MANAGEMENT, new PoolConfig.Builder()
-                    .corePoolSize(2)
-                    .maximumPoolSize(4)
-                    .keepAliveTimeMs(300000) // 5 minutes
-                    .priority(ThreadPoolManager.ThreadPriority.LOW)
-                    .allowCoreThreadTimeout(true)
-                    .queueCapacity(100)
-                    .threadNamePrefix("Management-ThreadPool")
-                    .enableAffinity(enableThreadAffinity)
-                    .build());
+                        .corePoolSize(2)
+                        .maximumPoolSize(4)
+                        .keepAliveTimeMs(300000) // 5 minutes
+                        .priority(ThreadPoolManager.ThreadPriority.LOW)
+                        .allowCoreThreadTimeout(true)
+                        .queueCapacity(100)
+                        .threadNamePrefix("Management-ThreadPool")
+                        .enableAffinity(enableThreadAffinity)
+                        .build());
             }
         }
     }
@@ -392,27 +417,55 @@ public class ThreadPoolConfiguration {
     }
 
     // Getters
-    public boolean isEnableAdaptiveSizing() { return enableAdaptiveSizing; }
-    public boolean isEnableThreadAffinity() { return enableThreadAffinity; }
-    public boolean isEnableNumaAwareness() { return enableNumaAwareness; }
-    public boolean isEnableWarmup() { return enableWarmup; }
-    public boolean isEnableBackpressure() { return enableBackpressure; }
-    public long getAdaptiveSizingIntervalMs() { return adaptiveSizingIntervalMs; }
-    public double getMaxCpuUsageThreshold() { return maxCpuUsageThreshold; }
-    public double getMemoryPressureThreshold() { return memoryPressureThreshold; }
-    public int getMinThreadsPerPool() { return minThreadsPerPool; }
-    public int getMaxThreadsPerPool() { return maxThreadsPerPool; }
+    public boolean isEnableAdaptiveSizing() {
+        return enableAdaptiveSizing;
+    }
+
+    public boolean isEnableThreadAffinity() {
+        return enableThreadAffinity;
+    }
+
+    public boolean isEnableNumaAwareness() {
+        return enableNumaAwareness;
+    }
+
+    public boolean isEnableWarmup() {
+        return enableWarmup;
+    }
+
+    public boolean isEnableBackpressure() {
+        return enableBackpressure;
+    }
+
+    public long getAdaptiveSizingIntervalMs() {
+        return adaptiveSizingIntervalMs;
+    }
+
+    public double getMaxCpuUsageThreshold() {
+        return maxCpuUsageThreshold;
+    }
+
+    public double getMemoryPressureThreshold() {
+        return memoryPressureThreshold;
+    }
+
+    public int getMinThreadsPerPool() {
+        return minThreadsPerPool;
+    }
+
+    public int getMaxThreadsPerPool() {
+        return maxThreadsPerPool;
+    }
 
     @Override
     public String toString() {
         return String.format(
-            "ThreadPoolConfiguration{adaptiveSizing=%b, threadAffinity=%b, numaAwareness=%b, " +
-            "warmup=%b, backpressure=%b, adaptiveInterval=%dms, maxCpu=%.2f, " +
-            "memoryThreshold=%.2f, minThreads=%d, maxThreads=%d}",
-            enableAdaptiveSizing, enableThreadAffinity, enableNumaAwareness,
-            enableWarmup, enableBackpressure, adaptiveSizingIntervalMs,
-            maxCpuUsageThreshold, memoryPressureThreshold,
-            minThreadsPerPool, maxThreadsPerPool
-        );
+                "ThreadPoolConfiguration{adaptiveSizing=%b, threadAffinity=%b, numaAwareness=%b, "
+                        + "warmup=%b, backpressure=%b, adaptiveInterval=%dms, maxCpu=%.2f, "
+                        + "memoryThreshold=%.2f, minThreads=%d, maxThreads=%d}",
+                enableAdaptiveSizing, enableThreadAffinity, enableNumaAwareness,
+                enableWarmup, enableBackpressure, adaptiveSizingIntervalMs,
+                maxCpuUsageThreshold, memoryPressureThreshold,
+                minThreadsPerPool, maxThreadsPerPool);
     }
 }

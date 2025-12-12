@@ -91,22 +91,44 @@ public class SystemResourceInfo {
     }
 
     // Getters
-    public int getAvailableProcessors() { return availableProcessors; }
-    public long getTotalMemory() { return totalMemory; }
-    public long getMaxMemory() { return maxMemory; }
-    public String getOsName() { return osName; }
-    public String getOsVersion() { return osVersion; }
-    public String getOsArch() { return osArch; }
-    public boolean isNumaAware() { return isNumaAware; }
-    public int getNumaNodes() { return numaNodes; }
+    public int getAvailableProcessors() {
+        return availableProcessors;
+    }
+
+    public long getTotalMemory() {
+        return totalMemory;
+    }
+
+    public long getMaxMemory() {
+        return maxMemory;
+    }
+
+    public String getOsName() {
+        return osName;
+    }
+
+    public String getOsVersion() {
+        return osVersion;
+    }
+
+    public String getOsArch() {
+        return osArch;
+    }
+
+    public boolean isNumaAware() {
+        return isNumaAware;
+    }
+
+    public int getNumaNodes() {
+        return numaNodes;
+    }
 
     @Override
     public String toString() {
         return String.format(
-            "SystemResourceInfo{processors=%d, totalMemory=%dMB, maxMemory=%dMB, " +
-            "os=%s %s, arch=%s, numa=%b, numaNodes=%d}",
-            availableProcessors, totalMemory / 1024 / 1024, maxMemory / 1024 / 1024,
-            osName, osVersion, osArch, isNumaAware, numaNodes
-        );
+                "SystemResourceInfo{processors=%d, totalMemory=%dMB, maxMemory=%dMB, "
+                        + "os=%s %s, arch=%s, numa=%b, numaNodes=%d}",
+                availableProcessors, totalMemory / 1024 / 1024, maxMemory / 1024 / 1024,
+                osName, osVersion, osArch, isNumaAware, numaNodes);
     }
 }

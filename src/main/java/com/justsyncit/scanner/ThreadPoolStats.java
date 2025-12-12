@@ -51,9 +51,9 @@ public class ThreadPoolStats {
      * Creates new ThreadPoolStats.
      */
     public ThreadPoolStats(String poolName, int corePoolSize, int maximumPoolSize,
-                          int activeThreads, int totalTasks, int completedTasks,
-                          int queueSize, long submittedTasks, long completedSubmittedTasks,
-                          int currentQueueSize) {
+            int activeThreads, int totalTasks, int completedTasks,
+            int queueSize, long submittedTasks, long completedSubmittedTasks,
+            int currentQueueSize) {
         this.poolName = poolName;
         this.corePoolSize = corePoolSize;
         this.maximumPoolSize = maximumPoolSize;
@@ -76,10 +76,10 @@ public class ThreadPoolStats {
      * Creates ThreadPoolStats with performance metrics.
      */
     public ThreadPoolStats(String poolName, int corePoolSize, int maximumPoolSize,
-                          int activeThreads, int totalTasks, int completedTasks,
-                          int queueSize, long submittedTasks, long completedSubmittedTasks,
-                          int currentQueueSize, double averageExecutionTime,
-                          double throughput, double utilizationRate, double efficiency) {
+            int activeThreads, int totalTasks, int completedTasks,
+            int queueSize, long submittedTasks, long completedSubmittedTasks,
+            int currentQueueSize, double averageExecutionTime,
+            double throughput, double utilizationRate, double efficiency) {
         this.poolName = poolName;
         this.corePoolSize = corePoolSize;
         this.maximumPoolSize = maximumPoolSize;
@@ -256,9 +256,9 @@ public class ThreadPoolStats {
         private final double throughput;
 
         public PoolSpecificStats(int resizeCount, long lastResizeTime,
-                               int consecutiveOptimizations, double currentEfficiency,
-                               double targetEfficiency, double averageLatency,
-                               double throughput) {
+                int consecutiveOptimizations, double currentEfficiency,
+                double targetEfficiency, double averageLatency,
+                double throughput) {
             this.resizeCount = resizeCount;
             this.lastResizeTime = lastResizeTime;
             this.consecutiveOptimizations = consecutiveOptimizations;
@@ -268,36 +268,54 @@ public class ThreadPoolStats {
             this.throughput = throughput;
         }
 
-        public int getResizeCount() { return resizeCount; }
-        public long getLastResizeTime() { return lastResizeTime; }
-        public int getConsecutiveOptimizations() { return consecutiveOptimizations; }
-        public double getCurrentEfficiency() { return currentEfficiency; }
-        public double getTargetEfficiency() { return targetEfficiency; }
-        public double getAverageLatency() { return averageLatency; }
-        public double getThroughput() { return throughput; }
+        public int getResizeCount() {
+            return resizeCount;
+        }
+
+        public long getLastResizeTime() {
+            return lastResizeTime;
+        }
+
+        public int getConsecutiveOptimizations() {
+            return consecutiveOptimizations;
+        }
+
+        public double getCurrentEfficiency() {
+            return currentEfficiency;
+        }
+
+        public double getTargetEfficiency() {
+            return targetEfficiency;
+        }
+
+        public double getAverageLatency() {
+            return averageLatency;
+        }
+
+        public double getThroughput() {
+            return throughput;
+        }
 
         @Override
         public String toString() {
             return String.format(
-                    "PoolSpecificStats{resizes=%d, lastResize=%d, consecutive=%d, " +
-                    "efficiency=%.2f, target=%.2f, latency=%.2f, throughput=%.2f}",
+                    "PoolSpecificStats{resizes=%d, lastResize=%d, consecutive=%d, "
+                            + "efficiency=%.2f, target=%.2f, latency=%.2f, throughput=%.2f}",
                     resizeCount, lastResizeTime, consecutiveOptimizations,
-                    currentEfficiency, targetEfficiency, averageLatency, throughput
-            );
+                    currentEfficiency, targetEfficiency, averageLatency, throughput);
         }
     }
 
     @Override
     public String toString() {
         return String.format(
-                "ThreadPoolStats{name='%s', core=%d, max=%d, active=%d, " +
-                "tasks=%d, completed=%d, queue=%d, submitted=%d, " +
-                "completedSubmitted=%d, currentQueue=%d, avgExecTime=%.2f, " +
-                "throughput=%.2f, utilization=%.2f, efficiency=%.2f}",
+                "ThreadPoolStats{name='%s', core=%d, max=%d, active=%d, "
+                        + "tasks=%d, completed=%d, queue=%d, submitted=%d, "
+                        + "completedSubmitted=%d, currentQueue=%d, avgExecTime=%.2f, "
+                        + "throughput=%.2f, utilization=%.2f, efficiency=%.2f}",
                 poolName, corePoolSize, maximumPoolSize, activeThreads,
                 totalTasks, completedTasks, queueSize, submittedTasks,
                 completedSubmittedTasks, currentQueueSize, averageExecutionTime,
-                throughput, utilizationRate, efficiency
-        );
+                throughput, utilizationRate, efficiency);
     }
 }
