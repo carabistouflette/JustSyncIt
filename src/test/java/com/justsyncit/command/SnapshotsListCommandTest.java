@@ -18,7 +18,6 @@
 
 package com.justsyncit.command;
 
-import com.justsyncit.ServiceFactory;
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
@@ -33,12 +32,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 
 /**
  * Test class for SnapshotsListCommand.
@@ -48,10 +49,10 @@ class SnapshotsListCommandTest {
 
     @Mock
     private MetadataService metadataService;
-    
+
     @Mock
     private Blake3Service blake3Service;
-    
+
     private SnapshotsListCommand command;
     private CommandContext context;
     private ByteArrayOutputStream outputStream;
@@ -92,9 +93,9 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithHelp() {
-        boolean result = command.execute(new String[]{"--help"}, context);
+        boolean result = command.execute(new String[] { "--help" }, context);
         assertTrue(result);
-        
+
         String output = outputStream.toString();
         assertTrue(output.contains("Snapshots List Command Help"));
     }
@@ -102,9 +103,9 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithMissingSubcommand() {
-        boolean result = command.execute(new String[]{}, context);
+        boolean result = command.execute(new String[] {}, context);
         assertFalse(result);
-        
+
         String output = outputStream.toString();
         String error = errorStream.toString();
         assertTrue(error.contains("Error: Missing subcommand 'list'"));
@@ -113,9 +114,9 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithInvalidSubcommand() {
-        boolean result = command.execute(new String[]{"invalid"}, context);
+        boolean result = command.execute(new String[] { "invalid" }, context);
         assertFalse(result);
-        
+
         String output = outputStream.toString();
         String error = errorStream.toString();
         assertTrue(error.contains("Error: Missing subcommand 'list'"));
@@ -125,17 +126,17 @@ class SnapshotsListCommandTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithValidList() throws Exception {
         // Mock snapshots
-        Snapshot snapshot1 = new Snapshot("snap1", "Snapshot 1", "First snapshot", 
-            Instant.now(), 100, 1024 * 1024);
-        Snapshot snapshot2 = new Snapshot("snap2", "Snapshot 2", "Second snapshot", 
-            Instant.now().minusSeconds(3600), 200, 2 * 1024 * 1024);
-        
+        Snapshot snapshot1 = new Snapshot("snap1", "Snapshot 1", "First snapshot",
+                Instant.now(), 100, 1024 * 1024);
+        Snapshot snapshot2 = new Snapshot("snap2", "Snapshot 2", "Second snapshot",
+                Instant.now().minusSeconds(3600), 200, 2 * 1024 * 1024);
+
         List<Snapshot> snapshots = Arrays.asList(snapshot1, snapshot2);
         when(metadataService.listSnapshots()).thenReturn(snapshots);
-        
-        boolean result = command.execute(new String[]{"list"}, context);
+
+        boolean result = command.execute(new String[] { "list" }, context);
         assertTrue(result);
-        
+
         String output = outputStream.toString();
         assertTrue(output.contains("Available Snapshots:"));
         assertTrue(output.contains("snap1"));
@@ -147,15 +148,15 @@ class SnapshotsListCommandTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithVerboseOption() throws Exception {
         // Mock snapshots
-        Snapshot snapshot = new Snapshot("snap1", "Snapshot 1", "First snapshot", 
-            Instant.now(), 100, 1024 * 1024);
-        
+        Snapshot snapshot = new Snapshot("snap1", "Snapshot 1", "First snapshot",
+                Instant.now(), 100, 1024 * 1024);
+
         List<Snapshot> snapshots = Arrays.asList(snapshot);
         when(metadataService.listSnapshots()).thenReturn(snapshots);
-        
-        boolean result = command.execute(new String[]{"list", "--verbose"}, context);
+
+        boolean result = command.execute(new String[] { "list", "--verbose" }, context);
         assertTrue(result);
-        
+
         String output = outputStream.toString();
         assertTrue(output.contains("Description"));
         assertTrue(output.contains("First snapshot"));
@@ -165,17 +166,17 @@ class SnapshotsListCommandTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithSortBySizeOption() throws Exception {
         // Mock snapshots
-        Snapshot snapshot1 = new Snapshot("snap1", "Small Snapshot", "Small", 
-            Instant.now(), 100, 1024 * 1024);
-        Snapshot snapshot2 = new Snapshot("snap2", "Large Snapshot", "Large", 
-            Instant.now().minusSeconds(3600), 200, 2 * 1024 * 1024);
-        
+        Snapshot snapshot1 = new Snapshot("snap1", "Small Snapshot", "Small",
+                Instant.now(), 100, 1024 * 1024);
+        Snapshot snapshot2 = new Snapshot("snap2", "Large Snapshot", "Large",
+                Instant.now().minusSeconds(3600), 200, 2 * 1024 * 1024);
+
         List<Snapshot> snapshots = Arrays.asList(snapshot1, snapshot2);
         when(metadataService.listSnapshots()).thenReturn(snapshots);
-        
-        boolean result = command.execute(new String[]{"list", "--sort-by-size"}, context);
+
+        boolean result = command.execute(new String[] { "list", "--sort-by-size" }, context);
         assertTrue(result);
-        
+
         String output = outputStream.toString();
         // Should show large snapshot first when sorting by size
         int largeIndex = output.indexOf("Large Snapshot");
@@ -186,9 +187,9 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithUnknownOption() {
-        boolean result = command.execute(new String[]{"list", "--unknown"}, context);
+        boolean result = command.execute(new String[] { "list", "--unknown" }, context);
         assertFalse(result);
-        
+
         String output = outputStream.toString();
         String error = errorStream.toString();
         assertTrue(error.contains("Error: Unknown option: --unknown"));
@@ -197,11 +198,11 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithEmptySnapshotList() throws Exception {
-        when(metadataService.listSnapshots()).thenReturn(Arrays.asList());
-        
-        boolean result = command.execute(new String[]{"list"}, context);
+        when(metadataService.listSnapshots()).thenReturn(Collections.emptyList());
+
+        boolean result = command.execute(new String[] { "list" }, context);
         assertTrue(result);
-        
+
         String output = outputStream.toString();
         assertTrue(output.contains("No snapshots found."));
     }
@@ -210,10 +211,10 @@ class SnapshotsListCommandTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteWithServiceException() throws Exception {
         when(metadataService.listSnapshots()).thenThrow(new RuntimeException("Service error"));
-        
-        boolean result = command.execute(new String[]{"list"}, context);
+
+        boolean result = command.execute(new String[] { "list" }, context);
         assertFalse(result);
-        
+
         String output = outputStream.toString();
         String error = errorStream.toString();
         assertTrue(error.contains("Error: Failed to list snapshots"));
