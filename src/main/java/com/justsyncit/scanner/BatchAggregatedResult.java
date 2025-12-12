@@ -31,40 +31,40 @@ public class BatchAggregatedResult {
 
     /** Unique identifier for this aggregated operation. */
     private final String operationId;
-    
+
     /** Individual batch results. */
     private final List<BatchResult> batchResults;
-    
+
     /** Overall success status. */
     private final boolean overallSuccess;
-    
+
     /** Timestamp when aggregated operation started. */
     private final Instant startTime;
-    
+
     /** Timestamp when aggregated operation completed. */
     private final Instant endTime;
-    
+
     /** Total processing time in milliseconds. */
     private final long totalProcessingTimeMs;
-    
+
     /** Total number of batches processed. */
     private final int totalBatches;
-    
+
     /** Total number of successful batches. */
     private final int successfulBatches;
-    
+
     /** Total number of failed batches. */
     private final int failedBatches;
-    
+
     /** Total files processed across all batches. */
     private final int totalFilesProcessed;
-    
+
     /** Total bytes processed across all batches. */
     private final long totalBytesProcessed;
-    
+
     /** Aggregated performance metrics. */
     private final BatchPerformanceMetrics aggregatedMetrics;
-    
+
     /** Per-batch statistics. */
     private final Map<String, Object> aggregatedStatistics;
 
@@ -101,7 +101,7 @@ public class BatchAggregatedResult {
         this.totalFilesProcessed = totalFilesProcessed;
         this.totalBytesProcessed = totalBytesProcessed;
         this.aggregatedMetrics = aggregatedMetrics;
-        this.aggregatedStatistics = aggregatedStatistics != null ? 
+        this.aggregatedStatistics = aggregatedStatistics != null ?
             new java.util.HashMap<>(aggregatedStatistics) : new java.util.HashMap<>();
     }
 
@@ -237,7 +237,7 @@ public class BatchAggregatedResult {
      * @return throughput in MB/s
      */
     public double getOverallThroughputMBps() {
-        return totalProcessingTimeMs > 0 ? 
+        return totalProcessingTimeMs > 0 ?
             (double) totalBytesProcessed / (1024 * 1024) / (totalProcessingTimeMs / 1000.0) : 0.0;
     }
 

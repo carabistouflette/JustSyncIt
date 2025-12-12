@@ -27,53 +27,54 @@ public class BatchPerformanceMetrics {
 
     /** Overall throughput in MB/s. */
     private final double throughputMBps;
-    
+
     /** Average processing time per file in milliseconds. */
     private final double averageProcessingTimePerFileMs;
-    
+
     /** Average processing time per batch in milliseconds. */
     private final double averageProcessingTimePerBatchMs;
-    
+
     /** Peak memory usage in MB. */
     private final double peakMemoryUsageMB;
-    
+
     /** Average memory usage in MB. */
     private final double averageMemoryUsageMB;
-    
+
     /** CPU utilization percentage. */
     private final double cpuUtilizationPercent;
-    
+
     /** I/O wait time percentage. */
     private final double ioWaitTimePercent;
-    
+
     /** Cache hit rate percentage. */
     private final double cacheHitRatePercent;
-    
+
     /** Batch efficiency percentage (0.0 to 100.0). */
     private final double batchEfficiencyPercent;
-    
+
     /** Resource utilization score (0.0 to 1.0). */
     private final double resourceUtilizationScore;
 
     /**
      * Creates new batch performance metrics.
      *
-     * @param throughputMBps throughput in MB/s
-     * @param averageProcessingTimePerFileMs average processing time per file in ms
-     * @param averageProcessingTimePerBatchMs average processing time per batch in ms
-     * @param peakMemoryUsageMB peak memory usage in MB
-     * @param averageMemoryUsageMB average memory usage in MB
-     * @param cpuUtilizationPercent CPU utilization percentage
-     * @param ioWaitTimePercent I/O wait time percentage
-     * @param cacheHitRatePercent cache hit rate percentage
-     * @param batchEfficiencyPercent batch efficiency percentage
-     * @param resourceUtilizationScore resource utilization score
+     * @param throughputMBps                  throughput in MB/s
+     * @param averageProcessingTimePerFileMs  average processing time per file in ms
+     * @param averageProcessingTimePerBatchMs average processing time per batch in
+     *                                        ms
+     * @param peakMemoryUsageMB               peak memory usage in MB
+     * @param averageMemoryUsageMB            average memory usage in MB
+     * @param cpuUtilizationPercent           CPU utilization percentage
+     * @param ioWaitTimePercent               I/O wait time percentage
+     * @param cacheHitRatePercent             cache hit rate percentage
+     * @param batchEfficiencyPercent          batch efficiency percentage
+     * @param resourceUtilizationScore        resource utilization score
      */
     public BatchPerformanceMetrics(double throughputMBps, double averageProcessingTimePerFileMs,
-                               double averageProcessingTimePerBatchMs, double peakMemoryUsageMB,
-                               double averageMemoryUsageMB, double cpuUtilizationPercent,
-                               double ioWaitTimePercent, double cacheHitRatePercent,
-                               double batchEfficiencyPercent, double resourceUtilizationScore) {
+            double averageProcessingTimePerBatchMs, double peakMemoryUsageMB,
+            double averageMemoryUsageMB, double cpuUtilizationPercent,
+            double ioWaitTimePercent, double cacheHitRatePercent,
+            double batchEfficiencyPercent, double resourceUtilizationScore) {
         this.throughputMBps = throughputMBps;
         this.averageProcessingTimePerFileMs = averageProcessingTimePerFileMs;
         this.averageProcessingTimePerBatchMs = averageProcessingTimePerBatchMs;
@@ -183,9 +184,9 @@ public class BatchPerformanceMetrics {
      */
     public boolean isOptimal() {
         return throughputMBps >= 100.0 && // >100MB/s throughput
-               averageProcessingTimePerFileMs <= 100.0 && // <100ms per file
-               cpuUtilizationPercent <= 80.0 && // <=80% CPU usage
-               batchEfficiencyPercent >= 80.0; // >=80% efficiency
+                averageProcessingTimePerFileMs <= 100.0 && // <100ms per file
+                cpuUtilizationPercent <= 80.0 && // <=80% CPU usage
+                batchEfficiencyPercent >= 80.0; // >=80% efficiency
     }
 
     /**
@@ -195,9 +196,9 @@ public class BatchPerformanceMetrics {
      */
     public boolean isAcceptable() {
         return throughputMBps >= 50.0 && // >50MB/s throughput
-               averageProcessingTimePerFileMs <= 500.0 && // <500ms per file
-               cpuUtilizationPercent <= 90.0 && // <=90% CPU usage
-               batchEfficiencyPercent >= 60.0; // >=60% efficiency
+                averageProcessingTimePerFileMs <= 500.0 && // <500ms per file
+                cpuUtilizationPercent <= 90.0 && // <=90% CPU usage
+                batchEfficiencyPercent >= 60.0; // >=60% efficiency
     }
 
     /**
@@ -222,15 +223,14 @@ public class BatchPerformanceMetrics {
     @Override
     public String toString() {
         return String.format(
-                "BatchPerformanceMetrics{throughput=%.2fMB/s, avgFileTime=%.1fms, " +
-                "avgBatchTime=%.1fms, peakMemory=%.1fMB, avgMemory=%.1fMB, " +
-                "cpu=%.1f%%, ioWait=%.1f%%, cacheHit=%.1f%%, efficiency=%.1f%%, " +
-                "resourceScore=%.3f, grade=%s}",
+                "BatchPerformanceMetrics{throughput=%.2fMB/s, avgFileTime=%.1fms, "
+                        + "avgBatchTime=%.1fms, peakMemory=%.1fMB, avgMemory=%.1fMB, "
+                        + "cpu=%.1f%%, ioWait=%.1f%%, cacheHit=%.1f%%, efficiency=%.1f%%, "
+                        + "resourceScore=%.3f, grade=%s}",
                 throughputMBps, averageProcessingTimePerFileMs, averageProcessingTimePerBatchMs,
                 peakMemoryUsageMB, averageMemoryUsageMB, cpuUtilizationPercent,
                 ioWaitTimePercent, cacheHitRatePercent, batchEfficiencyPercent,
-                resourceUtilizationScore, getPerformanceGrade()
-        );
+                resourceUtilizationScore, getPerformanceGrade());
     }
 
     /**

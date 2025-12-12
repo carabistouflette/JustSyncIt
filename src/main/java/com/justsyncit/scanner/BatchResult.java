@@ -22,7 +22,6 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Result of a batch processing operation.
@@ -33,61 +32,61 @@ public class BatchResult {
 
     /** Unique identifier for this batch operation. */
     private final String batchId;
-    
+
     /** Files that were processed in this batch. */
     private final List<Path> files;
-    
+
     /** Whether the batch operation was successful. */
     private final boolean success;
-    
+
     /** Error that occurred during batch processing, if any. */
     private final Exception error;
-    
+
     /** Timestamp when batch processing started. */
     private final Instant startTime;
-    
+
     /** Timestamp when batch processing completed. */
     private final Instant endTime;
-    
+
     /** Total processing time in milliseconds. */
     private final long processingTimeMs;
-    
+
     /** Number of files successfully processed. */
     private final int successfulFiles;
-    
+
     /** Number of files that failed processing. */
     private final int failedFiles;
-    
+
     /** Total bytes processed. */
     private final long totalBytesProcessed;
-    
+
     /** Per-file processing results. */
     private final Map<Path, FileProcessingResult> fileResults;
-    
+
     /** Batch processing statistics. */
     private final BatchProcessingStats statistics;
-    
+
     /** Performance metrics for this batch. */
     private final BatchPerformanceMetrics performanceMetrics;
 
     /**
      * Creates a successful batch result.
      *
-     * @param batchId unique identifier for this batch
-     * @param files files that were processed
-     * @param startTime start timestamp
-     * @param endTime end timestamp
-     * @param successfulFiles number of successful files
-     * @param failedFiles number of failed files
+     * @param batchId             unique identifier for this batch
+     * @param files               files that were processed
+     * @param startTime           start timestamp
+     * @param endTime             end timestamp
+     * @param successfulFiles     number of successful files
+     * @param failedFiles         number of failed files
      * @param totalBytesProcessed total bytes processed
-     * @param fileResults per-file processing results
-     * @param statistics batch processing statistics
-     * @param performanceMetrics performance metrics
+     * @param fileResults         per-file processing results
+     * @param statistics          batch processing statistics
+     * @param performanceMetrics  performance metrics
      */
     public BatchResult(String batchId, List<Path> files, Instant startTime, Instant endTime,
-                    int successfulFiles, int failedFiles, long totalBytesProcessed,
-                    Map<Path, FileProcessingResult> fileResults,
-                    BatchProcessingStats statistics, BatchPerformanceMetrics performanceMetrics) {
+            int successfulFiles, int failedFiles, long totalBytesProcessed,
+            Map<Path, FileProcessingResult> fileResults,
+            BatchProcessingStats statistics, BatchPerformanceMetrics performanceMetrics) {
         this.batchId = batchId;
         this.files = new java.util.ArrayList<>(files);
         this.success = true;
@@ -106,15 +105,15 @@ public class BatchResult {
     /**
      * Creates a failed batch result.
      *
-     * @param batchId unique identifier for this batch
-     * @param files files that were attempted to be processed
-     * @param startTime start timestamp
-     * @param endTime end timestamp
-     * @param error error that occurred
+     * @param batchId     unique identifier for this batch
+     * @param files       files that were attempted to be processed
+     * @param startTime   start timestamp
+     * @param endTime     end timestamp
+     * @param error       error that occurred
      * @param fileResults per-file processing results (may be partial)
      */
     public BatchResult(String batchId, List<Path> files, Instant startTime, Instant endTime,
-                    Exception error, Map<Path, FileProcessingResult> fileResults) {
+            Exception error, Map<Path, FileProcessingResult> fileResults) {
         this.batchId = batchId;
         this.files = new java.util.ArrayList<>(files);
         this.success = false;
@@ -271,15 +270,13 @@ public class BatchResult {
         if (success) {
             return String.format(
                     "BatchResult{id='%s', files=%d, success=true, time=%dms, " +
-                    "successful=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
+                            "successful=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
                     batchId, files.size(), processingTimeMs, successfulFiles, failedFiles,
-                    totalBytesProcessed / (1024 * 1024), getThroughputMBps()
-            );
+                    totalBytesProcessed / (1024 * 1024), getThroughputMBps());
         } else {
             return String.format(
                     "BatchResult{id='%s', files=%d, success=false, time=%dms, error='%s'}",
-                    batchId, files.size(), processingTimeMs, error != null ? error.getMessage() : "Unknown"
-            );
+                    batchId, files.size(), processingTimeMs, error != null ? error.getMessage() : "Unknown");
         }
     }
 
@@ -296,7 +293,7 @@ public class BatchResult {
         public final String fileHash;
 
         public FileProcessingResult(Path file, boolean success, Exception error, long processingTimeMs,
-                               long fileSize, int chunkCount, String fileHash) {
+                long fileSize, int chunkCount, String fileHash) {
             this.file = file;
             this.success = success;
             this.error = error;
@@ -311,13 +308,11 @@ public class BatchResult {
             if (success) {
                 return String.format(
                         "FileResult{file=%s, success=true, time=%dms, size=%d, chunks=%d}",
-                        file, processingTimeMs, fileSize, chunkCount
-                );
+                        file, processingTimeMs, fileSize, chunkCount);
             } else {
                 return String.format(
                         "FileResult{file=%s, success=false, error='%s'}",
-                        file, error != null ? error.getMessage() : "Unknown"
-                );
+                        file, error != null ? error.getMessage() : "Unknown");
             }
         }
     }

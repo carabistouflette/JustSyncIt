@@ -26,10 +26,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Supplier;
 
 /**
- * Batch-aware implementation of AsyncByteBufferPool that integrates with the batch processing system.
+ * Batch-aware implementation of AsyncByteBufferPool that integrates with the
+ * batch processing system.
  * Provides optimized buffer management for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
@@ -47,14 +47,14 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
     /**
      * Creates a new BatchAwareAsyncByteBufferPool.
      *
-     * @param delegate the underlying async buffer pool
+     * @param delegate       the underlying async buffer pool
      * @param batchProcessor the batch processor for coordination
-     * @param batchConfig the batch configuration
+     * @param batchConfig    the batch configuration
      * @throws IllegalArgumentException if any parameter is null
      */
     public BatchAwareAsyncByteBufferPool(AsyncByteBufferPool delegate,
-                                        AsyncBatchProcessor batchProcessor,
-                                        BatchConfiguration batchConfig) {
+            AsyncBatchProcessor batchProcessor,
+            BatchConfiguration batchConfig) {
         if (delegate == null) {
             throw new IllegalArgumentException("Delegate buffer pool cannot be null");
         }
@@ -89,17 +89,19 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
 
         // Create batch operation for buffer allocation
         BatchOperation operation = createBufferAllocationOperation(size);
-        
+
         // Submit to batch processor
-        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation, new BatchOptions());
-        
+        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation,
+                new BatchOptions());
+
         // Handle batch result
         CompletableFuture<ByteBuffer> result = batchFuture.thenCompose(batchResult -> {
             if (!batchResult.isSuccess()) {
                 Exception error = batchResult.getError();
-                return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("Buffer allocation failed"));
+                return CompletableFuture
+                        .failedFuture(error != null ? error : new RuntimeException("Buffer allocation failed"));
             }
-            
+
             // Allocate the actual buffer
             return delegate.acquireAsync(size);
         });
@@ -128,17 +130,19 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
 
         // Create batch operation for buffer release
         BatchOperation operation = createBufferReleaseOperation(buffer);
-        
+
         // Submit to batch processor
-        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation, new BatchOptions());
-        
+        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation,
+                new BatchOptions());
+
         // Handle batch result
         return batchFuture.thenCompose(batchResult -> {
             if (!batchResult.isSuccess()) {
                 Exception error = batchResult.getError();
-                return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("Buffer release failed"));
+                return CompletableFuture
+                        .failedFuture(error != null ? error : new RuntimeException("Buffer release failed"));
             }
-            
+
             // Release the actual buffer
             return delegate.releaseAsync(buffer).whenComplete((result, throwable) -> {
                 if (throwable == null) {
@@ -178,13 +182,13 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                     long allocated = totalBuffersAllocated.get();
                     long released = totalBuffersReleased.get();
                     int active = activeBatchOperations.get();
-                    
+
                     return String.format(
                             "BatchAwareAsyncByteBufferPool Stats\n" +
-                            "Total Allocated: %d\n" +
-                            "Total Released: %d\n" +
-                            "Active Batch Operations: %d\n" +
-                            "Net Buffers: %d",
+                                    "Total Allocated: %d\n" +
+                                    "Total Released: %d\n" +
+                                    "Active Batch Operations: %d\n" +
+                                    "Net Buffers: %d",
                             allocated, released, active, allocated - released);
                 }), (delegateStats, batchStats) -> delegateStats + "\n" + batchStats);
     }
@@ -240,15 +244,16 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
 
         // Create batch operation for batch allocation
         BatchOperation operation = createBatchAllocationOperation(sizes);
-        
+
         // Submit to batch processor
         return batchProcessor.processOperation(operation, new BatchOptions())
                 .thenCompose(batchResult -> {
                     if (!batchResult.isSuccess()) {
                         Exception error = batchResult.getError();
-                        return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("Batch allocation failed"));
+                        return CompletableFuture
+                                .failedFuture(error != null ? error : new RuntimeException("Batch allocation failed"));
                     }
-                    
+
                     // Perform the actual batch allocation
                     return performBatchAllocation(sizes);
                 });
@@ -268,15 +273,16 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
 
         // Create batch operation for batch release
         BatchOperation operation = createBatchReleaseOperation(buffers);
-        
+
         // Submit to batch processor
         return batchProcessor.processOperation(operation, new BatchOptions())
                 .thenCompose(batchResult -> {
                     if (!batchResult.isSuccess()) {
                         Exception error = batchResult.getError();
-                        return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("Batch release failed"));
+                        return CompletableFuture
+                                .failedFuture(error != null ? error : new RuntimeException("Batch release failed"));
                     }
-                    
+
                     // Perform the actual batch release
                     return performBatchRelease(buffers);
                 });
@@ -298,8 +304,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 BatchOperationType.STORAGE,
                 List.of(), // No files for buffer operations
                 BatchPriority.NORMAL,
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -318,8 +323,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 BatchOperationType.STORAGE,
                 List.of(), // No files for buffer operations
                 BatchPriority.LOW, // Release operations are lower priority
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -327,7 +331,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
      */
     private BatchOperation createBatchAllocationOperation(List<Integer> sizes) {
         int totalSize = sizes.stream().mapToInt(Integer::intValue).sum();
-        
+
         BatchOperation.ResourceRequirements requirements = new BatchOperation.ResourceRequirements(
                 totalSize + (sizes.size() * 1024), // total size + overhead per buffer
                 Math.max(1, sizes.size() / 4), // Scale CPU cores with batch size
@@ -340,8 +344,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 BatchOperationType.STORAGE,
                 List.of(), // No files for buffer operations
                 BatchPriority.HIGH, // Batch allocations are high priority
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -349,7 +352,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
      */
     private BatchOperation createBatchReleaseOperation(List<ByteBuffer> buffers) {
         int totalSize = buffers.stream().mapToInt(ByteBuffer::capacity).sum();
-        
+
         BatchOperation.ResourceRequirements requirements = new BatchOperation.ResourceRequirements(
                 totalSize + (buffers.size() * 512), // total size + smaller overhead for release
                 Math.max(1, buffers.size() / 8), // Fewer CPU cores for release
@@ -362,8 +365,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 BatchOperationType.STORAGE,
                 List.of(), // No files for buffer operations
                 BatchPriority.LOW, // Batch releases are low priority
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -372,14 +374,15 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
     private CompletableFuture<BatchAllocationResult> performBatchAllocation(List<Integer> sizes) {
         return CompletableFuture.supplyAsync(() -> {
             // This is a simplified implementation
-            // In a real scenario, you'd coordinate with the delegate pool for efficient batch allocation
+            // In a real scenario, you'd coordinate with the delegate pool for efficient
+            // batch allocation
             int totalSize = sizes.stream().mapToInt(Integer::intValue).sum();
             int allocatedCount = sizes.size();
-            
+
             // Update counters
             totalBuffersAllocated.addAndGet(allocatedCount);
             activeBatchOperations.addAndGet(allocatedCount);
-            
+
             return new BatchAllocationResult(List.of(), totalSize, allocatedCount);
         });
     }
@@ -390,13 +393,14 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
     private CompletableFuture<BatchReleaseResult> performBatchRelease(List<ByteBuffer> buffers) {
         return CompletableFuture.supplyAsync(() -> {
             // This is a simplified implementation
-            // In a real scenario, you'd coordinate with the delegate pool for efficient batch release
+            // In a real scenario, you'd coordinate with the delegate pool for efficient
+            // batch release
             int releasedCount = buffers.size();
-            
+
             // Update counters
             totalBuffersReleased.addAndGet(releasedCount);
             activeBatchOperations.addAndGet(-releasedCount);
-            
+
             return new BatchReleaseResult(releasedCount, 0);
         });
     }

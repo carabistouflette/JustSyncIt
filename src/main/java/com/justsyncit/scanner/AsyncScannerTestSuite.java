@@ -247,8 +247,10 @@ public class AsyncScannerTestSuite {
         }
 
         public boolean meetsTargets(TestConfiguration config) {
-            return throughputFilesPerSec >= config.getPerformanceTargetThroughputFilesPerSec() &&
-                    averageLatencyMs <= config.getPerformanceTargetLatencyMs() &&
+            return throughputFilesPerSec >= config.getPerformanceTargetThroughputFilesPerSec()
+                &&
+                    averageLatencyMs <= config.getPerformanceTargetLatencyMs()
+                &&
                     memoryEfficiency >= config.getPerformanceTargetMemoryEfficiency();
         }
 

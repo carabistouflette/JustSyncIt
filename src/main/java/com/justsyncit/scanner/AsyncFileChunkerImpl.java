@@ -35,7 +35,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Implementation of AsyncFileChunker with CompletionHandler pattern and async
@@ -618,7 +617,7 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
     private static class DefaultAsyncChunkHandler implements AsyncChunkHandler {
         private final Blake3Service blake3Service;
 
-        public DefaultAsyncChunkHandler(Blake3Service blake3Service) {
+        DefaultAsyncChunkHandler(Blake3Service blake3Service) {
             this.blake3Service = blake3Service;
         }
 
@@ -697,7 +696,7 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
     private static class SyncToAsyncBufferPoolWrapper implements AsyncByteBufferPool {
         private final BufferPool syncPool;
 
-        public SyncToAsyncBufferPoolWrapper(BufferPool syncPool) {
+        SyncToAsyncBufferPoolWrapper(BufferPool syncPool) {
             this.syncPool = syncPool;
         }
 

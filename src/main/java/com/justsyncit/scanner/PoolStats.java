@@ -23,7 +23,7 @@ package com.justsyncit.scanner;
  * Provides comprehensive metrics for monitoring and optimization.
  */
 public class PoolStats {
-    
+
     private final ThreadPoolManager.PoolType poolType;
     private final int corePoolSize;
     private final int maximumPoolSize;
@@ -38,7 +38,7 @@ public class PoolStats {
     private final int resizingCount;
     private final double cpuUsage;
     private final long memoryUsage;
-    
+
     /**
      * Creates a new PoolStats.
      */
@@ -64,7 +64,7 @@ public class PoolStats {
         this.cpuUsage = cpuUsage;
         this.memoryUsage = memoryUsage;
     }
-    
+
     // Getters
     public ThreadPoolManager.PoolType getPoolType() { return poolType; }
     public int getCorePoolSize() { return corePoolSize; }
@@ -80,7 +80,7 @@ public class PoolStats {
     public int getResizingCount() { return resizingCount; }
     public double getCpuUsage() { return cpuUsage; }
     public long getMemoryUsage() { return memoryUsage; }
-    
+
     @Override
     public String toString() {
         return String.format(

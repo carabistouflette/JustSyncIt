@@ -26,7 +26,7 @@ import java.lang.management.OperatingSystemMXBean;
  * Provides CPU, memory, and NUMA information.
  */
 public class SystemResourceInfo {
-    
+
     private final int availableProcessors;
     private final long totalMemory;
     private final long maxMemory;
@@ -35,7 +35,7 @@ public class SystemResourceInfo {
     private final String osArch;
     private final boolean isNumaAware;
     private final int numaNodes;
-    
+
     /**
      * Creates a new SystemResourceInfo.
      */
@@ -43,18 +43,18 @@ public class SystemResourceInfo {
         this.availableProcessors = Runtime.getRuntime().availableProcessors();
         this.totalMemory = Runtime.getRuntime().totalMemory();
         this.maxMemory = Runtime.getRuntime().maxMemory();
-        
+
         // Get OS information
         OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
         this.osName = osBean.getName();
         this.osVersion = osBean.getVersion();
         this.osArch = osBean.getArch();
-        
+
         // Detect NUMA support (simplified)
         this.isNumaAware = detectNumaSupport();
         this.numaNodes = isNumaAware ? detectNumaNodes() : 1;
     }
-    
+
     /**
      * Detects NUMA support (simplified detection).
      */
@@ -69,11 +69,11 @@ public class SystemResourceInfo {
                 return false;
             }
         }
-        
+
         // Check for NUMA in OS name
         return osName != null && osName.toLowerCase().contains("linux");
     }
-    
+
     /**
      * Detects number of NUMA nodes (simplified).
      */
@@ -89,7 +89,7 @@ public class SystemResourceInfo {
             return availableProcessors;
         }
     }
-    
+
     // Getters
     public int getAvailableProcessors() { return availableProcessors; }
     public long getTotalMemory() { return totalMemory; }
@@ -99,7 +99,7 @@ public class SystemResourceInfo {
     public String getOsArch() { return osArch; }
     public boolean isNumaAware() { return isNumaAware; }
     public int getNumaNodes() { return numaNodes; }
-    
+
     @Override
     public String toString() {
         return String.format(

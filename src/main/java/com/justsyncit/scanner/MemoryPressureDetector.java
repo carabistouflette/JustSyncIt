@@ -27,7 +27,6 @@ import java.lang.management.MemoryUsage;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -192,6 +191,9 @@ public final class MemoryPressureDetector implements Runnable {
                 break;
             case LOW:
                 handleLowPressure(used, max);
+                break;
+            default:
+                logger.warn("Unknown memory pressure level: {}", pressure);
                 break;
         }
     }

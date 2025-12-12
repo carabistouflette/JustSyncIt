@@ -22,19 +22,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.StampedLock;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * High-performance optimized AsyncByteBufferPool with tiered sizing, lock-free
  * operations,
  * adaptive sizing, zero-copy support, and comprehensive monitoring.
- * 
+ *
  * Features:
  * - Tiered buffer pools with power-of-two sizing
  * - Lock-free buffer acquisition using atomic operations
@@ -541,10 +544,12 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
      * Rounds size up to the nearest power of two.
      */
     private int roundToPowerOfTwo(int size) {
-        if (size <= 1024)
+        if (size <= 1024) {
             return 1024;
-        if (size > 1048576)
+        }
+        if (size > 1048576) {
             return 1048576; // Cap at 1MB
+        }
 
         int power = 32 - Integer.numberOfLeadingZeros(size - 1);
         int rounded = 1 << power;
@@ -555,10 +560,12 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
      * Determines whether to use direct buffer based on size and configuration.
      */
     private boolean shouldUseDirectBuffer(int size) {
-        if (!config.isDirectBuffersEnabled())
+        if (!config.isDirectBuffersEnabled()) {
             return false;
-        if (!config.isHeapBuffersEnabled())
+        }
+        if (!config.isHeapBuffersEnabled()) {
             return true;
+        }
 
         // Use direct buffers for larger sizes (>32KB) for better I/O performance
         return size > 32768;

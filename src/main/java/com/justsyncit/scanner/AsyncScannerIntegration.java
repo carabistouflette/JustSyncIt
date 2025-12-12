@@ -25,11 +25,8 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
  * Integration coordinator for async directory scanning with file chunking and
@@ -435,7 +432,8 @@ public class AsyncScannerIntegration {
 
             // For file creation/modification events, trigger chunking if needed
             if ((event.getEventType() == FileChangeEvent.EventType.ENTRY_CREATE ||
-                    event.getEventType() == FileChangeEvent.EventType.ENTRY_MODIFY) &&
+                    event.getEventType() == FileChangeEvent.EventType.ENTRY_MODIFY)
+                &&
                     !event.isDirectory() && event.getFileSize() > asyncFileChunker.getChunkSize()) {
 
                 logger.debug("Triggering chunking for changed file: {}", event.getFilePath());

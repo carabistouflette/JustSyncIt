@@ -235,7 +235,7 @@ public class SyncCommand implements Command {
             // Get local and remote snapshots
             List<Snapshot> localSnapshots;
             List<Snapshot> remoteSnapshots;
-            
+
             try {
                 localSnapshots = metadataService.listSnapshots();
                 if (localSnapshots == null) {
@@ -245,7 +245,7 @@ public class SyncCommand implements Command {
                 System.err.println("Error: Failed to retrieve local snapshots: " + e.getMessage());
                 return false;
             }
-            
+
             // In a real implementation, we would query the remote server for its snapshots
             // For now, we'll simulate this
             remoteSnapshots = simulateRemoteSnapshots();
@@ -265,13 +265,13 @@ public class SyncCommand implements Command {
             // Create sets for efficient lookup
             Set<String> localSnapshotIds = new HashSet<>();
             Set<String> remoteSnapshotIds = new HashSet<>();
-            
+
             for (Snapshot snapshot : localSnapshots) {
                 if (snapshot != null && snapshot.getId() != null) {
                     localSnapshotIds.add(snapshot.getId());
                 }
             }
-            
+
             for (Snapshot snapshot : remoteSnapshots) {
                 if (snapshot != null && snapshot.getId() != null) {
                     remoteSnapshotIds.add(snapshot.getId());
@@ -284,12 +284,12 @@ public class SyncCommand implements Command {
                     if (localSnapshot == null || localSnapshot.getId() == null) {
                         continue;
                     }
-                    
+
                     if (!remoteSnapshotIds.contains(localSnapshot.getId())) {
                         if (verbose) {
                             System.out.println("Syncing to remote: " + localSnapshot.getName() + " (" + localSnapshot.getId() + ")");
                         }
-                        
+
                         if (!dryRun) {
                             // In a real implementation, we would transfer the snapshot
                             totalBytesTransferred += localSnapshot.getTotalSize();
@@ -304,12 +304,12 @@ public class SyncCommand implements Command {
                     if (remoteSnapshot == null || remoteSnapshot.getId() == null) {
                         continue;
                     }
-                    
+
                     if (!localSnapshotIds.contains(remoteSnapshot.getId())) {
                         if (verbose) {
                             System.out.println("Syncing to local: " + remoteSnapshot.getName() + " (" + remoteSnapshot.getId() + ")");
                         }
-                        
+
                         if (!dryRun) {
                             // In a real implementation, we would download and restore the snapshot
                             totalBytesTransferred += remoteSnapshot.getTotalSize();
@@ -324,12 +324,12 @@ public class SyncCommand implements Command {
                     if (localSnapshot == null || localSnapshot.getId() == null) {
                         continue;
                     }
-                    
+
                     if (!remoteSnapshotIds.contains(localSnapshot.getId())) {
                         if (verbose) {
                             System.out.println("Syncing to remote: " + localSnapshot.getName() + " (" + localSnapshot.getId() + ")");
                         }
-                        
+
                         if (!dryRun) {
                             totalBytesTransferred += localSnapshot.getTotalSize();
                             simulateTransfer(localSnapshot.getTotalSize());
@@ -354,7 +354,7 @@ public class SyncCommand implements Command {
                 System.out.println("Synced to local: " + syncedToLocal + " snapshots");
                 System.out.println("Conflicts: " + conflicts);
                 System.out.println("Total bytes transferred: " + formatFileSize(totalBytesTransferred));
-                
+
                 if (dryRun) {
                     System.out.println();
                     System.out.println("This was a dry run. No actual changes were made.");
@@ -420,14 +420,14 @@ public class SyncCommand implements Command {
         if (bytes <= 0) {
             return;
         }
-        
+
         long chunkSize = 64 * 1024; // 64KB chunks
         long transferred = 0;
-        
+
         while (transferred < bytes) {
             long currentChunk = Math.min(chunkSize, bytes - transferred);
             transferred += currentChunk;
-            
+
             // Simulate network delay
             Thread.sleep(50);
         }

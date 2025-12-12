@@ -44,10 +44,10 @@ public class Blake3FileHasher implements FileHasher {
 
     /** Default buffer size for streaming operations (64KB). */
     private static final int DEFAULT_BUFFER_SIZE = 65536; // 64KB buffer for streaming
-    
+
     /** Threshold for small files that can be read entirely into memory. */
     private static final long SMALL_FILE_THRESHOLD = 1024 * 1024; // 1MB
-    
+
     /** Maximum file size to prevent resource exhaustion (100MB). */
     private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -59,10 +59,10 @@ public class Blake3FileHasher implements FileHasher {
 
     /** Buffer size for streaming operations. */
     private final int bufferSize;
-    
+
     /** Maximum allowed file size. */
     private final long maxFileSize;
-    
+
     /** Thread safety lock for concurrent operations. */
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -90,17 +90,17 @@ public class Blake3FileHasher implements FileHasher {
                            int bufferSize, long maxFileSize) {
         this.streamHasher = Objects.requireNonNull(streamHasher, "Stream hasher cannot be null");
         this.bufferHasher = Objects.requireNonNull(bufferHasher, "Buffer hasher cannot be null");
-        
+
         if (bufferSize <= 0) {
             throw new IllegalArgumentException("Buffer size must be positive");
         }
         this.bufferSize = bufferSize;
-        
+
         if (maxFileSize <= 0) {
             throw new IllegalArgumentException("Max file size must be positive");
         }
         this.maxFileSize = maxFileSize;
-        
+
         logger.debug("Blake3FileHasher initialized with buffer size: {} bytes, max file size: {} bytes",
                     bufferSize, maxFileSize);
     }
@@ -109,7 +109,7 @@ public class Blake3FileHasher implements FileHasher {
     public String hashFile(Path filePath) throws IOException {
         // Validate input parameters
         validateFilePath(filePath);
-        
+
         // Acquire read lock for thread safety (allows concurrent reads)
         lock.readLock().lock();
         try {
@@ -130,16 +130,16 @@ public class Blake3FileHasher implements FileHasher {
         if (filePath == null) {
             throw new IllegalArgumentException("File path cannot be null");
         }
-        
+
         // Normalize the path to prevent path traversal attacks
         Path normalizedPath = filePath.normalize();
-        
+
         // Check if the normalized path is different (potential traversal attempt)
         if (!normalizedPath.equals(filePath)) {
             logger.warn("Path normalization detected potential traversal attempt: {} -> {}",
                        filePath, normalizedPath);
         }
-        
+
         // Additional security check: ensure path doesn't contain ".." segments
         if (filePath.toString().contains("..")) {
             throw new SecurityException("Path traversal not allowed: " + filePath);
@@ -189,7 +189,7 @@ public class Blake3FileHasher implements FileHasher {
             }
         } catch (Exception e) {
             logger.error("Failed to hash file: {}", filePath, e);
-            
+
             // Re-throw with proper exception type
             if (e instanceof IOException) {
                 throw (IOException) e;
@@ -214,7 +214,7 @@ public class Blake3FileHasher implements FileHasher {
      */
     private String hashSmallFile(Path filePath, long fileSize) throws HashingException {
         logger.trace("Using small file strategy for {} bytes", fileSize);
-        
+
         try {
             byte[] data = Files.readAllBytes(filePath);
             return bufferHasher.hashBuffer(data);
@@ -242,7 +242,7 @@ public class Blake3FileHasher implements FileHasher {
      */
     private String hashLargeFile(Path filePath, long fileSize) throws HashingException {
         logger.trace("Using streaming strategy for {} bytes with buffer size: {}", fileSize, bufferSize);
-        
+
         try (InputStream inputStream = Files.newInputStream(filePath)) {
             return streamHasher.hashStream(inputStream);
         } catch (IOException e) {

@@ -23,19 +23,19 @@ package com.justsyncit.scanner;
  * Contains information about released buffers and operation statistics.
  */
 public class BatchReleaseResult {
-    
+
     /** Number of buffers successfully released. */
     private final int releasedCount;
-    
+
     /** Number of buffers that failed to release. */
     private final int failedCount;
-    
+
     /** Total size of all released buffers in bytes. */
     private final long totalSize;
-    
+
     /** Time taken for the release in milliseconds. */
     private final long releaseTimeMs;
-    
+
     /** Error if release failed completely. */
     private final Exception error;
 
@@ -69,7 +69,7 @@ public class BatchReleaseResult {
      * @param releaseTimeMs time taken for release in milliseconds
      * @param error error if release failed completely
      */
-    public BatchReleaseResult(int releasedCount, int failedCount, long totalSize, 
+    public BatchReleaseResult(int releasedCount, int failedCount, long totalSize,
                              long releaseTimeMs, Exception error) {
         this.releasedCount = releasedCount;
         this.failedCount = failedCount;
@@ -197,7 +197,7 @@ public class BatchReleaseResult {
     public String toString() {
         return String.format(
                 "BatchReleaseResult{released=%d, failed=%d, total=%d, totalSize=%dMB, avgSize=%dKB, time=%dms, success=%s}",
-                releasedCount, failedCount, getTotalCount(), totalSize / (1024 * 1024), 
+                releasedCount, failedCount, getTotalCount(), totalSize / (1024 * 1024),
                 getAverageBufferSize() / 1024, releaseTimeMs, isCompleteSuccess()
         );
     }

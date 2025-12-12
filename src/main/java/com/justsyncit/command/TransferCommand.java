@@ -246,7 +246,7 @@ public class TransferCommand implements Command {
             // Simulate transfer progress
             while (bytesTransferred < totalBytes) {
                 long chunkSize = Math.min(64 * 1024, totalBytes - bytesTransferred);
-                
+
                 // Simulate chunk transfer
                 try {
                     Thread.sleep(100); // Simulate network delay
@@ -339,7 +339,7 @@ public class TransferCommand implements Command {
                     System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
                 }
             }
-            
+
         }
 
         return true;

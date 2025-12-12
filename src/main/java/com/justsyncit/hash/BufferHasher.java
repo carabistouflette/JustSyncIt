@@ -69,7 +69,7 @@ public interface BufferHasher {
         if (buffer == null) {
             throw new IllegalArgumentException("Buffer cannot be null");
         }
-        
+
         if (buffer.hasArray()) {
             // Optimize for direct array access
             return hashBuffer(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());
@@ -96,7 +96,7 @@ public interface BufferHasher {
         if (buffers == null) {
             throw new IllegalArgumentException("Buffers array cannot be null");
         }
-        
+
         String[] results = new String[buffers.length];
         for (int i = 0; i < buffers.length; i++) {
             results[i] = hashBuffer(buffers[i]);

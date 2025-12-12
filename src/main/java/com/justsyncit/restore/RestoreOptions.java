@@ -53,7 +53,7 @@ public class RestoreOptions {
 
     /** Original exclude pattern string for files to skip. */
     private final String excludePatternString;
-    
+
     // Network options for remote restore
     private final boolean remoteRestore;
     private final InetSocketAddress remoteAddress;
@@ -139,14 +139,14 @@ public class RestoreOptions {
 
     @Override
     public String toString() {
-        return "RestoreOptions{" +
-                "overwriteExisting=" + overwriteExisting +
-                ", backupExisting=" + backupExisting +
-                ", verifyIntegrity=" + verifyIntegrity +
-                ", preserveAttributes=" + preserveAttributes +
-                ", includePatternString='" + includePatternString + '\'' +
-                ", excludePatternString='" + excludePatternString + '\'' +
-                '}';
+        return "RestoreOptions{"
+                + "overwriteExisting=" + overwriteExisting
+                + ", backupExisting=" + backupExisting
+                + ", verifyIntegrity=" + verifyIntegrity
+                + ", preserveAttributes=" + preserveAttributes
+                + ", includePatternString='" + includePatternString + '\''
+                + ", excludePatternString='" + excludePatternString + '\''
+                + '}';
     }
 
     /**
@@ -161,7 +161,7 @@ public class RestoreOptions {
         private PathMatcher excludePattern;
         private String includePatternString;
         private String excludePatternString;
-        
+
         // Network options with defaults
         private boolean remoteRestore = false;
         private InetSocketAddress remoteAddress = null;

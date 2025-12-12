@@ -33,25 +33,25 @@ public class BatchOperation {
 
     /** Unique identifier for this batch operation. */
     private final String operationId;
-    
+
     /** Type of batch operation. */
     private final BatchOperationType operationType;
-    
+
     /** Files to be processed in this batch. */
     private final List<Path> files;
-    
+
     /** Priority level for this operation. */
     private final BatchPriority priority;
-    
+
     /** Timestamp when operation was created. */
     private final Instant createdTime;
-    
+
     /** Estimated resource requirements. */
     private final ResourceRequirements resourceRequirements;
-    
+
     /** Operation dependencies that must complete first. */
     private final Map<String, BatchOperation> dependencies;
-    
+
     /** Operation metadata. */
     private final Map<String, Object> metadata;
 
@@ -260,7 +260,7 @@ public class BatchOperation {
     public String toString() {
         return String.format(
                 "BatchOperation{id='%s', type=%s, files=%d, priority=%s, size=%dMB, dependencies=%d}",
-                operationId, operationType, files.size(), priority, 
+                operationId, operationType, files.size(), priority,
                 getTotalFileSize() / (1024 * 1024), dependencies.size()
         );
     }

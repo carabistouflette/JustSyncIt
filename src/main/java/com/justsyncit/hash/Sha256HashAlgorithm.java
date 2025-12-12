@@ -41,16 +41,16 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
 
     /** MessageDigest instance for SHA-256. */
     private final MessageDigest digest;
-    
+
     /** Flag to track if the digest has been finalized. */
     private boolean finalized = false;
-    
+
     /** Flag to track if the instance has been closed. */
     private boolean closed = false;
-    
+
     /** SHA-256 block size in bytes (64 bytes = 512 bits). */
     private static final int BLOCK_SIZE = 64;
-    
+
     /** SHA-256 security level in bits (resistance to collision attacks). */
     private static final int SECURITY_LEVEL = 128;
 
@@ -130,12 +130,12 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
     public int getHashLength() {
         return 32; // SHA-256 produces 256-bit hash = 32 bytes
     }
-    
+
     @Override
     public Optional<Integer> getBlockSize() {
         return Optional.of(BLOCK_SIZE);
     }
-    
+
     @Override
     public Optional<Integer> getSecurityLevel() {
         return Optional.of(SECURITY_LEVEL);
@@ -150,14 +150,14 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
     public Sha256HashAlgorithm createInstance() throws HashingException {
         return create(); // Use the existing factory method
     }
-    
+
     @Override
     public byte[] updateAndIntermediate(byte[] data) throws HashingException {
         checkState();
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
         }
-        
+
         synchronized (digest) {
             // Create a clone of the current digest state
             MessageDigest clone;
@@ -166,22 +166,22 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
             } catch (CloneNotSupportedException e) {
                 throw new HashingException("Failed to clone digest for intermediate hashing", e);
             }
-            
+
             // Update the original digest
             digest.update(data);
-            
+
             // Return the intermediate hash from the clone
             return clone.digest();
         }
     }
-    
+
     @Override
     public void update(ByteBuffer buffer) throws HashingException {
         checkState();
         if (buffer == null) {
             throw new IllegalArgumentException("Buffer cannot be null");
         }
-        
+
         synchronized (digest) {
             if (buffer.hasArray()) {
                 // Direct array access for better performance
@@ -203,19 +203,19 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
             }
         }
     }
-    
+
     @Override
     public boolean verify(byte[] expectedHash) {
         checkState();
         if (expectedHash == null) {
             throw new IllegalArgumentException("Expected hash cannot be null");
         }
-        
+
         if (expectedHash.length != getHashLength()) {
             throw new IllegalArgumentException("Expected hash length " + expectedHash.length +
                                              " does not match algorithm hash length " + getHashLength());
         }
-        
+
         byte[] computedHash;
         synchronized (digest) {
             if (!finalized) {
@@ -230,7 +230,7 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
                 computedHash = digest.digest(); // Already finalized, can reuse
             }
         }
-        
+
         // Constant-time comparison to prevent timing attacks
         int result = 0;
         for (int i = 0; i < computedHash.length; i++) {
@@ -238,7 +238,7 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
         }
         return result == 0;
     }
-    
+
     @Override
     public void close() throws IOException {
         // Clear sensitive data from memory
@@ -253,7 +253,7 @@ public final class Sha256HashAlgorithm implements HashAlgorithm {
             }
         }
     }
-    
+
     /**
      * Checks if the algorithm is in a valid state for operations.
      * @throws IllegalStateException if the algorithm has been closed

@@ -18,18 +18,17 @@
 
 package com.justsyncit.scanner;
 
-import com.justsyncit.hash.Blake3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Batch-aware implementation of AsyncFileChunker that integrates with the batch processing system.
+ * Batch-aware implementation of AsyncFileChunker that integrates with the batch
+ * processing system.
  * Provides optimized chunking operations for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
@@ -45,14 +44,14 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     /**
      * Creates a new BatchAwareAsyncFileChunker.
      *
-     * @param delegate the underlying async file chunker
+     * @param delegate       the underlying async file chunker
      * @param batchProcessor the batch processor for coordination
-     * @param batchConfig the batch configuration
+     * @param batchConfig    the batch configuration
      * @throws IllegalArgumentException if any parameter is null
      */
-    public BatchAwareAsyncFileChunker(AsyncFileChunker delegate, 
-                                    AsyncBatchProcessor batchProcessor,
-                                    BatchConfiguration batchConfig) {
+    public BatchAwareAsyncFileChunker(AsyncFileChunker delegate,
+            AsyncBatchProcessor batchProcessor,
+            BatchConfiguration batchConfig) {
         if (delegate == null) {
             throw new IllegalArgumentException("Delegate chunker cannot be null");
         }
@@ -70,8 +69,8 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     }
 
     @Override
-    public void chunkFileAsync(Path file, ChunkingOptions options, 
-                           CompletionHandler<ChunkingResult, Exception> handler) {
+    public void chunkFileAsync(Path file, ChunkingOptions options,
+            CompletionHandler<ChunkingResult, Exception> handler) {
         if (file == null) {
             throw new IllegalArgumentException("File cannot be null");
         }
@@ -81,14 +80,16 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
 
         // Create batch operation for chunking
         BatchOperation operation = createBatchOperation(file, options);
-        
+
         // Submit to batch processor
-        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation, new BatchOptions());
-        
+        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation,
+                new BatchOptions());
+
         // Handle batch result
         batchFuture.whenComplete((batchResult, throwable) -> {
             if (throwable != null) {
-                handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                handler.failed(
+                        throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
             } else if (!batchResult.isSuccess()) {
                 Exception error = batchResult.getError();
                 if (error != null) {
@@ -112,9 +113,10 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
 
         // Create batch operation for chunking
         BatchOperation operation = createBatchOperation(file, options);
-        
+
         // Submit to batch processor
-        return batchOperationResultToChunkingResult(batchProcessor.processOperation(operation, new BatchOptions()), file);
+        return batchOperationResultToChunkingResult(batchProcessor.processOperation(operation, new BatchOptions()),
+                file);
     }
 
     @Override
@@ -145,13 +147,13 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     @Override
     public CompletableFuture<String> getStatsAsync() {
         return delegate.getStatsAsync()
-                .thenCombine(CompletableFuture.completedFuture("Batch processor stats available"), 
-                    (chunkerStats, batchStats) -> String.format(
-                        "BatchAwareAsyncFileChunker Stats\n" +
-                        "Chunker: %s\n" +
-                        "Batch: %s\n" +
-                        "Active Batch Operations: %d",
-                        chunkerStats, batchStats, activeBatchOperations.get()));
+                .thenCombine(CompletableFuture.completedFuture("Batch processor stats available"),
+                        (chunkerStats, batchStats) -> String.format(
+                                "BatchAwareAsyncFileChunker Stats\n" +
+                                        "Chunker: %s\n" +
+                                        "Batch: %s\n" +
+                                        "Active Batch Operations: %d",
+                                chunkerStats, batchStats, activeBatchOperations.get()));
     }
 
     @Override
@@ -175,7 +177,8 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     }
 
     @Override
-    public byte[] retrieveChunk(String hash) throws java.io.IOException, com.justsyncit.storage.StorageIntegrityException {
+    public byte[] retrieveChunk(String hash)
+            throws java.io.IOException, com.justsyncit.storage.StorageIntegrityException {
         return delegate.retrieveChunk(hash);
     }
 
@@ -196,8 +199,8 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
 
     @Override
     public int getMaxConcurrentOperations() {
-        return Math.max(delegate.getMaxConcurrentOperations(), 
-                     batchConfig.getMaxConcurrentBatches());
+        return Math.max(delegate.getMaxConcurrentOperations(),
+                batchConfig.getMaxConcurrentBatches());
     }
 
     @Override
@@ -216,7 +219,7 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
      */
     private BatchOperation createBatchOperation(Path file, ChunkingOptions options) {
         List<Path> files = List.of(file);
-        
+
         BatchOperation.ResourceRequirements requirements = new BatchOperation.ResourceRequirements(
                 calculateMemoryRequirement(file, options),
                 1, // 1 CPU core for chunking
@@ -229,8 +232,7 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
                 BatchOperationType.CHUNKING,
                 files,
                 determinePriority(file, options),
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -239,7 +241,8 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     private ChunkingResult convertBatchOperationResultToChunkingResult(BatchOperationResult batchResult, Path file) {
         if (!batchResult.isSuccess()) {
             Exception error = batchResult.getError();
-            return ChunkingResult.createFailed(file, error != null ? error : new RuntimeException("Batch operation failed"));
+            return ChunkingResult.createFailed(file,
+                    error != null ? error : new RuntimeException("Batch operation failed"));
         }
 
         // Extract chunking information from batch result
@@ -260,9 +263,11 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     }
 
     /**
-     * Converts a CompletableFuture<BatchOperationResult> to a CompletableFuture<ChunkingResult>.
+     * Converts a CompletableFuture<BatchOperationResult> to a
+     * CompletableFuture<ChunkingResult>.
      */
-    private CompletableFuture<ChunkingResult> batchOperationResultToChunkingResult(CompletableFuture<BatchOperationResult> batchFuture, Path file) {
+    private CompletableFuture<ChunkingResult> batchOperationResultToChunkingResult(
+            CompletableFuture<BatchOperationResult> batchFuture, Path file) {
         return batchFuture.thenApply(batchResult -> convertBatchOperationResultToChunkingResult(batchResult, file));
     }
 
@@ -272,9 +277,10 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     private long calculateMemoryRequirement(Path file, ChunkingOptions options) {
         try {
             long fileSize = java.nio.file.Files.size(file);
-            int chunkSize = options != null && options.getChunkSize() > 0 
-                    ? options.getChunkSize() : getChunkSize();
-            
+            int chunkSize = options != null && options.getChunkSize() > 0
+                    ? options.getChunkSize()
+                    : getChunkSize();
+
             // Memory needed for file reading + chunk processing + overhead
             return fileSize + (chunkSize * 2) + (1024 * 1024); // 1MB overhead
         } catch (Exception e) {
@@ -302,7 +308,8 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
      * Determines the priority for chunking the file.
      */
     private BatchPriority determinePriority(Path file, ChunkingOptions options) {
-        // For now, use default priority since ChunkingOptions doesn't have getPriority()
+        // For now, use default priority since ChunkingOptions doesn't have
+        // getPriority()
         return BatchPriority.NORMAL;
     }
 

@@ -20,7 +20,6 @@ package com.justsyncit.scanner;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Result of a batch operation execution.
@@ -31,63 +30,63 @@ public class BatchOperationResult {
 
     /** Unique identifier for the batch operation. */
     private final String operationId;
-    
+
     /** Type of operation that was executed. */
     private final BatchOperationType operationType;
-    
+
     /** Whether the operation was successful. */
     private final boolean success;
-    
+
     /** Error that occurred during operation, if any. */
     private final Exception error;
-    
+
     /** Timestamp when operation started. */
     private final Instant startTime;
-    
+
     /** Timestamp when operation completed. */
     private final Instant endTime;
-    
+
     /** Total processing time in milliseconds. */
     private final long processingTimeMs;
-    
+
     /** Number of files processed in this operation. */
     private final int filesProcessed;
-    
+
     /** Number of files that failed processing. */
     private final int filesFailed;
-    
+
     /** Total bytes processed in this operation. */
     private final long bytesProcessed;
-    
+
     /** Resource utilization during operation. */
     private final ResourceUtilization resourceUtilization;
-    
+
     /** Operation-specific results and metadata. */
     private final Map<String, Object> results;
-    
+
     /** Performance metrics for this operation. */
     private final BatchPerformanceMetrics performanceMetrics;
 
     /**
      * Creates a successful batch operation result.
      *
-     * @param operationId unique identifier for this operation
-     * @param operationType type of operation
-     * @param startTime start timestamp
-     * @param endTime end timestamp
-     * @param filesProcessed number of files processed
-     * @param filesFailed number of files that failed
-     * @param bytesProcessed total bytes processed
+     * @param operationId         unique identifier for this operation
+     * @param operationType       type of operation
+     * @param startTime           start timestamp
+     * @param endTime             end timestamp
+     * @param filesProcessed      number of files processed
+     * @param filesFailed         number of files that failed
+     * @param bytesProcessed      total bytes processed
      * @param resourceUtilization resource utilization during operation
-     * @param results operation-specific results
-     * @param performanceMetrics performance metrics
+     * @param results             operation-specific results
+     * @param performanceMetrics  performance metrics
      */
     public BatchOperationResult(String operationId, BatchOperationType operationType,
-                              Instant startTime, Instant endTime, int filesProcessed,
-                              int filesFailed, long bytesProcessed,
-                              ResourceUtilization resourceUtilization,
-                              Map<String, Object> results,
-                              BatchPerformanceMetrics performanceMetrics) {
+            Instant startTime, Instant endTime, int filesProcessed,
+            int filesFailed, long bytesProcessed,
+            ResourceUtilization resourceUtilization,
+            Map<String, Object> results,
+            BatchPerformanceMetrics performanceMetrics) {
         this.operationId = operationId;
         this.operationType = operationType;
         this.success = true;
@@ -106,22 +105,22 @@ public class BatchOperationResult {
     /**
      * Creates a failed batch operation result.
      *
-     * @param operationId unique identifier for this operation
-     * @param operationType type of operation
-     * @param startTime start timestamp
-     * @param endTime end timestamp
-     * @param error error that occurred
-     * @param filesProcessed number of files processed before failure
-     * @param filesFailed number of files that failed
-     * @param bytesProcessed bytes processed before failure
+     * @param operationId         unique identifier for this operation
+     * @param operationType       type of operation
+     * @param startTime           start timestamp
+     * @param endTime             end timestamp
+     * @param error               error that occurred
+     * @param filesProcessed      number of files processed before failure
+     * @param filesFailed         number of files that failed
+     * @param bytesProcessed      bytes processed before failure
      * @param resourceUtilization resource utilization before failure
-     * @param results partial results (may be null)
+     * @param results             partial results (may be null)
      */
     public BatchOperationResult(String operationId, BatchOperationType operationType,
-                              Instant startTime, Instant endTime, Exception error,
-                              int filesProcessed, int filesFailed, long bytesProcessed,
-                              ResourceUtilization resourceUtilization,
-                              Map<String, Object> results) {
+            Instant startTime, Instant endTime, Exception error,
+            int filesProcessed, int filesFailed, long bytesProcessed,
+            ResourceUtilization resourceUtilization,
+            Map<String, Object> results) {
         this.operationId = operationId;
         this.operationType = operationType;
         this.success = false;
@@ -270,8 +269,7 @@ public class BatchOperationResult {
      * @return throughput in MB/s
      */
     public double getThroughputMBps() {
-        return processingTimeMs > 0 ? 
-            (double) bytesProcessed / (1024 * 1024) / (processingTimeMs / 1000.0) : 0.0;
+        return processingTimeMs > 0 ? (double) bytesProcessed / (1024 * 1024) / (processingTimeMs / 1000.0) : 0.0;
     }
 
     @Override
@@ -279,18 +277,16 @@ public class BatchOperationResult {
         if (success) {
             return String.format(
                     "BatchOperationResult{id='%s', type=%s, success=true, time=%dms, " +
-                    "files=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
+                            "files=%d, failed=%d, bytes=%dMB, throughput=%.2fMB/s}",
                     operationId, operationType, processingTimeMs,
                     filesProcessed, filesFailed, bytesProcessed / (1024 * 1024),
-                    getThroughputMBps()
-            );
+                    getThroughputMBps());
         } else {
             return String.format(
                     "BatchOperationResult{id='%s', type=%s, success=false, time=%dms, " +
-                    "error='%s'}",
+                            "error='%s'}",
                     operationId, operationType, processingTimeMs,
-                    error != null ? error.getMessage() : "Unknown"
-            );
+                    error != null ? error.getMessage() : "Unknown");
         }
     }
 
@@ -309,17 +305,17 @@ public class BatchOperationResult {
         /**
          * Creates resource utilization information.
          *
-         * @param cpuUtilizationPercent CPU utilization percentage
+         * @param cpuUtilizationPercent    CPU utilization percentage
          * @param memoryUtilizationPercent memory utilization percentage
-         * @param ioUtilizationPercent I/O utilization percentage
-         * @param maxConcurrentOperations maximum concurrent operations
-         * @param peakMemoryUsageMB peak memory usage in MB
-         * @param totalBytesRead total bytes read
-         * @param totalBytesWritten total bytes written
+         * @param ioUtilizationPercent     I/O utilization percentage
+         * @param maxConcurrentOperations  maximum concurrent operations
+         * @param peakMemoryUsageMB        peak memory usage in MB
+         * @param totalBytesRead           total bytes read
+         * @param totalBytesWritten        total bytes written
          */
         public ResourceUtilization(double cpuUtilizationPercent, double memoryUtilizationPercent,
-                               double ioUtilizationPercent, int maxConcurrentOperations,
-                               long peakMemoryUsageMB, long totalBytesRead, long totalBytesWritten) {
+                double ioUtilizationPercent, int maxConcurrentOperations,
+                long peakMemoryUsageMB, long totalBytesRead, long totalBytesWritten) {
             this.cpuUtilizationPercent = cpuUtilizationPercent;
             this.memoryUtilizationPercent = memoryUtilizationPercent;
             this.ioUtilizationPercent = ioUtilizationPercent;
@@ -332,12 +328,11 @@ public class BatchOperationResult {
         @Override
         public String toString() {
             return String.format(
-                        "ResourceUtilization{cpu=%.1f%%, memory=%.1f%%, io=%.1f%%, " +
-                        "maxConcurrent=%d, peakMemory=%dMB, read=%dMB, written=%dMB}",
-                        cpuUtilizationPercent, memoryUtilizationPercent, ioUtilizationPercent,
-                        maxConcurrentOperations, peakMemoryUsageMB,
-                        totalBytesRead / (1024 * 1024), totalBytesWritten / (1024 * 1024)
-            );
+                    "ResourceUtilization{cpu=%.1f%%, memory=%.1f%%, io=%.1f%%, " +
+                            "maxConcurrent=%d, peakMemory=%dMB, read=%dMB, written=%dMB}",
+                    cpuUtilizationPercent, memoryUtilizationPercent, ioUtilizationPercent,
+                    maxConcurrentOperations, peakMemoryUsageMB,
+                    totalBytesRead / (1024 * 1024), totalBytesWritten / (1024 * 1024));
         }
     }
 }

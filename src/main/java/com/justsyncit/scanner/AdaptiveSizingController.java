@@ -236,6 +236,10 @@ public final class AdaptiveSizingController implements Runnable {
                 // No action needed
                 logger.debug("Maintaining current buffer pool sizes");
                 break;
+
+            default:
+                logger.warn("Unknown sizing action: {}", recommendation.action);
+                break;
         }
     }
 

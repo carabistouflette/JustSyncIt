@@ -168,7 +168,7 @@ public interface StreamHasher {
          * @param bytesProcessed the number of bytes processed so far, must be >= 0
          */
         void onProgress(long bytesProcessed);
-        
+
         /**
          * Called when hashing completes successfully.
          *
@@ -176,7 +176,7 @@ public interface StreamHasher {
          * @param hash the computed hash, never null
          */
         void onComplete(long totalBytes, String hash);
-        
+
         /**
          * Called when an error occurs during hashing.
          *

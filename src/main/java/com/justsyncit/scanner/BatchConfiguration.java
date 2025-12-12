@@ -52,49 +52,49 @@ public class BatchConfiguration {
 
     /** Maximum batch size allowed. */
     private int maxBatchSize = DEFAULT_MAX_BATCH_SIZE;
-    
+
     /** Minimum batch size allowed. */
     private int minBatchSize = DEFAULT_MIN_BATCH_SIZE;
-    
+
     /** Whether adaptive sizing is enabled. */
     private boolean adaptiveSizing = DEFAULT_ADAPTIVE_SIZING;
-    
+
     /** Whether priority scheduling is enabled. */
     private boolean priorityScheduling = DEFAULT_PRIORITY_SCHEDULING;
-    
+
     /** Whether backpressure control is enabled. */
     private boolean backpressureControl = DEFAULT_BACKPRESSURE_CONTROL;
-    
+
     /** Whether resource monitoring is enabled. */
     private boolean resourceMonitoring = DEFAULT_RESOURCE_MONITORING;
-    
+
     /** Whether performance optimization is enabled. */
     private boolean performanceOptimization = DEFAULT_PERFORMANCE_OPTIMIZATION;
-    
+
     /** Maximum number of concurrent batches allowed. */
     private int maxConcurrentBatches = DEFAULT_MAX_CONCURRENT_BATCHES;
-    
+
     /** Batch timeout in seconds. */
     private int batchTimeoutSeconds = DEFAULT_BATCH_TIMEOUT_SECONDS;
-    
+
     /** Small buffer threshold in bytes. */
     private int smallBufferThreshold = DEFAULT_SMALL_BUFFER_THRESHOLD;
-    
+
     /** Memory pressure threshold (0.0 to 1.0). */
     private double memoryPressureThreshold = DEFAULT_MEMORY_PRESSURE_THRESHOLD;
-    
+
     /** CPU utilization threshold (0.0 to 1.0). */
     private double cpuUtilizationThreshold = DEFAULT_CPU_UTILIZATION_THRESHOLD;
-    
+
     /** Default batch processing strategy. */
     private BatchStrategy defaultStrategy = BatchStrategy.SIZE_BASED;
-    
+
     /** Performance target throughput in MB/s. */
     private double targetThroughputMBps = 100.0;
-    
+
     /** Performance target latency in milliseconds. */
     private double targetLatencyMs = 100.0;
-    
+
     /** Performance target efficiency percentage. */
     private double targetEfficiencyPercent = 80.0;
 
@@ -339,7 +339,8 @@ public class BatchConfiguration {
      *
      * @param targetEfficiencyPercent target efficiency percentage (0.0 to 100.0)
      * @return this builder for method chaining
-     * @throws IllegalArgumentException if targetEfficiencyPercent is outside valid range
+     * @throws IllegalArgumentException if targetEfficiencyPercent is outside valid
+     *                                  range
      */
     public BatchConfiguration withTargetEfficiencyPercent(double targetEfficiencyPercent) {
         if (targetEfficiencyPercent < 0.0 || targetEfficiencyPercent > 100.0) {
@@ -417,23 +418,23 @@ public class BatchConfiguration {
 
     @Override
     public String toString() {
-        return "BatchConfiguration{" +
-                "maxBatchSize=" + maxBatchSize +
-                ", minBatchSize=" + minBatchSize +
-                ", adaptiveSizing=" + adaptiveSizing +
-                ", priorityScheduling=" + priorityScheduling +
-                ", backpressureControl=" + backpressureControl +
-                ", resourceMonitoring=" + resourceMonitoring +
-                ", performanceOptimization=" + performanceOptimization +
-                ", maxConcurrentBatches=" + maxConcurrentBatches +
-                ", batchTimeoutSeconds=" + batchTimeoutSeconds +
-                ", smallBufferThreshold=" + smallBufferThreshold +
-                ", memoryPressureThreshold=" + memoryPressureThreshold +
-                ", cpuUtilizationThreshold=" + cpuUtilizationThreshold +
-                ", defaultStrategy=" + defaultStrategy +
-                ", targetThroughputMBps=" + targetThroughputMBps +
-                ", targetLatencyMs=" + targetLatencyMs +
-                ", targetEfficiencyPercent=" + targetEfficiencyPercent +
-                '}';
+        return "BatchConfiguration{"
+                + "maxBatchSize=" + maxBatchSize
+                + ", minBatchSize=" + minBatchSize
+                + ", adaptiveSizing=" + adaptiveSizing
+                + ", priorityScheduling=" + priorityScheduling
+                + ", backpressureControl=" + backpressureControl
+                + ", resourceMonitoring=" + resourceMonitoring
+                + ", performanceOptimization=" + performanceOptimization
+                + ", maxConcurrentBatches=" + maxConcurrentBatches
+                + ", batchTimeoutSeconds=" + batchTimeoutSeconds
+                + ", smallBufferThreshold=" + smallBufferThreshold
+                + ", memoryPressureThreshold=" + memoryPressureThreshold
+                + ", cpuUtilizationThreshold=" + cpuUtilizationThreshold
+                + ", defaultStrategy=" + defaultStrategy
+                + ", targetThroughputMBps=" + targetThroughputMBps
+                + ", targetLatencyMs=" + targetLatencyMs
+                + ", targetEfficiencyPercent=" + targetEfficiencyPercent
+                + '}';
     }
 }

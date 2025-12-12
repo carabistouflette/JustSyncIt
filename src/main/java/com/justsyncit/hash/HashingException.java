@@ -182,15 +182,15 @@ public class HashingException extends RuntimeException {
     public String toString() {
         StringBuilder sb = new StringBuilder(super.toString());
         sb.append(" [errorCode=").append(errorCode);
-        
+
         if (hashAlgorithm != null) {
             sb.append(", algorithm=").append(hashAlgorithm);
         }
-        
+
         if (operationContext != null) {
             sb.append(", context=").append(operationContext);
         }
-        
+
         sb.append(']');
         return sb.toString();
     }

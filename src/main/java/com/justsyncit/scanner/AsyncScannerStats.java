@@ -32,61 +32,61 @@ public class AsyncScannerStats {
 
     /** Timestamp when statistics were created. */
     private final Instant statsTimestamp;
-    
+
     /** Total number of scans initiated. */
     private final AtomicLong totalScansInitiated;
-    
+
     /** Total number of scans completed successfully. */
     private final AtomicLong totalScansCompleted;
-    
+
     /** Total number of scans failed. */
     private final AtomicLong totalScansFailed;
-    
+
     /** Total number of scans cancelled. */
     private final AtomicLong totalScansCancelled;
-    
+
     /** Total number of files scanned. */
     private final AtomicLong totalFilesScanned;
-    
+
     /** Total number of directories scanned. */
     private final AtomicLong totalDirectoriesScanned;
-    
+
     /** Total number of bytes processed. */
     private final AtomicLong totalBytesProcessed;
-    
+
     /** Current number of active scans. */
     private final AtomicInteger activeScans;
-    
+
     /** Peak number of concurrent scans. */
     private final AtomicInteger peakConcurrentScans;
-    
+
     /** Total number of watch service registrations. */
     private final AtomicLong totalWatchRegistrations;
-    
+
     /** Current number of active watch registrations. */
     private final AtomicInteger activeWatchRegistrations;
-    
+
     /** Total number of file change events processed. */
     private final AtomicLong totalFileChangeEvents;
-    
+
     /** Total number of watch service errors. */
     private final AtomicLong totalWatchServiceErrors;
-    
+
     /** Average scanning throughput (files per second). */
     private volatile double averageThroughput;
-    
+
     /** Peak memory usage during scanning (bytes). */
     private volatile long peakMemoryUsage;
-    
+
     /** Total backpressure events encountered. */
     private final AtomicLong totalBackpressureEvents;
-    
+
     /** Total adaptive resizing events. */
     private final AtomicLong totalAdaptiveResizingEvents;
-    
+
     /** Scanner uptime in milliseconds. */
     private volatile long uptimeMs;
-    
+
     /** Additional operational metrics. */
     private final Map<String, Object> operationalMetrics;
 

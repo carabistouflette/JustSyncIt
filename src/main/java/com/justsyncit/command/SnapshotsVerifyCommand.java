@@ -190,20 +190,20 @@ public class SnapshotsVerifyCommand implements Command {
 
             // Get files in snapshot
             List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId);
-            
+
             // Validate files list
             if (files == null) {
                 System.err.println("Error: Failed to retrieve files for snapshot: " + snapshotId);
                 return false;
             }
-            
+
             if (files.isEmpty()) {
                 if (!quiet) {
                     System.out.println("Warning: Snapshot contains no files to verify");
                 }
                 return true;
             }
-            
+
             // Verification statistics
             AtomicInteger filesVerified = new AtomicInteger(0);
             AtomicInteger filesWithErrors = new AtomicInteger(0);
@@ -218,7 +218,7 @@ public class SnapshotsVerifyCommand implements Command {
             // Verify each file
             for (int i = 0; i < files.size(); i++) {
                 FileMetadata file = files.get(i);
-                
+
                 // Validate file metadata
                 if (file == null) {
                     if (!quiet) {
@@ -228,7 +228,7 @@ public class SnapshotsVerifyCommand implements Command {
                     errors.incrementAndGet();
                     continue;
                 }
-                
+
                 // Report progress less frequently for better performance
                 if (showProgress && !quiet && (i % 10 == 0 || i == files.size() - 1)) {
                     double progress = (i + 1) * 100.0 / files.size();
@@ -240,7 +240,7 @@ public class SnapshotsVerifyCommand implements Command {
                 try {
                     // Verify file integrity
                     boolean fileIntegrityOk = true;
-                    
+
                     if (verifyFileHashes) {
                         // Verify file hash by reconstructing from chunks
                         String expectedHash = file.getFileHash();
@@ -277,9 +277,9 @@ public class SnapshotsVerifyCommand implements Command {
                                     fileIntegrityOk = false;
                                     continue;
                                 }
-                                
+
                                 chunksVerified.incrementAndGet();
-                                
+
                                 // Verify chunk integrity by checking if chunk exists and retrieving it
                                 // The retrieveChunk method already verifies integrity
                                 try {
@@ -292,7 +292,7 @@ public class SnapshotsVerifyCommand implements Command {
                                         chunksWithErrors.incrementAndGet();
                                         errors.incrementAndGet();
                                         fileIntegrityOk = false;
-                                        
+
                                         if (!quiet) {
                                             System.out.println("\nChunk not found: " + chunkHash + " (file: " + file.getPath() + ")");
                                         }
@@ -301,7 +301,7 @@ public class SnapshotsVerifyCommand implements Command {
                                     chunksWithErrors.incrementAndGet();
                                     errors.incrementAndGet();
                                     fileIntegrityOk = false;
-                                    
+
                                     if (!quiet) {
                                         System.out.println("\nChunk integrity error: " + chunkHash + " (file: " + file.getPath() + ") - " + e.getMessage());
                                     }
@@ -309,7 +309,7 @@ public class SnapshotsVerifyCommand implements Command {
                                     chunksWithErrors.incrementAndGet();
                                     errors.incrementAndGet();
                                     fileIntegrityOk = false;
-                                    
+
                                     if (!quiet) {
                                         System.out.println("\nUnexpected chunk error: " + chunkHash + " (file: " + file.getPath() + ") - " + e.getMessage());
                                     }
@@ -353,7 +353,7 @@ public class SnapshotsVerifyCommand implements Command {
             System.out.println();
 
             boolean overallSuccess = filesWithErrors.get() == 0 && chunksWithErrors.get() == 0;
-            
+
             if (overallSuccess) {
                 System.out.println("✓ Snapshot verification PASSED - No integrity issues found");
             } else {
@@ -450,13 +450,13 @@ public class SnapshotsVerifyCommand implements Command {
 
             // Create incremental hasher to reconstruct file from chunks
             Blake3Service.Blake3IncrementalHasher hasher = blake3Service.createIncrementalHasher();
-            
+
             // Retrieve and hash each chunk in order
             for (String chunkHash : chunkHashes) {
                 if (chunkHash == null || chunkHash.isEmpty()) {
                     return false;
                 }
-                
+
                 try {
                     byte[] chunkData = contentStore.retrieveChunk(chunkHash);
                     if (chunkData == null) {
@@ -467,13 +467,13 @@ public class SnapshotsVerifyCommand implements Command {
                     return false;
                 }
             }
-            
+
             // Compute the reconstructed file hash
             String computedHash = hasher.digest();
             String expectedHash = file.getFileHash();
-            
+
             return computedHash != null && computedHash.equals(expectedHash);
-            
+
         } catch (Exception e) {
             return false;
         }

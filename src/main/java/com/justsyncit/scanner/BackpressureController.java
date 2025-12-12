@@ -36,16 +36,16 @@ public class BackpressureController {
 
     /** Current backpressure level (0.0 to 1.0). */
     private final AtomicReference<Double> currentPressureLevel;
-    
+
     /** Whether backpressure is currently applied. */
     private final AtomicBoolean backpressureApplied;
-    
+
     /** Total number of backpressure events applied. */
     private final AtomicLong totalBackpressureEvents;
-    
+
     /** Timestamp when backpressure was last applied. */
     private volatile long lastBackpressureTime;
-    
+
     /** Lock for thread-safe operations. */
     private final ReentrantReadWriteLock lock;
 
@@ -74,18 +74,18 @@ public class BackpressureController {
         try {
             double previousLevel = currentPressureLevel.get();
             currentPressureLevel.set(pressureLevel);
-            
+
             if (pressureLevel > 0.0 && !backpressureApplied.get()) {
                 backpressureApplied.set(true);
                 totalBackpressureEvents.incrementAndGet();
                 lastBackpressureTime = System.currentTimeMillis();
-                
-                logger.info("Applied backpressure at level: {:.2f} (previous: {:.2f})", 
+
+                logger.info("Applied backpressure at level: {:.2f} (previous: {:.2f})",
                     pressureLevel, previousLevel);
             } else if (pressureLevel == 0.0 && backpressureApplied.get()) {
                 backpressureApplied.set(false);
                 lastBackpressureTime = System.currentTimeMillis();
-                
+
                 logger.info("Released backpressure (previous level: {:.2f})", previousLevel);
             }
         } finally {

@@ -42,34 +42,34 @@ public class BatchOptions {
 
     /** Number of files in batch. */
     private int batchSize = DEFAULT_BATCH_SIZE;
-    
+
     /** Maximum number of files allowed in batch. */
     private int maxBatchSize = DEFAULT_MAX_BATCH_SIZE;
-    
+
     /** Batch timeout in seconds. */
     private int batchTimeoutSeconds = DEFAULT_BATCH_TIMEOUT_SECONDS;
-    
+
     /** Whether adaptive sizing is enabled. */
     private boolean adaptiveSizing = DEFAULT_ADAPTIVE_SIZING;
-    
+
     /** Whether priority scheduling is enabled. */
     private boolean priorityScheduling = DEFAULT_PRIORITY_SCHEDULING;
-    
+
     /** Whether backpressure control is enabled. */
     private boolean backpressureControl = DEFAULT_BACKPRESSURE_CONTROL;
-    
+
     /** Chunk size for batch operations. */
     private int chunkSize = DEFAULT_CHUNK_SIZE;
-    
+
     /** Maximum concurrent chunks per batch. */
     private int maxConcurrentChunks = 4;
-    
+
     /** Batch processing strategy. */
     private BatchStrategy strategy = BatchStrategy.SIZE_BASED;
-    
+
     /** Memory pressure threshold for batch operations. */
     private double memoryPressureThreshold = 0.8;
-    
+
     /** CPU utilization threshold for batch operations. */
     private double cpuUtilizationThreshold = 0.9;
 
@@ -300,18 +300,18 @@ public class BatchOptions {
 
     @Override
     public String toString() {
-        return "BatchOptions{" +
-                "batchSize=" + batchSize +
-                ", maxBatchSize=" + maxBatchSize +
-                ", batchTimeoutSeconds=" + batchTimeoutSeconds +
-                ", adaptiveSizing=" + adaptiveSizing +
-                ", priorityScheduling=" + priorityScheduling +
-                ", backpressureControl=" + backpressureControl +
-                ", chunkSize=" + chunkSize +
-                ", maxConcurrentChunks=" + maxConcurrentChunks +
-                ", strategy=" + strategy +
-                ", memoryPressureThreshold=" + memoryPressureThreshold +
-                ", cpuUtilizationThreshold=" + cpuUtilizationThreshold +
-                '}';
+        return "BatchOptions{"
+                + "batchSize=" + batchSize
+                + ", maxBatchSize=" + maxBatchSize
+                + ", batchTimeoutSeconds=" + batchTimeoutSeconds
+                + ", adaptiveSizing=" + adaptiveSizing
+                + ", priorityScheduling=" + priorityScheduling
+                + ", backpressureControl=" + backpressureControl
+                + ", chunkSize=" + chunkSize
+                + ", maxConcurrentChunks=" + maxConcurrentChunks
+                + ", strategy=" + strategy
+                + ", memoryPressureThreshold=" + memoryPressureThreshold
+                + ", cpuUtilizationThreshold=" + cpuUtilizationThreshold
+                + '}';
     }
 }

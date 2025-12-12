@@ -31,37 +31,37 @@ public class BatchProcessingStats {
 
     /** Total number of batches processed. */
     private final AtomicLong totalBatchesProcessed = new AtomicLong(0);
-    
+
     /** Total number of files processed across all batches. */
     private final AtomicLong totalFilesProcessed = new AtomicLong(0);
-    
+
     /** Total number of successful file operations. */
     private final AtomicLong successfulFileOperations = new AtomicLong(0);
-    
+
     /** Total number of failed file operations. */
     private final AtomicLong failedFileOperations = new AtomicLong(0);
-    
+
     /** Total bytes processed across all batches. */
     private final AtomicLong totalBytesProcessed = new AtomicLong(0);
-    
+
     /** Total processing time across all batches in milliseconds. */
     private final AtomicLong totalProcessingTimeMs = new AtomicLong(0);
-    
+
     /** Number of currently active batch operations. */
     private final AtomicInteger activeBatchOperations = new AtomicInteger(0);
-    
+
     /** Number of currently active file operations. */
     private final AtomicInteger activeFileOperations = new AtomicInteger(0);
-    
+
     /** Peak number of concurrent batch operations. */
     private final AtomicInteger peakConcurrentBatches = new AtomicInteger(0);
-    
+
     /** Peak number of concurrent file operations. */
     private final AtomicInteger peakConcurrentFileOps = new AtomicInteger(0);
-    
+
     /** Timestamp when statistics collection started. */
     private final Instant startTime;
-    
+
     /** Last time statistics were updated. */
     private volatile Instant lastUpdateTime;
 

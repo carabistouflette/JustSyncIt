@@ -37,19 +37,19 @@ public class PerformanceOptimizer {
 
     /** Memory management bean. */
     private final MemoryMXBean memoryBean;
-    
+
     /** Operating system bean. */
     private final OperatingSystemMXBean osBean;
-    
+
     /** Current optimal thread count. */
     private final AtomicReference<Integer> optimalThreadCount;
-    
+
     /** Current optimal buffer size. */
     private final AtomicReference<Integer> optimalBufferSize;
-    
+
     /** Last optimization timestamp. */
     private final AtomicLong lastOptimizationTime;
-    
+
     /** Number of optimizations performed. */
     private final AtomicLong optimizationCount;
 
@@ -70,11 +70,11 @@ public class PerformanceOptimizer {
      */
     public void optimize() {
         long startTime = System.currentTimeMillis();
-        
+
         try {
             // Calculate memory pressure
             double memoryPressure = calculateMemoryPressure();
-            
+
             // Calculate CPU load
             double cpuLoad = 0.0;
             try {
@@ -94,22 +94,22 @@ public class PerformanceOptimizer {
                     cpuLoad = Math.min(1.0, loadAverage / Runtime.getRuntime().availableProcessors());
                 }
             }
-            
+
             // Optimize thread count based on system load
             int newThreadCount = calculateOptimalThreadCount(memoryPressure, cpuLoad);
             optimalThreadCount.set(newThreadCount);
-            
+
             // Optimize buffer size based on available memory
             int newBufferSize = calculateOptimalBufferSize(memoryPressure);
             optimalBufferSize.set(newBufferSize);
-            
+
             // Update optimization metadata
             lastOptimizationTime.set(System.currentTimeMillis());
             optimizationCount.incrementAndGet();
-            
+
             logger.debug("Performance optimization completed: threads={}, bufferSize={}, memoryPressure={:.2f}, cpuLoad={:.2f}",
                 newThreadCount, newBufferSize, memoryPressure, cpuLoad);
-                
+
         } catch (Exception e) {
             logger.warn("Performance optimization failed", e);
         }
@@ -160,11 +160,11 @@ public class PerformanceOptimizer {
         try {
             long usedMemory = memoryBean.getHeapMemoryUsage().getUsed();
             long maxMemory = memoryBean.getHeapMemoryUsage().getMax();
-            
+
             if (maxMemory <= 0) {
                 return 0.5; // Default pressure if max memory is unavailable
             }
-            
+
             return (double) usedMemory / maxMemory;
         } catch (Exception e) {
             logger.debug("Failed to calculate memory pressure", e);
@@ -191,21 +191,21 @@ public class PerformanceOptimizer {
      */
     private int calculateOptimalThreadCount(double memoryPressure, double cpuLoad) {
         int baseCount = Runtime.getRuntime().availableProcessors();
-        
+
         // Reduce thread count under high memory pressure
         if (memoryPressure > 0.8) {
             baseCount = Math.max(1, baseCount / 4);
         } else if (memoryPressure > 0.6) {
             baseCount = Math.max(2, baseCount / 2);
         }
-        
+
         // Reduce thread count under high CPU load
         if (cpuLoad > 0.8) {
             baseCount = Math.max(1, baseCount / 3);
         } else if (cpuLoad > 0.6) {
             baseCount = Math.max(2, baseCount / 2);
         }
-        
+
         // Ensure minimum thread count
         return Math.max(1, baseCount);
     }
@@ -220,7 +220,7 @@ public class PerformanceOptimizer {
         if (maxMemory <= 0) {
             return 64 * 1024; // 64KB default
         }
-        
+
         // Use 0.1% of max memory, capped at 1MB
         int bufferSize = (int) Math.min(maxMemory / 1000, 1024 * 1024);
         return Math.max(8 * 1024, bufferSize); // Minimum 8KB
@@ -234,14 +234,14 @@ public class PerformanceOptimizer {
      */
     private int calculateOptimalBufferSize(double memoryPressure) {
         int baseSize = calculateInitialBufferSize();
-        
+
         // Reduce buffer size under memory pressure
         if (memoryPressure > 0.8) {
             baseSize = baseSize / 4;
         } else if (memoryPressure > 0.6) {
             baseSize = baseSize / 2;
         }
-        
+
         // Ensure minimum buffer size
         return Math.max(4 * 1024, baseSize); // Minimum 4KB
     }

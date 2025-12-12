@@ -28,40 +28,41 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Represents a registration for directory monitoring with WatchService.
- * Contains metadata about the watch service and provides methods for management.
+ * Contains metadata about the watch service and provides methods for
+ * management.
  */
 public class WatchServiceRegistration {
 
     /** Unique identifier for this registration. */
     private final String registrationId;
-    
+
     /** Directory being monitored. */
     private final Path monitoredDirectory;
-    
+
     /** Types of events being watched. */
     private final Set<String> watchEventKinds;
-    
+
     /** Whether monitoring is recursive (includes subdirectories). */
     private final boolean recursiveWatching;
-    
+
     /** Registration timestamp. */
     private final Instant registrationTime;
-    
+
     /** Watch service configuration. */
     private final AsyncScanOptions configuration;
-    
+
     /** Atomic flag indicating if registration is active. */
     private final AtomicBoolean active;
-    
+
     /** Counter for events processed. */
     private final AtomicLong eventsProcessed;
-    
+
     /** Counter for errors encountered. */
     private final AtomicLong errorsEncountered;
-    
+
     /** Last event timestamp. */
     private volatile Instant lastEventTime;
-    
+
     /** Additional metadata. */
     private volatile Object metadata;
 
@@ -69,12 +70,12 @@ public class WatchServiceRegistration {
      * Creates a new WatchServiceRegistration.
      *
      * @param monitoredDirectory directory being monitored
-     * @param watchEventKinds types of events being watched
-     * @param recursiveWatching whether monitoring is recursive
-     * @param configuration watch service configuration
+     * @param watchEventKinds    types of events being watched
+     * @param recursiveWatching  whether monitoring is recursive
+     * @param configuration      watch service configuration
      */
     public WatchServiceRegistration(Path monitoredDirectory, Set<String> watchEventKinds,
-                               boolean recursiveWatching, AsyncScanOptions configuration) {
+            boolean recursiveWatching, AsyncScanOptions configuration) {
         this.registrationId = UUID.randomUUID().toString();
         this.monitoredDirectory = monitoredDirectory;
         this.watchEventKinds = Set.copyOf(watchEventKinds);
@@ -269,11 +270,10 @@ public class WatchServiceRegistration {
      */
     public String createSummary() {
         return String.format(
-            "WatchServiceRegistration{id='%s', directory='%s', events=%d, errors=%d, " +
-            "duration=%dms, rate=%.2f events/sec, active=%b}",
-            registrationId, monitoredDirectory, eventsProcessed.get(), errorsEncountered.get(),
-            getRegistrationDurationMs(), getAverageEventRate(), isActive()
-        );
+                "WatchServiceRegistration{id='%s', directory='%s', events=%d, errors=%d, " +
+                        "duration=%dms, rate=%.2f events/sec, active=%b}",
+                registrationId, monitoredDirectory, eventsProcessed.get(), errorsEncountered.get(),
+                getRegistrationDurationMs(), getAverageEventRate(), isActive());
     }
 
     @Override
@@ -283,9 +283,13 @@ public class WatchServiceRegistration {
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+
         WatchServiceRegistration that = (WatchServiceRegistration) obj;
         return registrationId.equals(that.registrationId);
     }

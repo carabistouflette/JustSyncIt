@@ -26,19 +26,19 @@ import java.util.List;
  * Contains information about allocated buffers and operation statistics.
  */
 public class BatchAllocationResult {
-    
+
     /** List of allocated buffers. */
     private final List<ByteBuffer> buffers;
-    
+
     /** Total size of all allocated buffers in bytes. */
     private final long totalSize;
-    
+
     /** Number of buffers allocated. */
     private final int allocatedCount;
-    
+
     /** Time taken for the allocation in milliseconds. */
     private final long allocationTimeMs;
-    
+
     /** Error if allocation failed. */
     private final Exception error;
 
@@ -74,7 +74,7 @@ public class BatchAllocationResult {
      * @param allocationTimeMs time taken for allocation in milliseconds
      * @param error error if allocation failed
      */
-    public BatchAllocationResult(List<ByteBuffer> buffers, long totalSize, int allocatedCount, 
+    public BatchAllocationResult(List<ByteBuffer> buffers, long totalSize, int allocatedCount,
                                long allocationTimeMs, Exception error) {
         this.buffers = buffers != null ? List.copyOf(buffers) : List.of();
         this.totalSize = totalSize;

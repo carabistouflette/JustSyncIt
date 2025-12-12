@@ -33,20 +33,20 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Manages CPU, memory, and I/O resource allocation.
  */
 public class ResourceCoordinator {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(ResourceCoordinator.class);
-    
+
     private final ThreadPoolConfiguration config;
     private final SystemResourceInfo systemInfo;
     private final ScheduledExecutorService scheduler;
     private final AtomicBoolean running = new AtomicBoolean(true);
-    
+
     // Resource tracking
     private final AtomicInteger activeThreads = new AtomicInteger(0);
     private final AtomicLong totalMemoryAllocated = new AtomicLong(0);
     private final AtomicLong totalCpuTime = new AtomicLong(0);
     private final AtomicInteger resourceConflicts = new AtomicInteger(0);
-    
+
     /**
      * Creates a new ResourceCoordinator.
      */
@@ -58,10 +58,10 @@ public class ResourceCoordinator {
             t.setDaemon(true);
             return t;
         });
-        
+
         logger.info("ResourceCoordinator initialized");
     }
-    
+
     /**
      * Starts the resource coordinator.
      */
@@ -69,11 +69,11 @@ public class ResourceCoordinator {
         if (!running.get()) {
             return;
         }
-        
+
         scheduler.scheduleAtFixedRate(this::performCoordination, 5, 5, TimeUnit.SECONDS);
         logger.info("ResourceCoordinator started");
     }
-    
+
     /**
      * Performs resource coordination.
      */
@@ -81,40 +81,40 @@ public class ResourceCoordinator {
         try {
             // Check resource usage
             checkResourceUsage();
-            
+
             // Apply resource limits if needed
             applyResourceLimits();
-            
+
             // Resolve resource conflicts
             resolveResourceConflicts();
-            
+
         } catch (Exception e) {
             logger.error("Error in resource coordination", e);
         }
     }
-    
+
     /**
      * Checks current resource usage.
      */
     private void checkResourceUsage() {
         double memoryUsageRatio = calculateMemoryUsageRatio();
         double cpuUsageRatio = calculateCpuUsageRatio();
-        
+
         if (logger.isDebugEnabled()) {
             logger.debug("Resource usage - memory: {:.2f}%, cpu: {:.2f}%, threads: {}",
                     memoryUsageRatio * 100, cpuUsageRatio * 100, activeThreads.get());
         }
-        
+
         // Trigger alerts if thresholds exceeded
         if (memoryUsageRatio > config.getMemoryPressureThreshold()) {
             logger.warn("Memory usage threshold exceeded: {:.2f}%", memoryUsageRatio * 100);
         }
-        
+
         if (cpuUsageRatio > config.getMaxCpuUsageThreshold()) {
             logger.warn("CPU usage threshold exceeded: {:.2f}%", cpuUsageRatio * 100);
         }
     }
-    
+
     /**
      * Calculates memory usage ratio.
      */
@@ -123,7 +123,7 @@ public class ResourceCoordinator {
         long maxMemory = Runtime.getRuntime().maxMemory();
         return maxMemory > 0 ? (double) usedMemory / maxMemory : 0.0;
     }
-    
+
     /**
      * Calculates CPU usage ratio (simplified).
      */
@@ -132,7 +132,7 @@ public class ResourceCoordinator {
         // In a real implementation, you'd use OS-specific metrics
         return Math.min(1.0, (double) activeThreads.get() / systemInfo.getAvailableProcessors());
     }
-    
+
     /**
      * Applies resource limits if needed.
      */
@@ -143,7 +143,7 @@ public class ResourceCoordinator {
             logger.trace("Applying resource limits based on current usage");
         }
     }
-    
+
     /**
      * Resolves resource conflicts.
      */
@@ -155,49 +155,49 @@ public class ResourceCoordinator {
             resourceConflicts.set(0);
         }
     }
-    
+
     /**
      * Records thread activation.
      */
     public void recordThreadActivation() {
         activeThreads.incrementAndGet();
     }
-    
+
     /**
      * Records thread deactivation.
      */
     public void recordThreadDeactivation() {
         activeThreads.decrementAndGet();
     }
-    
+
     /**
      * Records memory allocation.
      */
     public void recordMemoryAllocation(long bytes) {
         totalMemoryAllocated.addAndGet(bytes);
     }
-    
+
     /**
      * Records memory deallocation.
      */
     public void recordMemoryDeallocation(long bytes) {
         totalMemoryAllocated.addAndGet(-bytes);
     }
-    
+
     /**
      * Records CPU time usage.
      */
     public void recordCpuTime(long nanos) {
         totalCpuTime.addAndGet(nanos);
     }
-    
+
     /**
      * Records resource conflict.
      */
     public void recordResourceConflict() {
         resourceConflicts.incrementAndGet();
     }
-    
+
     /**
      * Gets resource statistics.
      */
@@ -211,7 +211,7 @@ public class ResourceCoordinator {
             calculateCpuUsageRatio()
         );
     }
-    
+
     /**
      * Resource statistics snapshot.
      */
@@ -222,7 +222,7 @@ public class ResourceCoordinator {
         public final int resourceConflicts;
         public final double memoryUsageRatio;
         public final double cpuUsageRatio;
-        
+
         ResourceStats(int activeThreads, long totalMemoryAllocated, long totalCpuTime,
                      int resourceConflicts, double memoryUsageRatio, double cpuUsageRatio) {
             this.activeThreads = activeThreads;
@@ -232,7 +232,7 @@ public class ResourceCoordinator {
             this.memoryUsageRatio = memoryUsageRatio;
             this.cpuUsageRatio = cpuUsageRatio;
         }
-        
+
         @Override
         public String toString() {
             return String.format(
@@ -243,7 +243,7 @@ public class ResourceCoordinator {
             );
         }
     }
-    
+
     /**
      * Shuts down the resource coordinator.
      */
@@ -251,7 +251,7 @@ public class ResourceCoordinator {
         if (!running.compareAndSet(true, false)) {
             return;
         }
-        
+
         scheduler.shutdown();
         try {
             if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
@@ -261,7 +261,7 @@ public class ResourceCoordinator {
             scheduler.shutdownNow();
             Thread.currentThread().interrupt();
         }
-        
+
         logger.info("ResourceCoordinator shutdown completed");
     }
 }

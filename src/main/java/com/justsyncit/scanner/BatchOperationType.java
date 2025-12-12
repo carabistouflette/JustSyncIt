@@ -23,61 +23,61 @@ package com.justsyncit.scanner;
  * Defines the specific operations that can be performed on file batches.
  */
 public enum BatchOperationType {
-    
+
     /**
      * Chunking operation - breaks files into chunks.
      * Used for backup operations and content analysis.
      */
     CHUNKING("Chunking", "Breaks files into chunks for backup operations"),
-    
+
     /**
      * Hashing operation - calculates file and chunk hashes.
      * Used for integrity verification and deduplication.
      */
     HASHING("Hashing", "Calculates file and chunk hashes for integrity verification"),
-    
+
     /**
      * Storage operation - stores chunks to content store.
      * Used for persisting backup data and metadata.
      */
     STORAGE("Storage", "Stores chunks to content store for backup persistence"),
-    
+
     /**
      * Transfer operation - transfers files between locations.
      * Used for network transfers and migration operations.
      */
     TRANSFER("Transfer", "Transfers files between locations for network operations"),
-    
+
     /**
      * Verification operation - verifies file integrity.
      * Used for backup validation and consistency checks.
      */
     VERIFICATION("Verification", "Verifies file integrity for backup validation"),
-    
+
     /**
      * Compression operation - compresses files for storage.
      * Used for space optimization and faster transfers.
      */
     COMPRESSION("Compression", "Compresses files for storage optimization"),
-    
+
     /**
      * Deduplication operation - removes duplicate content.
      * Used for storage efficiency and optimization.
      */
     DEDUPLICATION("Deduplication", "Removes duplicate content for storage efficiency"),
-    
+
     /**
      * Metadata operation - processes file metadata.
      * Used for catalog operations and indexing.
      */
     METADATA("Metadata", "Processes file metadata for catalog operations"),
-    
+
     /**
      * Recovery operation - recovers from backup.
      * Used for restore operations and disaster recovery.
      */
     RECOVERY("Recovery", "Recovers from backup for restore operations"),
-    
+
     /**
      * Maintenance operation - performs system maintenance.
      * Used for cleanup and optimization tasks.
@@ -122,7 +122,7 @@ public enum BatchOperationType {
      * @return true if I/O intensive, false otherwise
      */
     public boolean isIOIntensive() {
-        return this == CHUNKING || this == STORAGE || this == TRANSFER || 
+        return this == CHUNKING || this == STORAGE || this == TRANSFER ||
                this == COMPRESSION || this == RECOVERY;
     }
 

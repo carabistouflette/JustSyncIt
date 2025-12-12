@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.List;
 import java.util.ArrayList;
@@ -490,7 +489,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final OptimizationConfig config;
         private final Map<Path, AccessPattern> accessPatterns = new ConcurrentHashMap<>();
 
-        public DirectoryAccessPatternAnalyzer(OptimizationConfig config) {
+        DirectoryAccessPatternAnalyzer(OptimizationConfig config) {
             this.config = config;
         }
 
@@ -537,7 +536,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final OptimizationConfig config;
         private final PerformanceMonitor performanceMonitor;
 
-        public MemoryOptimizationManager(OptimizationConfig config, PerformanceMonitor performanceMonitor) {
+        MemoryOptimizationManager(OptimizationConfig config, PerformanceMonitor performanceMonitor) {
             this.config = config;
             this.performanceMonitor = performanceMonitor;
         }
@@ -571,7 +570,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final OptimizationConfig config;
         private final ThreadPoolManager threadPoolManager;
 
-        public NumaAwareScanningCoordinator(OptimizationConfig config, ThreadPoolManager threadPoolManager) {
+        NumaAwareScanningCoordinator(OptimizationConfig config, ThreadPoolManager threadPoolManager) {
             this.config = config;
             this.threadPoolManager = threadPoolManager;
         }
@@ -600,7 +599,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final DirectoryAccessPatternAnalyzer patternAnalyzer;
         private final Map<Path, PrefetchCache> prefetchCache = new ConcurrentHashMap<>();
 
-        public DirectoryPrefetchingManager(OptimizationConfig config, DirectoryAccessPatternAnalyzer patternAnalyzer) {
+        DirectoryPrefetchingManager(OptimizationConfig config, DirectoryAccessPatternAnalyzer patternAnalyzer) {
             this.config = config;
             this.patternAnalyzer = patternAnalyzer;
         }

@@ -62,7 +62,7 @@ public class FileProcessor {
 
     /**
      * Creates a new FileProcessor with specified dependencies.
-     * 
+     *
      * @deprecated Use
      *             {@link #create(FilesystemScanner, FileChunker, ContentStore, MetadataService)}
      *             instead.
@@ -300,7 +300,7 @@ public class FileProcessor {
         /** Chunking options to use. */
         private final FileChunker.ChunkingOptions options;
 
-        public ChunkingFileVisitor(FileChunker.ChunkingOptions options) {
+        ChunkingFileVisitor(FileChunker.ChunkingOptions options) {
             this.options = options;
         }
 
@@ -717,7 +717,7 @@ public class FileProcessor {
 
         /**
          * Creates a new ProcessingResult.
-         * 
+         *
          * @deprecated Use {@link #create(ScanResult, int, int, int, long, long)}
          *             instead.
          */

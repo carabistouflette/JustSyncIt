@@ -140,11 +140,11 @@ public class Blake3ServiceImpl implements Blake3Service {
         if (buffer == null) {
             throw new IllegalArgumentException("Buffer cannot be null");
         }
-        
+
         // Convert ByteBuffer to byte array for hashing
         byte[] data;
         int originalPosition = buffer.position();
-        
+
         try {
             if (buffer.hasArray()) {
                 data = buffer.array();
@@ -186,7 +186,7 @@ public class Blake3ServiceImpl implements Blake3Service {
         if (key.length != 32) {
             throw new IllegalArgumentException("Key must be exactly 32 bytes, got " + key.length);
         }
-        
+
         try {
             // Create a regular hasher and apply the key as the first update
             IncrementalHasherFactory.IncrementalHasher hasher = incrementalHasherFactory.createIncrementalHasher();
@@ -203,14 +203,14 @@ public class Blake3ServiceImpl implements Blake3Service {
         if (filePaths.isEmpty()) {
             return CompletableFuture.completedFuture(new java.util.ArrayList<>());
         }
-        
+
         // Check for null elements in the list
         for (int i = 0; i < filePaths.size(); i++) {
             if (filePaths.get(i) == null) {
                 throw new IllegalArgumentException("File path at index " + i + " cannot be null");
             }
         }
-        
+
         return CompletableFuture.supplyAsync(() ->
             filePaths.parallelStream()
                 .map(path -> {
@@ -239,12 +239,12 @@ public class Blake3ServiceImpl implements Blake3Service {
     public boolean verify(byte[] data, String expectedHash) throws HashingException {
         Objects.requireNonNull(data, "Data cannot be null");
         Objects.requireNonNull(expectedHash, "Expected hash cannot be null");
-        
+
         // Validate hash format (should be 64 hex characters for BLAKE3)
         if (!expectedHash.matches("^[a-fA-F0-9]{64}$")) {
             throw new IllegalArgumentException("Invalid hash format: expected 64 hexadecimal characters");
         }
-        
+
         String actualHash = hashBuffer(data);
         return actualHash.equalsIgnoreCase(expectedHash);
     }

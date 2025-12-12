@@ -18,92 +18,88 @@
 
 package com.justsyncit.scanner;
 
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.WatchEvent;
 import java.util.Set;
-import java.util.EnumSet;
-import java.util.concurrent.TimeUnit;
 
 /**
- * Enhanced configuration options for asynchronous filesystem scanning operations.
- * Extends ScanOptions with async-specific settings for WatchService and performance tuning.
+ * Enhanced configuration options for asynchronous filesystem scanning
+ * operations.
+ * Extends ScanOptions with async-specific settings for WatchService and
+ * performance tuning.
  */
 public class AsyncScanOptions extends ScanOptions {
 
     /** Default parallelism level for directory scanning. */
     private static final int DEFAULT_PARALLELISM = Runtime.getRuntime().availableProcessors();
-    
+
     /** Default batch size for file processing. */
     private static final int DEFAULT_BATCH_SIZE = 100;
-    
+
     /** Default backpressure threshold. */
     private static final double DEFAULT_BACKPRESSURE_THRESHOLD = 0.8;
 
     /** Level of parallelism for directory scanning. */
     private int parallelism = DEFAULT_PARALLELISM;
-    
+
     /** Batch size for file processing. */
     private int batchSize = DEFAULT_BATCH_SIZE;
-    
+
     /** Whether to enable streaming mode for large directories. */
     private boolean streamingEnabled = false;
-    
+
     /** Whether to enable real-time monitoring with WatchService. */
     private boolean watchServiceEnabled = false;
-    
+
     /** Types of file events to watch for. */
     private Set<String> watchEventKinds = java.util.Set.of(
-        "ENTRY_CREATE",
-        "ENTRY_MODIFY",
-        "ENTRY_DELETE"
-    );
-    
+            "ENTRY_CREATE",
+            "ENTRY_MODIFY",
+            "ENTRY_DELETE");
+
     /** Whether to watch recursively (subdirectories). */
     private boolean recursiveWatching = true;
-    
+
     /** Event batching timeout in milliseconds. */
     private long eventBatchTimeoutMs = 100;
-    
+
     /** Maximum number of events to batch together. */
     private int maxEventBatchSize = 50;
-    
+
     /** Whether to enable event debouncing. */
     private boolean eventDebouncingEnabled = true;
-    
+
     /** Debounce timeout in milliseconds. */
     private long debounceTimeoutMs = 500;
-    
+
     /** Backpressure threshold (0.0 to 1.0). */
     private double backpressureThreshold = DEFAULT_BACKPRESSURE_THRESHOLD;
-    
+
     /** Whether to enable adaptive sizing. */
     private boolean adaptiveSizingEnabled = true;
-    
+
     /** Memory limit for scanning operations in bytes. */
     private long memoryLimitBytes = Runtime.getRuntime().maxMemory() / 4; // 25% of max memory
-    
+
     /** Maximum number of concurrent file operations. */
     private int maxConcurrentFileOps = DEFAULT_PARALLELISM * 2;
-    
+
     /** Timeout for individual file operations. */
     private long fileOperationTimeoutMs = 30000; // 30 seconds
-    
+
     /** Whether to enable prefetching. */
     private boolean prefetchingEnabled = true;
-    
+
     /** Prefetch depth for directory structures. */
     private int prefetchDepth = 2;
-    
+
     /** Whether to enable NUMA awareness. */
     private boolean numaAwareEnabled = false;
-    
+
     /** Whether to enable zero-copy operations. */
     private boolean zeroCopyEnabled = true;
-    
+
     /** Whether to enable progress monitoring. */
     private boolean progressMonitoringEnabled = true;
-    
+
     /** Progress update interval in milliseconds. */
     private long progressUpdateIntervalMs = 1000;
 
@@ -212,7 +208,8 @@ public class AsyncScanOptions extends ScanOptions {
      * @return this builder for method chaining
      */
     public AsyncScanOptions withWatchEventKinds(Set<String> watchEventKinds) {
-        this.watchEventKinds = watchEventKinds != null ? new java.util.HashSet<>(watchEventKinds) : new java.util.HashSet<>();
+        this.watchEventKinds = watchEventKinds != null ? new java.util.HashSet<>(watchEventKinds)
+                : new java.util.HashSet<>();
         return this;
     }
 
@@ -508,14 +505,13 @@ public class AsyncScanOptions extends ScanOptions {
     @Override
     public String toString() {
         return String.format(
-            "AsyncScanOptions{parallelism=%d, batchSize=%d, streaming=%b, watchService=%b, " +
-            "recursiveWatching=%b, eventDebouncing=%b, backpressureThreshold=%.2f, " +
-            "adaptiveSizing=%b, memoryLimit=%d bytes, maxConcurrentFileOps=%d, " +
-            "prefetching=%b, numaAware=%b, zeroCopy=%b, progressMonitoring=%b}",
-            parallelism, batchSize, streamingEnabled, watchServiceEnabled,
-            recursiveWatching, eventDebouncingEnabled, backpressureThreshold,
-            adaptiveSizingEnabled, memoryLimitBytes, maxConcurrentFileOps,
-            prefetchingEnabled, numaAwareEnabled, zeroCopyEnabled, progressMonitoringEnabled
-        );
+                "AsyncScanOptions{parallelism=%d, batchSize=%d, streaming=%b, watchService=%b, " +
+                        "recursiveWatching=%b, eventDebouncing=%b, backpressureThreshold=%.2f, " +
+                        "adaptiveSizing=%b, memoryLimit=%d bytes, maxConcurrentFileOps=%d, " +
+                        "prefetching=%b, numaAware=%b, zeroCopy=%b, progressMonitoring=%b}",
+                parallelism, batchSize, streamingEnabled, watchServiceEnabled,
+                recursiveWatching, eventDebouncingEnabled, backpressureThreshold,
+                adaptiveSizingEnabled, memoryLimitBytes, maxConcurrentFileOps,
+                prefetchingEnabled, numaAwareEnabled, zeroCopyEnabled, progressMonitoringEnabled);
     }
 }

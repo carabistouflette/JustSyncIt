@@ -105,7 +105,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
          */
         private static IncrementalHasher create(HashAlgorithm prototypeHashAlgorithm) throws HashingException {
             Objects.requireNonNull(prototypeHashAlgorithm, "Prototype hash algorithm cannot be null");
-            
+
             HashAlgorithm newHasher;
             try {
                 // Create a new instance based on the prototype type
@@ -132,7 +132,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
             } catch (Exception e) {
                 throw new HashingException("Unexpected error creating hash algorithm instance", e);
             }
-            
+
             return new IncrementalHasherImpl(newHasher);
         }
 
@@ -155,7 +155,7 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
                     "Invalid offset or length: offset=" + offset + ", length=" + length +
                     ", data.length=" + data.length);
             }
-            
+
             lock.lock();
             try {
                 if (finalized) {

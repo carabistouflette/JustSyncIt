@@ -21,20 +21,24 @@ package com.justsyncit.scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.List;
-import java.util.ArrayList;
 
 /**
  * Centralized thread pool manager for optimal async I/O performance.
  * Provides specialized thread pools for different operation types with adaptive
  * sizing,
  * resource coordination, and comprehensive monitoring.
- * 
+ *
  * Features:
  * - Specialized thread pools (I/O, CPU, CompletionHandler, Batch, WatchService)
  * - Adaptive sizing based on workload and system resources

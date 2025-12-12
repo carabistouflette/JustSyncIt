@@ -36,10 +36,10 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
 
     /** The adapted hasher instance. */
     private final IncrementalHasherFactory.IncrementalHasher adaptedHasher;
-    
+
     /** Tracks the number of bytes processed. */
     private volatile long bytesProcessed = 0;
-    
+
     /** Tracks whether the hasher has been finalized. */
     private volatile boolean finalized = false;
 
@@ -59,7 +59,7 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
         if (data == null) {
             throw new IllegalArgumentException("Data cannot be null");
         }
-        
+
         adaptedHasher.update(data);
         bytesProcessed += data.length;
     }
@@ -75,7 +75,7 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
                 String.format("Invalid offset/length: offset=%d, length=%d, data.length=%d",
                              offset, length, data.length));
         }
-        
+
         adaptedHasher.update(data, offset, length);
         bytesProcessed += length;
     }
@@ -85,10 +85,10 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
         if (buffer == null) {
             throw new IllegalArgumentException("Buffer cannot be null");
         }
-        
+
         // Save original position to restore if needed
         int originalPosition = buffer.position();
-        
+
         try {
             if (buffer.hasArray()) {
                 // Use array-based path for better performance
@@ -104,11 +104,11 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
                 if (remaining == 0) {
                     return; // No data to process
                 }
-                
+
                 // Use a reasonable buffer size to avoid excessive memory allocation
                 int bufferSize = Math.min(remaining, 8192);
                 byte[] tempBuffer = new byte[bufferSize];
-                
+
                 while (buffer.hasRemaining()) {
                     int bytesToRead = Math.min(buffer.remaining(), bufferSize);
                     buffer.get(tempBuffer, 0, bytesToRead);
@@ -158,7 +158,7 @@ public class IncrementalHasherAdapter implements Blake3Service.Blake3Incremental
     public long getBytesProcessed() {
         return bytesProcessed;
     }
-    
+
     /**
      * Validates that the hasher has not been finalized.
      *

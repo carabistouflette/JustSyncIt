@@ -154,7 +154,7 @@ public interface FileHasher {
      * Implementations must be thread-safe if they are to be used by multiple threads.
      */
     interface HashingContext extends AutoCloseable {
-        
+
         /**
          * Updates the hash with the provided data.
          *
@@ -163,7 +163,7 @@ public interface FileHasher {
          * @throws HashingException if hashing fails due to algorithm-specific issues
          */
         void update(byte[] data) throws IllegalArgumentException, HashingException;
-        
+
         /**
          * Updates the hash with the provided data slice.
          *
@@ -174,7 +174,7 @@ public interface FileHasher {
          * @throws HashingException if hashing fails due to algorithm-specific issues
          */
         void update(byte[] data, int offset, int length) throws IllegalArgumentException, HashingException;
-        
+
         /**
          * Finalizes the hash computation and returns the result.
          * After calling this method, the context cannot be used for further updates.
@@ -183,21 +183,21 @@ public interface FileHasher {
          * @throws HashingException if hashing fails due to algorithm-specific issues
          */
         String digest() throws HashingException;
-        
+
         /**
          * Resets the context to its initial state, allowing reuse.
          *
          * @throws HashingException if reset fails due to algorithm-specific issues
          */
         void reset() throws HashingException;
-        
+
         /**
          * Gets the hash algorithm used by this context.
          *
          * @return the hash algorithm, never null
          */
         HashAlgorithm getHashAlgorithm();
-        
+
         /**
          * Closes this context and releases any resources it may be holding.
          * Implementations should be idempotent.

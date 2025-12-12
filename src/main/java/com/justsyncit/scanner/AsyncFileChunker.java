@@ -39,7 +39,7 @@ public interface AsyncFileChunker extends FileChunker {
      * @throws IllegalArgumentException if file is null, invalid, or handler is null
      * @throws IllegalStateException if the chunker has been closed
      */
-    void chunkFileAsync(Path file, ChunkingOptions options, 
+    void chunkFileAsync(Path file, ChunkingOptions options,
                       CompletionHandler<ChunkingResult, Exception> handler);
 
     /**

@@ -22,7 +22,7 @@ package com.justsyncit.command;
  * Interface for command implementations.
  * Follows Open/Closed Principle by allowing new commands to be added without
  * modifying existing code.
- * 
+ *
  * <p>
  * Commands are responsible for:
  * </p>
@@ -32,7 +32,7 @@ package com.justsyncit.command;
  * <li>Providing user-friendly help and usage information</li>
  * <li>Returning success/failure status</li>
  * </ul>
- * 
+ *
  * <p>
  * Implementations should follow these conventions:
  * </p>
@@ -48,7 +48,7 @@ public interface Command {
 
     /**
      * Executes the command with the provided arguments.
-     * 
+     *
      * <p>
      * The command should:
      * </p>
@@ -68,7 +68,7 @@ public interface Command {
 
     /**
      * Gets the name of the command.
-     * 
+     *
      * <p>
      * The name should be:
      * </p>
@@ -84,7 +84,7 @@ public interface Command {
 
     /**
      * Gets the description of the command.
-     * 
+     *
      * <p>
      * The description should be a brief, single-line summary of what the command
      * does.
@@ -96,7 +96,7 @@ public interface Command {
 
     /**
      * Gets the usage information for the command.
-     * 
+     *
      * <p>
      * The usage should show the command syntax with required and optional
      * arguments.
@@ -104,7 +104,7 @@ public interface Command {
      * for
      * optional arguments [--option].
      * </p>
-     * 
+     *
      * <p>
      * Example: "backup &lt;source-dir&gt; [--remote] [--server host:port]"
      * </p>

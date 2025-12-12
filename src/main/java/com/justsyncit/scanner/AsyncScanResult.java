@@ -32,31 +32,31 @@ public class AsyncScanResult extends ScanResult {
 
     /** Unique identifier for this scan operation. */
     private final String scanId;
-    
+
     /** Number of threads used for parallel scanning. */
     private final int threadCount;
-    
+
     /** Average throughput in files per second. */
     private final double throughput;
-    
+
     /** Peak memory usage during scanning. */
     private final long peakMemoryUsage;
-    
+
     /** Number of directories scanned. */
     private final long directoriesScanned;
-    
+
     /** Number of symbolic links encountered. */
     private final long symbolicLinksEncountered;
-    
+
     /** Number of sparse files detected. */
     private final long sparseFilesDetected;
-    
+
     /** Backpressure events encountered during scanning. */
     private final long backpressureEvents;
-    
+
     /** Cancellation status. */
     private final boolean wasCancelled;
-    
+
     /** Async-specific metadata. */
     private final Map<String, Object> asyncMetadata;
 
@@ -300,7 +300,7 @@ public class AsyncScanResult extends ScanResult {
             "AsyncScanResult{scanId='%s', rootDirectory=%s, scannedFiles=%d, errors=%d, " +
             "duration=%dms, threadCount=%d, throughput=%.2f files/sec, peakMemory=%d bytes, " +
             "directories=%d, symlinks=%d, sparseFiles=%d, backpressure=%d, cancelled=%b}",
-            scanId, getRootDirectory(), getScannedFileCount(), getErrorCount(), 
+            scanId, getRootDirectory(), getScannedFileCount(), getErrorCount(),
             getDurationMillis(), threadCount, throughput, peakMemoryUsage,
             directoriesScanned, symbolicLinksEncountered, sparseFilesDetected,
             backpressureEvents, wasCancelled

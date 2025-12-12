@@ -27,22 +27,22 @@ public class ResourceUtilization {
 
     /** CPU utilization percentage. */
     public final double cpuUtilizationPercent;
-    
+
     /** Memory utilization percentage. */
     public final double memoryUtilizationPercent;
-    
+
     /** I/O utilization percentage. */
     public final double ioUtilizationPercent;
-    
+
     /** Maximum concurrent operations. */
     public final int maxConcurrentOperations;
-    
+
     /** Peak memory usage in MB. */
     public final long peakMemoryUsageMB;
-    
+
     /** Total bytes read. */
     public final long totalBytesRead;
-    
+
     /** Total bytes written. */
     public final long totalBytesWritten;
 
