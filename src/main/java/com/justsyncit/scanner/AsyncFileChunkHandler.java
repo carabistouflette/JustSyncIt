@@ -70,7 +70,7 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
     /**
      * Creates a new AsyncFileChunkHandler with custom settings.
      *
-     * @param blake3Service BLAKE3 service for hash calculation
+     * @param blake3Service       BLAKE3 service for hash calculation
      * @param maxConcurrentChunks maximum number of concurrent chunks
      * @return a new AsyncFileChunkHandler with custom settings
      * @throws IllegalArgumentException if parameters are invalid
@@ -99,7 +99,8 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
     }
 
     @Override
-    public CompletableFuture<String> processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file) {
+    public CompletableFuture<String> processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks,
+            Path file) {
         if (chunkData == null) {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Chunk data cannot be null"));
         }
@@ -111,7 +112,7 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
             try {
                 processingSemaphore.acquire();
                 processingChunks.incrementAndGet();
-                
+
                 try {
                     return processChunkSync(chunkData, chunkIndex, totalChunks, file);
                 } finally {
@@ -127,7 +128,7 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
 
     @Override
     public void processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file,
-                                CompletionHandler<String, Exception> handler) {
+            CompletionHandler<String, Exception> handler) {
         if (chunkData == null) {
             throw new IllegalArgumentException("Chunk data cannot be null");
         }
@@ -141,7 +142,8 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
         processChunkAsync(chunkData, chunkIndex, totalChunks, file)
                 .whenComplete((result, throwable) -> {
                     if (throwable != null) {
-                        handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                        handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                : new RuntimeException(throwable));
                     } else {
                         handler.completed(result);
                     }
@@ -160,11 +162,13 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
         // Check for null chunks in array
         for (ByteBuffer chunk : chunks) {
             if (chunk == null) {
-                return CompletableFuture.failedFuture(new IllegalArgumentException("Chunk array cannot contain null elements"));
+                return CompletableFuture
+                        .failedFuture(new IllegalArgumentException("Chunk array cannot contain null elements"));
             }
         }
 
-        CompletableFuture<String>[] futures = new CompletableFuture[chunks.length];
+        @SuppressWarnings("unchecked")
+        CompletableFuture<String>[] futures = (CompletableFuture<String>[]) new CompletableFuture<?>[chunks.length];
         for (int i = 0; i < chunks.length; i++) {
             final int chunkIndex = i;
             futures[i] = processChunkAsync(chunks[i], chunkIndex, chunks.length, file);
@@ -182,7 +186,7 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
 
     @Override
     public void processChunksAsync(ByteBuffer[] chunks, Path file,
-                                 CompletionHandler<String[], Exception> handler) {
+            CompletionHandler<String[], Exception> handler) {
         if (chunks == null) {
             throw new IllegalArgumentException("Chunks array cannot be null");
         }
@@ -203,7 +207,8 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
         processChunksAsync(chunks, file)
                 .whenComplete((result, throwable) -> {
                     if (throwable != null) {
-                        handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                        handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                : new RuntimeException(throwable));
                     } else {
                         handler.completed(result);
                     }
@@ -220,13 +225,13 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
         if (maxConcurrentChunks <= 0) {
             throw new IllegalArgumentException("Max concurrent chunks must be positive");
         }
-        
+
         int oldMax = this.maxConcurrentChunks;
         this.maxConcurrentChunks = maxConcurrentChunks;
-        
+
         // Recreate semaphore with new limit
         Semaphore newSemaphore = new Semaphore(maxConcurrentChunks);
-        
+
         // Transfer permits from old semaphore to new one
         int availablePermits = processingSemaphore.availablePermits();
         if (availablePermits > 0) {
@@ -240,7 +245,7 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
                 throw new RuntimeException("Interrupted while updating concurrent chunks", e);
             }
         }
-        
+
         this.processingSemaphore = newSemaphore;
         logger.debug("Updated max concurrent chunks from {} to {}", oldMax, maxConcurrentChunks);
     }
@@ -274,10 +279,10 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
     /**
      * Processes a single chunk synchronously.
      *
-     * @param chunkData the chunk data to process
-     * @param chunkIndex the index of this chunk
+     * @param chunkData   the chunk data to process
+     * @param chunkIndex  the index of this chunk
      * @param totalChunks the total number of chunks
-     * @param file the source file
+     * @param file        the source file
      * @return the hash of the processed chunk
      * @throws RuntimeException if processing fails
      */
@@ -285,12 +290,12 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
         try {
             byte[] data = new byte[chunkData.remaining()];
             chunkData.get(data);
-            
+
             String hash = blake3Service.hashBuffer(data);
-            
-            logger.debug("Processed chunk {}/{} from file {} ({} bytes) -> hash {}", 
+
+            logger.debug("Processed chunk {}/{} from file {} ({} bytes) -> hash {}",
                     chunkIndex + 1, totalChunks, file, data.length, hash);
-            
+
             return hash;
         } catch (com.justsyncit.hash.HashingException e) {
             throw new RuntimeException("Failed to hash chunk " + chunkIndex + " from file " + file, e);
@@ -320,7 +325,8 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
     /**
      * Closes the chunk handler and releases all resources.
      *
-     * @return a CompletableFuture that completes when all resources have been released
+     * @return a CompletableFuture that completes when all resources have been
+     *         released
      */
     public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.runAsync(() -> {
@@ -330,7 +336,7 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
 
             closed = true;
             executorService.shutdown();
-            
+
             try {
                 // Wait for all currently processing chunks to complete
                 while (processingChunks.get() > 0) {
@@ -339,7 +345,7 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            
+
             logger.info("Closed AsyncFileChunkHandler");
         }, executorService);
     }

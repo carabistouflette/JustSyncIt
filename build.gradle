@@ -30,9 +30,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter:5.19.0'
     
     // Performance testing and benchmarking
-    testImplementation 'org.openjdk.jmh:jmh-core:1.37'
-    testImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
-    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+
     
     // Performance monitoring and profiling
     testImplementation 'org.hdrhistogram:HdrHistogram:2.2.2'
@@ -218,6 +216,11 @@ sourceSets {
 }
 
 // Configure test task dependencies
+dependencies {
+    benchmarkTestImplementation 'org.openjdk.jmh:jmh-core:1.37'
+    benchmarkTestImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    benchmarkTestAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+}
 task integrationTest(type: Test) {
     description = 'Run integration tests'
     group = 'verification'

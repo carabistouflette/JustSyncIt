@@ -302,7 +302,7 @@ public class ComprehensiveBenchmarkSuite {
             }
 
             // Wait for all operations to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
             return tempDir.resolve("mixed-concurrency-result");
         });
@@ -421,7 +421,7 @@ public class ComprehensiveBenchmarkSuite {
                 }, executorService))
                 .collect(java.util.stream.Collectors.toList());
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
         return tempDir.resolve("concurrent-backups-result");
     }
@@ -440,7 +440,7 @@ public class ComprehensiveBenchmarkSuite {
             }, executorService));
         }
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
         return tempDir.resolve("concurrent-restores-result");
     }
@@ -488,7 +488,7 @@ public class ComprehensiveBenchmarkSuite {
                 }, executorService))
                 .collect(java.util.stream.Collectors.toList());
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
         return tempDir.resolve("concurrent-network-result");
     }

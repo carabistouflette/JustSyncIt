@@ -520,7 +520,7 @@ public class FixedSizeFileChunker implements FileChunker {
     private CompletableFuture<Void> processAllChunksAsync(AsynchronousFileChannel channel, Path file, int chunkSize,
             long fileSize, int chunkCount, List<String> chunkHashes) {
         @SuppressWarnings("unchecked")
-        CompletableFuture<Void>[] chunkFutures = new CompletableFuture[chunkCount];
+        CompletableFuture<Void>[] chunkFutures = (CompletableFuture<Void>[]) new CompletableFuture<?>[chunkCount];
         AtomicInteger completedChunks = new AtomicInteger(0);
 
         // Submit all chunk processing tasks

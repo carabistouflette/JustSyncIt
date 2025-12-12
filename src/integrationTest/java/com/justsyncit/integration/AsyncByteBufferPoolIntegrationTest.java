@@ -127,7 +127,7 @@ public class AsyncByteBufferPoolIntegrationTest {
         }
 
         // Wait for all chunks to be processed
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                 .get(30, TimeUnit.SECONDS);
 
         long endTime = System.nanoTime();
@@ -201,7 +201,7 @@ public class AsyncByteBufferPoolIntegrationTest {
         }
 
         // Wait for all operations to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                 .get(60, TimeUnit.SECONDS);
 
         // Verify buffer sharing effectiveness
@@ -262,7 +262,7 @@ public class AsyncByteBufferPoolIntegrationTest {
         }
 
         // Wait for all operations to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                 .get(120, TimeUnit.SECONDS);
 
         long endTime = System.nanoTime();

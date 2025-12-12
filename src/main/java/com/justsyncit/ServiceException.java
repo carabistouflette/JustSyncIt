@@ -22,6 +22,7 @@ package com.justsyncit;
  * Exception thrown when service operations fail.
  */
 public class ServiceException extends Exception {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Creates a new ServiceException with the specified message.

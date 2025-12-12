@@ -45,7 +45,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of FileTransferManager with chunking and BLAKE3 verification.
- * Follows Single Responsibility Principle by focusing solely on file transfer operations.
+ * Follows Single Responsibility Principle by focusing solely on file transfer
+ * operations.
  */
 public class FileTransferManagerImpl implements FileTransferManager {
 
@@ -96,11 +97,11 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 cancelFutures.add(cancelTransfer(transferId));
             }
 
-            return CompletableFuture.allOf(cancelFutures.toArray(new CompletableFuture[0]))
-                .thenRun(() -> {
-                    activeTransfers.clear();
-                    logger.info("File transfer manager stopped");
-                });
+            return CompletableFuture.allOf(cancelFutures.toArray(new CompletableFuture<?>[0]))
+                    .thenRun(() -> {
+                        activeTransfers.clear();
+                        logger.info("File transfer manager stopped");
+                    });
         } else {
             logger.warn("File transfer manager already stopped");
             return CompletableFuture.completedFuture(null);
@@ -109,17 +110,15 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
     @Override
     public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
-                                                         ContentStore contentStore) {
+            ContentStore contentStore) {
         if (!running.get()) {
             return CompletableFuture.failedFuture(
-                new IllegalStateException("File transfer manager is not running")
-            );
+                    new IllegalStateException("File transfer manager is not running"));
         }
 
         if (!Files.exists(filePath)) {
             return CompletableFuture.failedFuture(
-                new IOException("File does not exist: " + filePath)
-            );
+                    new IOException("File does not exist: " + filePath));
         }
 
         String transferId = generateTransferId();
@@ -138,7 +137,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
             if (fileName.trim().isEmpty()) {
                 throw new IOException("Invalid file path: filename is empty");
             }
-            // Create request message to validate parameters, but don't store it since it's not used
+            // Create request message to validate parameters, but don't store it since it's
+            // not used
             new FileTransferRequestMessage(
                     fileName, fileSize, System.currentTimeMillis(), "dummy_hash", DEFAULT_CHUNK_SIZE);
 
@@ -159,8 +159,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
      * Simulates a file transfer for demonstration purposes.
      */
     private CompletableFuture<FileTransferResult> simulateFileTransfer(String transferId, Path filePath,
-                                                                        InetSocketAddress remoteAddress,
-                                                                        ContentStore contentStore, long startTime) {
+            InetSocketAddress remoteAddress,
+            ContentStore contentStore, long startTime) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 long fileSize = Files.size(filePath);
@@ -190,11 +190,11 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 if (status.isCancelled()) {
                     result = FileTransferResult.failure(transferId, filePath, remoteAddress,
-                                                       "Transfer cancelled", status.getBytesTransferred(),
-                                                       startTime, endTime);
+                            "Transfer cancelled", status.getBytesTransferred(),
+                            startTime, endTime);
                 } else {
                     result = FileTransferResult.success(transferId, filePath, remoteAddress,
-                                                       fileSize, fileSize, startTime, endTime);
+                            fileSize, fileSize, startTime, endTime);
                     status.setState(FileTransferStatus.TransferState.COMPLETED);
                 }
 
@@ -249,12 +249,11 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
     @Override
     public CompletableFuture<Void> handleFileTransferRequest(ProtocolMessage request,
-                                                           InetSocketAddress remoteAddress,
-                                                           ContentStore contentStore) {
+            InetSocketAddress remoteAddress,
+            ContentStore contentStore) {
         if (!(request instanceof FileTransferRequestMessage)) {
             return CompletableFuture.failedFuture(
-                new IllegalArgumentException("Expected FileTransferRequestMessage")
-            );
+                    new IllegalArgumentException("Expected FileTransferRequestMessage"));
         }
 
         FileTransferRequestMessage fileRequest = (FileTransferRequestMessage) request;
@@ -262,7 +261,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
         long fileSize = fileRequest.getFileSize();
 
         logger.info("Received file transfer request: {} ({}) from {}",
-                   fileName, formatFileSize(fileSize), remoteAddress);
+                fileName, formatFileSize(fileSize), remoteAddress);
 
         // Check if we can accept the transfer
         boolean accept = true;
@@ -274,8 +273,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
             // In a real implementation, this would check actual available space
             // long freeSpace = filePath.getParent().toFile().getFreeSpace();
             // if (freeSpace < fileSize) {
-            //     accept = false;
-            //     reason = "Insufficient disk space";
+            // accept = false;
+            // reason = "Insufficient disk space";
             // }
         } catch (Exception e) {
             accept = false;
@@ -297,12 +296,11 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
     @Override
     public CompletableFuture<Void> handleChunkData(ProtocolMessage chunkData,
-                                                 InetSocketAddress remoteAddress,
-                                                 ContentStore contentStore) {
+            InetSocketAddress remoteAddress,
+            ContentStore contentStore) {
         if (!(chunkData instanceof ChunkDataMessage)) {
             return CompletableFuture.failedFuture(
-                new IllegalArgumentException("Expected ChunkDataMessage")
-            );
+                    new IllegalArgumentException("Expected ChunkDataMessage"));
         }
 
         ChunkDataMessage chunkMessage = (ChunkDataMessage) chunkData;
@@ -314,8 +312,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
         FileTransferStatus status = activeTransfers.get(filePath);
         if (status == null) {
             return CompletableFuture.failedFuture(
-                new IOException("Unknown transfer ID: " + filePath)
-            );
+                    new IOException("Unknown transfer ID: " + filePath));
         }
 
         // Verify chunk checksum
@@ -323,8 +320,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
             String actualChecksum = computeChecksum(chunkDataBytes);
             if (!checksum.equals(actualChecksum)) {
                 return CompletableFuture.failedFuture(
-                    new IOException("Checksum mismatch for chunk " + chunkOffset)
-                );
+                        new IOException("Checksum mismatch for chunk " + chunkOffset));
             }
 
             // Store chunk in content store
@@ -355,8 +351,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
     public CompletableFuture<Void> handleChunkAck(ProtocolMessage chunkAck, InetSocketAddress remoteAddress) {
         if (!(chunkAck instanceof ChunkAckMessage)) {
             return CompletableFuture.failedFuture(
-                new IllegalArgumentException("Expected ChunkAckMessage")
-            );
+                    new IllegalArgumentException("Expected ChunkAckMessage"));
         }
 
         ChunkAckMessage ackMessage = (ChunkAckMessage) chunkAck;
@@ -372,7 +367,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         if (!success) {
             logger.error("Chunk {} acknowledgment failed for transfer {}: {}",
-                        chunkOffset, filePath, errorMessage);
+                    chunkOffset, filePath, errorMessage);
             status.setState(FileTransferStatus.TransferState.FAILED);
             status.setErrorMessage(errorMessage);
         }
@@ -382,11 +377,10 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
     @Override
     public CompletableFuture<Void> handleTransferComplete(ProtocolMessage completeMessage,
-                                                        InetSocketAddress remoteAddress) {
+            InetSocketAddress remoteAddress) {
         if (!(completeMessage instanceof TransferCompleteMessage)) {
             return CompletableFuture.failedFuture(
-                new IllegalArgumentException("Expected TransferCompleteMessage")
-            );
+                    new IllegalArgumentException("Expected TransferCompleteMessage"));
         }
 
         TransferCompleteMessage complete = (TransferCompleteMessage) completeMessage;
@@ -482,7 +476,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
     }
 
     private void notifyTransferProgress(Path filePath, InetSocketAddress remoteAddress,
-                                       long bytesTransferred, long totalBytes) {
+            long bytesTransferred, long totalBytes) {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes);
@@ -493,7 +487,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
     }
 
     private void notifyTransferCompleted(Path filePath, InetSocketAddress remoteAddress,
-                                        boolean success, String errorMessage) {
+            boolean success, String errorMessage) {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferCompleted(filePath, remoteAddress, success, errorMessage);

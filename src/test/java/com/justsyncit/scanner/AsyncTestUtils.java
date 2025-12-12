@@ -309,10 +309,9 @@ public final class AsyncTestUtils {
      * @throws AsyncTestException if any future fails or times out
      */
     @SafeVarargs
+    @SuppressWarnings("varargs")
     public static <T> List<T> waitForAllAndGetResults(CompletableFuture<T>... futures) throws AsyncTestException {
-        @SuppressWarnings("unchecked")
-        CompletableFuture<T>[] futuresArray = futures;
-        return waitForAllAndGetResults(DEFAULT_TIMEOUT, futuresArray);
+        return waitForAllAndGetResults(DEFAULT_TIMEOUT, futures);
     }
 
     /**

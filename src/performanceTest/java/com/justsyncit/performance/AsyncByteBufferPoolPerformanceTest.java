@@ -59,11 +59,11 @@ public class AsyncByteBufferPoolPerformanceTest {
 
     // Test buffer sizes (bytes)
     private static final int[] TEST_SIZES = {
-        1024,      // 1KB - small file operations
-        4096,      // 4KB - typical chunk size
-        65536,     // 64KB - default buffer size
-        262144,    // 256KB - medium file operations
-        1048576    // 1MB - large file operations
+            1024, // 1KB - small file operations
+            4096, // 4KB - typical chunk size
+            65536, // 64KB - default buffer size
+            262144, // 256KB - medium file operations
+            1048576 // 1MB - large file operations
     };
 
     private ExecutorService executorService;
@@ -74,10 +74,9 @@ public class AsyncByteBufferPoolPerformanceTest {
     @BeforeEach
     void setUp() {
         executorService = Executors.newFixedThreadPool(CONCURRENT_THREADS);
-        
+
         // Initialize optimized pool with performance-focused configuration
-        OptimizedAsyncByteBufferPool.PoolConfiguration config = 
-            new OptimizedAsyncByteBufferPool.PoolConfiguration.Builder()
+        OptimizedAsyncByteBufferPool.PoolConfiguration config = new OptimizedAsyncByteBufferPool.PoolConfiguration.Builder()
                 .minBuffersPerTier(4)
                 .maxBuffersPerTier(64)
                 .maxMemoryBytes(Runtime.getRuntime().maxMemory() / 2) // 50% of heap
@@ -90,7 +89,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                 .memoryPressureThreshold(0.85)
                 .backpressureThreshold(200)
                 .build();
-        
+
         optimizedPool = OptimizedAsyncByteBufferPool.create(config);
         originalPool = AsyncByteBufferPoolImpl.create();
         syncPool = ByteBufferPool.create();
@@ -106,69 +105,70 @@ public class AsyncByteBufferPoolPerformanceTest {
         void testHighThroughputOperations() throws Exception {
             // Test target: >3GB/s throughput
             long targetThroughputBytesPerSec = 3L * 1024 * 1024 * 1024; // 3GB/s
-            
+
             // Warm up
             performWarmup(optimizedPool);
-            
+
             // Measure throughput
             long startTime = System.nanoTime();
             int totalOperations = PERFORMANCE_ITERATIONS * CONCURRENT_THREADS;
             AtomicInteger completedOperations = new AtomicInteger(0);
             AtomicLong totalBytesProcessed = new AtomicLong(0);
-            
+
             List<CompletableFuture<Void>> futures = new ArrayList<>();
-            
+
             for (int thread = 0; thread < CONCURRENT_THREADS; thread++) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     java.util.Random random = new java.util.Random();
-                    
+
                     for (int i = 0; i < PERFORMANCE_ITERATIONS; i++) {
                         int bufferSize = TEST_SIZES[random.nextInt(TEST_SIZES.length)];
-                        
+
                         try {
                             // Acquire buffer
                             ByteBuffer buffer = optimizedPool.acquireAsync(bufferSize).get(1, TimeUnit.SECONDS);
                             assertNotNull(buffer);
                             assertEquals(bufferSize, buffer.capacity());
-                            
+
                             // Simulate work - fill buffer with data
                             buffer.clear();
                             for (int j = 0; j < Math.min(bufferSize, 1024); j += 8) {
                                 buffer.putLong(j, System.nanoTime());
                             }
-                            
+
                             // Release buffer
                             optimizedPool.releaseAsync(buffer).get(1, TimeUnit.SECONDS);
-                            
+
                             completedOperations.incrementAndGet();
                             totalBytesProcessed.addAndGet(bufferSize);
-                            
+
                         } catch (Exception e) {
                             fail("Operation failed: " + e.getMessage());
                         }
                     }
                 }, executorService);
-                
+
                 futures.add(future);
             }
-            
+
             // Wait for all operations to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(PERFORMANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                    .get(PERFORMANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
             long endTime = System.nanoTime();
             long durationNanos = endTime - startTime;
             double durationSeconds = durationNanos / 1_000_000_000.0;
-            
+
             // Calculate throughput
             double throughputBytesPerSec = totalBytesProcessed.get() / durationSeconds;
             double throughputGBPerSec = throughputBytesPerSec / (1024.0 * 1024.0 * 1024.0);
-            
+
             // Performance assertions
             assertEquals(totalOperations, completedOperations.get(), "Not all operations completed");
-            assertTrue(throughputGBPerSec >= 1.0, 
-                String.format("Throughput too low: %.2f GB/s (target: >1.0 GB/s, optimal: >3.0 GB/s)", throughputGBPerSec));
-            
+            assertTrue(throughputGBPerSec >= 1.0,
+                    String.format("Throughput too low: %.2f GB/s (target: >1.0 GB/s, optimal: >3.0 GB/s)",
+                            throughputGBPerSec));
+
             // Log performance results
             System.out.printf("Throughput Performance Results:%n");
             System.out.printf("  Total Operations: %d%n", totalOperations);
@@ -179,55 +179,55 @@ public class AsyncByteBufferPoolPerformanceTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {1024, 4096, 65536, 262144, 1048576})
+        @ValueSource(ints = { 1024, 4096, 65536, 262144, 1048576 })
         @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test throughput for specific buffer sizes")
         void testThroughputForBufferSize(int bufferSize) throws Exception {
             // Warm up
             performWarmup(optimizedPool);
-            
+
             long startTime = System.nanoTime();
             int operations = PERFORMANCE_ITERATIONS;
             AtomicInteger completedOperations = new AtomicInteger(0);
-            
+
             List<CompletableFuture<Void>> futures = new ArrayList<>();
-            
+
             for (int thread = 0; thread < CONCURRENT_THREADS; thread++) {
                 int operationsPerThread = operations / CONCURRENT_THREADS;
-                
+
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     for (int i = 0; i < operationsPerThread; i++) {
                         try {
                             ByteBuffer buffer = optimizedPool.acquireAsync(bufferSize).get(1, TimeUnit.SECONDS);
                             assertNotNull(buffer);
-                            
+
                             // Simulate work
                             buffer.clear();
                             buffer.putLong(0, System.nanoTime());
-                            
+
                             optimizedPool.releaseAsync(buffer).get(1, TimeUnit.SECONDS);
                             completedOperations.incrementAndGet();
-                            
+
                         } catch (Exception e) {
                             fail("Operation failed: " + e.getMessage());
                         }
                     }
                 }, executorService);
-                
+
                 futures.add(future);
             }
-            
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(PERFORMANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                    .get(PERFORMANCE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
             long endTime = System.nanoTime();
             double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
             double opsPerSec = completedOperations.get() / durationSeconds;
-            
+
             System.out.printf("Buffer Size %d: %.0f ops/sec%n", bufferSize, opsPerSec);
-            
-            assertTrue(opsPerSec >= 10000, 
-                String.format("Operations/sec too low for %d bytes: %.0f", bufferSize, opsPerSec));
+
+            assertTrue(opsPerSec >= 10000,
+                    String.format("Operations/sec too low for %d bytes: %.0f", bufferSize, opsPerSec));
         }
     }
 
@@ -242,48 +242,48 @@ public class AsyncByteBufferPoolPerformanceTest {
             // Focus on small buffers (1KB-4KB) for reduced latency
             int smallBufferSize = 4096;
             long targetLatencyNanos = 100_000; // 100 microseconds target
-            
+
             // Warm up
             performWarmup(optimizedPool);
-            
+
             List<Long> latencies = new ArrayList<>();
             int measurements = 1000;
-            
+
             for (int i = 0; i < measurements; i++) {
                 long startTime = System.nanoTime();
-                
+
                 try {
                     ByteBuffer buffer = optimizedPool.acquireAsync(smallBufferSize).get();
                     buffer.clear();
                     buffer.putInt(0, i);
                     optimizedPool.releaseAsync(buffer).get();
-                    
+
                     long endTime = System.nanoTime();
                     latencies.add(endTime - startTime);
-                    
+
                 } catch (Exception e) {
                     fail("Operation failed: " + e.getMessage());
                 }
             }
-            
+
             // Calculate latency statistics
             latencies.sort(Long::compareTo);
             double avgLatency = latencies.stream().mapToLong(Long::longValue).average().orElse(0);
             long p50Latency = latencies.get(latencies.size() / 2);
             long p95Latency = latencies.get((int) (latencies.size() * 0.95));
             long p99Latency = latencies.get((int) (latencies.size() * 0.99));
-            
+
             System.out.printf("Latency Performance Results (%d bytes):%n", smallBufferSize);
             System.out.printf("  Average: %.2f μs%n", avgLatency / 1000.0);
             System.out.printf("  P50: %.2f μs%n", p50Latency / 1000.0);
             System.out.printf("  P95: %.2f μs%n", p95Latency / 1000.0);
             System.out.printf("  P99: %.2f μs%n", p99Latency / 1000.0);
-            
+
             // Performance assertions
-            assertTrue(avgLatency <= targetLatencyNanos * 2, 
-                String.format("Average latency too high: %.2f μs", avgLatency / 1000.0));
-            assertTrue(p95Latency <= targetLatencyNanos * 5, 
-                String.format("P95 latency too high: %.2f μs", p95Latency / 1000.0));
+            assertTrue(avgLatency <= targetLatencyNanos * 2,
+                    String.format("Average latency too high: %.2f μs", avgLatency / 1000.0));
+            assertTrue(p95Latency <= targetLatencyNanos * 5,
+                    String.format("P95 latency too high: %.2f μs", p95Latency / 1000.0));
         }
 
         @RepeatedTest(5)
@@ -292,55 +292,55 @@ public class AsyncByteBufferPoolPerformanceTest {
         void testLatencyUnderLoad() throws Exception {
             int bufferSize = 65536; // 64KB
             int concurrentOperations = 100;
-            
+
             // Warm up
             performWarmup(optimizedPool);
-            
+
             List<CompletableFuture<Long>> futures = new ArrayList<>();
-            
+
             for (int i = 0; i < concurrentOperations; i++) {
                 final int operationId = i;
-                
+
                 CompletableFuture<Long> future = CompletableFuture.supplyAsync(() -> {
                     long startTime = System.nanoTime();
-                    
+
                     try {
                         ByteBuffer buffer = optimizedPool.acquireAsync(bufferSize).get();
                         buffer.clear();
                         buffer.putInt(0, operationId);
                         optimizedPool.releaseAsync(buffer).get();
-                        
+
                         return System.nanoTime() - startTime;
-                        
+
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 }, executorService);
-                
+
                 futures.add(future);
             }
-            
+
             // Wait for all operations and collect latencies
             List<Long> latencies = futures.stream()
-                .map(future -> {
-                    try {
-                        return future.get(5, TimeUnit.SECONDS);
-                    } catch (Exception e) {
-                        fail("Future failed: " + e.getMessage());
-                        return Long.MAX_VALUE;
-                    }
-                })
-                .toList();
-            
+                    .map(future -> {
+                        try {
+                            return future.get(5, TimeUnit.SECONDS);
+                        } catch (Exception e) {
+                            fail("Future failed: " + e.getMessage());
+                            return Long.MAX_VALUE;
+                        }
+                    })
+                    .toList();
+
             // Calculate statistics
             double avgLatency = latencies.stream().mapToLong(Long::longValue).average().orElse(0);
             long maxLatency = latencies.stream().mapToLong(Long::longValue).max().orElse(0);
-            
-            System.out.printf("Concurrent Load Latency: avg=%.2f μs, max=%.2f μs%n", 
-                avgLatency / 1000.0, maxLatency / 1000.0);
-            
+
+            System.out.printf("Concurrent Load Latency: avg=%.2f μs, max=%.2f μs%n",
+                    avgLatency / 1000.0, maxLatency / 1000.0);
+
             assertTrue(avgLatency <= 1_000_000, // 1ms average
-                String.format("Average latency too high under load: %.2f μs", avgLatency / 1000.0));
+                    String.format("Average latency too high under load: %.2f μs", avgLatency / 1000.0));
         }
     }
 
@@ -354,103 +354,102 @@ public class AsyncByteBufferPoolPerformanceTest {
         void testMemoryEfficiency() throws Exception {
             System.gc(); // Clean up before test
             long initialMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-            
+
             // Perform many buffer operations
             int operations = 10000;
             List<ByteBuffer> retainedBuffers = new ArrayList<>();
-            
+
             // Phase 1: Acquire many buffers without releasing
             for (int i = 0; i < operations; i++) {
                 int size = TEST_SIZES[i % TEST_SIZES.length];
                 ByteBuffer buffer = optimizedPool.acquireAsync(size).get();
                 retainedBuffers.add(buffer);
-                
+
                 if (i % 1000 == 0) {
                     long currentMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-                    System.out.printf("Memory after %d acquisitions: %d MB%n", 
-                        i, (currentMemory - initialMemory) / (1024 * 1024));
+                    System.out.printf("Memory after %d acquisitions: %d MB%n",
+                            i, (currentMemory - initialMemory) / (1024 * 1024));
                 }
             }
-            
+
             long peakMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-            
+
             // Phase 2: Release all buffers
             for (ByteBuffer buffer : retainedBuffers) {
                 optimizedPool.releaseAsync(buffer).get();
             }
             retainedBuffers.clear();
-            
+
             System.gc(); // Force GC to measure memory recovery
             Thread.sleep(100);
-            
+
             long finalMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-            
+
             // Calculate memory efficiency
             long memoryGrowth = peakMemory - initialMemory;
             long memoryRecovery = peakMemory - finalMemory;
             double recoveryPercentage = (double) memoryRecovery / memoryGrowth * 100;
-            
+
             System.out.printf("Memory Efficiency Results:%n");
             System.out.printf("  Initial Memory: %d MB%n", initialMemory / (1024 * 1024));
             System.out.printf("  Peak Memory: %d MB%n", peakMemory / (1024 * 1024));
             System.out.printf("  Final Memory: %d MB%n", finalMemory / (1024 * 1024));
             System.out.printf("  Memory Growth: %d MB%n", memoryGrowth / (1024 * 1024));
             System.out.printf("  Memory Recovery: %.1f%%%n", recoveryPercentage);
-            
+
             // Memory efficiency assertions
             assertTrue(memoryGrowth < 500 * 1024 * 1024, // Less than 500MB growth
-                String.format("Memory growth too high: %d MB", memoryGrowth / (1024 * 1024)));
-            assertTrue(recoveryPercentage >= 80.0, 
-                String.format("Memory recovery too low: %.1f%%", recoveryPercentage));
+                    String.format("Memory growth too high: %d MB", memoryGrowth / (1024 * 1024)));
+            assertTrue(recoveryPercentage >= 80.0,
+                    String.format("Memory recovery too low: %.1f%%", recoveryPercentage));
         }
 
         @Test
         @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test buffer pool memory limits")
         void testMemoryLimits() throws Exception {
-            OptimizedAsyncByteBufferPool.PoolConfiguration limitedConfig = 
-                new OptimizedAsyncByteBufferPool.PoolConfiguration.Builder()
+            OptimizedAsyncByteBufferPool.PoolConfiguration limitedConfig = new OptimizedAsyncByteBufferPool.PoolConfiguration.Builder()
                     .maxMemoryBytes(50 * 1024 * 1024) // 50MB limit
                     .build();
-            
+
             OptimizedAsyncByteBufferPool limitedPool = OptimizedAsyncByteBufferPool.create(limitedConfig);
-            
+
             try {
                 List<ByteBuffer> buffers = new ArrayList<>();
                 int acquiredBuffers = 0;
-                
+
                 // Try to acquire buffers until we hit the limit
                 while (acquiredBuffers < 1000) {
                     try {
                         ByteBuffer buffer = limitedPool.acquireAsync(65536).get(1, TimeUnit.SECONDS); // 64KB each
                         buffers.add(buffer);
                         acquiredBuffers++;
-                        
+
                         // Check pool stats periodically
                         if (acquiredBuffers % 100 == 0) {
                             String stats = limitedPool.getStatsAsync().get();
                             System.out.printf("Acquired %d buffers. Pool stats: %s%n", acquiredBuffers, stats);
                         }
-                        
+
                     } catch (ExecutionException e) {
                         // Expected to fail when memory limit is reached
                         System.out.printf("Memory limit reached after acquiring %d buffers%n", acquiredBuffers);
                         break;
                     }
                 }
-                
+
                 // Release all buffers
                 for (ByteBuffer buffer : buffers) {
                     limitedPool.releaseAsync(buffer).get();
                 }
-                
+
                 // Verify pool is still functional
                 ByteBuffer testBuffer = limitedPool.acquireAsync(4096).get();
                 assertNotNull(testBuffer);
                 limitedPool.releaseAsync(testBuffer).get();
-                
+
                 System.out.printf("Successfully tested memory limits with %d buffers%n", acquiredBuffers);
-                
+
             } finally {
                 limitedPool.clearAsync().get();
             }
@@ -466,28 +465,28 @@ public class AsyncByteBufferPoolPerformanceTest {
         @DisplayName("Compare optimized vs original async pool performance")
         void compareWithOriginalAsyncPool() throws Exception {
             System.out.println("=== Performance Comparison: Optimized vs Original Async Pool ===");
-            
+
             // Test both implementations
             PerformanceResult optimizedResult = measurePoolPerformance(optimizedPool, "Optimized");
             PerformanceResult originalResult = measurePoolPerformance(originalPool, "Original");
-            
+
             // Calculate improvements
             double throughputImprovement = (double) optimizedResult.throughput / originalResult.throughput;
             double latencyImprovement = (double) originalResult.avgLatency / optimizedResult.avgLatency;
-            
+
             System.out.printf("Performance Comparison Results:%n");
             System.out.printf("  Throughput Improvement: %.2fx%n", throughputImprovement);
             System.out.printf("  Latency Improvement: %.2fx%n", latencyImprovement);
-            System.out.printf("  Optimized: %d ops/sec, %.2f μs avg latency%n", 
-                optimizedResult.throughput, optimizedResult.avgLatency / 1000.0);
-            System.out.printf("  Original: %d ops/sec, %.2f μs avg latency%n", 
-                originalResult.throughput, originalResult.avgLatency / 1000.0);
-            
+            System.out.printf("  Optimized: %d ops/sec, %.2f μs avg latency%n",
+                    optimizedResult.throughput, optimizedResult.avgLatency / 1000.0);
+            System.out.printf("  Original: %d ops/sec, %.2f μs avg latency%n",
+                    originalResult.throughput, originalResult.avgLatency / 1000.0);
+
             // Performance improvement assertions
-            assertTrue(throughputImprovement >= 1.2, 
-                String.format("Throughput improvement too low: %.2fx (target: >=1.2x)", throughputImprovement));
-            assertTrue(latencyImprovement >= 1.2, 
-                String.format("Latency improvement too low: %.2fx (target: >=1.2x)", latencyImprovement));
+            assertTrue(throughputImprovement >= 1.2,
+                    String.format("Throughput improvement too low: %.2fx (target: >=1.2x)", throughputImprovement));
+            assertTrue(latencyImprovement >= 1.2,
+                    String.format("Latency improvement too low: %.2fx (target: >=1.2x)", latencyImprovement));
         }
 
         @Test
@@ -495,23 +494,23 @@ public class AsyncByteBufferPoolPerformanceTest {
         @DisplayName("Compare async vs sync pool performance")
         void compareWithSyncPool() throws Exception {
             System.out.println("=== Performance Comparison: Async vs Sync Pool ===");
-            
+
             PerformanceResult asyncResult = measurePoolPerformance(optimizedPool, "Async");
             PerformanceResult syncResult = measureSyncPoolPerformance(syncPool, "Sync");
-            
+
             // Calculate CPU overhead reduction
             double cpuOverheadReduction = (double) syncResult.avgLatency / asyncResult.avgLatency;
-            
+
             System.out.printf("Async vs Sync Comparison Results:%n");
             System.out.printf("  CPU Overhead Reduction: %.2fx%n", cpuOverheadReduction);
-            System.out.printf("  Async: %d ops/sec, %.2f μs avg latency%n", 
-                asyncResult.throughput, asyncResult.avgLatency / 1000.0);
-            System.out.printf("  Sync: %d ops/sec, %.2f μs avg latency%n", 
-                syncResult.throughput, syncResult.avgLatency / 1000.0);
-            
+            System.out.printf("  Async: %d ops/sec, %.2f μs avg latency%n",
+                    asyncResult.throughput, asyncResult.avgLatency / 1000.0);
+            System.out.printf("  Sync: %d ops/sec, %.2f μs avg latency%n",
+                    syncResult.throughput, syncResult.avgLatency / 1000.0);
+
             // Target: 20%+ CPU overhead reduction vs synchronous I/O
-            assertTrue(cpuOverheadReduction >= 1.2, 
-                String.format("CPU overhead reduction too low: %.2fx (target: >=1.2x)", cpuOverheadReduction));
+            assertTrue(cpuOverheadReduction >= 1.2,
+                    String.format("CPU overhead reduction too low: %.2fx (target: >=1.2x)", cpuOverheadReduction));
         }
     }
 
@@ -530,14 +529,14 @@ public class AsyncByteBufferPoolPerformanceTest {
                 for (int i = 0; i < 100; i++) {
                     memoryHogs.add(new byte[10 * 1024 * 1024]); // 10MB each
                 }
-                
+
                 // Test buffer pool performance under pressure
                 long startTime = System.nanoTime();
                 int operations = 1000;
                 AtomicInteger successfulOps = new AtomicInteger(0);
-                
+
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
-                
+
                 for (int i = 0; i < operations; i++) {
                     CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                         try {
@@ -550,25 +549,25 @@ public class AsyncByteBufferPoolPerformanceTest {
                             // Some failures are expected under memory pressure
                         }
                     }, executorService);
-                    
+
                     futures.add(future);
                 }
-                
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(30, TimeUnit.SECONDS);
-                
+
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                        .get(30, TimeUnit.SECONDS);
+
                 long endTime = System.nanoTime();
                 double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
                 double successRate = (double) successfulOps.get() / operations * 100;
-                
+
                 System.out.printf("Memory Pressure Test Results:%n");
                 System.out.printf("  Success Rate: %.1f%%%n", successRate);
                 System.out.printf("  Duration: %.2f seconds%n", durationSeconds);
-                
+
                 // Should still maintain reasonable performance under pressure
-                assertTrue(successRate >= 70.0, 
-                    String.format("Success rate too low under pressure: %.1f%%", successRate));
-                
+                assertTrue(successRate >= 70.0,
+                        String.format("Success rate too low under pressure: %.1f%%", successRate));
+
             } finally {
                 // Release memory
                 memoryHogs.clear();
@@ -582,63 +581,63 @@ public class AsyncByteBufferPoolPerformanceTest {
         void testSustainedHighLoad() throws Exception {
             int durationSeconds = 30;
             int targetOpsPerSecond = 50000;
-            
-            System.out.printf("Sustained Load Test: %d seconds, target %d ops/sec%n", 
-                durationSeconds, targetOpsPerSecond);
-            
+
+            System.out.printf("Sustained Load Test: %d seconds, target %d ops/sec%n",
+                    durationSeconds, targetOpsPerSecond);
+
             long startTime = System.currentTimeMillis();
             long endTime = startTime + (durationSeconds * 1000);
             AtomicInteger totalOperations = new AtomicInteger(0);
             AtomicLong totalLatency = new AtomicLong(0);
-            
+
             List<CompletableFuture<Void>> futures = new ArrayList<>();
-            
+
             // Start continuous load
             for (int thread = 0; thread < CONCURRENT_THREADS; thread++) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                     java.util.Random random = new java.util.Random();
-                    
+
                     while (System.currentTimeMillis() < endTime) {
                         long opStart = System.nanoTime();
-                        
+
                         try {
                             int bufferSize = TEST_SIZES[random.nextInt(TEST_SIZES.length)];
                             ByteBuffer buffer = optimizedPool.acquireAsync(bufferSize).get(1, TimeUnit.SECONDS);
                             buffer.clear();
                             buffer.putLong(0, System.nanoTime());
                             optimizedPool.releaseAsync(buffer).get(1, TimeUnit.SECONDS);
-                            
+
                             long opEnd = System.nanoTime();
                             totalOperations.incrementAndGet();
                             totalLatency.addAndGet(opEnd - opStart);
-                            
+
                         } catch (Exception e) {
                             // Log but continue
                         }
                     }
                 }, executorService);
-                
+
                 futures.add(future);
             }
-            
+
             // Wait for test completion
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(durationSeconds + 10, TimeUnit.SECONDS);
-            
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                    .get(durationSeconds + 10, TimeUnit.SECONDS);
+
             // Calculate results
             long actualDuration = System.currentTimeMillis() - startTime;
             double actualOpsPerSec = (double) totalOperations.get() / (actualDuration / 1000.0);
             double avgLatency = (double) totalLatency.get() / totalOperations.get();
-            
+
             System.out.printf("Sustained Load Results:%n");
             System.out.printf("  Actual Duration: %d ms%n", actualDuration);
             System.out.printf("  Total Operations: %d%n", totalOperations.get());
             System.out.printf("  Actual Ops/sec: %.0f%n", actualOpsPerSec);
             System.out.printf("  Average Latency: %.2f μs%n", avgLatency / 1000.0);
-            
+
             // Performance assertions
-            assertTrue(actualOpsPerSec >= targetOpsPerSecond * 0.8, 
-                String.format("Ops/sec too low: %.0f (target: %d)", actualOpsPerSec, targetOpsPerSecond));
+            assertTrue(actualOpsPerSec >= targetOpsPerSecond * 0.8,
+                    String.format("Ops/sec too low: %.0f (target: %d)", actualOpsPerSec, targetOpsPerSecond));
         }
     }
 
@@ -655,29 +654,29 @@ public class AsyncByteBufferPoolPerformanceTest {
 
     private PerformanceResult measurePoolPerformance(AsyncByteBufferPool pool, String name) throws Exception {
         performWarmup(pool);
-        
+
         long startTime = System.nanoTime();
         int operations = PERFORMANCE_ITERATIONS;
         List<Long> latencies = new ArrayList<>();
-        
+
         for (int i = 0; i < operations; i++) {
             int size = TEST_SIZES[i % TEST_SIZES.length];
             long opStart = System.nanoTime();
-            
+
             ByteBuffer buffer = pool.acquireAsync(size).get();
             buffer.clear();
             buffer.putInt(0, i);
             pool.releaseAsync(buffer).get();
-            
+
             long opEnd = System.nanoTime();
             latencies.add(opEnd - opStart);
         }
-        
+
         long endTime = System.nanoTime();
         double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
         double avgLatency = latencies.stream().mapToLong(Long::longValue).average().orElse(0);
         int throughput = (int) (operations / durationSeconds);
-        
+
         return new PerformanceResult(name, throughput, (long) avgLatency);
     }
 
@@ -689,29 +688,29 @@ public class AsyncByteBufferPoolPerformanceTest {
             buffer.clear();
             pool.release(buffer);
         }
-        
+
         long startTime = System.nanoTime();
         int operations = PERFORMANCE_ITERATIONS;
         List<Long> latencies = new ArrayList<>();
-        
+
         for (int i = 0; i < operations; i++) {
             int size = TEST_SIZES[i % TEST_SIZES.length];
             long opStart = System.nanoTime();
-            
+
             ByteBuffer buffer = pool.acquire(size);
             buffer.clear();
             buffer.putInt(0, i);
             pool.release(buffer);
-            
+
             long opEnd = System.nanoTime();
             latencies.add(opEnd - opStart);
         }
-        
+
         long endTime = System.nanoTime();
         double durationSeconds = (endTime - startTime) / 1_000_000_000.0;
         double avgLatency = latencies.stream().mapToLong(Long::longValue).average().orElse(0);
         int throughput = (int) (operations / durationSeconds);
-        
+
         return new PerformanceResult(name, throughput, (long) avgLatency);
     }
 
@@ -719,7 +718,7 @@ public class AsyncByteBufferPoolPerformanceTest {
         final String name;
         final int throughput;
         final long avgLatency;
-        
+
         PerformanceResult(String name, int throughput, long avgLatency) {
             this.name = name;
             this.throughput = throughput;

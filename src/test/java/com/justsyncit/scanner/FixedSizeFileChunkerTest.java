@@ -217,7 +217,7 @@ class FixedSizeFileChunkerTest {
 
     @Test
     void testSetBufferPool() {
-        BufferPool newPool = new ByteBufferPool();
+        BufferPool newPool = ByteBufferPool.create();
         chunker.setBufferPool(newPool);
 
         // No exception should be thrown

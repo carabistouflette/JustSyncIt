@@ -642,8 +642,9 @@ public class FileProcessor {
                 // Use the filtered list to create the array for allOf()
                 // Ensure no null elements in array to prevent ForEachOps issues
                 @SuppressWarnings("unchecked")
-                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = validFutures.toArray(
-                        new CompletableFuture[validFutures.size()]);
+                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = (CompletableFuture<FileChunker.ChunkingResult>[]) validFutures
+                        .toArray(
+                                new CompletableFuture<?>[validFutures.size()]);
                 CompletableFuture.allOf(futuresArray)
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {

@@ -628,7 +628,7 @@ public class AsyncVsSyncBenchmarkSuite {
                 }
 
                 // Wait for all to complete
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).get();
             } else {
                 // For sync, process sequentially (simulating single-threaded behavior)
                 for (Path file : testFiles) {
