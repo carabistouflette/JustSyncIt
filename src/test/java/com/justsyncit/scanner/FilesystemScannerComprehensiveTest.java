@@ -18,6 +18,8 @@
 
 package com.justsyncit.scanner;
 
+import com.justsyncit.scanner.SymlinkStrategy;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -87,7 +89,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Given
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -109,7 +111,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             createTestFiles(tempDir, "file", 5, 1024);
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -139,7 +141,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             ScanOptions options = new ScanOptions()
                     .withMaxDepth(Integer.MAX_VALUE) // Recursive
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -332,7 +334,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             createTestFiles(tempDir, "various", fileCount, 1024);
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -352,7 +354,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             createTestFiles(tempDir, "size", 5, fileSize);
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -379,7 +381,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             ScanOptions options = new ScanOptions()
                     .withMaxDepth(Integer.MAX_VALUE) // Recursive
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -447,7 +449,6 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
             // When - don't follow symlinks
             ScanOptions noFollow = new ScanOptions()
-                    .withFollowLinks(false)
                     .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             CompletableFuture<ScanResult> noFollowFuture = scanner.scanDirectory(tempDir, noFollow);
@@ -455,7 +456,6 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
             // When - follow symlinks
             ScanOptions follow = new ScanOptions()
-                    .withFollowLinks(true)
                     .withSymlinkStrategy(SymlinkStrategy.FOLLOW);
 
             CompletableFuture<ScanResult> followFuture = scanner.scanDirectory(tempDir, follow);
@@ -496,6 +496,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             }
 
             // When
+            @SuppressWarnings("unchecked")
             CompletableFuture<ScanResult>[] futureArray = futures.toArray(new CompletableFuture[0]);
             List<ScanResult> results = AsyncTestUtils.waitForAllAndGetResults(
                     AsyncTestUtils.LONG_TIMEOUT, futureArray);
@@ -541,7 +542,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 futures.add(threadFuture);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture<?>[0]));
 
             // Then
             executor.shutdown();
@@ -617,7 +618,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 futures.add(future);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture<?>[0]));
 
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;

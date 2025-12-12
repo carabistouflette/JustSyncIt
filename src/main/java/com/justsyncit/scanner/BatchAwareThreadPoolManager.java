@@ -29,7 +29,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Batch-aware wrapper for ThreadPoolManager that integrates with the batch processing system.
+ * Batch-aware wrapper for ThreadPoolManager that integrates with the batch
+ * processing system.
  * Provides optimized thread pool management for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
@@ -47,14 +48,14 @@ public class BatchAwareThreadPoolManager {
     /**
      * Creates a new BatchAwareThreadPoolManager.
      *
-     * @param delegate the underlying thread pool manager
+     * @param delegate       the underlying thread pool manager
      * @param batchProcessor the batch processor for coordination
-     * @param batchConfig the batch configuration
+     * @param batchConfig    the batch configuration
      * @throws IllegalArgumentException if any parameter is null
      */
     public BatchAwareThreadPoolManager(ThreadPoolManager delegate,
-                                   AsyncBatchProcessor batchProcessor,
-                                   BatchConfiguration batchConfig) {
+            AsyncBatchProcessor batchProcessor,
+            BatchConfiguration batchConfig) {
         if (delegate == null) {
             throw new IllegalArgumentException("Delegate thread pool manager cannot be null");
         }
@@ -150,7 +151,8 @@ public class BatchAwareThreadPoolManager {
             if (handler != null) {
                 failed.whenComplete((result, throwable) -> {
                     if (throwable != null) {
-                        handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                        handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                : new RuntimeException(throwable));
                     }
                 });
             }
@@ -168,7 +170,8 @@ public class BatchAwareThreadPoolManager {
                         }
                         if (handler != null) {
                             if (throwable != null) {
-                                handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                                handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                        : new RuntimeException(throwable));
                             } else {
                                 handler.completed(result);
                             }
@@ -178,17 +181,18 @@ public class BatchAwareThreadPoolManager {
 
         // Create batch operation for CPU task
         BatchOperation operation = createCpuTaskOperation(task);
-        
+
         // Submit to batch processor
-        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation, new BatchOptions());
-        
+        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation,
+                new BatchOptions());
+
         // Handle batch result
         CompletableFuture<T> result = batchFuture.thenCompose(batchResult -> {
             if (!batchResult.isSuccess()) {
                 Exception error = batchResult.getError();
                 return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("CPU task failed"));
             }
-            
+
             // Execute the actual task
             return delegate.submitTask(ThreadPoolManager.PoolType.CPU, task);
         });
@@ -200,7 +204,8 @@ public class BatchAwareThreadPoolManager {
             }
             if (handler != null) {
                 if (throwable != null) {
-                    handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                    handler.failed(
+                            throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
                 } else {
                     handler.completed(taskResult);
                 }
@@ -227,7 +232,8 @@ public class BatchAwareThreadPoolManager {
             if (handler != null) {
                 failed.whenComplete((result, throwable) -> {
                     if (throwable != null) {
-                        handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                        handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                : new RuntimeException(throwable));
                     }
                 });
             }
@@ -245,7 +251,8 @@ public class BatchAwareThreadPoolManager {
                         }
                         if (handler != null) {
                             if (throwable != null) {
-                                handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                                handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                        : new RuntimeException(throwable));
                             } else {
                                 handler.completed(result);
                             }
@@ -255,17 +262,18 @@ public class BatchAwareThreadPoolManager {
 
         // Create batch operation for I/O task
         BatchOperation operation = createIoTaskOperation(task);
-        
+
         // Submit to batch processor
-        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation, new BatchOptions());
-        
+        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation,
+                new BatchOptions());
+
         // Handle batch result
         CompletableFuture<T> result = batchFuture.thenCompose(batchResult -> {
             if (!batchResult.isSuccess()) {
                 Exception error = batchResult.getError();
                 return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("I/O task failed"));
             }
-            
+
             // Execute the actual task
             return delegate.submitTask(ThreadPoolManager.PoolType.IO, task);
         });
@@ -277,7 +285,8 @@ public class BatchAwareThreadPoolManager {
             }
             if (handler != null) {
                 if (throwable != null) {
-                    handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                    handler.failed(
+                            throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
                 } else {
                     handler.completed(taskResult);
                 }
@@ -295,7 +304,8 @@ public class BatchAwareThreadPoolManager {
     }
 
     /**
-     * Submits a management task with batch processing integration and completion handler.
+     * Submits a management task with batch processing integration and completion
+     * handler.
      */
     public <T> CompletableFuture<T> submitManagementTask(Callable<T> task, CompletionHandler<T, Exception> handler) {
         totalTasksSubmitted.incrementAndGet();
@@ -306,7 +316,8 @@ public class BatchAwareThreadPoolManager {
                     }
                     if (handler != null) {
                         if (throwable != null) {
-                            handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                            handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                    : new RuntimeException(throwable));
                         } else {
                             handler.completed(result);
                         }
@@ -322,16 +333,19 @@ public class BatchAwareThreadPoolManager {
     }
 
     /**
-     * Submits a batch processing task with batch processing integration and completion handler.
+     * Submits a batch processing task with batch processing integration and
+     * completion handler.
      */
-    public <T> CompletableFuture<T> submitBatchProcessingTask(Callable<T> task, CompletionHandler<T, Exception> handler) {
+    public <T> CompletableFuture<T> submitBatchProcessingTask(Callable<T> task,
+            CompletionHandler<T, Exception> handler) {
         if (task == null) {
             CompletableFuture<T> failed = CompletableFuture.failedFuture(
                     new IllegalArgumentException("Task cannot be null"));
             if (handler != null) {
                 failed.whenComplete((result, throwable) -> {
                     if (throwable != null) {
-                        handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                        handler.failed(throwable instanceof Exception ? (Exception) throwable
+                                : new RuntimeException(throwable));
                     }
                 });
             }
@@ -343,17 +357,19 @@ public class BatchAwareThreadPoolManager {
 
         // Create batch operation for batch processing task
         BatchOperation operation = createBatchProcessingTaskOperation(task);
-        
+
         // Submit to batch processor
-        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation, new BatchOptions());
-        
+        CompletableFuture<BatchOperationResult> batchFuture = batchProcessor.processOperation(operation,
+                new BatchOptions());
+
         // Handle batch result
         CompletableFuture<T> result = batchFuture.thenCompose(batchResult -> {
             if (!batchResult.isSuccess()) {
                 Exception error = batchResult.getError();
-                return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("Batch processing task failed"));
+                return CompletableFuture
+                        .failedFuture(error != null ? error : new RuntimeException("Batch processing task failed"));
             }
-            
+
             // Execute the actual task
             return delegate.submitTask(ThreadPoolManager.PoolType.BATCH_PROCESSING, task);
         });
@@ -366,7 +382,8 @@ public class BatchAwareThreadPoolManager {
             }
             if (handler != null) {
                 if (throwable != null) {
-                    handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                    handler.failed(
+                            throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
                 } else {
                     handler.completed(taskResult);
                 }
@@ -392,15 +409,15 @@ public class BatchAwareThreadPoolManager {
             long submitted = totalTasksSubmitted.get();
             long completed = totalTasksCompleted.get();
             int active = activeBatchOperations.get();
-            
+
             return String.format(
                     "BatchAwareThreadPoolManager Stats\n" +
-                    "Delegate: %s\n" +
-                    "Total Tasks Submitted: %d\n" +
-                    "Total Tasks Completed: %d\n" +
-                    "Active Batch Operations: %d\n" +
-                    "Success Rate: %.2f%%",
-                    delegateStats.toString(), submitted, completed, active, 
+                            "Delegate: %s\n" +
+                            "Total Tasks Submitted: %d\n" +
+                            "Total Tasks Completed: %d\n" +
+                            "Active Batch Operations: %d\n" +
+                            "Success Rate: %.2f%%",
+                    delegateStats.toString(), submitted, completed, active,
                     submitted > 0 ? (completed * 100.0 / submitted) : 0.0);
         });
     }
@@ -451,7 +468,8 @@ public class BatchAwareThreadPoolManager {
 
     /**
      * Checks if shutdown has been initiated.
-     * Note: ThreadPoolManager doesn't have isShutdown() method, so we use a workaround.
+     * Note: ThreadPoolManager doesn't have isShutdown() method, so we use a
+     * workaround.
      */
     public boolean isShutdown() {
         // ThreadPoolManager doesn't expose shutdown state directly
@@ -461,7 +479,8 @@ public class BatchAwareThreadPoolManager {
 
     /**
      * Checks if all threads have terminated.
-     * Note: ThreadPoolManager doesn't have isTerminated() method, so we use a workaround.
+     * Note: ThreadPoolManager doesn't have isTerminated() method, so we use a
+     * workaround.
      */
     public boolean isTerminated() {
         // ThreadPoolManager doesn't expose termination state directly
@@ -471,7 +490,8 @@ public class BatchAwareThreadPoolManager {
 
     /**
      * Waits for termination.
-     * Note: ThreadPoolManager doesn't have awaitTermination() method, so we use a workaround.
+     * Note: ThreadPoolManager doesn't have awaitTermination() method, so we use a
+     * workaround.
      */
     public boolean awaitTermination(long timeout) throws InterruptedException {
         // ThreadPoolManager doesn't expose awaitTermination directly
@@ -486,7 +506,7 @@ public class BatchAwareThreadPoolManager {
      * Submits multiple tasks as a batch operation.
      *
      * @param tasks list of tasks to submit
-     * @param <T> task result type
+     * @param <T>   task result type
      * @return a CompletableFuture that completes with list of results
      */
     public <T> CompletableFuture<List<T>> submitBatchTasks(List<Callable<T>> tasks) {
@@ -496,15 +516,16 @@ public class BatchAwareThreadPoolManager {
 
         // Create batch operation for multiple tasks
         BatchOperation operation = createBatchTasksOperation(tasks);
-        
+
         // Submit to batch processor
         return batchProcessor.processOperation(operation, new BatchOptions())
                 .thenCompose(batchResult -> {
                     if (!batchResult.isSuccess()) {
                         Exception error = batchResult.getError();
-                        return CompletableFuture.failedFuture(error != null ? error : new RuntimeException("Batch tasks failed"));
+                        return CompletableFuture
+                                .failedFuture(error != null ? error : new RuntimeException("Batch tasks failed"));
                     }
-                    
+
                     // Execute all tasks
                     return executeBatchTasks(tasks);
                 });
@@ -537,8 +558,7 @@ public class BatchAwareThreadPoolManager {
                 BatchOperationType.CHUNKING, // Use CHUNKING as generic CPU operation
                 List.of(), // No files for task operations
                 BatchPriority.NORMAL,
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -557,8 +577,7 @@ public class BatchAwareThreadPoolManager {
                 BatchOperationType.STORAGE, // Use STORAGE as generic I/O operation
                 List.of(), // No files for task operations
                 BatchPriority.HIGH, // I/O tasks are high priority
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -577,8 +596,7 @@ public class BatchAwareThreadPoolManager {
                 BatchOperationType.HASHING, // Use HASHING as generic batch operation
                 List.of(), // No files for task operations
                 BatchPriority.HIGH, // Batch processing tasks are high priority
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -597,8 +615,7 @@ public class BatchAwareThreadPoolManager {
                 BatchOperationType.TRANSFER, // Use TRANSFER for multi-task operations
                 List.of(), // No files for task operations
                 BatchPriority.CRITICAL, // Multi-task operations are critical
-                requirements
-        );
+                requirements);
     }
 
     /**
@@ -608,8 +625,8 @@ public class BatchAwareThreadPoolManager {
         List<CompletableFuture<T>> futures = tasks.stream()
                 .map(task -> delegate.submitTask(ThreadPoolManager.PoolType.BATCH_PROCESSING, task))
                 .toList();
-        
-        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+
+        return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                 .thenApply(v -> futures.stream()
                         .map(CompletableFuture::join)
                         .toList());

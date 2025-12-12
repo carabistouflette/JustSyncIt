@@ -31,23 +31,23 @@ import java.util.function.Consumer;
  * Provides optimized async operations using the specialized thread pools.
  */
 public class AsyncThreadPoolIntegration {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(AsyncThreadPoolIntegration.class);
-    
+
     private final ThreadPoolManager threadPoolManager;
     private final AsyncByteBufferPool bufferPool;
-    
+
     /**
      * Creates a new AsyncThreadPoolIntegration.
      */
-    public AsyncThreadPoolIntegration(ThreadPoolManager threadPoolManager, 
-                                AsyncByteBufferPool bufferPool) {
+    public AsyncThreadPoolIntegration(ThreadPoolManager threadPoolManager,
+            AsyncByteBufferPool bufferPool) {
         this.threadPoolManager = threadPoolManager;
         this.bufferPool = bufferPool;
-        
+
         logger.info("AsyncThreadPoolIntegration initialized");
     }
-    
+
     /**
      * Executes an I/O operation using the I/O thread pool.
      */
@@ -55,7 +55,7 @@ public class AsyncThreadPoolIntegration {
         logger.debug("Executing I/O operation on I/O thread pool");
         return threadPoolManager.submitTask(ThreadPoolManager.PoolType.IO, operation);
     }
-    
+
     /**
      * Executes a CPU-intensive operation using the CPU thread pool.
      */
@@ -63,76 +63,73 @@ public class AsyncThreadPoolIntegration {
         logger.debug("Executing CPU operation on CPU thread pool");
         return threadPoolManager.submitTask(ThreadPoolManager.PoolType.CPU, operation);
     }
-    
+
     /**
-     * Executes a completion handler callback using the CompletionHandler thread pool.
+     * Executes a completion handler callback using the CompletionHandler thread
+     * pool.
      */
     public CompletableFuture<Void> executeCompletionHandler(Runnable callback) {
         logger.debug("Executing completion handler on CompletionHandler thread pool");
         return threadPoolManager.submitTask(
-            ThreadPoolManager.PoolType.COMPLETION_HANDLER, 
-            () -> {
-                callback.run();
-                return null;
-            }
-        );
+                ThreadPoolManager.PoolType.COMPLETION_HANDLER,
+                () -> {
+                    callback.run();
+                    return null;
+                });
     }
-    
+
     /**
      * Executes a batch operation using the BatchProcessing thread pool.
      */
     public CompletableFuture<Void> executeBatchOperation(Runnable... operations) {
         logger.debug("Executing batch operation with {} tasks", operations.length);
-        
+
         return threadPoolManager.submitTask(
-            ThreadPoolManager.PoolType.BATCH_PROCESSING,
-            () -> {
-                for (Runnable operation : operations) {
-                    if (operation != null) {
-                        operation.run();
+                ThreadPoolManager.PoolType.BATCH_PROCESSING,
+                () -> {
+                    for (Runnable operation : operations) {
+                        if (operation != null) {
+                            operation.run();
+                        }
                     }
-                }
-                return null;
-            }
-        );
+                    return null;
+                });
     }
-    
+
     /**
      * Executes a watch service event using the WatchService thread pool.
      */
     public CompletableFuture<Void> executeWatchEvent(Runnable eventHandler) {
         logger.debug("Executing watch service event on WatchService thread pool");
         return threadPoolManager.submitTask(
-            ThreadPoolManager.PoolType.WATCH_SERVICE,
-            () -> {
-                eventHandler.run();
-                return null;
-            }
-        );
+                ThreadPoolManager.PoolType.WATCH_SERVICE,
+                () -> {
+                    eventHandler.run();
+                    return null;
+                });
     }
-    
+
     /**
      * Executes a management task using the Management thread pool.
      */
     public CompletableFuture<Void> executeManagementTask(Runnable managementTask) {
         logger.debug("Executing management task on Management thread pool");
         return threadPoolManager.submitTask(
-            ThreadPoolManager.PoolType.MANAGEMENT,
-            () -> {
-                managementTask.run();
-                return null;
-            }
-        );
+                ThreadPoolManager.PoolType.MANAGEMENT,
+                () -> {
+                    managementTask.run();
+                    return null;
+                });
     }
-    
+
     /**
      * Executes an async file read operation with buffer pool integration.
      */
     public CompletableFuture<java.nio.ByteBuffer> executeAsyncFileRead(
             String filePath, long position, int size) {
-        
+
         logger.debug("Executing async file read: {} at {} with size {}", filePath, position, size);
-        
+
         return bufferPool.acquireAsync(size).thenApply(buffer -> {
             // Here you would integrate with actual async file I/O
             // For now, just return the buffer
@@ -140,15 +137,15 @@ public class AsyncThreadPoolIntegration {
             return buffer;
         });
     }
-    
+
     /**
      * Executes an async file write operation with buffer pool integration.
      */
     public CompletableFuture<Void> executeAsyncFileWrite(
             String filePath, java.nio.ByteBuffer buffer) {
-        
+
         logger.debug("Executing async file write: {} with buffer", filePath);
-        
+
         return bufferPool.releaseAsync(buffer).thenApply(v -> {
             // Here you would integrate with actual async file I/O
             // For now, just complete the operation
@@ -156,13 +153,13 @@ public class AsyncThreadPoolIntegration {
             return null;
         });
     }
-    
+
     /**
      * Executes a hashing operation using the CPU thread pool.
      */
     public CompletableFuture<byte[]> executeHashing(byte[] data) {
         logger.debug("Executing hashing operation on {} bytes of data", data.length);
-        
+
         return executeCpuOperation(() -> {
             try {
                 // Here you would integrate with actual hashing implementation
@@ -176,16 +173,16 @@ public class AsyncThreadPoolIntegration {
             }
         });
     }
-    
+
     /**
      * Executes a completion callback with error handling.
      */
     public <T> CompletableFuture<T> executeCompletionCallback(
             T result, Throwable error, Consumer<T> onSuccess, Consumer<Throwable> onError) {
-        
-        logger.debug("Executing completion callback: result={}, error={}", 
-                    result != null ? "success" : "null", error != null ? error.getMessage() : "null");
-        
+
+        logger.debug("Executing completion callback: result={}, error={}",
+                result != null ? "success" : "null", error != null ? error.getMessage() : "null");
+
         return executeCompletionHandler(() -> {
             try {
                 if (error != null) {
@@ -202,51 +199,51 @@ public class AsyncThreadPoolIntegration {
             }
         }).thenApply(v -> result);
     }
-    
+
     /**
      * Executes a coordinated batch operation with resource management.
      */
-    public <T> CompletableFuture<T> executeCoordinatedBatch(
+    @SafeVarargs
+    public final <T> CompletableFuture<T> executeCoordinatedBatch(
             BatchOperation<T>... operations) {
-        
+
         logger.debug("Executing coordinated batch with {} operations", operations.length);
-        
+
         return threadPoolManager.submitTask(
-            ThreadPoolManager.PoolType.BATCH_PROCESSING,
-            () -> {
-                try {
-                    T result = null;
-                    for (BatchOperation<T> operation : operations) {
-                        if (operation != null) {
-                            T opResult = operation.execute();
-                            if (result == null) {
-                                result = opResult;
+                ThreadPoolManager.PoolType.BATCH_PROCESSING,
+                () -> {
+                    try {
+                        T result = null;
+                        for (BatchOperation<T> operation : operations) {
+                            if (operation != null) {
+                                T opResult = operation.execute();
+                                if (result == null) {
+                                    result = opResult;
+                                }
                             }
                         }
+                        return result;
+                    } catch (Exception e) {
+                        logger.error("Error in coordinated batch operation", e);
+                        throw new RuntimeException(e);
                     }
-                    return result;
-                } catch (Exception e) {
-                    logger.error("Error in coordinated batch operation", e);
-                    throw new RuntimeException(e);
-                }
-            }
-        );
+                });
     }
-    
+
     /**
      * Gets thread pool statistics for monitoring.
      */
     public ThreadPoolStats getThreadPoolStats() {
         return threadPoolManager.getStats();
     }
-    
+
     /**
      * Gets statistics for a specific thread pool.
      */
     public ThreadPoolStats.PoolSpecificStats getPoolStats(ThreadPoolManager.PoolType poolType) {
         return threadPoolManager.getPoolStats(poolType);
     }
-    
+
     /**
      * Applies backpressure to all thread pools.
      */
@@ -254,7 +251,7 @@ public class AsyncThreadPoolIntegration {
         logger.info("Applying backpressure level: {:.2f}", pressureLevel);
         threadPoolManager.applyBackpressure(pressureLevel);
     }
-    
+
     /**
      * Releases backpressure from all thread pools.
      */
@@ -262,7 +259,7 @@ public class AsyncThreadPoolIntegration {
         logger.info("Releasing backpressure from all thread pools");
         threadPoolManager.releaseBackpressure();
     }
-    
+
     /**
      * Triggers adaptive resizing of all thread pools.
      */
@@ -270,7 +267,7 @@ public class AsyncThreadPoolIntegration {
         logger.info("Triggering adaptive resizing of all thread pools");
         threadPoolManager.triggerAdaptiveResizing();
     }
-    
+
     /**
      * Interface for batch operations.
      */
@@ -278,21 +275,20 @@ public class AsyncThreadPoolIntegration {
     public interface BatchOperation<T> {
         T execute() throws Exception;
     }
-    
+
     /**
      * Gets performance metrics for the integration.
      */
     public IntegrationMetrics getMetrics() {
         ThreadPoolStats stats = getThreadPoolStats();
-        
+
         return new IntegrationMetrics(
-            stats.getThroughput(),
-            stats.getUtilizationRate(),
-            stats.getEfficiency(),
-            getCurrentBackpressureLevel()
-        );
+                stats.getThroughput(),
+                stats.getUtilizationRate(),
+                stats.getEfficiency(),
+                getCurrentBackpressureLevel());
     }
-    
+
     /**
      * Gets current backpressure level across all pools.
      */
@@ -300,7 +296,7 @@ public class AsyncThreadPoolIntegration {
         // Calculate average backpressure across all pools
         double totalBackpressure = 0.0;
         int poolCount = 0;
-        
+
         for (ThreadPoolManager.PoolType type : ThreadPoolManager.PoolType.values()) {
             ThreadPoolStats.PoolSpecificStats poolStats = getPoolStats(type);
             if (poolStats != null) {
@@ -308,10 +304,10 @@ public class AsyncThreadPoolIntegration {
                 poolCount++;
             }
         }
-        
+
         return poolCount > 0 ? totalBackpressure / poolCount : 0.0;
     }
-    
+
     /**
      * Integration performance metrics.
      */
@@ -320,22 +316,21 @@ public class AsyncThreadPoolIntegration {
         public final double utilizationRate;
         public final double efficiency;
         public final double backpressureLevel;
-        
-        IntegrationMetrics(double throughput, double utilizationRate, 
-                      double efficiency, double backpressureLevel) {
+
+        IntegrationMetrics(double throughput, double utilizationRate,
+                double efficiency, double backpressureLevel) {
             this.throughput = throughput;
             this.utilizationRate = utilizationRate;
             this.efficiency = efficiency;
             this.backpressureLevel = backpressureLevel;
         }
-        
+
         @Override
         public String toString() {
             return String.format(
                     "IntegrationMetrics{throughput=%.2f, utilization=%.2f%%, " +
-                    "efficiency=%.2f%%, backpressure=%.2f}",
-                    throughput, utilizationRate * 100, efficiency * 100, backpressureLevel
-            );
+                            "efficiency=%.2f%%, backpressure=%.2f}",
+                    throughput, utilizationRate * 100, efficiency * 100, backpressureLevel);
         }
     }
 }

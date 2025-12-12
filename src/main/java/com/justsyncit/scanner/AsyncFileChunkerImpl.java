@@ -499,6 +499,7 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
      */
     private CompletableFuture<Void> processAllChunksAsync(AsynchronousFileChannel channel, Path file, int chunkSize,
             long fileSize, int chunkCount, List<String> chunkHashes) {
+        @SuppressWarnings("unchecked")
         CompletableFuture<Void>[] chunkFutures = new CompletableFuture[chunkCount];
 
         // Submit all chunk processing tasks
@@ -651,6 +652,7 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
 
         @Override
         public CompletableFuture<String[]> processChunksAsync(ByteBuffer[] chunks, Path file) {
+            @SuppressWarnings("unchecked")
             CompletableFuture<String>[] futures = new CompletableFuture[chunks.length];
             for (int i = 0; i < chunks.length; i++) {
                 futures[i] = processChunkAsync(chunks[i], i, chunks.length, file);

@@ -34,9 +34,12 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
- * Production-ready implementation of AsyncFilesystemScanner with WatchService integration.
- * Provides non-blocking directory scanning with real-time file change monitoring,
- * parallel processing, backpressure control, and comprehensive performance optimization.
+ * Production-ready implementation of AsyncFilesystemScanner with WatchService
+ * integration.
+ * Provides non-blocking directory scanning with real-time file change
+ * monitoring,
+ * parallel processing, backpressure control, and comprehensive performance
+ * optimization.
  */
 public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
@@ -44,40 +47,40 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
     /** Thread pool manager for async operations. */
     private final ThreadPoolManager threadPoolManager;
-    
+
     /** Async buffer pool for memory management. */
     private AsyncByteBufferPool asyncBufferPool;
-    
+
     /** Watch service manager for real-time monitoring. */
     private final AsyncWatchServiceManager watchServiceManager;
-    
+
     /** Async file visitor for custom processing. */
     private AsyncFileVisitor asyncFileVisitor;
-    
+
     /** Async progress listener for progress monitoring. */
     private AsyncProgressListener asyncProgressListener;
-    
+
     /** Traditional file visitor for compatibility. */
     private FileVisitor fileVisitor;
-    
+
     /** Traditional progress listener for compatibility. */
     private ProgressListener progressListener;
-    
+
     /** Active scan operations by ID. */
     private final Map<String, ScanContext> activeScans;
-    
+
     /** Maximum number of concurrent scans. */
     private final AtomicInteger maxConcurrentScans;
-    
+
     /** Scanner state. */
     private final AtomicBoolean closed;
-    
+
     /** Statistics tracking. */
     private final AsyncScannerStats stats;
-    
+
     /** Backpressure controller for flow management. */
     private final BackpressureController backpressureController;
-    
+
     /** Performance optimizer for adaptive tuning. */
     private final PerformanceOptimizer performanceOptimizer;
 
@@ -114,24 +117,23 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
      * Creates a new AsyncFilesystemScannerImpl.
      *
      * @param threadPoolManager thread pool manager for async operations
-     * @param asyncBufferPool async buffer pool for memory management
+     * @param asyncBufferPool   async buffer pool for memory management
      */
     public AsyncFilesystemScannerImpl(ThreadPoolManager threadPoolManager,
-                                     AsyncByteBufferPool asyncBufferPool) {
+            AsyncByteBufferPool asyncBufferPool) {
         this.threadPoolManager = Objects.requireNonNull(threadPoolManager);
         this.asyncBufferPool = Objects.requireNonNull(asyncBufferPool);
         this.watchServiceManager = new AsyncWatchServiceManager(
-            threadPoolManager, asyncBufferPool, new AsyncScanOptions()
-        );
+                threadPoolManager, asyncBufferPool, new AsyncScanOptions());
         this.activeScans = new ConcurrentHashMap<>();
         this.maxConcurrentScans = new AtomicInteger(Runtime.getRuntime().availableProcessors());
         this.closed = new AtomicBoolean(false);
         this.stats = new AsyncScannerStats();
         this.backpressureController = new BackpressureController();
         this.performanceOptimizer = new PerformanceOptimizer();
-        
-        logger.info("AsyncFilesystemScannerImpl initialized with max concurrent scans: {}", 
-            maxConcurrentScans.get());
+
+        logger.info("AsyncFilesystemScannerImpl initialized with max concurrent scans: {}",
+                maxConcurrentScans.get());
     }
 
     @Override
@@ -157,10 +159,10 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
     @Override
     public CompletableFuture<WatchServiceRegistration> startDirectoryMonitoring(
-            Path directory, 
-            AsyncScanOptions options, 
+            Path directory,
+            AsyncScanOptions options,
             Consumer<FileChangeEvent> eventHandler) {
-        
+
         if (closed.get()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Scanner is closed"));
         }
@@ -181,10 +183,10 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
     @Override
     public CompletableFuture<AsyncScanResult> scanDirectoryParallel(
-            Path directory, 
-            ScanOptions options, 
+            Path directory,
+            ScanOptions options,
             int concurrency) {
-        
+
         if (closed.get()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Scanner is closed"));
         }
@@ -206,10 +208,10 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
     @Override
     public CompletableFuture<Void> scanDirectoryStreaming(
-            Path directory, 
-            ScanOptions options, 
+            Path directory,
+            ScanOptions options,
             Consumer<AsyncScanResult> resultConsumer) {
-        
+
         if (closed.get()) {
             return CompletableFuture.failedFuture(new IllegalStateException("Scanner is closed"));
         }
@@ -308,11 +310,12 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
     public CompletableFuture<AsyncScannerStats> getStatsAsync() {
         return CompletableFuture.supplyAsync(() -> {
             // Update runtime statistics
-            stats.setOperationalMetric("uptimeMs", System.currentTimeMillis() - stats.getStatsTimestamp().toEpochMilli());
+            stats.setOperationalMetric("uptimeMs",
+                    System.currentTimeMillis() - stats.getStatsTimestamp().toEpochMilli());
             stats.setOperationalMetric("activeScans", getActiveScanCount());
             stats.setOperationalMetric("maxConcurrentScans", getMaxConcurrentScans());
             stats.setOperationalMetric("watchServiceRegistrations", watchServiceManager.getActiveRegistrationCount());
-            
+
             return stats;
         }, threadPoolManager.getManagementThreadPool());
     }
@@ -347,8 +350,8 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                 });
 
                 // Wait for all scans to cancel
-                CompletableFuture.allOf(cancelFutures.toArray(new CompletableFuture[0]))
-                    .get(30, TimeUnit.SECONDS);
+                CompletableFuture.allOf(cancelFutures.toArray(new CompletableFuture<?>[0]))
+                        .get(30, TimeUnit.SECONDS);
 
                 // Stop watch service manager
                 watchServiceManager.stopAsync().get(30, TimeUnit.SECONDS);
@@ -376,13 +379,12 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
         return scanDirectoryAsync(directory, options).thenApply(asyncResult -> {
             // Convert AsyncScanResult to ScanResult
             return new ScanResult(
-                asyncResult.getRootDirectory(),
-                asyncResult.getScannedFiles(),
-                asyncResult.getErrors(),
-                asyncResult.getStartTime(),
-                asyncResult.getEndTime(),
-                asyncResult.getMetadata()
-            );
+                    asyncResult.getRootDirectory(),
+                    asyncResult.getScannedFiles(),
+                    asyncResult.getErrors(),
+                    asyncResult.getStartTime(),
+                    asyncResult.getEndTime(),
+                    asyncResult.getMetadata());
         });
     }
 
@@ -414,8 +416,7 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             Map<String, Object> metadata = new HashMap<>();
 
             // Create async file visitor if none provided
-            AsyncFileVisitor asyncVisitor = asyncFileVisitor != null ?
-                asyncFileVisitor : new DefaultAsyncFileVisitor();
+            AsyncFileVisitor asyncVisitor = asyncFileVisitor != null ? asyncFileVisitor : new DefaultAsyncFileVisitor();
 
             // Walk the file tree asynchronously
             // Create a simple file visitor for the walk
@@ -431,36 +432,35 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                         logger.error("Error processing file: {}", file, e);
                         errors.add(new ScanResult.ScanError(file, e, e.getMessage()));
                     }
-                    return context.cancelled.get() ?
-                        java.nio.file.FileVisitResult.TERMINATE : java.nio.file.FileVisitResult.CONTINUE;
+                    return context.cancelled.get() ? java.nio.file.FileVisitResult.TERMINATE
+                            : java.nio.file.FileVisitResult.CONTINUE;
                 }
-                
+
                 @Override
                 public java.nio.file.FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
                     if (context.cancelled.get()) {
                         return java.nio.file.FileVisitResult.TERMINATE;
                     }
                     context.directoriesProcessed.incrementAndGet();
-                    return context.cancelled.get() ?
-                        java.nio.file.FileVisitResult.TERMINATE : java.nio.file.FileVisitResult.CONTINUE;
+                    return context.cancelled.get() ? java.nio.file.FileVisitResult.TERMINATE
+                            : java.nio.file.FileVisitResult.CONTINUE;
                 }
             };
-            
+
             Files.walkFileTree(context.rootDirectory,
-                java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class),
-                context.options.getMaxDepth(),
-                simpleVisitor);
+                    java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class),
+                    context.options.getMaxDepth(),
+                    simpleVisitor);
             // No filter needed since we handle cancellation in the visitor
 
             // Create result
             Instant endTime = Instant.now();
             AsyncScanResult result = new AsyncScanResult(
-                context.scanId, context.rootDirectory, scannedFiles, errors,
-                context.startTime, endTime, metadata, 1,
-                calculateThroughput(context), calculatePeakMemoryUsage(),
-                context.directoriesProcessed.get(), 0, 0, 0, false,
-                createAsyncMetadata(context)
-            );
+                    context.scanId, context.rootDirectory, scannedFiles, errors,
+                    context.startTime, endTime, metadata, 1,
+                    calculateThroughput(context), calculatePeakMemoryUsage(),
+                    context.directoriesProcessed.get(), 0, 0, 0, false,
+                    createAsyncMetadata(context));
 
             // Update statistics
             stats.incrementScansCompleted();
@@ -494,7 +494,7 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
     /**
      * Performs a parallel scan operation.
      *
-     * @param context scan context
+     * @param context     scan context
      * @param concurrency level of parallelism
      * @return async scan result
      */
@@ -513,40 +513,40 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
             // Create parallel processing
             ExecutorService parallelExecutor = Executors.newFixedThreadPool(concurrency);
-            
+
             try {
                 // Walk file tree and process in parallel
                 List<Path> allPaths = Files.walk(context.rootDirectory, context.options.getMaxDepth())
-                    .filter(path -> !context.cancelled.get())
-                    .collect(Collectors.toList());
+                        .filter(path -> !context.cancelled.get())
+                        .collect(Collectors.toList());
 
                 // Process paths in parallel batches
                 int batchSize = Math.max(1, allPaths.size() / concurrency);
                 List<List<Path>> batches = partitionList(allPaths, batchSize);
 
                 List<CompletableFuture<Void>> futures = batches.stream()
-                    .map(batch -> CompletableFuture.runAsync(() -> {
-                        batch.forEach(path -> {
-                            if (context.cancelled.get()) {
-                                return;
-                            }
-                            try {
-                                AsyncFileVisitor visitor = asyncFileVisitor != null ? 
-                                    asyncFileVisitor : new DefaultAsyncFileVisitor();
-                                processFileAsync(path, context, visitor, scannedFiles, errors);
-                            } catch (Exception e) {
-                                logger.error("Error processing file in parallel: {}", path, e);
-                                synchronized (errors) {
-                                    errors.add(new ScanResult.ScanError(path, e, e.getMessage()));
+                        .map(batch -> CompletableFuture.runAsync(() -> {
+                            batch.forEach(path -> {
+                                if (context.cancelled.get()) {
+                                    return;
                                 }
-                            }
-                        });
-                    }, parallelExecutor))
-                    .collect(Collectors.toList());
+                                try {
+                                    AsyncFileVisitor visitor = asyncFileVisitor != null ? asyncFileVisitor
+                                            : new DefaultAsyncFileVisitor();
+                                    processFileAsync(path, context, visitor, scannedFiles, errors);
+                                } catch (Exception e) {
+                                    logger.error("Error processing file in parallel: {}", path, e);
+                                    synchronized (errors) {
+                                        errors.add(new ScanResult.ScanError(path, e, e.getMessage()));
+                                    }
+                                }
+                            });
+                        }, parallelExecutor))
+                        .collect(Collectors.toList());
 
                 // Wait for all batches to complete
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(60, TimeUnit.MINUTES);
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                        .get(60, TimeUnit.MINUTES);
 
             } finally {
                 parallelExecutor.shutdown();
@@ -556,12 +556,11 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             // Create result
             Instant endTime = Instant.now();
             AsyncScanResult result = new AsyncScanResult(
-                context.scanId, context.rootDirectory, scannedFiles, errors,
-                context.startTime, endTime, metadata, concurrency,
-                calculateThroughput(context), calculatePeakMemoryUsage(),
-                context.directoriesProcessed.get(), 0, 0, 0, false,
-                createAsyncMetadata(context)
-            );
+                    context.scanId, context.rootDirectory, scannedFiles, errors,
+                    context.startTime, endTime, metadata, concurrency,
+                    calculateThroughput(context), calculatePeakMemoryUsage(),
+                    context.directoriesProcessed.get(), 0, 0, 0, false,
+                    createAsyncMetadata(context));
 
             // Update statistics
             stats.incrementScansCompleted();
@@ -587,7 +586,7 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
     /**
      * Performs a streaming scan operation.
      *
-     * @param context scan context
+     * @param context        scan context
      * @param resultConsumer consumer for incremental results
      */
     private void performStreamingScan(ScanContext context, Consumer<AsyncScanResult> resultConsumer) {
@@ -604,49 +603,46 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             Map<String, Object> metadata = new HashMap<>();
 
             // Create visitor
-            AsyncFileVisitor visitor = asyncFileVisitor != null ? 
-                asyncFileVisitor : new DefaultAsyncFileVisitor();
+            AsyncFileVisitor visitor = asyncFileVisitor != null ? asyncFileVisitor : new DefaultAsyncFileVisitor();
 
             // Walk file tree and stream results
             Files.walk(context.rootDirectory, context.options.getMaxDepth())
-                .filter(path -> !context.cancelled.get())
-                .forEach(path -> {
-                    if (context.cancelled.get()) {
-                        return;
-                    }
-
-                    try {
-                        processFileAsync(path, context, visitor, scannedFiles, errors);
-                        
-                        // Send incremental result every N files
-                        if (scannedFiles.size() % 100 == 0) {
-                            AsyncScanResult incrementalResult = new AsyncScanResult(
-                                context.scanId, context.rootDirectory,
-                                new ArrayList<ScanResult.ScannedFile>(scannedFiles),
-                                new ArrayList<ScanResult.ScanError>(errors),
-                                context.startTime, Instant.now(), metadata, 1,
-                                calculateThroughput(context), calculatePeakMemoryUsage(),
-                                context.directoriesProcessed.get(), 0, 0, 0, false,
-                                createAsyncMetadata(context)
-                            );
-                            resultConsumer.accept(incrementalResult);
+                    .filter(path -> !context.cancelled.get())
+                    .forEach(path -> {
+                        if (context.cancelled.get()) {
+                            return;
                         }
-                        
-                    } catch (Exception e) {
-                        logger.error("Error processing file in stream: {}", path, e);
-                        errors.add(new ScanResult.ScanError(path, e, e.getMessage()));
-                    }
-                });
+
+                        try {
+                            processFileAsync(path, context, visitor, scannedFiles, errors);
+
+                            // Send incremental result every N files
+                            if (scannedFiles.size() % 100 == 0) {
+                                AsyncScanResult incrementalResult = new AsyncScanResult(
+                                        context.scanId, context.rootDirectory,
+                                        new ArrayList<ScanResult.ScannedFile>(scannedFiles),
+                                        new ArrayList<ScanResult.ScanError>(errors),
+                                        context.startTime, Instant.now(), metadata, 1,
+                                        calculateThroughput(context), calculatePeakMemoryUsage(),
+                                        context.directoriesProcessed.get(), 0, 0, 0, false,
+                                        createAsyncMetadata(context));
+                                resultConsumer.accept(incrementalResult);
+                            }
+
+                        } catch (Exception e) {
+                            logger.error("Error processing file in stream: {}", path, e);
+                            errors.add(new ScanResult.ScanError(path, e, e.getMessage()));
+                        }
+                    });
 
             // Send final result
             Instant endTime = Instant.now();
             AsyncScanResult finalResult = new AsyncScanResult(
-                context.scanId, context.rootDirectory, scannedFiles, errors,
-                context.startTime, endTime, metadata, 1,
-                calculateThroughput(context), calculatePeakMemoryUsage(),
-                context.directoriesProcessed.get(), 0, 0, 0, false,
-                createAsyncMetadata(context)
-            );
+                    context.scanId, context.rootDirectory, scannedFiles, errors,
+                    context.startTime, endTime, metadata, 1,
+                    calculateThroughput(context), calculatePeakMemoryUsage(),
+                    context.directoriesProcessed.get(), 0, 0, 0, false,
+                    createAsyncMetadata(context));
 
             // Update statistics
             stats.incrementScansCompleted();
@@ -671,55 +667,53 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
      * Processes a single file asynchronously.
      */
     private void processFileAsync(Path path, ScanContext context, AsyncFileVisitor visitor,
-                                List<ScanResult.ScannedFile> scannedFiles,
-                                List<ScanResult.ScanError> errors) {
+            List<ScanResult.ScannedFile> scannedFiles,
+            List<ScanResult.ScanError> errors) {
         try {
             BasicFileAttributes attrs = Files.readAttributes(path, BasicFileAttributes.class);
-            
+
             if (Files.isDirectory(path)) {
                 context.directoriesProcessed.incrementAndGet();
                 visitor.visitDirectoryAsync(path, attrs)
-                    .thenAccept(result -> {
-                        if (result == FileVisitor.FileVisitResult.CONTINUE) {
-                            // Process directory contents if needed
-                        }
-                    })
-                    .get(30, TimeUnit.SECONDS);
+                        .thenAccept(result -> {
+                            if (result == FileVisitor.FileVisitResult.CONTINUE) {
+                                // Process directory contents if needed
+                            }
+                        })
+                        .get(30, TimeUnit.SECONDS);
             } else {
                 context.filesProcessed.incrementAndGet();
                 visitor.visitFileAsync(path, attrs)
-                    .thenAccept(result -> {
-                        if (result == FileVisitor.FileVisitResult.CONTINUE) {
-                            // Add to scanned files
-                            boolean isSymlink = Files.isSymbolicLink(path);
-                            boolean isSparse = detectSparseFile(path, attrs);
-                            Path linkTarget = null;
-                            if (isSymlink) {
-                                try {
-                                    linkTarget = Files.readSymbolicLink(path);
-                                } catch (IOException e) {
-                                    logger.warn("Failed to read symbolic link target for: {}", path, e);
+                        .thenAccept(result -> {
+                            if (result == FileVisitor.FileVisitResult.CONTINUE) {
+                                // Add to scanned files
+                                boolean isSymlink = Files.isSymbolicLink(path);
+                                boolean isSparse = detectSparseFile(path, attrs);
+                                Path linkTarget = null;
+                                if (isSymlink) {
+                                    try {
+                                        linkTarget = Files.readSymbolicLink(path);
+                                    } catch (IOException e) {
+                                        logger.warn("Failed to read symbolic link target for: {}", path, e);
+                                    }
+                                }
+
+                                ScanResult.ScannedFile scannedFile = new ScanResult.ScannedFile(
+                                        path, attrs.size(), attrs.lastModifiedTime().toInstant(),
+                                        isSymlink, isSparse, linkTarget);
+
+                                synchronized (scannedFiles) {
+                                    scannedFiles.add(scannedFile);
                                 }
                             }
-                            
-                            ScanResult.ScannedFile scannedFile = new ScanResult.ScannedFile(
-                                path, attrs.size(), attrs.lastModifiedTime().toInstant(),
-                                isSymlink, isSparse, linkTarget
-                            );
-                            
-                            synchronized (scannedFiles) {
-                                scannedFiles.add(scannedFile);
-                            }
-                        }
-                    })
-                    .get(30, TimeUnit.SECONDS);
+                        })
+                        .get(30, TimeUnit.SECONDS);
             }
 
             // Update progress
             if (asyncProgressListener != null) {
                 asyncProgressListener.onFileProcessedAsync(
-                    context.scanId, path, context.filesProcessed.get(), -1
-                );
+                        context.scanId, path, context.filesProcessed.get(), -1);
             } else if (progressListener != null) {
                 progressListener.onFileProcessed(path, context.filesProcessed.get(), -1);
             }
@@ -774,8 +768,8 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
      */
     private long calculateTotalBytes(List<ScanResult.ScannedFile> scannedFiles) {
         return scannedFiles.stream()
-            .mapToLong(ScanResult.ScannedFile::getSize)
-            .sum();
+                .mapToLong(ScanResult.ScannedFile::getSize)
+                .sum();
     }
 
     /**
@@ -800,14 +794,14 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             if (size == 0) {
                 return false;
             }
-            
+
             // On Unix systems, check block allocation
             if (System.getProperty("os.name").toLowerCase().contains("linux") ||
-                System.getProperty("os.name").toLowerCase().contains("mac")) {
-                
+                    System.getProperty("os.name").toLowerCase().contains("mac")) {
+
                 Object blockSize = Files.getAttribute(path, "unix:blocksize");
                 Object blocks = Files.getAttribute(path, "unix:blocks");
-                
+
                 if (blockSize instanceof Integer && blocks instanceof Long) {
                     long allocatedSize = (Long) blocks * (Integer) blockSize;
                     return allocatedSize < size * 0.9; // Less than 90% allocated
@@ -816,7 +810,7 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
         } catch (Exception e) {
             logger.debug("Error detecting sparse file: {}", path, e);
         }
-        
+
         return false;
     }
 

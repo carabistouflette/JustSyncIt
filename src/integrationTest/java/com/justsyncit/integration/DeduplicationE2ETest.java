@@ -20,7 +20,7 @@ package com.justsyncit.integration;
 
 import com.justsyncit.restore.RestoreService;
 import com.justsyncit.storage.ContentStoreStats;
-import com.justsyncit.storage.metadata.MetadataStats;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -50,7 +50,6 @@ public class DeduplicationE2ETest extends E2ETestBase {
 
         // Get storage statistics
         ContentStoreStats storageStats = contentStore.getStats();
-        MetadataStats metadataStats = metadataService.getStats();
 
         // Verify deduplication occurred
         assertTrue(storageStats.getTotalChunks() > 0, "Should have some chunks stored");

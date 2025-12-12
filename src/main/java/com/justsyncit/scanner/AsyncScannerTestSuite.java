@@ -47,7 +47,7 @@ public class AsyncScannerTestSuite {
 
     /** Test configuration. */
     private final TestConfiguration config;
-    
+
     /** Test results tracking. */
     private final TestResults results;
 
@@ -120,19 +120,57 @@ public class AsyncScannerTestSuite {
         }
 
         // Getters
-        public int getMaxDirectories() { return maxDirectories; }
-        public int getMaxFilesPerDirectory() { return maxFilesPerDirectory; }
-        public int getMaxFileSizeBytes() { return maxFileSizeBytes; }
-        public int getMaxDepth() { return maxDepth; }
-        public long getPerformanceTargetThroughputFilesPerSec() { return performanceTargetThroughputFilesPerSec; }
-        public long getPerformanceTargetLatencyMs() { return performanceTargetLatencyMs; }
-        public double getPerformanceTargetMemoryEfficiency() { return performanceTargetMemoryEfficiency; }
-        public int getStressTestDurationMinutes() { return stressTestDurationMinutes; }
-        public int getConcurrentOperations() { return concurrentOperations; }
-        public boolean isPerformanceTestsEnabled() { return enablePerformanceTests; }
-        public boolean isStressTestsEnabled() { return enableStressTests; }
-        public boolean isIntegrationTestsEnabled() { return enableIntegrationTests; }
-        public Path getTestDirectory() { return testDirectory; }
+        public int getMaxDirectories() {
+            return maxDirectories;
+        }
+
+        public int getMaxFilesPerDirectory() {
+            return maxFilesPerDirectory;
+        }
+
+        public int getMaxFileSizeBytes() {
+            return maxFileSizeBytes;
+        }
+
+        public int getMaxDepth() {
+            return maxDepth;
+        }
+
+        public long getPerformanceTargetThroughputFilesPerSec() {
+            return performanceTargetThroughputFilesPerSec;
+        }
+
+        public long getPerformanceTargetLatencyMs() {
+            return performanceTargetLatencyMs;
+        }
+
+        public double getPerformanceTargetMemoryEfficiency() {
+            return performanceTargetMemoryEfficiency;
+        }
+
+        public int getStressTestDurationMinutes() {
+            return stressTestDurationMinutes;
+        }
+
+        public int getConcurrentOperations() {
+            return concurrentOperations;
+        }
+
+        public boolean isPerformanceTestsEnabled() {
+            return enablePerformanceTests;
+        }
+
+        public boolean isStressTestsEnabled() {
+            return enableStressTests;
+        }
+
+        public boolean isIntegrationTestsEnabled() {
+            return enableIntegrationTests;
+        }
+
+        public Path getTestDirectory() {
+            return testDirectory;
+        }
     }
 
     /**
@@ -169,23 +207,21 @@ public class AsyncScannerTestSuite {
 
         public TestSummary getSummary() {
             return new TestSummary(
-                totalTests.get(),
-                passedTests.get(),
-                failedTests.get(),
-                getSuccessRate(),
-                new ArrayList<>(errors),
-                new ConcurrentHashMap<>(performanceMetrics),
-                totalTestDurationMs.get()
-            );
+                    totalTests.get(),
+                    passedTests.get(),
+                    failedTests.get(),
+                    getSuccessRate(),
+                    new ArrayList<>(errors),
+                    new ConcurrentHashMap<>(performanceMetrics),
+                    totalTestDurationMs.get());
         }
 
         @Override
         public String toString() {
             return String.format(
-                "TestResults{total=%d, passed=%d, failed=%d, successRate=%.2f%%, errors=%d}",
-                totalTests.get(), passedTests.get(), failedTests.get(),
-                getSuccessRate() * 100, errors.size()
-            );
+                    "TestResults{total=%d, passed=%d, failed=%d, successRate=%.2f%%, errors=%d}",
+                    totalTests.get(), passedTests.get(), failedTests.get(),
+                    getSuccessRate() * 100, errors.size());
         }
     }
 
@@ -201,7 +237,7 @@ public class AsyncScannerTestSuite {
         public final long totalDurationMs;
 
         public PerformanceMetric(long throughput, long latency, double memoryEfficiency,
-                              long peakMemory, long totalFiles, long duration) {
+                long peakMemory, long totalFiles, long duration) {
             this.throughputFilesPerSec = throughput;
             this.averageLatencyMs = latency;
             this.memoryEfficiency = memoryEfficiency;
@@ -212,17 +248,16 @@ public class AsyncScannerTestSuite {
 
         public boolean meetsTargets(TestConfiguration config) {
             return throughputFilesPerSec >= config.getPerformanceTargetThroughputFilesPerSec() &&
-                   averageLatencyMs <= config.getPerformanceTargetLatencyMs() &&
-                   memoryEfficiency >= config.getPerformanceTargetMemoryEfficiency();
+                    averageLatencyMs <= config.getPerformanceTargetLatencyMs() &&
+                    memoryEfficiency >= config.getPerformanceTargetMemoryEfficiency();
         }
 
         @Override
         public String toString() {
             return String.format(
-                "PerformanceMetric{throughput=%d files/sec, latency=%dms, memoryEff=%.2f%%, peakMemory=%dMB, totalFiles=%d, duration=%dms}",
-                throughputFilesPerSec, averageLatencyMs, memoryEfficiency * 100,
-                peakMemoryUsageBytes / (1024 * 1024), totalFilesProcessed, totalDurationMs
-            );
+                    "PerformanceMetric{throughput=%d files/sec, latency=%dms, memoryEff=%.2f%%, peakMemory=%dMB, totalFiles=%d, duration=%dms}",
+                    throughputFilesPerSec, averageLatencyMs, memoryEfficiency * 100,
+                    peakMemoryUsageBytes / (1024 * 1024), totalFilesProcessed, totalDurationMs);
         }
     }
 
@@ -239,7 +274,7 @@ public class AsyncScannerTestSuite {
         public final long totalDurationMs;
 
         public TestSummary(int total, int passed, int failed, double successRate,
-                         List<String> errors, Map<String, PerformanceMetric> metrics, long duration) {
+                List<String> errors, Map<String, PerformanceMetric> metrics, long duration) {
             this.totalTests = total;
             this.passedTests = passed;
             this.failedTests = failed;
@@ -255,15 +290,14 @@ public class AsyncScannerTestSuite {
 
         public boolean meetsPerformanceTargets() {
             return performanceMetrics.values().stream()
-                .allMatch(metric -> metric.meetsTargets(new TestConfiguration()));
+                    .allMatch(metric -> metric.meetsTargets(new TestConfiguration()));
         }
 
         @Override
         public String toString() {
             return String.format(
-                "TestSummary{total=%d, passed=%d, failed=%d, successRate=%.2f%%, errors=%d, duration=%dms}",
-                totalTests, passedTests, failedTests, successRate * 100, errors.size(), totalDurationMs
-            );
+                    "TestSummary{total=%d, passed=%d, failed=%d, successRate=%.2f%%, errors=%d, duration=%dms}",
+                    totalTests, passedTests, failedTests, successRate * 100, errors.size(), totalDurationMs);
         }
     }
 
@@ -292,36 +326,36 @@ public class AsyncScannerTestSuite {
     public CompletableFuture<TestSummary> runTestSuite() {
         return CompletableFuture.supplyAsync(() -> {
             long startTime = System.currentTimeMillis();
-            
+
             try {
                 logger.info("Starting async scanner test suite");
-                
+
                 // Setup test environment
                 setupTestEnvironment();
-                
+
                 // Run performance tests
                 if (config.isPerformanceTestsEnabled()) {
                     runPerformanceTests();
                 }
-                
+
                 // Run stress tests
                 if (config.isStressTestsEnabled()) {
                     runStressTests();
                 }
-                
+
                 // Run integration tests
                 if (config.isIntegrationTestsEnabled()) {
                     runIntegrationTests();
                 }
-                
+
                 long endTime = System.currentTimeMillis();
                 results.totalTestDurationMs.set(endTime - startTime);
-                
+
                 TestSummary summary = results.getSummary();
                 logger.info("Test suite completed: {}", summary);
-                
+
                 return summary;
-                
+
             } catch (Exception e) {
                 logger.error("Test suite failed", e);
                 results.recordTest("TestSuite", false, e.getMessage());
@@ -338,15 +372,15 @@ public class AsyncScannerTestSuite {
     private void setupTestEnvironment() {
         try {
             logger.info("Setting up test environment");
-            
+
             // Create test directory
             Files.createDirectories(config.getTestDirectory());
-            
+
             // Generate test data
             generateTestData();
-            
+
             logger.info("Test environment setup completed");
-            
+
         } catch (Exception e) {
             logger.error("Failed to setup test environment", e);
             throw new RuntimeException("Test setup failed", e);
@@ -358,25 +392,25 @@ public class AsyncScannerTestSuite {
      */
     private void generateTestData() {
         Random random = new Random(12345); // Fixed seed for reproducible tests
-        
+
         try {
             for (int dirIndex = 0; dirIndex < config.getMaxDirectories(); dirIndex++) {
                 Path dirPath = config.getTestDirectory().resolve("dir-" + dirIndex);
                 Files.createDirectories(dirPath);
-                
+
                 int filesInDir = random.nextInt(config.getMaxFilesPerDirectory()) + 1;
                 for (int fileIndex = 0; fileIndex < filesInDir; fileIndex++) {
                     Path filePath = dirPath.resolve("file-" + fileIndex + ".txt");
                     int fileSize = random.nextInt(config.getMaxFileSizeBytes()) + 1;
-                    
+
                     // Generate file content
                     byte[] content = generateFileContent(fileSize, random);
                     Files.write(filePath, content);
                 }
             }
-            
+
             logger.info("Generated test data: {} directories with varying file counts", config.getMaxDirectories());
-            
+
         } catch (IOException e) {
             logger.error("Failed to generate test data", e);
             throw new RuntimeException("Test data generation failed", e);
@@ -397,19 +431,19 @@ public class AsyncScannerTestSuite {
      */
     private void runPerformanceTests() {
         logger.info("Running performance tests");
-        
+
         // Test 1: Basic scanning performance
         runBasicScanningPerformanceTest();
-        
+
         // Test 2: Parallel scanning performance
         runParallelScanningPerformanceTest();
-        
+
         // Test 3: Large directory scanning
         runLargeDirectoryScanningTest();
-        
+
         // Test 4: Memory efficiency test
         runMemoryEfficiencyTest();
-        
+
         logger.info("Performance tests completed");
     }
 
@@ -421,28 +455,27 @@ public class AsyncScannerTestSuite {
         try {
             AsyncScannerIntegration integration = createTestScanner();
             Path testDir = config.getTestDirectory().resolve("dir-0");
-            
+
             long startTime = System.nanoTime();
             AsyncScanResult result = integration.getAsyncScanner()
-                .scanDirectoryAsync(testDir, new AsyncScanOptions())
-                .get(30, TimeUnit.SECONDS);
+                    .scanDirectoryAsync(testDir, new AsyncScanOptions())
+                    .get(30, TimeUnit.SECONDS);
             long endTime = System.nanoTime();
-            
+
             long durationMs = (endTime - startTime) / 1_000_000;
             long throughput = result.getScannedFileCount() * 1000 / Math.max(1, durationMs);
             long avgLatency = durationMs / Math.max(1, result.getScannedFileCount());
-            
+
             PerformanceMetric metric = new PerformanceMetric(
-                throughput, avgLatency, calculateMemoryEfficiency(result),
-                result.getPeakMemoryUsage(), result.getScannedFileCount(), durationMs
-            );
-            
+                    throughput, avgLatency, calculateMemoryEfficiency(result),
+                    result.getPeakMemoryUsage(), result.getScannedFileCount(), durationMs);
+
             results.recordPerformanceMetric(testName, metric);
             boolean passed = metric.meetsTargets(config);
             results.recordTest(testName, passed, passed ? null : "Performance targets not met");
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -456,45 +489,44 @@ public class AsyncScannerTestSuite {
         try {
             AsyncScannerIntegration integration = createTestScanner();
             AsyncScanOptions options = new AsyncScanOptions()
-                .withParallelism(config.getConcurrentOperations());
-            
+                    .withParallelism(config.getConcurrentOperations());
+
             long startTime = System.nanoTime();
             List<CompletableFuture<AsyncScanResult>> futures = IntStream.range(0, config.getConcurrentOperations())
-                .mapToObj(i -> {
-                    Path testDir = config.getTestDirectory().resolve("dir-" + (i % config.getMaxDirectories()));
-                    return integration.getAsyncScanner().scanDirectoryAsync(testDir, options);
-                })
-                .collect(Collectors.toList());
-            
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(60, TimeUnit.SECONDS);
+                    .mapToObj(i -> {
+                        Path testDir = config.getTestDirectory().resolve("dir-" + (i % config.getMaxDirectories()));
+                        return integration.getAsyncScanner().scanDirectoryAsync(testDir, options);
+                    })
+                    .collect(Collectors.toList());
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                    .get(60, TimeUnit.SECONDS);
             long endTime = System.nanoTime();
-            
+
             long durationMs = (endTime - startTime) / 1_000_000;
             int totalFiles = futures.stream()
-                .mapToInt(future -> {
-                    try {
-                        return future.get().getScannedFileCount();
-                    } catch (Exception e) {
-                        return 0;
-                    }
-                })
-                .sum();
-            
+                    .mapToInt(future -> {
+                        try {
+                            return future.get().getScannedFileCount();
+                        } catch (Exception e) {
+                            return 0;
+                        }
+                    })
+                    .sum();
+
             long throughput = totalFiles * 1000 / Math.max(1, durationMs);
             long avgLatency = durationMs / Math.max(1, config.getConcurrentOperations());
-            
+
             PerformanceMetric metric = new PerformanceMetric(
-                throughput, avgLatency, calculateMemoryEfficiency(null),
-                0, totalFiles, durationMs
-            );
-            
+                    throughput, avgLatency, calculateMemoryEfficiency(null),
+                    0, totalFiles, durationMs);
+
             results.recordPerformanceMetric(testName, metric);
             boolean passed = metric.meetsTargets(config);
             results.recordTest(testName, passed, passed ? null : "Parallel performance targets not met");
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -508,27 +540,26 @@ public class AsyncScannerTestSuite {
         try {
             AsyncScannerIntegration integration = createTestScanner();
             Path largeDir = config.getTestDirectory().resolve("dir-" + (config.getMaxDirectories() - 1));
-            
+
             long startTime = System.nanoTime();
             AsyncScanResult result = integration.getAsyncScanner()
-                .scanDirectoryAsync(largeDir, new AsyncScanOptions().withStreamingEnabled(true))
-                .get(60, TimeUnit.SECONDS);
+                    .scanDirectoryAsync(largeDir, new AsyncScanOptions().withStreamingEnabled(true))
+                    .get(60, TimeUnit.SECONDS);
             long endTime = System.nanoTime();
-            
+
             long durationMs = (endTime - startTime) / 1_000_000;
             long throughput = result.getScannedFileCount() * 1000 / Math.max(1, durationMs);
-            
+
             PerformanceMetric metric = new PerformanceMetric(
-                throughput, durationMs, calculateMemoryEfficiency(result),
-                result.getPeakMemoryUsage(), result.getScannedFileCount(), durationMs
-            );
-            
+                    throughput, durationMs, calculateMemoryEfficiency(result),
+                    result.getPeakMemoryUsage(), result.getScannedFileCount(), durationMs);
+
             results.recordPerformanceMetric(testName, metric);
             boolean passed = metric.meetsTargets(config);
             results.recordTest(testName, passed, passed ? null : "Large directory performance targets not met");
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -542,30 +573,29 @@ public class AsyncScannerTestSuite {
         try {
             Runtime runtime = Runtime.getRuntime();
             long initialMemory = runtime.totalMemory() - runtime.freeMemory();
-            
+
             AsyncScannerIntegration integration = createTestScanner();
             Path testDir = config.getTestDirectory().resolve("dir-0");
-            
+
             AsyncScanResult result = integration.getAsyncScanner()
-                .scanDirectoryAsync(testDir, new AsyncScanOptions())
-                .get(30, TimeUnit.SECONDS);
-            
+                    .scanDirectoryAsync(testDir, new AsyncScanOptions())
+                    .get(30, TimeUnit.SECONDS);
+
             long peakMemory = result.getPeakMemoryUsage();
             long finalMemory = runtime.totalMemory() - runtime.freeMemory();
             long memoryUsed = finalMemory - initialMemory;
             double memoryEfficiency = peakMemory > 0 ? (double) memoryUsed / peakMemory : 0.0;
-            
+
             PerformanceMetric metric = new PerformanceMetric(
-                result.getScannedFileCount(), 0, memoryEfficiency,
-                peakMemory, result.getScannedFileCount(), 0
-            );
-            
+                    result.getScannedFileCount(), 0, memoryEfficiency,
+                    peakMemory, result.getScannedFileCount(), 0);
+
             results.recordPerformanceMetric(testName, metric);
             boolean passed = metric.meetsTargets(config);
             results.recordTest(testName, passed, passed ? null : "Memory efficiency targets not met");
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -576,16 +606,16 @@ public class AsyncScannerTestSuite {
      */
     private void runStressTests() {
         logger.info("Running stress tests");
-        
+
         // Test 1: High concurrency stress
         runHighConcurrencyStressTest();
-        
+
         // Test 2: Memory pressure stress
         runMemoryPressureStressTest();
-        
+
         // Test 3: Long duration stress
         runLongDurationStressTest();
-        
+
         logger.info("Stress tests completed");
     }
 
@@ -598,34 +628,35 @@ public class AsyncScannerTestSuite {
             AsyncScannerIntegration integration = createTestScanner();
             int highConcurrency = config.getConcurrentOperations() * 4;
             AsyncScanOptions options = new AsyncScanOptions()
-                .withParallelism(highConcurrency);
-            
+                    .withParallelism(highConcurrency);
+
             long startTime = System.currentTimeMillis();
             List<CompletableFuture<Void>> futures = IntStream.range(0, highConcurrency)
-                .mapToObj(i -> {
-                    Path testDir = config.getTestDirectory().resolve("dir-" + (i % config.getMaxDirectories()));
-                    return CompletableFuture.runAsync(() -> {
-                        try {
-                            integration.getAsyncScanner().scanDirectoryAsync(testDir, options)
-                                .get(config.getStressTestDurationMinutes(), TimeUnit.MINUTES);
-                        } catch (Exception e) {
-                            logger.warn("Stress test operation failed", e);
-                        }
-                    });
-                })
-                .collect(Collectors.toList());
-            
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(config.getStressTestDurationMinutes() + 5, TimeUnit.MINUTES);
+                    .mapToObj(i -> {
+                        Path testDir = config.getTestDirectory().resolve("dir-" + (i % config.getMaxDirectories()));
+                        return CompletableFuture.runAsync(() -> {
+                            try {
+                                integration.getAsyncScanner().scanDirectoryAsync(testDir, options)
+                                        .get(config.getStressTestDurationMinutes(), TimeUnit.MINUTES);
+                            } catch (Exception e) {
+                                logger.warn("Stress test operation failed", e);
+                            }
+                        });
+                    })
+                    .collect(Collectors.toList());
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                    .get(config.getStressTestDurationMinutes() + 5, TimeUnit.MINUTES);
             long endTime = System.currentTimeMillis();
-            
+
             long durationMs = endTime - startTime;
-            boolean passed = durationMs <= (config.getStressTestDurationMinutes() + 2) * 60 * 1000; // Allow 2 minute buffer
-            
+            boolean passed = durationMs <= (config.getStressTestDurationMinutes() + 2) * 60 * 1000; // Allow 2 minute
+                                                                                                    // buffer
+
             results.recordTest(testName, passed, passed ? null : "High concurrency stress test failed");
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -639,30 +670,30 @@ public class AsyncScannerTestSuite {
         try {
             AsyncScannerIntegration integration = createTestScanner();
             AsyncScanOptions options = new AsyncScanOptions()
-                .withBatchSize(1000) // Large batch size to increase memory pressure
-                .withParallelism(config.getConcurrentOperations() * 2);
-            
+                    .withBatchSize(1000) // Large batch size to increase memory pressure
+                    .withParallelism(config.getConcurrentOperations() * 2);
+
             long startTime = System.currentTimeMillis();
-            
+
             // Run multiple concurrent scans to create memory pressure
             List<CompletableFuture<AsyncScanResult>> futures = IntStream.range(0, config.getConcurrentOperations())
-                .mapToObj(i -> {
-                    Path testDir = config.getTestDirectory().resolve("dir-" + (i % config.getMaxDirectories()));
-                    return integration.getAsyncScanner().scanDirectoryAsync(testDir, options);
-                })
-                .collect(Collectors.toList());
-            
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(config.getStressTestDurationMinutes(), TimeUnit.MINUTES);
+                    .mapToObj(i -> {
+                        Path testDir = config.getTestDirectory().resolve("dir-" + (i % config.getMaxDirectories()));
+                        return integration.getAsyncScanner().scanDirectoryAsync(testDir, options);
+                    })
+                    .collect(Collectors.toList());
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                    .get(config.getStressTestDurationMinutes(), TimeUnit.MINUTES);
             long endTime = System.currentTimeMillis();
-            
+
             long durationMs = endTime - startTime;
             boolean passed = durationMs <= (config.getStressTestDurationMinutes() + 1) * 60 * 1000;
-            
+
             results.recordTest(testName, passed, passed ? null : "Memory pressure stress test failed");
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -676,29 +707,29 @@ public class AsyncScannerTestSuite {
         try {
             AsyncScannerIntegration integration = createTestScanner();
             Path testDir = config.getTestDirectory().resolve("dir-0");
-            
+
             long startTime = System.currentTimeMillis();
-            
+
             // Run continuous scanning for the specified duration
             long endTime = startTime + config.getStressTestDurationMinutes() * 60 * 1000;
             int scanCount = 0;
-            
+
             while (System.currentTimeMillis() < endTime) {
                 try {
                     integration.getAsyncScanner().scanDirectoryAsync(testDir, new AsyncScanOptions())
-                        .get(1, TimeUnit.MINUTES);
+                            .get(1, TimeUnit.MINUTES);
                     scanCount++;
                 } catch (Exception e) {
                     logger.warn("Long duration scan failed", e);
                 }
             }
-            
+
             boolean passed = scanCount >= config.getStressTestDurationMinutes();
-            
+
             results.recordTest(testName, passed, passed ? null : "Long duration stress test failed");
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -709,16 +740,16 @@ public class AsyncScannerTestSuite {
      */
     private void runIntegrationTests() {
         logger.info("Running integration tests");
-        
+
         // Test 1: WatchService integration
         runWatchServiceIntegrationTest();
-        
+
         // Test 2: Event processing integration
         runEventProcessingIntegrationTest();
-        
+
         // Test 3: Configuration integration
         runConfigurationIntegrationTest();
-        
+
         logger.info("Integration tests completed");
     }
 
@@ -730,34 +761,33 @@ public class AsyncScannerTestSuite {
         try {
             AsyncScannerIntegration integration = createTestScanner();
             Path testDir = config.getTestDirectory().resolve("dir-0");
-            
+
             // Start monitoring
             CompletableFuture<WatchServiceRegistration> registrationFuture = integration.startMonitoringAsync(
-                testDir, new AsyncScanOptions().withWatchServiceEnabled(true)
-            );
-            
+                    testDir, new AsyncScanOptions().withWatchServiceEnabled(true));
+
             WatchServiceRegistration registration = registrationFuture.get(10, TimeUnit.SECONDS);
-            
+
             // Modify a file to trigger events
             Path testFile = testDir.resolve("test-watch.txt");
             Files.write(testFile, "test content".getBytes());
-            
+
             // Wait for events
             Thread.sleep(2000);
-            
+
             // Delete the file
             Files.delete(testFile);
-            
+
             // Wait for deletion events
             Thread.sleep(2000);
-            
+
             // Stop monitoring
             registration.stopAsync().get(10, TimeUnit.SECONDS);
-            
+
             results.recordTest(testName, true, null);
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -771,29 +801,28 @@ public class AsyncScannerTestSuite {
         try {
             AsyncScannerIntegration integration = createTestScanner();
             AsyncFileEventProcessor eventProcessor = integration.getEventProcessor();
-            
+
             if (eventProcessor != null) {
                 // Create test events
                 List<FileChangeEvent> testEvents = new ArrayList<>();
                 Path testFile = config.getTestDirectory().resolve("dir-0").resolve("test-event.txt");
-                
+
                 testEvents.add(new FileChangeEvent(
-                    FileChangeEvent.EventType.ENTRY_CREATE,
-                    testFile,
-                    "test-registration"
-                ));
-                
+                        FileChangeEvent.EventType.ENTRY_CREATE,
+                        testFile,
+                        "test-registration"));
+
                 // Process events
                 CompletableFuture<Void> processingFuture = eventProcessor.processEventsAsync(testEvents);
                 processingFuture.get(10, TimeUnit.SECONDS);
-                
+
                 results.recordTest(testName, true, null);
             } else {
                 results.recordTest(testName, false, "Event processor not available");
             }
-            
+
             integration.shutdownAsync().get(10, TimeUnit.SECONDS);
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -806,21 +835,21 @@ public class AsyncScannerTestSuite {
         String testName = "ConfigurationIntegration";
         try {
             AsyncScannerConfiguration scannerConfig = new AsyncScannerConfiguration();
-            
+
             // Test configuration validation
             boolean configValid = scannerConfig.validateConfiguration();
-            
+
             // Test profile switching
             boolean profileSwitched = scannerConfig.setActiveProfile("high-performance");
-            
+
             // Test runtime overrides
             AsyncScanOptions baseOptions = new AsyncScanOptions();
             AsyncScanOptions overriddenOptions = scannerConfig.applyRuntimeOverrides(baseOptions);
-            
+
             boolean passed = configValid && profileSwitched && overriddenOptions != null;
-            
+
             results.recordTest(testName, passed, passed ? null : "Configuration integration failed");
-            
+
         } catch (Exception e) {
             results.recordTest(testName, false, e.getMessage());
         }
@@ -833,15 +862,15 @@ public class AsyncScannerTestSuite {
         try {
             ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
             AsyncScannerIntegration.IntegrationConfig config = new AsyncScannerIntegration.IntegrationConfig()
-                .withMaxConcurrentScans(4)
-                .withChunkSize(64 * 1024)
-                .withBufferSize(1024 * 1024)
-                .withDebounceDelay(100)
-                .withEventBatchSize(100)
-                .withEventProcessing(true);
-            
+                    .withMaxConcurrentScans(4)
+                    .withChunkSize(64 * 1024)
+                    .withBufferSize(1024 * 1024)
+                    .withDebounceDelay(100)
+                    .withEventBatchSize(100)
+                    .withEventProcessing(true);
+
             return new AsyncScannerIntegration(config, threadPoolManager);
-            
+
         } catch (Exception e) {
             logger.error("Failed to create test scanner", e);
             throw new RuntimeException("Test scanner creation failed", e);
@@ -855,7 +884,7 @@ public class AsyncScannerTestSuite {
         if (result == null || result.getPeakMemoryUsage() <= 0) {
             return 0.0;
         }
-        
+
         Runtime runtime = Runtime.getRuntime();
         long totalMemory = runtime.totalMemory();
         return (double) result.getPeakMemoryUsage() / totalMemory;
@@ -867,24 +896,24 @@ public class AsyncScannerTestSuite {
     private void cleanupTestEnvironment() {
         try {
             logger.info("Cleaning up test environment");
-            
+
             // Clean up test directory
             if (Files.exists(config.getTestDirectory())) {
                 Files.walk(config.getTestDirectory())
-                    .sorted((a, b) -> b.compareTo(a)) // Reverse order to delete files first
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                        } catch (IOException e) {
-                            logger.warn("Failed to delete test file: {}", path, e);
-                        }
-                    });
-                
+                        .sorted((a, b) -> b.compareTo(a)) // Reverse order to delete files first
+                        .forEach(path -> {
+                            try {
+                                Files.delete(path);
+                            } catch (IOException e) {
+                                logger.warn("Failed to delete test file: {}", path, e);
+                            }
+                        });
+
                 Files.delete(config.getTestDirectory());
             }
-            
+
             logger.info("Test environment cleanup completed");
-            
+
         } catch (Exception e) {
             logger.warn("Failed to cleanup test environment", e);
         }

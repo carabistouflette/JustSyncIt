@@ -18,7 +18,6 @@
 
 package com.justsyncit.scanner;
 
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -214,6 +213,7 @@ public final class AsyncTestUtils {
      * @param futures the futures to wait for
      * @throws AsyncTestException if any future fails or times out
      */
+    @SafeVarargs
     public static void waitForAll(Duration timeout, CompletableFuture<?>... futures) throws AsyncTestException {
         try {
             CompletableFuture.allOf(futures).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -229,6 +229,7 @@ public final class AsyncTestUtils {
      * @param futures the futures to wait for
      * @throws AsyncTestException if any future fails or times out
      */
+    @SafeVarargs
     public static void waitForAll(CompletableFuture<?>... futures) throws AsyncTestException {
         waitForAll(DEFAULT_TIMEOUT, futures);
     }
@@ -243,6 +244,7 @@ public final class AsyncTestUtils {
      * @return list of results
      * @throws AsyncTestException if any future fails or times out
      */
+    @SafeVarargs
     public static <T> List<T> waitForAllAndGetResults(Duration timeout, CompletableFuture<T>... futures)
             throws AsyncTestException {
         try {
@@ -273,6 +275,7 @@ public final class AsyncTestUtils {
      * @return list of results
      * @throws AsyncTestException if any future fails or times out
      */
+    @SafeVarargs
     public static <T> List<T> waitForAllAndGetResults(CompletableFuture<T>... futures) throws AsyncTestException {
         return waitForAllAndGetResults(DEFAULT_TIMEOUT, futures);
     }
@@ -518,6 +521,8 @@ public final class AsyncTestUtils {
      * Custom exception for async testing.
      */
     public static class AsyncTestException extends Exception {
+        private static final long serialVersionUID = 1L;
+
         public AsyncTestException(String message) {
             super(message);
         }
@@ -531,6 +536,8 @@ public final class AsyncTestUtils {
      * Custom assertion error for async testing.
      */
     public static class AsyncTestAssertionError extends AssertionError {
+        private static final long serialVersionUID = 1L;
+
         public AsyncTestAssertionError(String message) {
             super(message);
         }

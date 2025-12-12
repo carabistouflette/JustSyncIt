@@ -641,6 +641,7 @@ public class FileProcessor {
                 // Add timeout to prevent infinite hanging
                 // Use the filtered list to create the array for allOf()
                 // Ensure no null elements in array to prevent ForEachOps issues
+                @SuppressWarnings("unchecked")
                 CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = validFutures.toArray(
                         new CompletableFuture[validFutures.size()]);
                 CompletableFuture.allOf(futuresArray)

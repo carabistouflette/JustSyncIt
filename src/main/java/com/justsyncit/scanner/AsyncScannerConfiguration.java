@@ -32,7 +32,8 @@ import java.io.IOException;
 
 /**
  * Configuration management for async directory scanning operations.
- * Provides configurable parameters, profiles, and runtime configuration updates.
+ * Provides configurable parameters, profiles, and runtime configuration
+ * updates.
  */
 public class AsyncScannerConfiguration {
 
@@ -40,13 +41,13 @@ public class AsyncScannerConfiguration {
 
     /** Default configuration file name. */
     private static final String DEFAULT_CONFIG_FILE = "async-scanner.properties";
-    
+
     /** Configuration profiles for different scenarios. */
     private final Map<String, ConfigurationProfile> profiles = new ConcurrentHashMap<>();
-    
+
     /** Current active configuration profile. */
     private final AtomicReference<ConfigurationProfile> activeProfile = new AtomicReference<>();
-    
+
     /** Runtime configuration overrides. */
     private final AtomicReference<RuntimeConfiguration> runtimeConfig = new AtomicReference<>();
 
@@ -92,12 +93,29 @@ public class AsyncScannerConfiguration {
         }
 
         // Getters
-        public String getName() { return name; }
-        public String getDescription() { return description; }
-        public AsyncScanOptions getScanOptions() { return scanOptions; }
-        public AsyncDirectoryScanningOptimizer.OptimizationConfig getOptimizationConfig() { return optimizationConfig; }
-        public PerformanceConfiguration getPerformanceConfig() { return performanceConfig; }
-        public ResourceConfiguration getResourceConfig() { return resourceConfig; }
+        public String getName() {
+            return name;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public AsyncScanOptions getScanOptions() {
+            return scanOptions;
+        }
+
+        public AsyncDirectoryScanningOptimizer.OptimizationConfig getOptimizationConfig() {
+            return optimizationConfig;
+        }
+
+        public PerformanceConfiguration getPerformanceConfig() {
+            return performanceConfig;
+        }
+
+        public ResourceConfiguration getResourceConfig() {
+            return resourceConfig;
+        }
 
         @Override
         public String toString() {
@@ -154,13 +172,33 @@ public class AsyncScannerConfiguration {
         }
 
         // Getters
-        public boolean isMetricsEnabled() { return enableMetrics; }
-        public boolean isDetailedLoggingEnabled() { return enableDetailedLogging; }
-        public long getMetricsUpdateIntervalMs() { return metricsUpdateIntervalMs; }
-        public boolean isAdaptiveTuningEnabled() { return enableAdaptiveTuning; }
-        public double getPerformanceThreshold() { return performanceThreshold; }
-        public boolean isHealthMonitoringEnabled() { return enableHealthMonitoring; }
-        public long getHealthCheckIntervalMs() { return healthCheckIntervalMs; }
+        public boolean isMetricsEnabled() {
+            return enableMetrics;
+        }
+
+        public boolean isDetailedLoggingEnabled() {
+            return enableDetailedLogging;
+        }
+
+        public long getMetricsUpdateIntervalMs() {
+            return metricsUpdateIntervalMs;
+        }
+
+        public boolean isAdaptiveTuningEnabled() {
+            return enableAdaptiveTuning;
+        }
+
+        public double getPerformanceThreshold() {
+            return performanceThreshold;
+        }
+
+        public boolean isHealthMonitoringEnabled() {
+            return enableHealthMonitoring;
+        }
+
+        public long getHealthCheckIntervalMs() {
+            return healthCheckIntervalMs;
+        }
     }
 
     /**
@@ -212,13 +250,33 @@ public class AsyncScannerConfiguration {
         }
 
         // Getters
-        public long getMaxMemoryUsageBytes() { return maxMemoryUsageBytes; }
-        public int getMaxThreadPoolSize() { return maxThreadPoolSize; }
-        public long getThreadKeepAliveTimeMs() { return threadKeepAliveTimeMs; }
-        public boolean isResourceMonitoringEnabled() { return enableResourceMonitoring; }
-        public long getResourceCleanupIntervalMs() { return resourceCleanupIntervalMs; }
-        public double getMemoryPressureThreshold() { return memoryPressureThreshold; }
-        public boolean isGarbageCollectionTuningEnabled() { return enableGarbageCollectionTuning; }
+        public long getMaxMemoryUsageBytes() {
+            return maxMemoryUsageBytes;
+        }
+
+        public int getMaxThreadPoolSize() {
+            return maxThreadPoolSize;
+        }
+
+        public long getThreadKeepAliveTimeMs() {
+            return threadKeepAliveTimeMs;
+        }
+
+        public boolean isResourceMonitoringEnabled() {
+            return enableResourceMonitoring;
+        }
+
+        public long getResourceCleanupIntervalMs() {
+            return resourceCleanupIntervalMs;
+        }
+
+        public double getMemoryPressureThreshold() {
+            return memoryPressureThreshold;
+        }
+
+        public boolean isGarbageCollectionTuningEnabled() {
+            return enableGarbageCollectionTuning;
+        }
     }
 
     /**
@@ -268,74 +326,74 @@ public class AsyncScannerConfiguration {
      */
     private void initializeDefaultProfiles() {
         // High performance profile
-        profiles.put("high-performance", new ConfigurationProfile("high-performance", 
-            "Optimized for maximum throughput with high resource usage")
-            .withScanOptions(new AsyncScanOptions()
-                .withParallelism(Runtime.getRuntime().availableProcessors() * 2)
-                .withBatchSize(200)
-                .withStreamingEnabled(true)
-                .withPrefetchingEnabled(true)
-                .withPrefetchDepth(5)
-                .withZeroCopyEnabled(true))
-            .withOptimizationConfig(new AsyncDirectoryScanningOptimizer.OptimizationConfig()
-                .withPrefetching(true)
-                .withPrediction(true)
-                .withMemoryOptimization(true)
-                .withNumaAwareness(true)
-                .withAdaptiveSizing(true))
-            .withPerformanceConfig(new PerformanceConfiguration()
-                .withMetricsEnabled(true)
-                .withAdaptiveTuning(true)
-                .withHealthMonitoring(true))
-            .withResourceConfig(new ResourceConfiguration()
-                .withMaxMemoryUsage((long)(Runtime.getRuntime().maxMemory() * 0.8))
-                .withMaxThreadPoolSize(Runtime.getRuntime().availableProcessors() * 4)));
+        profiles.put("high-performance", new ConfigurationProfile("high-performance",
+                "Optimized for maximum throughput with high resource usage")
+                .withScanOptions(new AsyncScanOptions()
+                        .withParallelism(Runtime.getRuntime().availableProcessors() * 2)
+                        .withBatchSize(200)
+                        .withStreamingEnabled(true)
+                        .withPrefetchingEnabled(true)
+                        .withPrefetchDepth(5)
+                        .withZeroCopyEnabled(true))
+                .withOptimizationConfig(new AsyncDirectoryScanningOptimizer.OptimizationConfig()
+                        .withPrefetching(true)
+                        .withPrediction(true)
+                        .withMemoryOptimization(true)
+                        .withNumaAwareness(true)
+                        .withAdaptiveSizing(true))
+                .withPerformanceConfig(new PerformanceConfiguration()
+                        .withMetricsEnabled(true)
+                        .withAdaptiveTuning(true)
+                        .withHealthMonitoring(true))
+                .withResourceConfig(new ResourceConfiguration()
+                        .withMaxMemoryUsage((long) (Runtime.getRuntime().maxMemory() * 0.8))
+                        .withMaxThreadPoolSize(Runtime.getRuntime().availableProcessors() * 4)));
 
         // Low resource profile
         profiles.put("low-resource", new ConfigurationProfile("low-resource",
-            "Optimized for minimal resource usage with reduced performance")
-            .withScanOptions(new AsyncScanOptions()
-                .withParallelism(Math.max(1, Runtime.getRuntime().availableProcessors() / 2))
-                .withBatchSize(50)
-                .withStreamingEnabled(false)
-                .withPrefetchingEnabled(false)
-                .withZeroCopyEnabled(false))
-            .withOptimizationConfig(new AsyncDirectoryScanningOptimizer.OptimizationConfig()
-                .withPrefetching(false)
-                .withPrediction(false)
-                .withMemoryOptimization(true)
-                .withNumaAwareness(false)
-                .withAdaptiveSizing(false))
-            .withPerformanceConfig(new PerformanceConfiguration()
-                .withMetricsEnabled(false)
-                .withDetailedLogging(false)
-                .withAdaptiveTuning(false))
-            .withResourceConfig(new ResourceConfiguration()
-                .withMaxMemoryUsage((long)(Runtime.getRuntime().maxMemory() * 0.2))
-                .withMaxThreadPoolSize(Math.max(1, Runtime.getRuntime().availableProcessors() / 2))));
+                "Optimized for minimal resource usage with reduced performance")
+                .withScanOptions(new AsyncScanOptions()
+                        .withParallelism(Math.max(1, Runtime.getRuntime().availableProcessors() / 2))
+                        .withBatchSize(50)
+                        .withStreamingEnabled(false)
+                        .withPrefetchingEnabled(false)
+                        .withZeroCopyEnabled(false))
+                .withOptimizationConfig(new AsyncDirectoryScanningOptimizer.OptimizationConfig()
+                        .withPrefetching(false)
+                        .withPrediction(false)
+                        .withMemoryOptimization(true)
+                        .withNumaAwareness(false)
+                        .withAdaptiveSizing(false))
+                .withPerformanceConfig(new PerformanceConfiguration()
+                        .withMetricsEnabled(false)
+                        .withDetailedLogging(false)
+                        .withAdaptiveTuning(false))
+                .withResourceConfig(new ResourceConfiguration()
+                        .withMaxMemoryUsage((long) (Runtime.getRuntime().maxMemory() * 0.2))
+                        .withMaxThreadPoolSize(Math.max(1, Runtime.getRuntime().availableProcessors() / 2))));
 
         // Balanced profile (default)
         profiles.put("balanced", new ConfigurationProfile("balanced",
-            "Balanced performance and resource usage")
-            .withScanOptions(new AsyncScanOptions()
-                .withParallelism(Runtime.getRuntime().availableProcessors())
-                .withBatchSize(100)
-                .withStreamingEnabled(true)
-                .withPrefetchingEnabled(true)
-                .withPrefetchDepth(2))
-            .withOptimizationConfig(new AsyncDirectoryScanningOptimizer.OptimizationConfig()
-                .withPrefetching(true)
-                .withPrediction(true)
-                .withMemoryOptimization(true)
-                .withNumaAwareness(false)
-                .withAdaptiveSizing(true))
-            .withPerformanceConfig(new PerformanceConfiguration()
-                .withMetricsEnabled(true)
-                .withAdaptiveTuning(true)
-                .withHealthMonitoring(true))
-            .withResourceConfig(new ResourceConfiguration()
-                .withMaxMemoryUsage((long)(Runtime.getRuntime().maxMemory() * 0.5))
-                .withMaxThreadPoolSize(Runtime.getRuntime().availableProcessors() * 2)));
+                "Balanced performance and resource usage")
+                .withScanOptions(new AsyncScanOptions()
+                        .withParallelism(Runtime.getRuntime().availableProcessors())
+                        .withBatchSize(100)
+                        .withStreamingEnabled(true)
+                        .withPrefetchingEnabled(true)
+                        .withPrefetchDepth(2))
+                .withOptimizationConfig(new AsyncDirectoryScanningOptimizer.OptimizationConfig()
+                        .withPrefetching(true)
+                        .withPrediction(true)
+                        .withMemoryOptimization(true)
+                        .withNumaAwareness(false)
+                        .withAdaptiveSizing(true))
+                .withPerformanceConfig(new PerformanceConfiguration()
+                        .withMetricsEnabled(true)
+                        .withAdaptiveTuning(true)
+                        .withHealthMonitoring(true))
+                .withResourceConfig(new ResourceConfiguration()
+                        .withMaxMemoryUsage((long) (Runtime.getRuntime().maxMemory() * 0.5))
+                        .withMaxThreadPoolSize(Runtime.getRuntime().availableProcessors() * 2)));
 
         // Set default profile
         activeProfile.set(profiles.get("balanced"));
@@ -349,12 +407,12 @@ public class AsyncScannerConfiguration {
         try {
             // Load from properties file
             loadFromFile();
-            
+
             // Load from system properties
             loadFromSystemProperties();
-            
+
             logger.info("Configuration loaded successfully");
-            
+
         } catch (Exception e) {
             logger.warn("Failed to load configuration, using defaults", e);
         }
@@ -367,13 +425,13 @@ public class AsyncScannerConfiguration {
         try (FileInputStream fis = new FileInputStream(DEFAULT_CONFIG_FILE)) {
             Properties props = new Properties();
             props.load(fis);
-            
+
             // Apply configuration from file
             String profileName = props.getProperty("scanner.profile", "balanced");
             setActiveProfile(profileName);
-            
+
             logger.debug("Loaded configuration from file: {}", DEFAULT_CONFIG_FILE);
-            
+
         } catch (IOException e) {
             logger.debug("Configuration file not found, using defaults: {}", DEFAULT_CONFIG_FILE);
         }
@@ -388,7 +446,7 @@ public class AsyncScannerConfiguration {
             setActiveProfile(profileName);
             logger.debug("Set profile from system property: {}", profileName);
         }
-        
+
         // Load runtime overrides from system properties
         RuntimeConfiguration runtime = runtimeConfig.get();
         System.getProperties().forEach((key, value) -> {
@@ -405,13 +463,13 @@ public class AsyncScannerConfiguration {
     public void saveConfiguration() {
         try (FileOutputStream fos = new FileOutputStream(DEFAULT_CONFIG_FILE)) {
             Properties props = new Properties();
-            
+
             // Save active profile
             ConfigurationProfile profile = activeProfile.get();
             if (profile != null) {
                 props.setProperty("scanner.profile", profile.getName());
             }
-            
+
             // Save runtime overrides
             RuntimeConfiguration runtime = runtimeConfig.get();
             if (runtime != null) {
@@ -419,10 +477,10 @@ public class AsyncScannerConfiguration {
                     props.setProperty("scanner.override." + key, value);
                 });
             }
-            
+
             props.store(fos, "Async Scanner Configuration");
             logger.info("Configuration saved to file: {}", DEFAULT_CONFIG_FILE);
-            
+
         } catch (IOException e) {
             logger.error("Failed to save configuration to file: {}", DEFAULT_CONFIG_FILE, e);
         }
@@ -434,7 +492,7 @@ public class AsyncScannerConfiguration {
      * @param profileName name of the profile to activate
      * @return true if profile was found and activated, false otherwise
      */
-    public boolean setActiveProfile(String profileName) {
+    public final boolean setActiveProfile(String profileName) {
         ConfigurationProfile profile = profiles.get(profileName);
         if (profile != null) {
             activeProfile.set(profile);
@@ -494,7 +552,7 @@ public class AsyncScannerConfiguration {
         ConfigurationProfile removed = profiles.remove(profileName);
         if (removed != null) {
             logger.info("Removed configuration profile: {} - {}", profileName, removed.getDescription());
-            
+
             // If the active profile was removed, switch to balanced
             if (removed == activeProfile.get()) {
                 setActiveProfile("balanced");
@@ -522,11 +580,11 @@ public class AsyncScannerConfiguration {
     public AsyncScanOptions applyRuntimeOverrides(AsyncScanOptions baseOptions) {
         AsyncScanOptions result = new AsyncScanOptions(baseOptions);
         RuntimeConfiguration runtime = runtimeConfig.get();
-        
+
         if (runtime == null) {
             return result;
         }
-        
+
         // Apply common overrides
         String parallelismOverride = runtime.getOverride("parallelism");
         if (parallelismOverride != null) {
@@ -536,7 +594,7 @@ public class AsyncScannerConfiguration {
                 logger.warn("Invalid parallelism override: {}", parallelismOverride);
             }
         }
-        
+
         String batchSizeOverride = runtime.getOverride("batchSize");
         if (batchSizeOverride != null) {
             try {
@@ -545,12 +603,12 @@ public class AsyncScannerConfiguration {
                 logger.warn("Invalid batch size override: {}", batchSizeOverride);
             }
         }
-        
+
         String prefetchingOverride = runtime.getOverride("prefetching");
         if (prefetchingOverride != null) {
             result = result.withPrefetchingEnabled(Boolean.parseBoolean(prefetchingOverride));
         }
-        
+
         return result;
     }
 
@@ -562,25 +620,25 @@ public class AsyncScannerConfiguration {
     public String getConfigurationSummary() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Async Scanner Configuration ===\n");
-        
+
         ConfigurationProfile active = activeProfile.get();
         if (active != null) {
             sb.append("Active Profile: ").append(active.getName())
-              .append(" - ").append(active.getDescription()).append("\n");
+                    .append(" - ").append(active.getDescription()).append("\n");
         }
-        
+
         sb.append("Available Profiles: ");
         profiles.keySet().forEach(name -> sb.append(name).append(", "));
         sb.setLength(sb.length() - 2); // Remove last comma
         sb.append("\n");
-        
+
         RuntimeConfiguration runtime = runtimeConfig.get();
         if (runtime != null && !runtime.getAllOverrides().isEmpty()) {
             sb.append("Runtime Overrides:\n");
-            runtime.getAllOverrides().forEach((key, value) -> 
-                sb.append("  ").append(key).append(" = ").append(value).append("\n"));
+            runtime.getAllOverrides()
+                    .forEach((key, value) -> sb.append("  ").append(key).append(" = ").append(value).append("\n"));
         }
-        
+
         return sb.toString();
     }
 
@@ -596,34 +654,34 @@ public class AsyncScannerConfiguration {
                 logger.error("No active configuration profile");
                 return false;
             }
-            
+
             // Validate scan options
             AsyncScanOptions scanOptions = active.getScanOptions();
             if (scanOptions.getParallelism() <= 0) {
                 logger.error("Invalid parallelism: {}", scanOptions.getParallelism());
                 return false;
             }
-            
+
             if (scanOptions.getBatchSize() <= 0) {
                 logger.error("Invalid batch size: {}", scanOptions.getBatchSize());
                 return false;
             }
-            
+
             // Validate resource configuration
             ResourceConfiguration resourceConfig = active.getResourceConfig();
             if (resourceConfig.getMaxMemoryUsageBytes() <= 0) {
                 logger.error("Invalid max memory usage: {}", resourceConfig.getMaxMemoryUsageBytes());
                 return false;
             }
-            
+
             if (resourceConfig.getMaxThreadPoolSize() <= 0) {
                 logger.error("Invalid max thread pool size: {}", resourceConfig.getMaxThreadPoolSize());
                 return false;
             }
-            
+
             logger.debug("Configuration validation passed");
             return true;
-            
+
         } catch (Exception e) {
             logger.error("Configuration validation failed", e);
             return false;

@@ -993,3 +993,8 @@ check {
 // Make dependency check optional to avoid blocking builds when NVD API is unavailable
 // check.dependsOn dependencyCheckAggregate
 
+
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:all"
+}
+
