@@ -189,8 +189,8 @@ public final class AsyncTestSuite {
             }
 
             // Wait for all test classes to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(configuration.getCategoryTimeout().toMillis(), TimeUnit.MILLISECONDS);
+            // Wait for all test classes to complete
+            AsyncTestUtils.waitForAll(configuration.getCategoryTimeout(), futures);
 
             // Collect results
             for (CompletableFuture<ClassTestResult> future : futures) {

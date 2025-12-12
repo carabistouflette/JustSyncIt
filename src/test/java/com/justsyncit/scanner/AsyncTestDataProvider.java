@@ -634,6 +634,8 @@ public final class AsyncTestDataProvider {
      * Custom exception for testing.
      */
     public static class AsyncTestException extends Exception {
+        private static final long serialVersionUID = 1L;
+
         public AsyncTestException(String message) {
             super(message);
         }
@@ -787,6 +789,7 @@ public final class AsyncTestDataProvider {
                 }
             }
 
+            @SuppressWarnings("deprecation")
             public ScanOptions getScanOptions() {
                 return new ScanOptions()
                         .withIncludeHiddenFiles(includeHiddenFiles)

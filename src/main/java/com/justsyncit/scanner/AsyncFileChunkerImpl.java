@@ -499,8 +499,7 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
      */
     private CompletableFuture<Void> processAllChunksAsync(AsynchronousFileChannel channel, Path file, int chunkSize,
             long fileSize, int chunkCount, List<String> chunkHashes) {
-        @SuppressWarnings("unchecked")
-        CompletableFuture<Void>[] chunkFutures = new CompletableFuture[chunkCount];
+        List<CompletableFuture<Void>> chunkFutures = new ArrayList<>(chunkCount);
 
         // Submit all chunk processing tasks
         for (int i = 0; i < chunkCount; i++) {
@@ -508,7 +507,7 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
             final long offset = (long) i * chunkSize;
             final int length = (int) Math.min(chunkSize, fileSize - offset);
 
-            chunkFutures[i] = processChunkAsync(channel, offset, length, chunkIndex, chunkCount, file)
+            CompletableFuture<Void> future = processChunkAsync(channel, offset, length, chunkIndex, chunkCount, file)
                     .thenAccept(hash -> {
                         synchronized (chunkHashes) {
                             chunkHashes.add(hash);
@@ -518,10 +517,11 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
                         logger.error("Error processing chunk at offset {} length {}", offset, length, throwable);
                         return null; // Return null for exceptionally case
                     });
+            chunkFutures.add(future);
         }
 
         // Wait for all chunks to complete without blocking
-        return CompletableFuture.allOf(chunkFutures)
+        return CompletableFuture.allOf(chunkFutures.toArray(new CompletableFuture<?>[0]))
                 .thenApply(v -> {
                     logger.debug("Completed processing {} chunks for file {}", chunkCount, file);
                     return null;
@@ -652,16 +652,15 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
 
         @Override
         public CompletableFuture<String[]> processChunksAsync(ByteBuffer[] chunks, Path file) {
-            @SuppressWarnings("unchecked")
-            CompletableFuture<String>[] futures = new CompletableFuture[chunks.length];
+            List<CompletableFuture<String>> futures = new ArrayList<>(chunks.length);
             for (int i = 0; i < chunks.length; i++) {
-                futures[i] = processChunkAsync(chunks[i], i, chunks.length, file);
+                futures.add(processChunkAsync(chunks[i], i, chunks.length, file));
             }
-            return CompletableFuture.allOf(futures)
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                     .thenApply(v -> {
                         String[] results = new String[chunks.length];
                         for (int i = 0; i < chunks.length; i++) {
-                            results[i] = futures[i].join();
+                            results[i] = futures.get(i).join();
                         }
                         return results;
                     });

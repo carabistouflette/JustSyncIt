@@ -18,6 +18,8 @@
 
 package com.justsyncit.scanner;
 
+import java.nio.ByteBuffer;
+
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -86,8 +88,12 @@ public final class AsyncTestUtils {
             throw new AsyncTestException("Interrupted while waiting for result", e);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
-            if (cause instanceof RuntimeException) {
+            // Fix: Check for specific exception types correctly
+            if (cause instanceof AsyncTestException) {
                 throw (AsyncTestException) cause;
+            }
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
             }
             throw new AsyncTestException("Execution failed", cause);
         } catch (TimeoutException e) {
@@ -146,7 +152,8 @@ public final class AsyncTestUtils {
     public static <T> void assertCompletesSuccessfully(CompletableFuture<T> future, Duration timeout)
             throws AsyncTestAssertionError {
         try {
-            T result = future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+            // Unused result
+            future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             // If we get here, the future completed successfully
         } catch (Exception e) {
             throw new AsyncTestAssertionError(
@@ -213,7 +220,6 @@ public final class AsyncTestUtils {
      * @param futures the futures to wait for
      * @throws AsyncTestException if any future fails or times out
      */
-    @SafeVarargs
     public static void waitForAll(Duration timeout, CompletableFuture<?>... futures) throws AsyncTestException {
         try {
             CompletableFuture.allOf(futures).get(timeout.toMillis(), TimeUnit.MILLISECONDS);
@@ -229,8 +235,34 @@ public final class AsyncTestUtils {
      * @param futures the futures to wait for
      * @throws AsyncTestException if any future fails or times out
      */
-    @SafeVarargs
     public static void waitForAll(CompletableFuture<?>... futures) throws AsyncTestException {
+        waitForAll(DEFAULT_TIMEOUT, futures);
+    }
+
+    /**
+     * Waits for a collection of CompletableFuture instances to complete.
+     *
+     * @param timeout timeout duration
+     * @param futures the futures to wait for
+     * @throws AsyncTestException if any future fails or times out
+     */
+    public static void waitForAll(Duration timeout, java.util.Collection<? extends CompletableFuture<?>> futures)
+            throws AsyncTestException {
+        @SuppressWarnings("rawtypes")
+        CompletableFuture[] array = futures.toArray(new CompletableFuture[0]);
+        CompletableFuture<?>[] typedArray = (CompletableFuture<?>[]) array;
+        waitForAll(timeout, typedArray);
+    }
+
+    /**
+     * Waits for a collection of CompletableFuture instances to complete with
+     * default timeout.
+     *
+     * @param futures the futures to wait for
+     * @throws AsyncTestException if any future fails or times out
+     */
+    public static void waitForAll(java.util.Collection<? extends CompletableFuture<?>> futures)
+            throws AsyncTestException {
         waitForAll(DEFAULT_TIMEOUT, futures);
     }
 
@@ -245,6 +277,7 @@ public final class AsyncTestUtils {
      * @throws AsyncTestException if any future fails or times out
      */
     @SafeVarargs
+    @SuppressWarnings("varargs")
     public static <T> List<T> waitForAllAndGetResults(Duration timeout, CompletableFuture<T>... futures)
             throws AsyncTestException {
         try {
@@ -277,6 +310,40 @@ public final class AsyncTestUtils {
      */
     @SafeVarargs
     public static <T> List<T> waitForAllAndGetResults(CompletableFuture<T>... futures) throws AsyncTestException {
+        @SuppressWarnings("unchecked")
+        CompletableFuture<T>[] futuresArray = futures;
+        return waitForAllAndGetResults(DEFAULT_TIMEOUT, futuresArray);
+    }
+
+    /**
+     * Waits for a collection of CompletableFuture instances to complete and returns
+     * results.
+     *
+     * @param timeout timeout duration
+     * @param futures the futures to wait for
+     * @param <T>     result type
+     * @return list of results
+     * @throws AsyncTestException if any future fails or times out
+     */
+    public static <T> List<T> waitForAllAndGetResults(Duration timeout,
+            java.util.Collection<? extends CompletableFuture<T>> futures)
+            throws AsyncTestException {
+        @SuppressWarnings({ "unchecked", "rawtypes" })
+        CompletableFuture<T>[] array = futures.toArray(new CompletableFuture[0]);
+        return waitForAllAndGetResults(timeout, array);
+    }
+
+    /**
+     * Waits for a collection of CompletableFuture instances to complete and returns
+     * results with default timeout.
+     *
+     * @param futures the futures to wait for
+     * @param <T>     result type
+     * @return list of results
+     * @throws AsyncTestException if any future fails or times out
+     */
+    public static <T> List<T> waitForAllAndGetResults(java.util.Collection<? extends CompletableFuture<T>> futures)
+            throws AsyncTestException {
         return waitForAllAndGetResults(DEFAULT_TIMEOUT, futures);
     }
 

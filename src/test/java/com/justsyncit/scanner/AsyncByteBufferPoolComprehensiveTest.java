@@ -351,7 +351,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
 
             // Then
             List<ByteBuffer> buffers = AsyncTestUtils.waitForAllAndGetResults(
-                    AsyncTestUtils.DEFAULT_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.DEFAULT_TIMEOUT, futures);
 
             assertEquals(threadCount * operationsPerThread, buffers.size());
             buffers.forEach(buffer -> assertNotNull(buffer));
@@ -387,7 +387,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             }
 
             // Then
-            AsyncTestUtils.waitForAll(AsyncTestUtils.DEFAULT_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.DEFAULT_TIMEOUT, futures);
 
             executor.shutdown();
             executor.awaitTermination(5, TimeUnit.SECONDS);
@@ -425,7 +425,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             }
 
             // Then
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
@@ -458,7 +458,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 futures.add(future);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             int totalOperations = threadCount * operationsPerThread;
@@ -490,7 +490,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 for (int i = 0; i < operationCount; i++) {
                     futures.add(bufferPool.acquireAsync(1024));
                 }
-                return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                         .thenApply(v -> futures.stream()
                                 .map(future -> {
                                     try {
@@ -509,7 +509,7 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             double averageTimePerOperation = result.getDurationMillis() / operationCount;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
                     String.format("Average time per operation (%.2f ms) exceeds target (%.2f ms)",
-                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                            averageTimePerOperation, (double) maxAverageTime.toMillis()));
 
             // Cleanup
             for (ByteBuffer buffer : buffers) {
@@ -537,14 +537,14 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 for (ByteBuffer buffer : buffers) {
                     futures.add(bufferPool.releaseAsync(buffer));
                 }
-                return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+                return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]));
             });
 
             // Then
             double averageTimePerOperation = result.getDurationMillis() / bufferCount;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
                     String.format("Average time per operation (%.2f ms) exceeds target (%.2f ms)",
-                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                            averageTimePerOperation, (double) maxAverageTime.toMillis()));
         }
 
         @Test
@@ -575,17 +575,17 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 futures.add(future);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
-            int totalOperations = threadCount * operationsPerThread * 2; // acquire + release
+            int totalOperations = threadCount * operationsPerThread;
 
             // Then
             double averageTimePerOperation = totalDuration / 1_000_000.0 / totalOperations;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
                     String.format("Average time per operation under load (%.2f ms) exceeds target (%.2f ms)",
-                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                            averageTimePerOperation, (double) maxAverageTime.toMillis()));
 
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);

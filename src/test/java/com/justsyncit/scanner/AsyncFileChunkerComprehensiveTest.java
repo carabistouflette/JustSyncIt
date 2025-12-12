@@ -637,7 +637,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             List<FileChunker.ChunkingResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                    AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             assertEquals(fileCount, results.size());
@@ -681,7 +681,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 futures.add(threadFuture);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             // All operations should complete successfully
@@ -715,7 +715,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             List<FileChunker.ChunkingResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                    AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             assertEquals(fileCount, results.size());
@@ -761,7 +761,10 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                             }
                         }
 
-                        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        @SuppressWarnings("rawtypes")
+                        CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
+                        CompletableFuture<Void> allFutures = CompletableFuture.allOf(futuresArray);
+                        return allFutures
                                 .thenApply(v -> futures.stream()
                                         .map(future -> {
                                             try {
@@ -780,7 +783,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             double averageTimePerFile = result.getDurationMillis() / fileCount;
             assertTrue(averageTimePerFile <= maxAverageTime.toMillis(),
                     String.format("Average time per file (%.2f ms) exceeds target (%.2f ms)",
-                            (double) averageTimePerFile, (double) maxAverageTime.toMillis()));
+                            averageTimePerFile, (double) maxAverageTime.toMillis()));
         }
 
         @Test
@@ -820,7 +823,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 futures.add(future);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
@@ -830,7 +833,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             double averageTimePerOperation = totalDuration / 1_000_000.0 / totalOperations;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
                     String.format("Average time per operation under load (%.2f ms) exceeds target (%.2f ms)",
-                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                            averageTimePerOperation, (double) maxAverageTime.toMillis()));
 
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);

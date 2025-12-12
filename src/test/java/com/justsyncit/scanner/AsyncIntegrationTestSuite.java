@@ -121,9 +121,7 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
         }
 
         // When - Wait for all chunking to complete
-        CompletableFuture<Void> allChunkingFuture = CompletableFuture.allOf(
-                chunkFutures.toArray(new CompletableFuture[0]));
-        allChunkingFuture.get(20, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(20), chunkFutures);
 
         // Then - Verify all operations completed successfully
         assertEquals(testFiles.size(), scanResult.getScannedFileCount());
@@ -157,9 +155,7 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
         }
 
         // Then - All operations should complete successfully
-        CompletableFuture<Void> allFutures = CompletableFuture.allOf(
-                futures.toArray(new CompletableFuture[0]));
-        allFutures.get(15, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(15), futures);
 
         long totalSize = 0;
         for (CompletableFuture<FileChunker.ChunkingResult> future : futures) {
@@ -355,9 +351,7 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
         }
 
         // Wait for completion
-        CompletableFuture<Void> allFutures = CompletableFuture.allOf(
-                futures.toArray(new CompletableFuture[0]));
-        allFutures.get(8, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(8), futures);
 
         // Then - Resource counts should be consistent
         int finalAvailableCount = bufferPool.getAvailableCount();
@@ -415,9 +409,7 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
         }
 
         // Then - All threads should complete
-        CompletableFuture<Void> allThreadsFuture = CompletableFuture.allOf(
-                threadFutures.toArray(new CompletableFuture[0]));
-        allThreadsFuture.get(15, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(15), threadFutures);
 
         // Verify pool is still functional
         CompletableFuture<String> statsFuture = limitedPool.getStatsAsync();

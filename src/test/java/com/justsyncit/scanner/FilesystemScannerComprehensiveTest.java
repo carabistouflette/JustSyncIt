@@ -496,10 +496,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             }
 
             // When
-            @SuppressWarnings("unchecked")
-            CompletableFuture<ScanResult>[] futureArray = futures.toArray(new CompletableFuture[0]);
             List<ScanResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                    AsyncTestUtils.LONG_TIMEOUT, futureArray);
+                    AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             assertEquals(scanCount, results.size());
@@ -542,7 +540,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 futures.add(threadFuture);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture<?>[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             executor.shutdown();
@@ -618,7 +616,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 futures.add(future);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture<?>[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;

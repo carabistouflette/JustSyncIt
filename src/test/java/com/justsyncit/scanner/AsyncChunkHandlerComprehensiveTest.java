@@ -60,7 +60,7 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
 
     @TempDir
     Path tempDir;
-    
+
     private AsyncChunkHandler chunkHandler;
     private Blake3Service mockBlake3Service;
     private AsyncTestMetricsCollector metricsCollector;
@@ -70,18 +70,18 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
         super.setUp();
         metricsCollector = new AsyncTestMetricsCollector();
         mockBlake3Service = mock(Blake3Service.class);
-        
+
         // Setup mock behavior
         try {
             when(mockBlake3Service.hashBuffer(any(byte[].class)))
-                .thenAnswer(invocation -> {
-                    byte[] data = invocation.getArgument(0);
-                    return "hash_" + java.util.Arrays.hashCode(data);
-                });
+                    .thenAnswer(invocation -> {
+                        byte[] data = invocation.getArgument(0);
+                        return "hash_" + java.util.Arrays.hashCode(data);
+                    });
         } catch (com.justsyncit.hash.HashingException e) {
             // This shouldn't happen in mock setup
         }
-        
+
         chunkHandler = AsyncFileChunkHandler.create(mockBlake3Service);
     }
 
@@ -97,7 +97,7 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             // Thread pools may be shutting down from previous tests
             System.err.println("Warning: Chunk handler close failed during teardown: " + e.getMessage());
         }
-        
+
         super.tearDown();
     }
 
@@ -162,9 +162,9 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
         void shouldProcessMultipleChunksConcurrently() throws Exception {
             // Given
             ByteBuffer[] chunks = new ByteBuffer[] {
-                ByteBuffer.wrap("chunk1".getBytes()),
-                ByteBuffer.wrap("chunk2".getBytes()),
-                ByteBuffer.wrap("chunk3".getBytes())
+                    ByteBuffer.wrap("chunk1".getBytes()),
+                    ByteBuffer.wrap("chunk2".getBytes()),
+                    ByteBuffer.wrap("chunk3".getBytes())
             };
             Path file = tempDir.resolve("multi.txt");
 
@@ -187,8 +187,8 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
         void shouldProcessMultipleChunksWithCompletionHandler() throws Exception {
             // Given
             ByteBuffer[] chunks = new ByteBuffer[] {
-                ByteBuffer.wrap("chunk1".getBytes()),
-                ByteBuffer.wrap("chunk2".getBytes())
+                    ByteBuffer.wrap("chunk1".getBytes()),
+                    ByteBuffer.wrap("chunk2".getBytes())
             };
             Path file = tempDir.resolve("multi.txt");
             CountDownLatch latch = new CountDownLatch(1);
@@ -248,7 +248,8 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             CompletableFuture<String> future = chunkHandler.processChunkAsync(null, 0, 1, file);
 
             // Then
-            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.SHORT_TIMEOUT);
+            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class,
+                    AsyncTestUtils.SHORT_TIMEOUT);
         }
 
         @Test
@@ -261,7 +262,8 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             CompletableFuture<String[]> future = chunkHandler.processChunksAsync(null, file);
 
             // Then
-            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.SHORT_TIMEOUT);
+            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class,
+                    AsyncTestUtils.SHORT_TIMEOUT);
         }
 
         @Test
@@ -269,9 +271,9 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
         void shouldHandleNullElementInChunksArray() {
             // Given
             ByteBuffer[] chunks = new ByteBuffer[] {
-                ByteBuffer.wrap("valid".getBytes()),
-                null,
-                ByteBuffer.wrap("another".getBytes())
+                    ByteBuffer.wrap("valid".getBytes()),
+                    null,
+                    ByteBuffer.wrap("another".getBytes())
             };
             Path file = tempDir.resolve("test.txt");
 
@@ -279,7 +281,8 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             CompletableFuture<String[]> future = chunkHandler.processChunksAsync(chunks, file);
 
             // Then
-            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class, AsyncTestUtils.SHORT_TIMEOUT);
+            AsyncTestUtils.assertFailsWithException(future, IllegalArgumentException.class,
+                    AsyncTestUtils.SHORT_TIMEOUT);
         }
 
         @Test
@@ -317,7 +320,7 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = {1, 2, 4, 8, 16, 32})
+        @ValueSource(ints = { 1, 2, 4, 8, 16, 32 })
         @DisplayName("Should handle various max concurrent chunks")
         void shouldHandleVariousMaxConcurrentChunks(int maxConcurrent) {
             // When
@@ -345,24 +348,25 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
                 byte[] data = ("chunk" + i).getBytes();
                 ByteBuffer chunk = ByteBuffer.wrap(data);
                 Path file = tempDir.resolve("concurrent" + i + ".txt");
-                
+
                 CompletableFuture<String> future = chunkHandler.processChunkAsync(chunk, i, chunkCount, file);
                 futures.add(future);
             }
 
             // Wait for all to complete
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
-            
+            // Wait for all to complete
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
+
             // Get results
             List<String> results = futures.stream()
-                .map(future -> {
-                    try {
-                        return future.get();
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to get result", e);
-                    }
-                })
-                .collect(java.util.stream.Collectors.toList());
+                    .map(future -> {
+                        try {
+                            return future.get();
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to get result", e);
+                        }
+                    })
+                    .collect(java.util.stream.Collectors.toList());
 
             // Then
             assertEquals(chunkCount, results.size());
@@ -384,16 +388,16 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             // Mock Blake3Service to track concurrency
             try {
                 when(mockBlake3Service.hashBuffer(any(byte[].class)))
-                    .thenAnswer(invocation -> {
-                        int current = currentConcurrent.incrementAndGet();
-                        maxConcurrentReached.updateAndGet(max -> Math.max(max, current));
-                        
-                        // Simulate some processing time
-                        Thread.sleep(50);
-                        
-                        currentConcurrent.decrementAndGet();
-                        return "hash_" + java.util.Arrays.hashCode((byte[]) invocation.getArgument(0));
-                    });
+                        .thenAnswer(invocation -> {
+                            int current = currentConcurrent.incrementAndGet();
+                            maxConcurrentReached.updateAndGet(max -> Math.max(max, current));
+
+                            // Simulate some processing time
+                            Thread.sleep(50);
+
+                            currentConcurrent.decrementAndGet();
+                            return "hash_" + java.util.Arrays.hashCode((byte[]) invocation.getArgument(0));
+                        });
             } catch (com.justsyncit.hash.HashingException e) {
                 // This shouldn't happen in mock setup
             }
@@ -404,16 +408,18 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
                 byte[] data = ("chunk" + i).getBytes();
                 ByteBuffer chunk = ByteBuffer.wrap(data);
                 Path file = tempDir.resolve("limit" + i + ".txt");
-                
+
                 CompletableFuture<String> future = chunkHandler.processChunkAsync(chunk, i, 5, file);
                 futures.add(future);
             }
 
             // Wait for all to complete
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            // Wait for all to complete
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
-            assertTrue(maxConcurrentReached.get() <= 4, "Max concurrent should not exceed limit (allowing for test timing)");
+            assertTrue(maxConcurrentReached.get() <= 4,
+                    "Max concurrent should not exceed limit (allowing for test timing)");
         }
     }
 
@@ -468,7 +474,7 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
                 for (int i = 0; i < 3; i++) {
                     applyFutures.add(chunkHandler.applyBackpressure());
                 }
-                AsyncTestUtils.waitForAll(AsyncTestUtils.DEFAULT_TIMEOUT, applyFutures.toArray(new CompletableFuture[0]));
+                AsyncTestUtils.waitForAll(AsyncTestUtils.DEFAULT_TIMEOUT, applyFutures);
                 int afterApplyPermits = fileChunkHandler.getAvailablePermits();
 
                 // When - Release multiple backpressure operations
@@ -476,7 +482,7 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
                 for (int i = 0; i < 3; i++) {
                     releaseFutures.add(chunkHandler.releaseBackpressure());
                 }
-                AsyncTestUtils.waitForAll(AsyncTestUtils.DEFAULT_TIMEOUT, releaseFutures.toArray(new CompletableFuture[0]));
+                AsyncTestUtils.waitForAll(AsyncTestUtils.DEFAULT_TIMEOUT, releaseFutures);
                 int afterReleasePermits = fileChunkHandler.getAvailablePermits();
 
                 // Then
@@ -509,8 +515,8 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             String hash = result.getResult();
             assertNotNull(hash);
             assertTrue(result.getDurationMillis() <= maxProcessingTime.toMillis(),
-                String.format("Processing time (%.2f ms) exceeds target (%.2f ms)",
-                    result.getDurationMillis(), (double) maxProcessingTime.toMillis()));
+                    String.format("Processing time (%.2f ms) exceeds target (%.2f ms)",
+                            result.getDurationMillis(), (double) maxProcessingTime.toMillis()));
         }
 
         @Test
@@ -530,25 +536,26 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
                 new java.util.Random().nextBytes(data);
                 ByteBuffer chunk = ByteBuffer.wrap(data);
                 Path file = tempDir.resolve("load" + i + ".txt");
-                
+
                 CompletableFuture<String> future = chunkHandler.processChunkAsync(chunk, i, chunkCount, file);
                 futures.add(future);
             }
 
             // Wait for all to complete
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
-            
+            // Wait for all to complete
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
+
             // Get results
             List<String> results = futures.stream()
-                .map(future -> {
-                    try {
-                        return future.get();
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to get result", e);
-                    }
-                })
-                .collect(java.util.stream.Collectors.toList());
-            
+                    .map(future -> {
+                        try {
+                            return future.get();
+                        } catch (Exception e) {
+                            throw new RuntimeException("Failed to get result", e);
+                        }
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
 
@@ -557,11 +564,11 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             for (String result : results) {
                 assertNotNull(result);
             }
-            
+
             double averageTimePerChunk = totalDuration / 1_000_000.0 / chunkCount;
             assertTrue(averageTimePerChunk <= maxAverageTime.toMillis(),
-                String.format("Average time per chunk under load (%.2f ms) exceeds target (%.2f ms)",
-                    averageTimePerChunk, (double) maxAverageTime.toMillis()));
+                    String.format("Average time per chunk under load (%.2f ms) exceeds target (%.2f ms)",
+                            averageTimePerChunk, (double) maxAverageTime.toMillis()));
         }
     }
 
@@ -573,8 +580,8 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
         @DisplayName("Should work with AsyncTestMetricsCollector")
         void shouldWorkWithAsyncTestMetricsCollector() throws Exception {
             // Given
-            AsyncTestMetricsCollector.OperationTimer timer = 
-                metricsCollector.startOperation("chunk", "AsyncChunkHandler");
+            AsyncTestMetricsCollector.OperationTimer timer = metricsCollector.startOperation("chunk",
+                    "AsyncChunkHandler");
 
             byte[] data = "metrics test".getBytes();
             ByteBuffer chunk = ByteBuffer.wrap(data);
@@ -586,8 +593,8 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             timer.complete((long) data.length);
 
             // Then
-            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = 
-                metricsCollector.getComponentMetrics("AsyncChunkHandler");
+            AsyncTestMetricsCollector.ComponentMetrics componentMetrics = metricsCollector
+                    .getComponentMetrics("AsyncChunkHandler");
             assertEquals(1, componentMetrics.getTotalOperations());
             assertEquals(1, componentMetrics.getSuccessfulOperations());
             assertEquals(data.length, componentMetrics.getTotalBytesProcessed());
@@ -598,25 +605,25 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
         void shouldWorkWithAsyncTestScenarioBuilder() throws Exception {
             // Given
             AsyncTestScenarioBuilder builder = AsyncTestScenarioBuilder.create();
-            
+
             // Create a concurrent operation
-            AsyncTestScenarioBuilder.ConcurrentOperation chunkOperation =
-                new AsyncTestScenarioBuilder.ConcurrentOperation("Chunk processing", () -> {
-                    byte[] data = ("scenario" + System.currentTimeMillis()).getBytes();
-                    ByteBuffer chunk = ByteBuffer.wrap(data);
-                    Path file = tempDir.resolve("scenario_" + System.currentTimeMillis() + ".txt");
-                    
-                    try {
-                        CompletableFuture<String> future = chunkHandler.processChunkAsync(chunk, 0, 1, file);
-                        String hash = future.get();
-                        assertNotNull(hash);
-                    } catch (Exception e) {
-                        throw new RuntimeException("Chunk processing failed", e);
-                    }
-                });
-            
+            AsyncTestScenarioBuilder.ConcurrentOperation chunkOperation = new AsyncTestScenarioBuilder.ConcurrentOperation(
+                    "Chunk processing", () -> {
+                        byte[] data = ("scenario" + System.currentTimeMillis()).getBytes();
+                        ByteBuffer chunk = ByteBuffer.wrap(data);
+                        Path file = tempDir.resolve("scenario_" + System.currentTimeMillis() + ".txt");
+
+                        try {
+                            CompletableFuture<String> future = chunkHandler.processChunkAsync(chunk, 0, 1, file);
+                            String hash = future.get();
+                            assertNotNull(hash);
+                        } catch (Exception e) {
+                            throw new RuntimeException("Chunk processing failed", e);
+                        }
+                    });
+
             builder.withConcurrentOperations(chunkOperation);
-            
+
             AsyncTestScenarioBuilder.AsyncTestScenario scenario = builder.build();
             CompletableFuture<AsyncTestScenarioBuilder.ScenarioResult> future = scenario.executeAsync();
             AsyncTestScenarioBuilder.ScenarioResult result = future.get();
@@ -637,11 +644,11 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             byte[] data = "error test".getBytes();
             ByteBuffer chunk = ByteBuffer.wrap(data);
             Path file = tempDir.resolve("error.txt");
-            
+
             // Setup mock to throw exception
             try {
                 when(mockBlake3Service.hashBuffer(data))
-                    .thenThrow(new com.justsyncit.hash.HashingException("Hash calculation failed"));
+                        .thenThrow(new com.justsyncit.hash.HashingException("Hash calculation failed"));
             } catch (com.justsyncit.hash.HashingException e) {
                 // This shouldn't happen in mock setup
             }
@@ -660,14 +667,14 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             byte[] data = "interrupt test".getBytes();
             ByteBuffer chunk = ByteBuffer.wrap(data);
             Path file = tempDir.resolve("interrupt.txt");
-            
+
             // Setup mock to simulate interruption
             try {
                 when(mockBlake3Service.hashBuffer(data))
-                    .thenAnswer(invocation -> {
-                        Thread.currentThread().interrupt();
-                        return "hash_" + java.util.Arrays.hashCode(data);
-                    });
+                        .thenAnswer(invocation -> {
+                            Thread.currentThread().interrupt();
+                            return "hash_" + java.util.Arrays.hashCode(data);
+                        });
             } catch (com.justsyncit.hash.HashingException e) {
                 // This shouldn't happen in mock setup
             }
@@ -680,12 +687,12 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
                 // Check if any operation was interrupted (it might not throw immediately)
                 boolean wasInterrupted = Thread.interrupted() || Thread.currentThread().isInterrupted();
-                
+
                 // Restore interrupt status if it was cleared
                 if (wasInterrupted) {
                     Thread.currentThread().interrupt();
                 }
-                
+
                 // The test passes if we can handle the interruption gracefully
                 // AsyncFileChunkHandler might not throw immediately, which is acceptable
             } catch (AsyncTestUtils.AsyncTestException e) {
@@ -703,14 +710,14 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             byte[] data = "timeout test".getBytes();
             ByteBuffer chunk = ByteBuffer.wrap(data);
             Path file = tempDir.resolve("timeout.txt");
-            
+
             // Setup mock to simulate long processing
             try {
                 when(mockBlake3Service.hashBuffer(data))
-                    .thenAnswer(invocation -> {
-                        Thread.sleep(1000); // Longer than timeout
-                        return "hash_" + java.util.Arrays.hashCode(data);
-                    });
+                        .thenAnswer(invocation -> {
+                            Thread.sleep(1000); // Longer than timeout
+                            return "hash_" + java.util.Arrays.hashCode(data);
+                        });
             } catch (com.justsyncit.hash.HashingException e) {
                 // This shouldn't happen in mock setup
             }
@@ -735,7 +742,7 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             byte[] goodData = "good data".getBytes();
             ByteBuffer goodChunk = ByteBuffer.wrap(goodData);
             Path goodFile = tempDir.resolve("good.txt");
-            
+
             CompletableFuture<String> goodFuture = chunkHandler.processChunkAsync(goodChunk, 0, 1, goodFile);
             String goodResult = AsyncTestUtils.getResultOrThrow(goodFuture, AsyncTestUtils.SHORT_TIMEOUT);
             assertNotNull(goodResult);
@@ -744,14 +751,14 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             byte[] badData = "bad data".getBytes();
             ByteBuffer badChunk = ByteBuffer.wrap(badData);
             Path badFile = tempDir.resolve("bad.txt");
-            
+
             try {
                 when(mockBlake3Service.hashBuffer(badData))
-                    .thenThrow(new com.justsyncit.hash.HashingException("Hash failed"));
+                        .thenThrow(new com.justsyncit.hash.HashingException("Hash failed"));
             } catch (com.justsyncit.hash.HashingException e) {
                 // This shouldn't happen in mock setup
             }
-            
+
             CompletableFuture<String> badFuture = chunkHandler.processChunkAsync(badChunk, 0, 1, badFile);
             try {
                 AsyncTestUtils.getResultOrThrow(badFuture, AsyncTestUtils.SHORT_TIMEOUT);
@@ -764,8 +771,9 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
             byte[] anotherGoodData = "another good data".getBytes();
             ByteBuffer anotherGoodChunk = ByteBuffer.wrap(anotherGoodData);
             Path anotherGoodFile = tempDir.resolve("another_good.txt");
-            
-            CompletableFuture<String> anotherGoodFuture = chunkHandler.processChunkAsync(anotherGoodChunk, 0, 1, anotherGoodFile);
+
+            CompletableFuture<String> anotherGoodFuture = chunkHandler.processChunkAsync(anotherGoodChunk, 0, 1,
+                    anotherGoodFile);
             String anotherGoodResult = AsyncTestUtils.getResultOrThrow(anotherGoodFuture, AsyncTestUtils.SHORT_TIMEOUT);
             assertNotNull(anotherGoodResult);
         }
@@ -773,11 +781,11 @@ class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
 
     static Stream<Arguments> provideChunkSizes() {
         return Stream.of(
-            Arguments.of(1),      // Single byte
-            Arguments.of(1024),   // 1KB
-            Arguments.of(4096),   // 4KB
-            Arguments.of(65536),  // 64KB
-            Arguments.of(1048576) // 1MB
+                Arguments.of(1), // Single byte
+                Arguments.of(1024), // 1KB
+                Arguments.of(4096), // 4KB
+                Arguments.of(65536), // 64KB
+                Arguments.of(1048576) // 1MB
         );
     }
 

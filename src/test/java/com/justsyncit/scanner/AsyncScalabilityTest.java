@@ -122,8 +122,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
             }
 
             // Wait for all operations to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(30, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
 
             long duration = System.nanoTime() - startTime;
             double throughput = (double) successfulOps.get() / (duration / 1_000_000_000.0);
@@ -249,8 +248,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
             }
 
             // Wait for sample period operations
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(sampleIntervalSeconds + 5, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(sampleIntervalSeconds + 5), futures);
 
             long sampleDuration = System.nanoTime() - sampleStart;
             double sampleThroughput = (double) operationsInSample.get() / (sampleDuration / 1_000_000_000.0);
@@ -340,16 +338,14 @@ public class AsyncScalabilityTest extends AsyncTestBase {
 
                 // Limit concurrency
                 if (futures.size() >= concurrency) {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                            .get(30, TimeUnit.SECONDS);
+                    AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
                     futures.clear();
                 }
             }
 
             // Wait for remaining operations
             if (!futures.isEmpty()) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(30, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
             }
 
             long duration = System.nanoTime() - startTime;
@@ -433,8 +429,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
         }
 
         // Wait for all attempts
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(20, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(20), futures);
 
         // Verify graceful handling
         int totalAttempts = successfulAcquisitions.get() + failedAcquisitions.get();

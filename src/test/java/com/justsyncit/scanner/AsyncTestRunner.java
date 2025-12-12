@@ -83,9 +83,9 @@ public final class AsyncTestRunner {
             }
 
             // Calculate class-level results
-            int passedCount = (int) methodResults.stream().mapToInt(r -> r.isPassed() ? 1 : 0).sum();
-            int failedCount = (int) methodResults.stream().mapToInt(r -> r.isFailed() ? 1 : 0).sum();
-            int skippedCount = (int) methodResults.stream().mapToInt(r -> r.isSkipped() ? 1 : 0).sum();
+            int passedCount = methodResults.stream().mapToInt(r -> r.isPassed() ? 1 : 0).sum();
+            int failedCount = methodResults.stream().mapToInt(r -> r.isFailed() ? 1 : 0).sum();
+            int skippedCount = methodResults.stream().mapToInt(r -> r.isSkipped() ? 1 : 0).sum();
 
             boolean classSuccess = failedCount == 0;
             Duration executionTime = Duration.between(startTime, Instant.now());

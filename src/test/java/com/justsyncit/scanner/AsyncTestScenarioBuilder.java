@@ -495,8 +495,7 @@ public final class AsyncTestScenarioBuilder {
                 }
 
                 // Wait for all concurrent operations to complete
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(globalTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                AsyncTestUtils.waitForAll(globalTimeout, futures);
 
             } catch (Exception e) {
                 throw new RuntimeException("Concurrent operations execution failed", e);

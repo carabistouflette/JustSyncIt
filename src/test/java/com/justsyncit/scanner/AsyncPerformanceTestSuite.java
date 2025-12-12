@@ -149,14 +149,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
 
             // Control rate to avoid overwhelming the system
             if (futures.size() >= operationsPerSecond) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(1, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(1), futures);
                 futures.clear();
             }
         }
 
         // Wait for remaining operations
         if (!futures.isEmpty()) {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(5, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(5), futures);
         }
 
         long actualDuration = System.nanoTime() - startTime;
@@ -216,16 +216,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
 
             // Control concurrency
             if (futures.size() >= 20) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(5, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(5), futures);
                 futures.clear();
             }
         }
 
         // Wait for remaining operations
         if (!futures.isEmpty()) {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(10, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(10), futures);
         }
 
         long actualDuration = System.nanoTime() - startTime;
@@ -284,16 +282,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
                 futures.add(future);
 
                 if (futures.size() >= 100) {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                            .get(1, TimeUnit.SECONDS);
+                    AsyncTestUtils.waitForAll(Duration.ofSeconds(1), futures);
                     futures.clear();
                 }
             }
 
             // Wait for remaining operations
             if (!futures.isEmpty()) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(2, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(2), futures);
             }
 
             long sampleDuration = System.nanoTime() - sampleStart;
@@ -353,16 +349,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
 
                 // Limit concurrent operations
                 if (futures.size() >= concurrency) {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                            .get(30, TimeUnit.SECONDS);
+                    AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
                     futures.clear();
                 }
             }
 
             // Wait for remaining operations
             if (!futures.isEmpty()) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(30, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
             }
 
             long duration = System.nanoTime() - startTime;
@@ -429,8 +423,7 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
                 futures.add(future);
             }
 
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(10, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(10), futures);
 
             timer.complete(operationsUnderPressure.get());
 
