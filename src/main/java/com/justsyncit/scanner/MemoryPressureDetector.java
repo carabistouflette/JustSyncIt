@@ -99,12 +99,17 @@ public final class MemoryPressureDetector implements Runnable {
             return t;
         });
 
-        // Start monitoring
-        scheduler.scheduleAtFixedRate(this, 1, 1, TimeUnit.SECONDS);
-
         logger.debug(
                 "MemoryPressureDetector initialized with thresholds: warning={:.2f}, critical={:.2f}, emergency={:.2f}",
                 warningThreshold, criticalThreshold, emergencyThreshold);
+    }
+
+    /**
+     * Starts the memory pressure monitoring.
+     */
+    public void start() {
+        // Start monitoring
+        scheduler.scheduleAtFixedRate(this, 1, 1, TimeUnit.SECONDS);
     }
 
     @Override

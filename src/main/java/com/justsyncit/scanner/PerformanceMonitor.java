@@ -200,7 +200,12 @@ public final class PerformanceMonitor implements Runnable {
             t.setDaemon(true);
             return t;
         });
+    }
 
+    /**
+     * Starts the performance monitoring.
+     */
+    public void start() {
         // Start periodic monitoring
         scheduler.scheduleAtFixedRate(this, 10, 10, TimeUnit.SECONDS);
     }

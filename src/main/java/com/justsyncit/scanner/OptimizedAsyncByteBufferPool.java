@@ -312,6 +312,7 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
      */
     private void startBackgroundServices() {
         if (config.isAdaptiveSizingEnabled()) {
+            adaptiveController.start();
             managementExecutor.submit(adaptiveController);
         }
 
@@ -319,7 +320,10 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
             managementExecutor.submit(prefetchManager);
         }
 
+        memoryPressureDetector.start();
         managementExecutor.submit(memoryPressureDetector);
+
+        performanceMonitor.start();
         managementExecutor.submit(performanceMonitor);
 
         logger.debug("Started background services for buffer pool management");

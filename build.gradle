@@ -176,6 +176,14 @@ java {
     }
 }
 
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:all"
+    options.compilerArgs << "-Werror" // Optional: treat warnings as errors to force clean build? Maybe too aggressive for now.
+    // Let's just use -Xlint:all and -Xlint:-processing (to ignore annotation processing warnings if any)
+    options.compilerArgs << "-Xlint:-processing"
+    options.encoding = 'UTF-8'
+}
+
 // Configure test source sets for different test categories
 sourceSets {
     // Integration tests (fast, run in CI)

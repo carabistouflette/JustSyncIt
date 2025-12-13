@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Benchmark for measuring data processing throughput.
@@ -433,14 +433,18 @@ public class ThroughputBenchmark {
      * Gets a performance rating based on throughput.
      */
     private String getThroughputRating(double throughputMBps) {
-        if (throughputMBps >= 100)
+        if (throughputMBps >= 100) {
             return "Excellent (>100 MB/s)";
-        if (throughputMBps >= 50)
+        }
+        if (throughputMBps >= 50) {
             return "Good (50-100 MB/s)";
-        if (throughputMBps >= 25)
+        }
+        if (throughputMBps >= 25) {
             return "Fair (25-50 MB/s)";
-        if (throughputMBps >= 10)
+        }
+        if (throughputMBps >= 10) {
             return "Poor (10-25 MB/s)";
+        }
         return "Very Poor (<10 MB/s)";
     }
 

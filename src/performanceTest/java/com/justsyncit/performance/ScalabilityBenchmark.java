@@ -140,9 +140,9 @@ public class ScalabilityBenchmark {
             double throughputMBps = (Double) metrics.getMetrics().get("throughput_mbps");
             double expectedMinThroughput = Math.max(10.0, 50.0 - (sizeMB / 50.0)); // Degradation allowance
             assertTrue(throughputMBps > expectedMinThroughput,
-                    "Throughput should be reasonable for " + sizeMB + "MB: " +
-                            String.format("%.2f", throughputMBps) + " MB/s (expected >" +
-                            String.format("%.2f", expectedMinThroughput) + " MB/s)");
+                    "Throughput should be reasonable for " + sizeMB + "MB: "
+                            + String.format("%.2f", throughputMBps) + " MB/s (expected >"
+                            + String.format("%.2f", expectedMinThroughput) + " MB/s)");
 
             // Clean up for next test
             cleanupDirectory(sourceDir);
@@ -409,7 +409,7 @@ public class ScalabilityBenchmark {
             for (int i = 0; i < snapshotCount; i++) {
                 // Modify dataset (small changes)
                 BenchmarkDataGenerator.modifyIncrementalDataset(datasetInfo, 0.05, 0.02, 0.01); // 5% modify, 2% add, 1%
-                                                                                                // delete
+                // delete
 
                 // Measure incremental backup time
                 long incrementalStartTime = System.currentTimeMillis();
@@ -511,14 +511,18 @@ public class ScalabilityBenchmark {
      * Gets a scalability rating based on degradation per growth.
      */
     private String getScalabilityRating(double degradationPerGrowth) {
-        if (degradationPerGrowth < 0.1)
+        if (degradationPerGrowth < 0.1) {
             return "Excellent (<0.1% degradation per 100% growth)";
-        if (degradationPerGrowth < 0.5)
+        }
+        if (degradationPerGrowth < 0.5) {
             return "Good (0.1-0.5% degradation per 100% growth)";
-        if (degradationPerGrowth < 1.0)
+        }
+        if (degradationPerGrowth < 1.0) {
             return "Fair (0.5-1.0% degradation per 100% growth)";
-        if (degradationPerGrowth < 2.0)
+        }
+        if (degradationPerGrowth < 2.0) {
             return "Poor (1.0-2.0% degradation per 100% growth)";
+        }
         return "Very Poor (>2.0% degradation per 100% growth)";
     }
 

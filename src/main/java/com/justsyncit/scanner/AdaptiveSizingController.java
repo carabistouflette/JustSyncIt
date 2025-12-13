@@ -65,10 +65,15 @@ public final class AdaptiveSizingController implements Runnable {
             return t;
         });
 
+        logger.debug("AdaptiveSizingController initialized");
+    }
+
+    /**
+     * Starts the adaptive sizing analysis.
+     */
+    public void start() {
         // Start adaptive analysis
         scheduler.scheduleAtFixedRate(this, 30, 30, TimeUnit.SECONDS);
-
-        logger.debug("AdaptiveSizingController initialized");
     }
 
     @Override
