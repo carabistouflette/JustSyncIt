@@ -24,6 +24,7 @@ import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -232,7 +233,7 @@ public class SnapshotsDeleteCommand implements Command {
      * @return true if user confirms
      */
     private boolean confirmDeletion() {
-        try (Scanner scanner = new Scanner(System.in)) {
+        try (Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8.name())) {
             System.out.print("Are you sure you want to delete this snapshot? (y/N): ");
             String response = scanner.nextLine().trim().toLowerCase();
             return response.equals("y") || response.equals("yes");

@@ -201,12 +201,10 @@ public final class MemoryPressureDetector implements Runnable {
     /**
      * Handles emergency memory pressure.
      */
+
     private void handleEmergencyPressure(long used, long max) {
         logger.warn("EMERGENCY memory pressure: {}MB/{}MB ({:.2f}%)",
                 used / 1024 / 1024, max / 1024 / 1024, (double) used / max * 100);
-
-        // Force garbage collection
-        System.gc();
 
         // Request immediate buffer cleanup
         requestBufferCleanup(true);
@@ -218,12 +216,10 @@ public final class MemoryPressureDetector implements Runnable {
     /**
      * Handles critical memory pressure.
      */
+
     private void handleCriticalPressure(long used, long max) {
         logger.warn("CRITICAL memory pressure: {}MB/{}MB ({:.2f}%)",
                 used / 1024 / 1024, max / 1024 / 1024, (double) used / max * 100);
-
-        // Suggest garbage collection
-        System.gc();
 
         // Request aggressive buffer cleanup
         requestBufferCleanup(false);
@@ -281,17 +277,29 @@ public final class MemoryPressureDetector implements Runnable {
      * Monitors garbage collection activity.
      */
     private void monitorGarbageCollection() {
-        // Simple GC monitoring - in a real implementation, you'd use
-        // GarbageCollectorMXBean for more detailed monitoring
-        long currentTime = System.currentTimeMillis();
-        long timeSinceLastGc = currentTime - lastGcTime.get();
+        long totalGcCount = 0;
+        long totalGcTime = 0;
 
-        // If we haven't seen GC activity recently, trigger one
-        if (timeSinceLastGc > 30000) { // 30 seconds
-            System.gc();
-            lastGcTime.set(currentTime);
-            gcCount.incrementAndGet();
+        for (java.lang.management.GarbageCollectorMXBean gcBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+            long count = gcBean.getCollectionCount();
+            long time = gcBean.getCollectionTime();
+
+            if (count != -1)
+                totalGcCount += count;
+            if (time != -1)
+                totalGcTime += time;
         }
+
+        // Check if GC is thrashing (frequent GCs with little memory reclaimed)
+        long deltaGcCount = totalGcCount - gcCount.get();
+
+        if (deltaGcCount > 10) { // arbitrary threshold for frequent GC
+            logger.warn("High GC activity detected: {} collections in last interval", deltaGcCount);
+            // performanceMonitor.recordMetric("gc_thrashing", 1.0); // Method undefined
+        }
+
+        gcCount.set(totalGcCount);
+        lastGcTime.set(totalGcTime);
     }
 
     /**
@@ -303,9 +311,6 @@ public final class MemoryPressureDetector implements Runnable {
         // Set emergency pressure
         currentPressure.set(MemoryPressure.EMERGENCY);
         lastPressureTime.set(System.currentTimeMillis());
-
-        // Force garbage collection
-        System.gc();
 
         // Request immediate cleanup
         requestBufferCleanup(true);

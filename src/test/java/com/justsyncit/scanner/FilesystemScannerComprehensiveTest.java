@@ -18,8 +18,6 @@
 
 package com.justsyncit.scanner;
 
-import com.justsyncit.scanner.SymlinkStrategy;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +44,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
@@ -739,8 +740,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
                 fail("Should have thrown exception due to interruption");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getCause() instanceof InterruptedException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof InterruptedException
+                        || e.getCause() instanceof RuntimeException);
             } finally {
                 // Clear interrupt status
                 Thread.interrupted();

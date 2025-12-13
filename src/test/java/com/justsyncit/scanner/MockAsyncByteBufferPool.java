@@ -45,12 +45,12 @@ public class MockAsyncByteBufferPool implements AsyncByteBufferPool {
         }
 
         acquireCount.incrementAndGet();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             if (totalBuffers.get() >= maxPoolSize.get()) {
                 throw new RuntimeException("Pool exhausted - maximum size reached: " + maxPoolSize.get());
             }
-            
+
             ByteBuffer buffer = ByteBuffer.allocate(Math.max(size, 1024));
             availableBuffers.offer(buffer);
             totalBuffers.incrementAndGet();
@@ -66,7 +66,7 @@ public class MockAsyncByteBufferPool implements AsyncByteBufferPool {
         }
 
         releaseCount.incrementAndGet();
-        
+
         return CompletableFuture.runAsync(() -> {
             if (buffer != null) {
                 availableBuffers.remove(buffer);
@@ -117,11 +117,11 @@ public class MockAsyncByteBufferPool implements AsyncByteBufferPool {
         }
 
         acquireCount.incrementAndGet();
-        
+
         if (totalBuffers.get() >= maxPoolSize.get()) {
             throw new RuntimeException("Pool exhausted - maximum size reached: " + maxPoolSize.get());
         }
-        
+
         ByteBuffer buffer = ByteBuffer.allocate(Math.max(size, 1024));
         availableBuffers.offer(buffer);
         totalBuffers.incrementAndGet();
@@ -136,7 +136,7 @@ public class MockAsyncByteBufferPool implements AsyncByteBufferPool {
         }
 
         releaseCount.incrementAndGet();
-        
+
         if (buffer != null) {
             availableBuffers.remove(buffer);
             totalBuffers.decrementAndGet();

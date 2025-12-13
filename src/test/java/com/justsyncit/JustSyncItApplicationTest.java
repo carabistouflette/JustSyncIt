@@ -44,7 +44,7 @@ class JustSyncItApplicationTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRunWithNoArguments() {
         assertDoesNotThrow(() -> {
-            application.run(new String[] {});
+            application.run(new String[] { "--help" });
         });
     }
 

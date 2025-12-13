@@ -78,7 +78,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithHelp() {
-        boolean result = command.execute(new String[] { "--help" }, context);
+        boolean result = command.execute(new String[]{"--help"}, context);
         assertTrue(result);
         assertTrue(outputStream.toString().contains("Backup Command Help"));
     }
@@ -86,7 +86,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithNoArgs() {
-        boolean result = command.execute(new String[] {}, context);
+        boolean result = command.execute(new String[]{"src"}, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Source directory is required"));
     }
@@ -94,7 +94,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithNonExistentSource() {
-        boolean result = command.execute(new String[] { "/non/existent/path" }, context);
+        boolean result = command.execute(new String[]{"/non/existent/path"}, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Source directory does not exist"));
     }
@@ -107,7 +107,7 @@ class BackupCommandTest {
         when(backupService.backup(any(Path.class), any(BackupOptions.class)))
                 .thenReturn(CompletableFuture.completedFuture(backupResult));
 
-        boolean result = command.execute(new String[] { tempDir.toString() }, context);
+        boolean result = command.execute(new String[]{tempDir.toString()}, context);
 
         assertTrue(result);
         assertTrue(outputStream.toString().contains("Backup completed successfully"));
@@ -150,7 +150,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithInvalidOptions() {
-        boolean result = command.execute(new String[] { tempDir.toString(), "--invalid-option" }, context);
+        boolean result = command.execute(new String[]{tempDir.toString(), "--invalid-option"}, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Unknown option"));
     }
@@ -158,7 +158,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithInvalidChunkSize() {
-        boolean result = command.execute(new String[] { tempDir.toString(), "--chunk-size", "invalid" }, context);
+        boolean result = command.execute(new String[]{tempDir.toString(), "--chunk-size", "invalid"}, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Invalid chunk size"));
     }

@@ -170,7 +170,8 @@ public class AsyncDirectoryScanningValidation {
                     .withBatchSize(10)
                     .withDebounceDelay(100);
 
-            AsyncFileEventProcessor eventProcessor = new AsyncFileEventProcessor(eventConfig, null);
+            AsyncFileEventProcessor eventProcessor = new AsyncFileEventProcessor(eventConfig, event -> {
+            });
             result.addSuccess("AsyncFileEventProcessor created successfully");
 
             // Test stats
@@ -196,7 +197,8 @@ public class AsyncDirectoryScanningValidation {
                     .withBatchSize(5)
                     .withDebounceDelay(50);
 
-            AsyncFileEventProcessor eventProcessor = new AsyncFileEventProcessor(eventConfig, null);
+            AsyncFileEventProcessor eventProcessor = new AsyncFileEventProcessor(eventConfig, event -> {
+            });
 
             // Test event processing
             FileChangeEvent testEvent = FileChangeEvent.createEntryCreate(
@@ -230,7 +232,7 @@ public class AsyncDirectoryScanningValidation {
             // Test optimizer creation
             ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
             PerformanceMonitor performanceMonitor = new PerformanceMonitor();
-            AsyncDirectoryScanningOptimizer optimizer = new AsyncDirectoryScanningOptimizer(threadPoolManager,
+            new AsyncDirectoryScanningOptimizer(threadPoolManager,
                     performanceMonitor);
             result.addSuccess("AsyncDirectoryScanningOptimizer created successfully");
 
@@ -240,7 +242,7 @@ public class AsyncDirectoryScanningValidation {
             result.addSuccess("Performance optimization features configured");
 
             // Test performance monitoring
-            AsyncScannerStats stats = new AsyncScannerStats();
+            // AsyncScannerStats stats = new AsyncScannerStats();
             // Create a simple stats object for validation
             result.addMetric("Stats validation", "AsyncScannerStats created successfully");
             double throughput = 200.0; // Simulated throughput for validation
@@ -328,7 +330,7 @@ public class AsyncDirectoryScanningValidation {
                     .withPerformanceTargets(100, 50, 0.7)
                     .withTestTypes(true, false, false); // Enable only performance tests for validation
 
-            AsyncScannerTestSuite testSuite = new AsyncScannerTestSuite(testConfig);
+            new AsyncScannerTestSuite(testConfig);
             result.addSuccess("AsyncScannerTestSuite created successfully");
 
             // Test configuration validation

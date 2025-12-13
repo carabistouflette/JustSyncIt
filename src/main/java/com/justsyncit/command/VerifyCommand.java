@@ -21,6 +21,7 @@ package com.justsyncit.command;
 import com.justsyncit.hash.Blake3Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -182,7 +183,8 @@ public class VerifyCommand implements Command {
 
         // Use MessageDigest.isEqual for constant-time comparison
         try {
-            return MessageDigest.isEqual(expectedHash.getBytes(), actualHash.getBytes());
+            return MessageDigest.isEqual(expectedHash.getBytes(StandardCharsets.UTF_8),
+                    actualHash.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to manual constant-time comparison
             int result = 0;

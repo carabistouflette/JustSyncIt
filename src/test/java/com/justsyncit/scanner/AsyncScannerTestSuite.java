@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
@@ -47,6 +48,7 @@ public class AsyncScannerTestSuite {
 
     /** Test configuration. */
     private final TestConfiguration config;
+    private final Random random = new Random(12345); // Fixed seed for reproducible tests
 
     /** Test results tracking. */
     private final TestResults results;
@@ -391,7 +393,6 @@ public class AsyncScannerTestSuite {
      * Generates test data for scanning.
      */
     private void generateTestData() {
-        Random random = new Random(12345); // Fixed seed for reproducible tests
 
         try {
             for (int dirIndex = 0; dirIndex < config.getMaxDirectories(); dirIndex++) {
@@ -770,7 +771,7 @@ public class AsyncScannerTestSuite {
 
             // Modify a file to trigger events
             Path testFile = testDir.resolve("test-watch.txt");
-            Files.write(testFile, "test content".getBytes());
+            Files.write(testFile, "test content".getBytes(StandardCharsets.UTF_8));
 
             // Wait for events
             Thread.sleep(2000);

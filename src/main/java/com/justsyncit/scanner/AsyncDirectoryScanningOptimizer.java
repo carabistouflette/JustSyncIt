@@ -555,9 +555,7 @@ public class AsyncDirectoryScanningOptimizer {
         }
 
         public void optimizeMemoryUsage() {
-            // Trigger garbage collection and optimize memory usage
-            System.gc();
-
+            // Memory optimization triggered
             // Additional memory optimization logic can be added here
             // such as clearing caches, reducing buffer pools, etc.
         }

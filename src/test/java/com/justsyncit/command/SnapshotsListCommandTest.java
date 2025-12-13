@@ -93,7 +93,7 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithHelp() {
-        boolean result = command.execute(new String[] { "--help" }, context);
+        boolean result = command.execute(new String[]{"--help"}, context);
         assertTrue(result);
 
         String output = outputStream.toString();
@@ -114,7 +114,7 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithInvalidSubcommand() {
-        boolean result = command.execute(new String[] { "invalid" }, context);
+        boolean result = command.execute(new String[]{"invalid"}, context);
         assertFalse(result);
 
         String output = outputStream.toString();
@@ -134,7 +134,7 @@ class SnapshotsListCommandTest {
         List<Snapshot> snapshots = Arrays.asList(snapshot1, snapshot2);
         when(metadataService.listSnapshots()).thenReturn(snapshots);
 
-        boolean result = command.execute(new String[] { "list" }, context);
+        boolean result = command.execute(new String[]{"list"}, context);
         assertTrue(result);
 
         String output = outputStream.toString();
@@ -154,7 +154,7 @@ class SnapshotsListCommandTest {
         List<Snapshot> snapshots = Arrays.asList(snapshot);
         when(metadataService.listSnapshots()).thenReturn(snapshots);
 
-        boolean result = command.execute(new String[] { "list", "--verbose" }, context);
+        boolean result = command.execute(new String[]{"list", "--verbose"}, context);
         assertTrue(result);
 
         String output = outputStream.toString();
@@ -174,7 +174,7 @@ class SnapshotsListCommandTest {
         List<Snapshot> snapshots = Arrays.asList(snapshot1, snapshot2);
         when(metadataService.listSnapshots()).thenReturn(snapshots);
 
-        boolean result = command.execute(new String[] { "list", "--sort-by-size" }, context);
+        boolean result = command.execute(new String[]{"list", "--sort-by-size"}, context);
         assertTrue(result);
 
         String output = outputStream.toString();
@@ -187,7 +187,7 @@ class SnapshotsListCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithUnknownOption() {
-        boolean result = command.execute(new String[] { "list", "--unknown" }, context);
+        boolean result = command.execute(new String[]{"list", "--unknown"}, context);
         assertFalse(result);
 
         String output = outputStream.toString();
@@ -200,7 +200,7 @@ class SnapshotsListCommandTest {
     void testExecuteWithEmptySnapshotList() throws Exception {
         when(metadataService.listSnapshots()).thenReturn(Collections.emptyList());
 
-        boolean result = command.execute(new String[] { "list" }, context);
+        boolean result = command.execute(new String[]{"list"}, context);
         assertTrue(result);
 
         String output = outputStream.toString();
@@ -212,7 +212,7 @@ class SnapshotsListCommandTest {
     void testExecuteWithServiceException() throws Exception {
         when(metadataService.listSnapshots()).thenThrow(new RuntimeException("Service error"));
 
-        boolean result = command.execute(new String[] { "list" }, context);
+        boolean result = command.execute(new String[]{"list"}, context);
         assertFalse(result);
 
         String output = outputStream.toString();

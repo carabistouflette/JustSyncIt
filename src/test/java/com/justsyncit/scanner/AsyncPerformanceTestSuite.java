@@ -332,7 +332,7 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
     @DisplayName("Should scale with increasing concurrency")
     void shouldScaleWithIncreasingConcurrency() throws Exception {
         // Given
-        int[] concurrencyLevels = { 1, 2, 4, 8, 16 };
+        int[] concurrencyLevels = {1, 2, 4, 8, 16 };
         int operationsPerLevel = 100;
 
         for (int concurrency : concurrencyLevels) {

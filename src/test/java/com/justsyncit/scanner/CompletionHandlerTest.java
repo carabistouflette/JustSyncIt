@@ -26,7 +26,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for CompletionHandler.
@@ -118,7 +122,8 @@ class CompletionHandlerTest {
         CompletableFuture<String> future = new CompletableFuture<>();
         future.whenComplete((result, throwable) -> {
             if (throwable != null) {
-                handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                handler.failed(
+                        throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
             } else {
                 handler.completed(result);
             }
@@ -157,7 +162,8 @@ class CompletionHandlerTest {
         CompletableFuture<String> future = new CompletableFuture<>();
         future.whenComplete((result, throwable) -> {
             if (throwable != null) {
-                handler.failed(throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
+                handler.failed(
+                        throwable instanceof Exception ? (Exception) throwable : new RuntimeException(throwable));
             } else {
                 handler.completed(result);
             }
@@ -208,13 +214,13 @@ class CompletionHandlerTest {
 
         // Chain handlers: handler1 completes, which triggers handler2
         handler1.completed("result1");
-        
+
         assertTrue(latch1.await(1, TimeUnit.SECONDS), "First latch should be released");
         assertEquals("result1", resultRef1.get(), "First result should be set");
 
         // Trigger second handler
         handler2.completed("result2");
-        
+
         assertTrue(latch2.await(1, TimeUnit.SECONDS), "Second latch should be released");
         assertEquals("result2", resultRef2.get(), "Second result should be set");
     }
@@ -391,7 +397,7 @@ class CompletionHandlerTest {
 
         // Test that exceptions in callbacks don't prevent latch from being released
         assertThrows(RuntimeException.class, () -> handler.completed("test"));
-        
+
         // Latch should not be released due to exception
         assertFalse(latch.await(100, TimeUnit.MILLISECONDS), "Latch should not be released due to exception");
         assertNull(resultRef.get(), "Result should not be set");

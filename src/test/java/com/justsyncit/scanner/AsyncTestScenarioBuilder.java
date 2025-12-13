@@ -568,9 +568,9 @@ public final class AsyncTestScenarioBuilder {
                     rule.setErrorMessage(validation.getMessage());
 
                     if (enableDetailedLogging) {
-                        System.out.println("Validation rule '" + rule.getName() + "': " +
-                                (rule.isSatisfied() ? "SATISFIED" : "VIOLATED") +
-                                (validation.getMessage() != null ? " - " + validation.getMessage() : ""));
+                        System.out.println("Validation rule '" + rule.getName() + "': "
+                                + (rule.isSatisfied() ? "SATISFIED" : "VIOLATED")
+                                + (validation.getMessage() != null ? " - " + validation.getMessage() : ""));
                     }
                 } catch (Exception e) {
                     rule.setSatisfied(false);

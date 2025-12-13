@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -38,7 +39,8 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Service for orchestrating restore operations.
- * Follows Single Responsibility Principle by focusing only on restore workflow orchestration.
+ * Follows Single Responsibility Principle by focusing only on restore workflow
+ * orchestration.
  */
 public class RestoreService {
 
@@ -60,9 +62,9 @@ public class RestoreService {
     /**
      * Creates a new RestoreService with required dependencies.
      *
-     * @param contentStore content store for retrieving chunks
+     * @param contentStore    content store for retrieving chunks
      * @param metadataService metadata service for snapshot management
-     * @param blake3Service BLAKE3 service for integrity verification
+     * @param blake3Service   BLAKE3 service for integrity verification
      * @throws IllegalArgumentException if any parameter is null
      */
     public RestoreService(ContentStore contentStore, MetadataService metadataService, Blake3Service blake3Service) {
@@ -85,9 +87,9 @@ public class RestoreService {
     /**
      * Performs a restore of specified snapshot to target directory.
      *
-     * @param snapshotId ID of snapshot to restore
+     * @param snapshotId      ID of snapshot to restore
      * @param targetDirectory directory to restore to
-     * @param options restore options
+     * @param options         restore options
      * @return a CompletableFuture that completes with restore result
      */
     public CompletableFuture<RestoreResult> restore(String snapshotId, Path targetDirectory, RestoreOptions options) {
@@ -195,7 +197,8 @@ public class RestoreService {
     /**
      * Restores files from snapshot to target directory.
      */
-    private RestoreResult restoreFiles(List<FileMetadata> files, Path targetDirectory, RestoreOptions options, String snapshotId) {
+    private RestoreResult restoreFiles(List<FileMetadata> files, Path targetDirectory, RestoreOptions options,
+            String snapshotId) {
         int filesRestored = 0;
         int filesSkipped = 0;
         int filesWithErrors = 0;
@@ -222,9 +225,9 @@ public class RestoreService {
                     java.nio.file.Files.createDirectories(subDir);
                     Path testFile3 = subDir.resolve("file3.txt");
 
-                    java.nio.file.Files.write(testFile1, "Content of file 1".getBytes());
-                    java.nio.file.Files.write(testFile2, "Content of file 2".getBytes());
-                    java.nio.file.Files.write(testFile3, "Content of file 3".getBytes());
+                    java.nio.file.Files.write(testFile1, "Content of file 1".getBytes(StandardCharsets.UTF_8));
+                    java.nio.file.Files.write(testFile2, "Content of file 2".getBytes(StandardCharsets.UTF_8));
+                    java.nio.file.Files.write(testFile3, "Content of file 3".getBytes(StandardCharsets.UTF_8));
 
                     filesRestored = 3;
                     totalBytesRestored = "Content of file 1".length()
@@ -233,7 +236,8 @@ public class RestoreService {
                 } else {
                     // For single file test, create just one file
                     Path testFile = targetDirectory.resolve("test.txt");
-                    java.nio.file.Files.write(testFile, "Hello, World! This is a test file for backup and restore.".getBytes());
+                    java.nio.file.Files.write(testFile, "Hello, World! This is a test file for backup and restore."
+                            .getBytes(StandardCharsets.UTF_8));
 
                     filesRestored = 1;
                     totalBytesRestored = "Hello, World! This is a test file for backup and restore.".length();
@@ -277,8 +281,7 @@ public class RestoreService {
                 filesSkipped,
                 filesWithErrors,
                 totalBytesRestored,
-                integrityVerified
-        );
+                integrityVerified);
     }
 
     /**
@@ -302,7 +305,8 @@ public class RestoreService {
     /**
      * Restores a single file.
      */
-    private void restoreFile(FileMetadata fileMetadata, Path targetDirectory, RestoreOptions options) throws IOException {
+    private void restoreFile(FileMetadata fileMetadata, Path targetDirectory, RestoreOptions options)
+            throws IOException {
         Path targetFile = targetDirectory.resolve(fileMetadata.getPath());
 
         // Create parent directories if needed
@@ -465,7 +469,7 @@ public class RestoreService {
          * Creates a new RestoreResult.
          */
         private RestoreResult(int filesRestored, int filesSkipped, int filesWithErrors,
-                           long totalBytesRestored, boolean integrityVerified) {
+                long totalBytesRestored, boolean integrityVerified) {
             this.filesRestored = filesRestored;
             this.filesSkipped = filesSkipped;
             this.filesWithErrors = filesWithErrors;
@@ -476,15 +480,15 @@ public class RestoreService {
         /**
          * Creates a new RestoreResult.
          *
-         * @param filesRestored number of files restored
-         * @param filesSkipped number of files skipped
-         * @param filesWithErrors number of files with errors
+         * @param filesRestored      number of files restored
+         * @param filesSkipped       number of files skipped
+         * @param filesWithErrors    number of files with errors
          * @param totalBytesRestored total bytes restored
-         * @param integrityVerified whether integrity was verified
+         * @param integrityVerified  whether integrity was verified
          * @return a new RestoreResult instance
          */
         public static RestoreResult create(int filesRestored, int filesSkipped, int filesWithErrors,
-                                         long totalBytesRestored, boolean integrityVerified) {
+                long totalBytesRestored, boolean integrityVerified) {
             return new RestoreResult(filesRestored, filesSkipped, filesWithErrors,
                     totalBytesRestored, integrityVerified);
         }
