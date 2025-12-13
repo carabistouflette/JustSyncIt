@@ -184,10 +184,10 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                     int active = activeBatchOperations.get();
 
                     return String.format(
-                            "BatchAwareAsyncByteBufferPool Stats\n"
-                                    + "Total Allocated: %d\n"
-                                    + "Total Released: %d\n"
-                                    + "Active Batch Operations: %d\n"
+                            "BatchAwareAsyncByteBufferPool Stats%n"
+                                    + "Total Allocated: %d%n"
+                                    + "Total Released: %d%n"
+                                    + "Active Batch Operations: %d%n"
                                     + "Net Buffers: %d",
                             allocated, released, active, allocated - released);
                 }), (delegateStats, batchStats) -> delegateStats + "\n" + batchStats);
@@ -296,7 +296,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 size + (1024 * 1024), // buffer size + 1MB overhead
                 1, // 1 CPU core for allocation
                 10, // 10MB/s I/O bandwidth
-                batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
+                (long) batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
         );
 
         return new BatchOperation(
@@ -315,7 +315,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 1024 * 1024, // 1MB overhead for release operation
                 1, // 1 CPU core for release
                 5, // 5MB/s I/O bandwidth
-                batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
+                (long) batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
         );
 
         return new BatchOperation(
@@ -336,7 +336,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 totalSize + (sizes.size() * 1024), // total size + overhead per buffer
                 Math.max(1, sizes.size() / 4), // Scale CPU cores with batch size
                 Math.max(10, totalSize / (1024 * 1024)), // Scale I/O with total size
-                batchConfig.getBatchTimeoutSeconds() * 2000 // Double timeout for batch operations
+                (long) batchConfig.getBatchTimeoutSeconds() * 2000 // Double timeout for batch operations
         );
 
         return new BatchOperation(
@@ -357,7 +357,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
                 totalSize + (buffers.size() * 512), // total size + smaller overhead for release
                 Math.max(1, buffers.size() / 8), // Fewer CPU cores for release
                 Math.max(5, totalSize / (2 * 1024 * 1024)), // Less I/O for release
-                batchConfig.getBatchTimeoutSeconds() * 1500 // 1.5x timeout for batch release
+                (long) batchConfig.getBatchTimeoutSeconds() * 1500 // 1.5x timeout for batch release
         );
 
         return new BatchOperation(

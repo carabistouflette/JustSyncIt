@@ -473,9 +473,13 @@ public class BatchProcessingStats {
         @Override
         public String toString() {
             return String.format(
-                    "BatchProcessingStatsSnapshot{batches=%d, files=%d, successRate=%.2f%%, "
+                    "BatchProcessingStatsSnapshot{batches=%d, files=%d, successful=%d, failed=%d, "
+                            + "bytes=%d, time=%d, activeBatches=%d, activeFiles=%d, "
+                            + "peakBatches=%d, peakFiles=%d, successRate=%.2f%%, "
                             + "throughput=%.2fMB/s, uptime=%ds}",
-                    totalBatchesProcessed, totalFilesProcessed, successRate * 100,
+                    totalBatchesProcessed, totalFilesProcessed, successfulFileOperations, failedFileOperations,
+                    totalBytesProcessed, totalProcessingTimeMs, activeBatchOperations, activeFileOperations,
+                    peakConcurrentBatches, peakConcurrentFileOps, successRate,
                     throughputMBps, uptimeMs / 1000);
         }
     }

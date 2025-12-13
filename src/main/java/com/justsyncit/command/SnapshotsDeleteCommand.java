@@ -235,7 +235,7 @@ public class SnapshotsDeleteCommand implements Command {
     private boolean confirmDeletion() {
         try (Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8.name())) {
             System.out.print("Are you sure you want to delete this snapshot? (y/N): ");
-            String response = scanner.nextLine().trim().toLowerCase();
+            String response = scanner.nextLine().trim().toLowerCase(java.util.Locale.ROOT);
             return response.equals("y") || response.equals("yes");
         }
     }

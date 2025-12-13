@@ -138,7 +138,7 @@ public class ComprehensiveBenchmarkSuite {
         // Linear scalability test
         PerformanceMetrics linearScalabilityMetrics = runBenchmark("Linear Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int size : new int[] { 100, 200, 400, 800 }) {
+            for (int size : new int[]{100, 200, 400, 800 }) {
                 Path dataset = tempDir.resolve("dataset-" + size);
                 BenchmarkDataGenerator.createMixedDataset(dataset, size);
                 datasets.add(dataset);
@@ -150,7 +150,7 @@ public class ComprehensiveBenchmarkSuite {
         // File count scalability
         PerformanceMetrics fileCountMetrics = runBenchmark("File Count Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int fileCount : new int[] { 100, 500, 1000, 2000 }) {
+            for (int fileCount : new int[]{100, 500, 1000, 2000 }) {
                 Path dataset = tempDir.resolve("files-" + fileCount);
                 BenchmarkDataGenerator.createSmallFilesDataset(dataset, 100); // 100MB with many files
                 datasets.add(dataset);
@@ -162,7 +162,7 @@ public class ComprehensiveBenchmarkSuite {
         // Directory depth scalability
         PerformanceMetrics dirDepthMetrics = runBenchmark("Directory Depth Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int depth : new int[] { 5, 10, 15, 20 }) {
+            for (int depth : new int[]{5, 10, 15, 20 }) {
                 Path dataset = tempDir.resolve("depth-" + depth);
                 BenchmarkDataGenerator.createDeepDirectoryDataset(dataset, depth, 10, 10240);
                 datasets.add(dataset);
@@ -241,8 +241,8 @@ public class ComprehensiveBenchmarkSuite {
             BenchmarkDataGenerator.createMixedDataset(baseData, 200);
             BenchmarkDataGenerator.DatasetInfo incrementalData = BenchmarkDataGenerator
                     .createIncrementalDataset(baseData, 200);
-            BenchmarkDataGenerator.modifyIncrementalDataset(incrementalData, 0.2, 0.1, 0.05); // 20% modify, 10% add, 5%
-                                                                                              // delete
+            BenchmarkDataGenerator.modifyIncrementalDataset(incrementalData, 0.2, 0.1, 0.05);
+            // 20% modify, 10% add, 5% delete
             return simulateIncrementalBackup(baseData, incrementalData);
         });
         allMetrics.add(incrementalDeduplicationMetrics);
@@ -522,8 +522,8 @@ public class ComprehensiveBenchmarkSuite {
         Files.createDirectories(result);
 
         Files.writeString(result.resolve("incremental-info.txt"),
-                "Base backup: " + baseBackup.toString() + "\n" +
-                        "Incremental changes processed successfully");
+                "Base backup: " + baseBackup.toString() + "\n"
+                        + "Incremental changes processed successfully");
 
         return result;
     }

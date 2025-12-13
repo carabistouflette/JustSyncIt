@@ -400,18 +400,18 @@ public final class PerformanceMonitor implements Runnable {
 
         // Global stats
         sb.append("Global:\n");
-        sb.append(String.format("  Total Acquisition Requests: %d\n", totalAcquisitionRequests.get()));
-        sb.append(String.format("  Successful Acquisitions: %d\n", totalSuccessfulAcquisitions.get()));
-        sb.append(String.format("  Failed Acquisitions: %d\n", totalFailedAcquisitions.get()));
-        sb.append(String.format("  Total Releases: %d\n", totalReleases.get()));
-        sb.append(String.format("  Current Memory Usage: %d bytes\n", currentMemoryUsage.get()));
+        sb.append(String.format("  Total Acquisition Requests: %d%n", totalAcquisitionRequests.get()));
+        sb.append(String.format("  Successful Acquisitions: %d%n", totalSuccessfulAcquisitions.get()));
+        sb.append(String.format("  Failed Acquisitions: %d%n", totalFailedAcquisitions.get()));
+        sb.append(String.format("  Total Releases: %d%n", totalReleases.get()));
+        sb.append(String.format("  Current Memory Usage: %d bytes%n", currentMemoryUsage.get()));
 
         // Current window
         WindowSnapshot window = currentWindow.get().getSnapshot();
         sb.append("Current Window (").append(window.durationMs).append("ms):\n");
-        sb.append(String.format("  Acquisitions: %d (%.2f/s)\n", window.acquisitions, window.getAcquisitionRate()));
-        sb.append(String.format("  Failures: %d (%.2f%%)\n", window.failures, window.getFailureRate() * 100));
-        sb.append(String.format("  Avg Wait Time: %.2fμs\n", window.getAverageWaitTime() / 1000.0));
+        sb.append(String.format("  Acquisitions: %d (%.2f/s)%n", window.acquisitions, window.getAcquisitionRate()));
+        sb.append(String.format("  Failures: %d (%.2f%%)%n", window.failures, window.getFailureRate() * 100));
+        sb.append(String.format("  Avg Wait Time: %.2fμs%n", window.getAverageWaitTime() / 1000.0));
 
         // Size-specific metrics
         sb.append("Size-specific:\n");
@@ -419,7 +419,7 @@ public final class PerformanceMonitor implements Runnable {
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> {
                     SizeMetricsSnapshot snapshot = entry.getValue().getSnapshot();
-                    sb.append(String.format("  %dB: acquisitions=%d, failures=%d, peak_usage=%d\n",
+                    sb.append(String.format("  %dB: acquisitions=%d, failures=%d, peak_usage=%d%n",
                             entry.getKey(), snapshot.acquisitions, snapshot.failures, snapshot.peakUsage));
                 });
 

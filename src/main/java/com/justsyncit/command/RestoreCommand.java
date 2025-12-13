@@ -34,6 +34,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
+import java.util.Locale;
 
 /**
  * Command for restoring directories from snapshots.
@@ -247,7 +248,7 @@ public class RestoreCommand implements Command {
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            TransportType transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            TransportType transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
                             optionsBuilder.transportType(transportType);
                             i++;
                         } catch (IllegalArgumentException e) {

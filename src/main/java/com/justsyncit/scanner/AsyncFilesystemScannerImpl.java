@@ -852,8 +852,8 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             }
 
             // On Unix systems, check block allocation
-            if (System.getProperty("os.name").toLowerCase().contains("linux")
-                    || System.getProperty("os.name").toLowerCase().contains("mac")) {
+            if (System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("linux")
+                    || System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("mac")) {
 
                 Object blockSize = Files.getAttribute(path, "unix:blocksize");
                 Object blocks = Files.getAttribute(path, "unix:blocks");

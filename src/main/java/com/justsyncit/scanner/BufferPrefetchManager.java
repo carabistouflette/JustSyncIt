@@ -127,6 +127,13 @@ public final class BufferPrefetchManager implements Runnable {
             this.missRate = missRate;
             this.requestRate = requestRate;
         }
+
+        @Override
+        public String toString() {
+            return String.format(
+                    "UsagePatternSnapshot{requests=%d, hits=%d, misses=%d, hitRate=%.2f, missRate=%.2f, rate=%.2f/s}",
+                    recentRequests, totalHits, totalMisses, hitRate, missRate, requestRate);
+        }
     }
 
     /**

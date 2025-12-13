@@ -41,7 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Benchmark for measuring deduplication efficiency and overhead.
@@ -103,7 +103,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPerfectDeduplication() throws Exception {
         // Test with identical files (perfect deduplication scenario)
-        int[] duplicateCounts = { 10, 50, 100, 500 };
+        int[] duplicateCounts = {10, 50, 100, 500 };
         int fileSizeKB = 100; // 100KB per file
 
         for (int duplicateCount : duplicateCounts) {
@@ -159,13 +159,13 @@ public class DeduplicationBenchmark {
             // Performance assertions
             double deduplicationRatio = (Double) metrics.getMetrics().get("deduplication_ratio");
             assertTrue(deduplicationRatio >= duplicateCount * 0.8, // Allow some overhead
-                    "Deduplication ratio should be high for identical files: " +
-                            String.format("%.2f", deduplicationRatio) + " (expected ~" + duplicateCount + ")");
+                    "Deduplication ratio should be high for identical files: "
+                            + String.format("%.2f", deduplicationRatio) + " (expected ~" + duplicateCount + ")");
 
             double spaceSavings = (Double) metrics.getMetrics().get("space_savings_percent");
             assertTrue(spaceSavings > 90.0,
-                    "Space savings should be >90% for identical files: " +
-                            String.format("%.1f", spaceSavings) + "%");
+                    "Space savings should be >90% for identical files: "
+                            + String.format("%.1f", spaceSavings) + "%");
 
             // Clean up for next test
             cleanupDirectory(sourceDir);
@@ -176,7 +176,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPartialDeduplication() throws Exception {
         // Test with files having partial duplication
-        int[] fileCounts = { 50, 100, 200 };
+        int[] fileCounts = {50, 100, 200 };
         int duplicateRatio = 50; // 50% of content is duplicated
         int fileSizeKB = 100;
 
@@ -239,13 +239,13 @@ public class DeduplicationBenchmark {
             // Performance assertions
             double deduplicationRatio = (Double) metrics.getMetrics().get("deduplication_ratio");
             assertTrue(deduplicationRatio > 1.0,
-                    "Deduplication ratio should be >1.0 for partial duplication: " +
-                            String.format("%.2f", deduplicationRatio));
+                    "Deduplication ratio should be >1.0 for partial duplication: "
+                            + String.format("%.2f", deduplicationRatio));
 
             double spaceSavings = (Double) metrics.getMetrics().get("space_savings_percent");
             assertTrue(spaceSavings > 20.0 && spaceSavings < 80.0,
-                    "Space savings should be reasonable for partial duplication: " +
-                            String.format("%.1f", spaceSavings) + "%");
+                    "Space savings should be reasonable for partial duplication: "
+                            + String.format("%.1f", spaceSavings) + "%");
 
             // Clean up for next test
             cleanupDirectory(sourceDir);
@@ -256,7 +256,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkNoDeduplication() throws Exception {
         // Test with completely unique files (no deduplication)
-        int[] fileCounts = { 50, 100, 200 };
+        int[] fileCounts = {50, 100, 200 };
         int fileSizeKB = 100;
 
         for (int fileCount : fileCounts) {
@@ -308,13 +308,13 @@ public class DeduplicationBenchmark {
             // Performance assertions
             double deduplicationRatio = (Double) metrics.getMetrics().get("deduplication_ratio");
             assertTrue(deduplicationRatio >= 1.0 && deduplicationRatio <= 1.1,
-                    "Deduplication ratio should be ~1.0 for unique files: " +
-                            String.format("%.2f", deduplicationRatio));
+                    "Deduplication ratio should be ~1.0 for unique files: "
+                            + String.format("%.2f", deduplicationRatio));
 
             double spaceSavings = (Double) metrics.getMetrics().get("space_savings_percent");
             assertTrue(spaceSavings >= 0.0 && spaceSavings < 10.0,
-                    "Space savings should be minimal for unique files: " +
-                            String.format("%.1f", spaceSavings) + "%");
+                    "Space savings should be minimal for unique files: "
+                            + String.format("%.1f", spaceSavings) + "%");
 
             // Clean up for next test
             cleanupDirectory(sourceDir);
@@ -325,7 +325,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkChunkSizeImpact() throws Exception {
         // Test impact of chunk size on deduplication efficiency
-        int[] chunkSizes = { 32 * 1024, 64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024 }; // 32KB to 1MB
+        int[] chunkSizes = {32 * 1024, 64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024 }; // 32KB to 1MB
         int duplicateRatio = 30; // 30% duplication
 
         for (int chunkSize : chunkSizes) {
@@ -389,7 +389,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkDeduplicationOverhead() throws Exception {
         // Test performance overhead of deduplication processing
-        int[] fileCounts = { 50, 100, 200, 500 };
+        int[] fileCounts = {50, 100, 200, 500 };
         int fileSizeKB = 50;
 
         for (int fileCount : fileCounts) {
@@ -475,7 +475,7 @@ public class DeduplicationBenchmark {
     void benchmarkIncrementalDeduplication() throws Exception {
         // Test deduplication efficiency in incremental backups
         int initialSizeMB = 50;
-        int[] changePercentages = { 5, 10, 20, 30 }; // Percentage of files changed
+        int[] changePercentages = {5, 10, 20, 30 }; // Percentage of files changed
 
         for (int changePercent : changePercentages) {
             PerformanceMetrics metrics = new PerformanceMetrics(
@@ -527,8 +527,8 @@ public class DeduplicationBenchmark {
             metrics.recordMetric("deduplication_ratio", metadataStats.getDeduplicationRatio());
 
             // Calculate incremental efficiency
-            double incrementalRatio = (double) incrementalBackupResult.getTotalBytesProcessed() /
-                    (initialSizeMB * 1024L * 1024L);
+            double incrementalRatio = (double) incrementalBackupResult.getTotalBytesProcessed()
+                    / (initialSizeMB * 1024L * 1024L);
             metrics.recordMetric("incremental_ratio", incrementalRatio);
 
             metrics.finalizeMetrics();
@@ -537,8 +537,8 @@ public class DeduplicationBenchmark {
             // Performance assertions
             double incrementalRatioValue = (Double) metrics.getMetrics().get("incremental_ratio");
             assertTrue(incrementalRatioValue < 0.5,
-                    "Incremental backup should be much smaller than full backup: " +
-                            String.format("%.3f", incrementalRatioValue));
+                    "Incremental backup should be much smaller than full backup: "
+                            + String.format("%.3f", incrementalRatioValue));
 
             // Clean up for next test
             cleanupDirectory(sourceDir);
@@ -633,14 +633,18 @@ public class DeduplicationBenchmark {
      * Gets a deduplication efficiency rating based on ratio.
      */
     private String getDeduplicationEfficiencyRating(double ratio) {
-        if (ratio >= 10.0)
+        if (ratio >= 10.0) {
             return "Excellent (>=10x)";
-        if (ratio >= 5.0)
+        }
+        if (ratio >= 5.0) {
             return "Good (5-10x)";
-        if (ratio >= 2.0)
+        }
+        if (ratio >= 2.0) {
             return "Fair (2-5x)";
-        if (ratio >= 1.5)
+        }
+        if (ratio >= 1.5) {
             return "Poor (1.5-2x)";
+        }
         return "Very Poor (<1.5x)";
     }
 
@@ -648,14 +652,18 @@ public class DeduplicationBenchmark {
      * Gets a space savings rating based on percentage.
      */
     private String getSpaceSavingsRating(double savingsPercent) {
-        if (savingsPercent >= 90.0)
+        if (savingsPercent >= 90.0) {
             return "Excellent (>=90%)";
-        if (savingsPercent >= 70.0)
+        }
+        if (savingsPercent >= 70.0) {
             return "Good (70-90%)";
-        if (savingsPercent >= 50.0)
+        }
+        if (savingsPercent >= 50.0) {
             return "Fair (50-70%)";
-        if (savingsPercent >= 20.0)
+        }
+        if (savingsPercent >= 20.0) {
             return "Poor (20-50%)";
+        }
         return "Very Poor (<20%)";
     }
 

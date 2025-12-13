@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.Locale;
 
 /**
  * Command for transferring snapshots to another server.
@@ -354,7 +355,7 @@ public class TransferCommand implements Command {
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            options.transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            options.transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
                             i++;
                         } catch (IllegalArgumentException e) {
                             System.err.println(

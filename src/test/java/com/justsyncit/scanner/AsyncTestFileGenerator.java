@@ -310,7 +310,7 @@ public final class AsyncTestFileGenerator {
                 break;
 
             case SEQUENTIAL:
-                byte[] sequentialValue = {0};
+                byte[] sequentialValue = { 0 };
                 while (buffer.hasRemaining()) {
                     buffer.put(sequentialValue[0]++);
                 }
@@ -344,7 +344,7 @@ public final class AsyncTestFileGenerator {
             case MIXED:
                 // Mix of different patterns
                 int quarter = size / 4;
-                final byte[] mixedValue = {0};
+                final byte[] mixedValue = { 0 };
                 fillBufferRange(buffer, 0, quarter, (byte) 0);
                 fillBufferRange(buffer, quarter, 2 * quarter, (byte) 0xFF);
                 fillBufferRange(buffer, 2 * quarter, 3 * quarter, () -> {
@@ -466,7 +466,8 @@ public final class AsyncTestFileGenerator {
 
             java.util.List<CompletableFuture<FileGenerationResult>> futures = new java.util.ArrayList<>();
             for (int i = 0; i < configs.length; i++) {
-                String fileName = "test_file_" + i + "_" + configs[i].getPattern().name().toLowerCase() + ".dat";
+                String fileName = "test_file_" + i + "_"
+                        + configs[i].getPattern().name().toLowerCase(java.util.Locale.ROOT) + ".dat";
                 Path filePath = baseDir.resolve(fileName);
                 futures.add(generateFileAsync(filePath, configs[i]));
             }

@@ -53,7 +53,7 @@ public final class MetadataServiceFactory {
      *
      * @param databasePath path to the SQLite database file
      * @return a new MetadataService instance
-     * @throws IOException if the service cannot be created
+     * @throws IOException              if the service cannot be created
      * @throws IllegalArgumentException if databasePath is null or empty
      */
     public static MetadataService createFileBasedService(String databasePath) throws IOException {
@@ -61,12 +61,13 @@ public final class MetadataServiceFactory {
     }
 
     /**
-     * Creates a SQLite-based metadata service with file-based database and custom connection pool size.
+     * Creates a SQLite-based metadata service with file-based database and custom
+     * connection pool size.
      *
-     * @param databasePath path to the SQLite database file
+     * @param databasePath   path to the SQLite database file
      * @param maxConnections maximum number of connections in the pool
      * @return a new MetadataService instance
-     * @throws IOException if the service cannot be created
+     * @throws IOException              if the service cannot be created
      * @throws IllegalArgumentException if parameters are invalid
      */
     public static MetadataService createFileBasedService(String databasePath, int maxConnections) throws IOException {
@@ -109,12 +110,13 @@ public final class MetadataServiceFactory {
     }
 
     /**
-     * Creates a SQLite-based metadata service with in-memory database and custom connection pool size.
+     * Creates a SQLite-based metadata service with in-memory database and custom
+     * connection pool size.
      * This is useful for testing or temporary operations.
      *
      * @param maxConnections maximum number of connections in the pool
      * @return a new MetadataService instance with in-memory database
-     * @throws IOException if the service cannot be created
+     * @throws IOException              if the service cannot be created
      * @throws IllegalArgumentException if maxConnections is not positive
      */
     public static MetadataService createInMemoryService(int maxConnections) throws IOException {
@@ -124,17 +126,20 @@ public final class MetadataServiceFactory {
 
         logger.info("Creating in-memory metadata service");
 
-        // Use shared connection manager for in-memory databases to ensure all operations
+        // Use shared connection manager for in-memory databases to ensure all
+        // operations
         // use the same database instance
         if (sharedInMemoryConnectionManager == null) {
             synchronized (MetadataServiceFactory.class) {
                 if (sharedInMemoryConnectionManager == null) {
-                    sharedInMemoryConnectionManager = new SqliteConnectionManager("file::memory:?cache=shared", maxConnections);
+                    sharedInMemoryConnectionManager = new SqliteConnectionManager("file::memory:?cache=shared",
+                            maxConnections);
 
                     // Get the shared connection to ensure it's initialized
                     try {
-                        Connection sharedConnection = sharedInMemoryConnectionManager.getConnection();
-                        logger.info("Pre-initialized shared in-memory database connection");
+                        try (Connection sharedConnection = sharedInMemoryConnectionManager.getConnection()) {
+                            logger.info("Pre-initialized shared in-memory database connection: {}", sharedConnection);
+                        }
                     } catch (Exception e) {
                         logger.error("Failed to pre-initialize shared in-memory database", e);
                         throw new IOException("Failed to initialize shared in-memory database", e);

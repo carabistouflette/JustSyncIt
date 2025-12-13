@@ -43,7 +43,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Benchmark for measuring network transfer performance between TCP and QUIC
@@ -137,7 +138,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicSmallFiles() throws Exception {
         // Test TCP vs QUIC with small files
-        int[] fileCounts = { 10, 50, 100, 500 };
+        int[] fileCounts = {10, 50, 100, 500 };
         int fileSizeKB = 10; // 10KB files
 
         for (int fileCount : fileCounts) {
@@ -168,7 +169,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicLargeFiles() throws Exception {
         // Test TCP vs QUIC with large files
-        int[] fileSizesMB = { 1, 5, 10, 50 }; // MB
+        int[] fileSizesMB = {1, 5, 10, 50 }; // MB
         int fileCount = 5;
 
         for (int fileSizeMB : fileSizesMB) {
@@ -199,7 +200,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicMixedWorkload() throws Exception {
         // Test TCP vs QUIC with mixed file sizes
-        int[] datasetSizesMB = { 10, 50, 100, 250 };
+        int[] datasetSizesMB = {10, 50, 100, 250 };
 
         for (int sizeMB : datasetSizesMB) {
             // Test TCP
@@ -229,7 +230,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicLatencySensitivity() throws Exception {
         // Test TCP vs QUIC under different latency conditions
-        int[] latencyMs = { 0, 50, 100, 200, 500 };
+        int[] latencyMs = {0, 50, 100, 200, 500 };
         int datasetSizeMB = 50;
 
         for (int latency : latencyMs) {
@@ -260,7 +261,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicPacketLoss() throws Exception {
         // Test TCP vs QUIC under packet loss conditions
-        double[] packetLossPercent = { 0.0, 0.1, 0.5, 1.0, 2.0 };
+        double[] packetLossPercent = {0.0, 0.1, 0.5, 1.0, 2.0 };
         int datasetSizeMB = 50;
 
         for (double packetLoss : packetLossPercent) {
@@ -291,7 +292,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicConcurrentConnections() throws Exception {
         // Test TCP vs QUIC with concurrent connections
-        int[] connectionCounts = { 1, 2, 4, 8 };
+        int[] connectionCounts = {1, 2, 4, 8 };
         int datasetSizeMB = 25; // Per connection
 
         for (int connections : connectionCounts) {
@@ -589,13 +590,13 @@ public class NetworkBenchmark extends E2ETestBase {
 
         // Group results by transport type
         List<PerformanceMetrics> tcpResults = benchmarkResults.stream()
-                .filter(m -> m.getMetrics().containsKey("transport_type") &&
-                        m.getMetrics().get("transport_type").equals("TCP"))
+                .filter(m -> m.getMetrics().containsKey("transport_type")
+                        && m.getMetrics().get("transport_type").equals("TCP"))
                 .collect(java.util.stream.Collectors.toList());
 
         List<PerformanceMetrics> quicResults = benchmarkResults.stream()
-                .filter(m -> m.getMetrics().containsKey("transport_type") &&
-                        m.getMetrics().get("transport_type").equals("QUIC"))
+                .filter(m -> m.getMetrics().containsKey("transport_type")
+                        && m.getMetrics().get("transport_type").equals("QUIC"))
                 .collect(java.util.stream.Collectors.toList());
 
         // TCP Performance Summary

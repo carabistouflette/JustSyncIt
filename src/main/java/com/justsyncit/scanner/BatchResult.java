@@ -307,8 +307,8 @@ public class BatchResult {
         public String toString() {
             if (success) {
                 return String.format(
-                        "FileResult{file=%s, success=true, time=%dms, size=%d, chunks=%d}",
-                        file, processingTimeMs, fileSize, chunkCount);
+                        "FileResult{file=%s, success=true, time=%dms, size=%d, chunks=%d, hash=%s}",
+                        file, processingTimeMs, fileSize, chunkCount, fileHash);
             } else {
                 return String.format(
                         "FileResult{file=%s, success=false, error='%s'}",

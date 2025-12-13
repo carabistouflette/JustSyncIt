@@ -296,7 +296,7 @@ public class AsyncScanResult extends ScanResult {
      */
     public CompletableFuture<String> exportAsync(String format) {
         return CompletableFuture.supplyAsync(() -> {
-            switch (format.toLowerCase()) {
+            switch (format.toLowerCase(java.util.Locale.ROOT)) {
                 case "json":
                     return toJson();
                 case "csv":

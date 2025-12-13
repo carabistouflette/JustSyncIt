@@ -71,7 +71,7 @@ public class SystemResourceInfo {
         }
 
         // Check for NUMA in OS name
-        return osName != null && osName.toLowerCase().contains("linux");
+        return osName != null && osName.toLowerCase(java.util.Locale.ROOT).contains("linux");
     }
 
     /**

@@ -442,8 +442,7 @@ public class ServiceFactory {
     public com.justsyncit.scanner.AsyncFileChunker createAsyncFileChunker(Blake3Service blake3Service)
             throws ServiceException {
         try {
-            com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl
-                    .create();
+
             return com.justsyncit.scanner.AsyncFileChunkerImpl.create(blake3Service);
         } catch (Exception e) {
             throw new ServiceException("Failed to create async file chunker", e);

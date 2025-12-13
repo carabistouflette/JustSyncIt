@@ -283,7 +283,7 @@ public class ThreadPoolPerformanceTest {
     @DisplayName("Should scale efficiently for concurrent operations")
     void shouldScaleEfficientlyForConcurrentOperations() throws Exception {
         // Test scalability with increasing load
-        int[] loadLevels = { 100, 500, 1000, 2000 };
+        int[] loadLevels = {100, 500, 1000, 2000 };
 
         for (int loadLevel : loadLevels) {
             long startTime = System.nanoTime();

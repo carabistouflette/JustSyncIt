@@ -44,7 +44,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Benchmark for testing performance with concurrent operations.
@@ -111,7 +112,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkConcurrentBackups() throws Exception {
         // Test concurrent backup operations
-        int[] concurrencyLevels = { 1, 2, 4, 8, 16 };
+        int[] concurrencyLevels = {1, 2, 4, 8, 16};
         int datasetSizeMB = 25; // Per concurrent operation
 
         for (int concurrency : concurrencyLevels) {
@@ -126,7 +127,7 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<BackupService.BackupResult>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = { 0 };
+            final long[] totalSizeRef = {0 };
 
             for (int i = 0; i < concurrency; i++) {
                 final int index = i;
@@ -204,7 +205,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkConcurrentRestores() throws Exception {
         // Test concurrent restore operations
-        int[] concurrencyLevels = { 1, 2, 4, 8 };
+        int[] concurrencyLevels = {1, 2, 4, 8 };
         int datasetSizeMB = 20; // Per concurrent operation
 
         for (int concurrency : concurrencyLevels) {
@@ -235,7 +236,7 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<RestoreService.RestoreResult>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = { 0 };
+            final long[] totalSizeRef = {0 };
 
             for (int i = 0; i < concurrency; i++) {
                 final String snapshotId = snapshotIds.get(i);
@@ -318,7 +319,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMixedConcurrentOperations() throws Exception {
         // Test mixed concurrent backup and restore operations
-        int[] concurrencyLevels = { 2, 4, 8 };
+        int[] concurrencyLevels = {2, 4, 8 };
         int operationCount = 10; // Total operations per test
         int datasetSizeMB = 15;
 
@@ -350,9 +351,9 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<Object>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = { 0 };
-            final int[] backupCountRef = { 0 };
-            final int[] restoreCountRef = { 0 };
+            final long[] totalSizeRef = {0 };
+            final int[] backupCountRef = {0 };
+            final int[] restoreCountRef = {0 };
 
             for (int i = 0; i < operationCount; i++) {
                 final boolean isBackup = i % 2 == 0;
@@ -463,7 +464,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkResourceContention() throws Exception {
         // Test performance under resource contention scenarios
-        int[] concurrencyLevels = { 4, 8, 16, 32 };
+        int[] concurrencyLevels = {4, 8, 16, 32 };
         int datasetSizeMB = 10;
 
         for (int concurrency : concurrencyLevels) {
@@ -478,7 +479,7 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<BackupService.BackupResult>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = { 0 };
+            final long[] totalSizeRef = {0 };
 
             for (int i = 0; i < concurrency; i++) {
                 final int index = i;
@@ -671,8 +672,8 @@ public class ConcurrencyBenchmark {
 
         // Find optimal concurrency level
         benchmarkResults.stream()
-                .filter(m -> m.getMetrics().containsKey("concurrency_level") &&
-                        m.getMetrics().containsKey("throughput_mbps"))
+                .filter(m -> m.getMetrics().containsKey("concurrency_level")
+                        && m.getMetrics().containsKey("throughput_mbps"))
                 .collect(java.util.stream.Collectors.groupingBy(
                         m -> (Integer) m.getMetrics().get("concurrency_level"),
                         java.util.stream.Collectors
@@ -681,8 +682,8 @@ public class ConcurrencyBenchmark {
                 .stream()
                 .max(java.util.Map.Entry.comparingByValue())
                 .ifPresent(entry -> {
-                    System.out.println("Optimal Concurrency Level: " + entry.getKey() +
-                            " threads (" + String.format("%.2f", entry.getValue()) + " MB/s)");
+                    System.out.println("Optimal Concurrency Level: " + entry.getKey()
+                            + " threads (" + String.format("%.2f", entry.getValue()) + " MB/s)");
                 });
 
         System.out.println("Total Concurrency Benchmarks: " + benchmarkResults.size());
@@ -692,14 +693,18 @@ public class ConcurrencyBenchmark {
      * Gets a concurrency efficiency rating based on efficiency value.
      */
     private String getConcurrencyEfficiencyRating(double efficiency) {
-        if (efficiency >= 0.8)
+        if (efficiency >= 0.8) {
             return "Excellent (>=80%)";
-        if (efficiency >= 0.6)
+        }
+        if (efficiency >= 0.6) {
             return "Good (60-80%)";
-        if (efficiency >= 0.4)
+        }
+        if (efficiency >= 0.4) {
             return "Fair (40-60%)";
-        if (efficiency >= 0.2)
+        }
+        if (efficiency >= 0.2) {
             return "Poor (20-40%)";
+        }
         return "Very Poor (<20%)";
     }
 
@@ -707,14 +712,18 @@ public class ConcurrencyBenchmark {
      * Gets a resource efficiency rating based on efficiency value.
      */
     private String getResourceEfficiencyRating(double efficiency) {
-        if (efficiency >= 0.8)
+        if (efficiency >= 0.8) {
             return "Excellent (>=80%)";
-        if (efficiency >= 0.6)
+        }
+        if (efficiency >= 0.6) {
             return "Good (60-80%)";
-        if (efficiency >= 0.4)
+        }
+        if (efficiency >= 0.4) {
             return "Fair (40-60%)";
-        if (efficiency >= 0.2)
+        }
+        if (efficiency >= 0.2) {
             return "Poor (20-40%)";
+        }
         return "Very Poor (<20%)";
     }
 

@@ -86,7 +86,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithNoArgs() {
-        boolean result = command.execute(new String[]{"src"}, context);
+        boolean result = command.execute(new String[]{}, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Source directory is required"));
     }
@@ -127,7 +127,7 @@ class BackupCommandTest {
         when(backupService.backup(any(Path.class), any(BackupOptions.class)))
                 .thenReturn(CompletableFuture.completedFuture(backupResult));
 
-        boolean result = command.execute(new String[] {
+        boolean result = command.execute(new String[]{
                 tempDir.toString(),
                 "--remote",
                 "--server", "localhost:8080",

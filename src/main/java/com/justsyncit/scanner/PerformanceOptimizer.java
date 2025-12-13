@@ -70,7 +70,6 @@ public class PerformanceOptimizer {
      * Optimizes performance parameters based on current system state.
      */
     public void optimize() {
-        long startTime = System.currentTimeMillis();
 
         try {
             // Calculate memory pressure

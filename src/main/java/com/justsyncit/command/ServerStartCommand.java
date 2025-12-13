@@ -23,6 +23,7 @@ import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.Locale;
 
 /**
  * Command for starting a backup server.
@@ -155,7 +156,7 @@ public class ServerStartCommand implements Command {
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
                             i++;
                         } catch (IllegalArgumentException e) {
                             throw new IllegalArgumentException(

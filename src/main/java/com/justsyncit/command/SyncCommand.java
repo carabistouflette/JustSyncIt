@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.Locale;
 
 /**
  * Command for synchronizing local directory with remote server.
@@ -363,7 +364,7 @@ public class SyncCommand implements Command {
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            options.transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            options.transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
                             i++;
                         } catch (IllegalArgumentException e) {
                             System.err.println(

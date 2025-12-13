@@ -25,6 +25,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Adaptive sizing controller for dynamic buffer pool optimization.
@@ -34,7 +35,6 @@ public final class AdaptiveSizingController implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(AdaptiveSizingController.class);
 
-    private final OptimizedAsyncByteBufferPool.PoolConfiguration config;
     private final PerformanceMonitor performanceMonitor;
 
     // Adaptive sizing state
@@ -45,8 +45,8 @@ public final class AdaptiveSizingController implements Runnable {
     private volatile long lastAnalysisTime = System.currentTimeMillis();
     private volatile double averageUtilization = 0.0;
     private volatile double peakUtilization = 0.0;
-    private volatile int consecutiveHighUtilization = 0;
-    private volatile int consecutiveLowUtilization = 0;
+    private final AtomicInteger consecutiveHighUtilization = new AtomicInteger(0);
+    private final AtomicInteger consecutiveLowUtilization = new AtomicInteger(0);
 
     // Background monitoring
     private final ScheduledExecutorService scheduler;
@@ -56,7 +56,6 @@ public final class AdaptiveSizingController implements Runnable {
      */
     public AdaptiveSizingController(OptimizedAsyncByteBufferPool.PoolConfiguration config,
             PerformanceMonitor performanceMonitor) {
-        this.config = config;
         this.performanceMonitor = performanceMonitor;
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -148,14 +147,14 @@ public final class AdaptiveSizingController implements Runnable {
 
         // Update consecutive counters
         if (currentUtilization > 0.8) {
-            consecutiveHighUtilization++;
-            consecutiveLowUtilization = 0;
+            consecutiveHighUtilization.incrementAndGet();
+            consecutiveLowUtilization.set(0);
         } else if (currentUtilization < 0.3) {
-            consecutiveLowUtilization++;
-            consecutiveHighUtilization = 0;
+            consecutiveLowUtilization.incrementAndGet();
+            consecutiveHighUtilization.set(0);
         } else {
-            consecutiveHighUtilization = 0;
-            consecutiveLowUtilization = 0;
+            consecutiveHighUtilization.set(0);
+            consecutiveLowUtilization.set(0);
         }
     }
 
@@ -194,7 +193,7 @@ public final class AdaptiveSizingController implements Runnable {
         // Adjust based on severity
         if (utilization > 0.95 || failureRate > 0.2) {
             baseMagnitude = 2.0; // 100% increase for severe conditions
-        } else if (consecutiveHighUtilization > 3) {
+        } else if (consecutiveHighUtilization.get() > 3) {
             baseMagnitude = 1.8; // 80% increase for sustained high load
         }
 
@@ -208,7 +207,7 @@ public final class AdaptiveSizingController implements Runnable {
         double baseMagnitude = 0.8; // 20% decrease
 
         // Be more conservative with decreases
-        if (consecutiveLowUtilization > 5) {
+        if (consecutiveLowUtilization.get() > 5) {
             baseMagnitude = 0.6; // 40% decrease for sustained low load
         }
 
@@ -252,7 +251,7 @@ public final class AdaptiveSizingController implements Runnable {
     public AdaptiveSizingStats getStats() {
         return new AdaptiveSizingStats(
                 averageUtilization, peakUtilization,
-                consecutiveHighUtilization, consecutiveLowUtilization,
+                consecutiveHighUtilization.get(), consecutiveLowUtilization.get(),
                 lastAnalysisTime);
     }
 

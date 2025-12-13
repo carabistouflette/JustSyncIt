@@ -411,11 +411,11 @@ public class BatchAwareThreadPoolManager {
             int active = activeBatchOperations.get();
 
             return String.format(
-                    "BatchAwareThreadPoolManager Stats\n"
-                            + "Delegate: %s\n"
-                            + "Total Tasks Submitted: %d\n"
-                            + "Total Tasks Completed: %d\n"
-                            + "Active Batch Operations: %d\n"
+                    "BatchAwareThreadPoolManager Stats%n"
+                            + "Delegate: %s%n"
+                            + "Total Tasks Submitted: %d%n"
+                            + "Total Tasks Completed: %d%n"
+                            + "Active Batch Operations: %d%n"
                             + "Success Rate: %.2f%%",
                     delegateStats.toString(), submitted, completed, active,
                     submitted > 0 ? (completed * 100.0 / submitted) : 0.0);
@@ -550,7 +550,7 @@ public class BatchAwareThreadPoolManager {
                 1024 * 1024, // 1MB memory for CPU task
                 1, // 1 CPU core
                 5, // 5MB/s I/O bandwidth
-                batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
+                (long) batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
         );
 
         return new BatchOperation(
@@ -569,7 +569,7 @@ public class BatchAwareThreadPoolManager {
                 2 * 1024 * 1024, // 2MB memory for I/O task
                 1, // 1 CPU core
                 50, // 50MB/s I/O bandwidth
-                batchConfig.getBatchTimeoutSeconds() * 1500 // 1.5x timeout for I/O
+                (long) batchConfig.getBatchTimeoutSeconds() * 1500 // 1.5x timeout for I/O
         );
 
         return new BatchOperation(
@@ -588,7 +588,7 @@ public class BatchAwareThreadPoolManager {
                 4 * 1024 * 1024, // 4MB memory for batch processing task
                 2, // 2 CPU cores for batch processing
                 20, // 20MB/s I/O bandwidth
-                batchConfig.getBatchTimeoutSeconds() * 2000 // 2x timeout for batch processing
+                (long) batchConfig.getBatchTimeoutSeconds() * 2000 // 2x timeout for batch processing
         );
 
         return new BatchOperation(
@@ -604,10 +604,10 @@ public class BatchAwareThreadPoolManager {
      */
     private <T> BatchOperation createBatchTasksOperation(List<Callable<T>> tasks) {
         BatchOperation.ResourceRequirements requirements = new BatchOperation.ResourceRequirements(
-                tasks.size() * 1024 * 1024, // 1MB per task
+                (long) tasks.size() * 1024 * 1024, // 1MB per task
                 Math.max(2, tasks.size() / 4), // Scale CPU cores with task count
                 Math.max(10, tasks.size() * 5), // Scale I/O with task count
-                batchConfig.getBatchTimeoutSeconds() * 3000 // 3x timeout for multiple tasks
+                (long) batchConfig.getBatchTimeoutSeconds() * 3000 // 3x timeout for multiple tasks
         );
 
         return new BatchOperation(

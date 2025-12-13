@@ -114,8 +114,9 @@ public class BenchmarkDataGenerator {
             // Ensure we don't exceed target size
             if (currentSize + fileSize > targetSizeBytes) {
                 fileSize = (int) (targetSizeBytes - currentSize);
-                if (fileSize < 1024)
+                if (fileSize < 1024) {
                     break; // Don't create tiny files at the end
+                }
             }
 
             Path filePath = baseDir.resolve(String.format("mixed_%04d.%s", fileIndex++, fileType.getExtension()));

@@ -149,9 +149,9 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
         return delegate.getStatsAsync()
                 .thenCombine(CompletableFuture.completedFuture("Batch processor stats available"),
                         (chunkerStats, batchStats) -> String.format(
-                                "BatchAwareAsyncFileChunker Stats\n"
-                                        + "Chunker: %s\n"
-                                        + "Batch: %s\n"
+                                "BatchAwareAsyncFileChunker Stats%n"
+                                        + "Chunker: %s%n"
+                                        + "Batch: %s%n"
                                         + "Active Batch Operations: %d",
                                 chunkerStats, batchStats, activeBatchOperations.get()));
     }
@@ -224,7 +224,7 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
                 calculateMemoryRequirement(file, options),
                 1, // 1 CPU core for chunking
                 (int) (calculateIoRequirement(file, options) / (1024 * 1024)), // Convert to MB/s
-                batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
+                (long) batchConfig.getBatchTimeoutSeconds() * 1000 // timeout in ms
         );
 
         return new BatchOperation(

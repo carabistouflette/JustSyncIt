@@ -263,7 +263,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runThroughputBenchmarks() throws Exception {
         System.out.println("Running Throughput benchmarks...");
 
-        int[] fileSizesMB = { 1, 2, 3, 4 }; // Very small sizes to avoid disk quota issues
+        int[] fileSizesMB = {1, 2, 3, 4 }; // Very small sizes to avoid disk quota issues
 
         for (int sizeMB : fileSizesMB) {
             // Async throughput test
@@ -290,7 +290,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runLatencyBenchmarks() throws Exception {
         System.out.println("Running Latency benchmarks...");
 
-        int[] smallFileSizes = { 1, 4, 16, 64 }; // KB
+        int[] smallFileSizes = {1, 4, 16, 64 }; // KB
 
         for (int sizeKB : smallFileSizes) {
             // Async latency test
@@ -317,7 +317,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runCpuOverheadBenchmarks() throws Exception {
         System.out.println("Running CPU Overhead benchmarks...");
 
-        int[] workloads = { 2, 5, 8, 10 }; // Very small sizes to avoid disk quota issues
+        int[] workloads = {2, 5, 8, 10 }; // Very small sizes to avoid disk quota issues
 
         for (int workloadMB : workloads) {
             // Async CPU test
@@ -344,7 +344,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runScalabilityBenchmarks() throws Exception {
         System.out.println("Running Scalability benchmarks...");
 
-        int[] concurrentOperations = { 1, 4, 8, 16, 32 };
+        int[] concurrentOperations = {1, 4, 8, 16, 32 };
 
         for (int concurrency : concurrentOperations) {
             // Async scalability test
@@ -371,7 +371,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runMemoryEfficiencyBenchmarks() throws Exception {
         System.out.println("Running Memory Efficiency benchmarks...");
 
-        int[] datasetSizes = { 5, 10, 15 }; // Very small sizes to avoid disk quota issues
+        int[] datasetSizes = {5, 10, 15 }; // Very small sizes to avoid disk quota issues
 
         for (int sizeMB : datasetSizes) {
             // Async memory test

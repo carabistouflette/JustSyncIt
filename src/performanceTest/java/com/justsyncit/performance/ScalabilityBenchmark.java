@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Benchmark for testing system scalability with increasing dataset sizes.
@@ -91,7 +91,7 @@ public class ScalabilityBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkLinearDataSizeScalability() throws Exception {
         // Test scalability with linearly increasing dataset sizes
-        int[] datasetSizesMB = { 10, 50, 100, 250, 500, 1000 }; // Progressive growth
+        int[] datasetSizesMB = {10, 50, 100, 250, 500, 1000 }; // Progressive growth
 
         for (int sizeMB : datasetSizesMB) {
             PerformanceMetrics metrics = new PerformanceMetrics("Linear Scalability - " + sizeMB + "MB");
@@ -153,7 +153,7 @@ public class ScalabilityBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkFileCountScalability() throws Exception {
         // Test scalability with increasing file counts (constant total size)
-        int[] fileCounts = { 10, 50, 100, 500, 1000, 5000 };
+        int[] fileCounts = {10, 50, 100, 500, 1000, 5000 };
         int totalSizeMB = 100; // Keep total size constant
 
         for (int fileCount : fileCounts) {
@@ -206,7 +206,7 @@ public class ScalabilityBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkDirectoryDepthScalability() throws Exception {
         // Test scalability with increasing directory depth
-        int[] depths = { 1, 5, 10, 20, 50 };
+        int[] depths = {1, 5, 10, 20, 50 };
         int filesPerLevel = 10;
         int fileSizeKB = 10;
 
@@ -262,7 +262,7 @@ public class ScalabilityBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMemoryUsageScalability() throws Exception {
         // Test how memory usage scales with dataset size
-        int[] datasetSizesMB = { 50, 100, 200, 500, 1000 };
+        int[] datasetSizesMB = {50, 100, 200, 500, 1000 };
 
         for (int sizeMB : datasetSizesMB) {
             PerformanceMetrics metrics = new PerformanceMetrics("Memory Usage Scalability - " + sizeMB + "MB");
@@ -317,7 +317,7 @@ public class ScalabilityBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkRestoreScalability() throws Exception {
         // Test restore scalability with increasing dataset sizes
-        int[] datasetSizesMB = { 10, 50, 100, 250, 500 };
+        int[] datasetSizesMB = {10, 50, 100, 250, 500 };
 
         for (int sizeMB : datasetSizesMB) {
             PerformanceMetrics metrics = new PerformanceMetrics("Restore Scalability - " + sizeMB + "MB");
@@ -382,7 +382,7 @@ public class ScalabilityBenchmark {
     void benchmarkIncrementalBackupScalability() throws Exception {
         // Test scalability of incremental backups over time
         int initialSizeMB = 100;
-        int[] snapshotCounts = { 1, 5, 10, 20 }; // Number of incremental snapshots
+        int[] snapshotCounts = {1, 5, 10, 20 }; // Number of incremental snapshots
 
         for (int snapshotCount : snapshotCounts) {
             PerformanceMetrics metrics = new PerformanceMetrics(

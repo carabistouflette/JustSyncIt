@@ -355,9 +355,7 @@ public class TieredBufferPool {
      */
     private void performAdaptiveSizing() {
         long totalAcq = totalAcquisitions.get();
-        long totalRel = totalReleases.get();
         int currentTotal = totalBuffers.get();
-        int currentAvail = availableCount.get();
         int currentInUse = inUseCount.get();
 
         // Calculate utilization
