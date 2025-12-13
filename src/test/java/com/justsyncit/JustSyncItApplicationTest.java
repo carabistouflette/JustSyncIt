@@ -44,7 +44,7 @@ class JustSyncItApplicationTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRunWithNoArguments() {
         assertDoesNotThrow(() -> {
-            application.run(new String[] { "--help" });
+            application.run(new String[] {"--help"});
         });
     }
 
@@ -52,7 +52,7 @@ class JustSyncItApplicationTest {
     @DisplayName("Application should run with arguments")
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRunWithArguments() {
-        String[] args = { "--help", "--version" };
+        String[] args = {"--help", "--version"};
         assertDoesNotThrow(() -> {
             application.run(args);
         });

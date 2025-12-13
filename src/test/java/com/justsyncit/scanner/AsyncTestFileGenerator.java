@@ -310,7 +310,7 @@ public final class AsyncTestFileGenerator {
                 break;
 
             case SEQUENTIAL:
-                byte[] sequentialValue = { 0 };
+                byte[] sequentialValue = {0};
                 while (buffer.hasRemaining()) {
                     buffer.put(sequentialValue[0]++);
                 }
@@ -344,7 +344,7 @@ public final class AsyncTestFileGenerator {
             case MIXED:
                 // Mix of different patterns
                 int quarter = size / 4;
-                final byte[] mixedValue = { 0 };
+                final byte[] mixedValue = {0};
                 fillBufferRange(buffer, 0, quarter, (byte) 0);
                 fillBufferRange(buffer, quarter, 2 * quarter, (byte) 0xFF);
                 fillBufferRange(buffer, 2 * quarter, 3 * quarter, () -> {

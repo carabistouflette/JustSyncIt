@@ -271,7 +271,7 @@ public class JustSyncItApplication {
 
         // Special handling for --help as second argument
         if (startIndex + 1 < args.length && args[startIndex + 1].equals("--help")) {
-            return new String[] { "--help" };
+            return new String[] {"--help"};
         }
 
         int argCount = getExpectedArgCount(commandName);

@@ -217,8 +217,8 @@ public final class AsyncTestSuite {
         categoryResult.setEndTime(Instant.now());
         categoryResult.setDuration(Duration.between(startTime, categoryResult.getEndTime()));
 
-        System.out.println("Completed " + categoryName + " - " +
-                (categoryResult.isSuccess() ? "SUCCESS" : "FAILED"));
+        System.out.println("Completed " + categoryName + " - "
+                + (categoryResult.isSuccess() ? "SUCCESS" : "FAILED"));
 
         return categoryResult;
     }

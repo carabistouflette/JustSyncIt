@@ -570,7 +570,8 @@ public class AsyncTestMetricsCollector {
         @Override
         public String toString() {
             return String.format(
-                    "PerformanceMetrics{throughput=%.2f ops/s, avgLatency=%.2fms, p95Latency=%.2fms, p99Latency=%.2fms, errorRate=%.3f, cpu=%.1f%%, memory=%.1f%%}",
+                    "PerformanceMetrics{throughput=%.2f ops/s, avgLatency=%.2fms, p95Latency=%.2fms, "
+                            + "p99Latency=%.2fms, errorRate=%.3f, cpu=%.1f%%, memory=%.1f%%}",
                     throughputOpsPerSecond, averageLatencyMs, p95LatencyMs, p99LatencyMs, errorRate,
                     cpuUtilizationPercent, memoryUtilizationPercent);
         }
