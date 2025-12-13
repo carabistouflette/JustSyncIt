@@ -37,7 +37,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Integration tests for OptimizedAsyncByteBufferPool with async file
@@ -75,7 +77,7 @@ public class AsyncByteBufferPoolIntegrationTest {
 
     @Test
     @DisplayName("Test buffer sharing between file I/O and hashing operations")
-    void testBufferSharingBetweenIOAndHashing() throws Exception {
+    void testBufferSharingBetweenIoAndHashing() throws Exception {
         // Create test file
         Path testFile = createTestFile(1024 * 1024); // 1MB file
 

@@ -34,7 +34,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * End-to-end integration tests for data integrity verification.
@@ -481,12 +485,12 @@ public class IntegrityE2ETest extends E2ETestBase {
         double restoreThroughput = calculateThroughput(totalDataSize, restoreTime);
 
         assertTrue(backupThroughput > 0.1,
-                "Backup should have reasonable throughput with integrity: " +
-                        String.format("%.2f", backupThroughput) + " MB/s");
+                "Backup should have reasonable throughput with integrity: "
+                        + String.format("%.2f", backupThroughput) + " MB/s");
 
         assertTrue(restoreThroughput > 0.1,
-                "Restore should have reasonable throughput with integrity: " +
-                        String.format("%.2f", restoreThroughput) + " MB/s");
+                "Restore should have reasonable throughput with integrity: "
+                        + String.format("%.2f", restoreThroughput) + " MB/s");
     }
 
     /**
@@ -563,7 +567,7 @@ public class IntegrityE2ETest extends E2ETestBase {
         private final String fileName;
         private final String checksum;
 
-        public FileChecksum(String fileName, String checksum) {
+        FileChecksum(String fileName, String checksum) {
             this.fileName = fileName;
             this.checksum = checksum;
         }

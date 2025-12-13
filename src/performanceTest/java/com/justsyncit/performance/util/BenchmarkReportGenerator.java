@@ -1,20 +1,20 @@
 /*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+    * JustSyncIt - Backup solution
+    * Copyright (C) 2023 JustSyncIt Team
+    *
+    * This program is free software: you can redistribute it and/or modify
+    * it under the terms of the GNU General Public License as published by
+    * the Free Software Foundation, either version 3 of the License, or
+    * (at your option) any later version.
+    *
+    * This program is distributed in the hope that it will be useful,
+    * but WITHOUT ANY WARRANTY; without even the implied warranty of
+    * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    * GNU General Public License for more details.
+    *
+    * You should have received a copy of the GNU General Public License
+    * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    */
 
 package com.justsyncit.performance.util;
 
@@ -29,30 +29,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Utility class for generating comprehensive benchmark reports.
- * Provides methods to create detailed performance analysis and visualizations.
- */
+    * Utility class for generating comprehensive benchmark reports.
+    * Provides methods to create detailed performance analysis and visualizations.
+    */
 public class BenchmarkReportGenerator {
 
     private final List<PerformanceMetrics> allMetrics;
     private final Path reportDirectory;
 
     /**
-     * Creates a new benchmark report generator.
-     *
-     * @param allMetrics list of all performance metrics from benchmarks
-     * @param reportDirectory directory to save reports to
-     */
+        * Creates a new benchmark report generator.
+        *
+        * @param allMetrics list of all performance metrics from benchmarks
+        * @param reportDirectory directory to save reports to
+        */
     public BenchmarkReportGenerator(List<PerformanceMetrics> allMetrics, Path reportDirectory) {
         this.allMetrics = new ArrayList<>(allMetrics);
         this.reportDirectory = reportDirectory;
     }
 
     /**
-     * Generates a comprehensive HTML report with all benchmark results.
-     *
-     * @return path to the generated HTML report
-     */
+        * Generates a comprehensive HTML report with all benchmark results.
+        *
+        * @return path to the generated HTML report
+        */
     public Path generateHtmlReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-report-"
                 +
@@ -66,10 +66,10 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates a comprehensive JSON report with all benchmark results.
-     *
-     * @return path to the generated JSON report
-     */
+        * Generates a comprehensive JSON report with all benchmark results.
+        *
+        * @return path to the generated JSON report
+        */
     public Path generateJsonReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-report-"
                 +
@@ -83,10 +83,10 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates a CSV report with benchmark results for data analysis.
-     *
-     * @return path to the generated CSV report
-     */
+        * Generates a CSV report with benchmark results for data analysis.
+        *
+        * @return path to the generated CSV report
+        */
     public Path generateCsvReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-report-"
                 +
@@ -100,10 +100,10 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates a text summary report with key findings.
-     *
-     * @return path to the generated text report
-     */
+        * Generates a text summary report with key findings.
+        *
+        * @return path to the generated text report
+        */
     public Path generateTextSummaryReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-summary-"
                 +
@@ -117,10 +117,10 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates performance comparison charts data.
-     *
-     * @return path to the generated chart data file
-     */
+        * Generates performance comparison charts data.
+        *
+        * @return path to the generated chart data file
+        */
     public Path generateChartDataFile() throws IOException {
         Path chartFile = reportDirectory.resolve("benchmark-chart-data-"
                 +
@@ -134,8 +134,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates the complete HTML report content.
-     */
+        * Generates the complete HTML report content.
+        */
     private String generateHtmlContent() {
         StringBuilder html = new StringBuilder();
 
@@ -183,8 +183,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates JSON report content.
-     */
+        * Generates JSON report content.
+        */
     private String generateJsonContent() {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
@@ -232,8 +232,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates CSV report content.
-     */
+        * Generates CSV report content.
+        */
     private String generateCsvContent() {
         StringBuilder csv = new StringBuilder();
 
@@ -305,8 +305,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates text summary content.
-     */
+        * Generates text summary content.
+        */
     private String generateTextSummaryContent() {
         StringBuilder text = new StringBuilder();
 
@@ -330,16 +330,16 @@ public class BenchmarkReportGenerator {
 
             // Calculate averages
             double avgThroughput = metrics.stream()
-                .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
-                .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
-                .average()
-                .orElse(0.0);
+                    .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
+                    .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
+                    .average()
+                    .orElse(0.0);
 
             double avgMemory = metrics.stream()
-                .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
-                .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
-                .average()
-                .orElse(0.0);
+                    .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
+                    .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
+                    .average()
+                    .orElse(0.0);
 
             text.append(String.format("  Average Throughput: %.2f MB/s\n", avgThroughput));
             text.append(String.format("  Average Memory Usage: %.2f MB\n", avgMemory));
@@ -355,15 +355,15 @@ public class BenchmarkReportGenerator {
 
         // Check backup throughput target (>50 MB/s)
         List<PerformanceMetrics> backupMetrics = allMetrics.stream()
-            .filter(m -> m.getBenchmarkName().contains("Backup"))
-            .collect(java.util.stream.Collectors.toList());
+                .filter(m -> m.getBenchmarkName().contains("Backup"))
+                .collect(java.util.stream.Collectors.toList());
 
         if (!backupMetrics.isEmpty()) {
             totalTargets++;
             double avgBackupThroughput = backupMetrics.stream()
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("throughput_mbps", 0.0))
-                .average()
-                .orElse(0.0);
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("throughput_mbps", 0.0))
+                    .average()
+                    .orElse(0.0);
 
             if (avgBackupThroughput >= 50.0) {
                 targetsMet++;
@@ -375,15 +375,15 @@ public class BenchmarkReportGenerator {
 
         // Check memory usage target (<500MB)
         List<PerformanceMetrics> memoryMetrics = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
-            .collect(java.util.stream.Collectors.toList());
+                .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
+                .collect(java.util.stream.Collectors.toList());
 
         if (!memoryMetrics.isEmpty()) {
             totalTargets++;
             double avgMemoryUsage = memoryMetrics.stream()
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("memory_used_mb", 0.0))
-                .average()
-                .orElse(0.0);
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("memory_used_mb", 0.0))
+                    .average()
+                    .orElse(0.0);
 
             if (avgMemoryUsage <= 500.0) {
                 targetsMet++;
@@ -405,8 +405,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates chart data for visualization.
-     */
+        * Generates chart data for visualization.
+        */
     private String generateChartDataContent() {
         StringBuilder chartData = new StringBuilder();
         chartData.append("{\n");
@@ -414,9 +414,9 @@ public class BenchmarkReportGenerator {
         chartData.append("    \"labels\": [");
 
         List<String> benchmarkNames = allMetrics.stream()
-            .map(PerformanceMetrics::getBenchmarkName)
-            .distinct()
-            .collect(java.util.stream.Collectors.toList());
+                .map(PerformanceMetrics::getBenchmarkName)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
 
         for (int i = 0; i < benchmarkNames.size(); i++) {
             chartData.append("\"").append(escapeJson(benchmarkNames.get(i))).append("\"");
@@ -436,10 +436,10 @@ public class BenchmarkReportGenerator {
         for (int i = 0; i < benchmarkNames.size(); i++) {
             final String benchmarkName = benchmarkNames.get(i);
             double throughput = allMetrics.stream()
-                .filter(m -> m.getBenchmarkName().equals(benchmarkName))
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("throughput_mbps", 0.0))
-                .findFirst()
-                .orElse(0.0);
+                    .filter(m -> m.getBenchmarkName().equals(benchmarkName))
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("throughput_mbps", 0.0))
+                    .findFirst()
+                    .orElse(0.0);
 
             chartData.append(String.format("%.2f", throughput));
             if (i < benchmarkNames.size() - 1) {
@@ -458,10 +458,10 @@ public class BenchmarkReportGenerator {
         for (int i = 0; i < benchmarkNames.size(); i++) {
             final String benchmarkName = benchmarkNames.get(i);
             double memoryUsage = allMetrics.stream()
-                .filter(m -> m.getBenchmarkName().equals(benchmarkName))
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("memory_used_mb", 0.0))
-                .findFirst()
-                .orElse(0.0);
+                    .filter(m -> m.getBenchmarkName().equals(benchmarkName))
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("memory_used_mb", 0.0))
+                    .findFirst()
+                    .orElse(0.0);
 
             chartData.append(String.format("%.2f", memoryUsage));
             if (i < benchmarkNames.size() - 1) {
@@ -479,8 +479,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Groups metrics by benchmark type.
-     */
+        * Groups metrics by benchmark type.
+        */
     private Map<String, List<PerformanceMetrics>> groupMetricsByType() {
         Map<String, List<PerformanceMetrics>> grouped = new HashMap<>();
 
@@ -509,8 +509,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates CSS styles for the HTML report.
-     */
+        * Generates CSS styles for the HTML report.
+        */
     private String getReportStyles() {
         return """
         body {
@@ -523,7 +523,7 @@ public class BenchmarkReportGenerator {
             background-color: #f5f5f5;
         }
 
-        .header {
+            .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 30px;
@@ -532,19 +532,19 @@ public class BenchmarkReportGenerator {
             text-align: center;
         }
 
-        .header h1 {
+            .header h1 {
             margin: 0;
             font-size: 2.5em;
             font-weight: 300;
         }
 
-        .timestamp {
+            .timestamp {
             margin: 10px 0 0 0;
             opacity: 0.8;
             font-size: 0.9em;
         }
 
-        .section {
+            .section {
             background: white;
             border-radius: 8px;
             padding: 25px;
@@ -552,70 +552,70 @@ public class BenchmarkReportGenerator {
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .section h2 {
+            .section h2 {
             color: #667eea;
             border-bottom: 2px solid #667eea;
             padding-bottom: 10px;
             margin-top: 0;
         }
 
-        .metric-grid {
+            .metric-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin: 20px 0;
         }
 
-        .metric-card {
+            .metric-card {
             background: #f8f9fa;
             border: 1px solid #e9ecef;
             border-radius: 6px;
             padding: 20px;
         }
 
-        .metric-card h3 {
+            .metric-card h3 {
             margin: 0 0 10px 0;
             color: #495057;
             font-size: 1.1em;
         }
 
-        .metric-value {
+            .metric-value {
             font-size: 1.8em;
             font-weight: bold;
             color: #28a745;
             margin: 10px 0;
         }
 
-        .metric-label {
+            .metric-label {
             color: #6c757d;
             font-size: 0.9em;
         }
 
-        .status-good { color: #28a745; }
-        .status-warning { color: #ffc107; }
-        .status-error { color: #dc3545; }
+            .status-good { color: #28a745; }
+            .status-warning { color: #ffc107; }
+            .status-error { color: #dc3545; }
 
-        .recommendations {
+            .recommendations {
             background: #fff3cd;
             border-left: 4px solid #ffc107;
             padding: 20px;
         }
 
-        .recommendations h3 {
+            .recommendations h3 {
             color: #856404;
             margin-top: 0;
         }
 
-        .recommendations ul {
+            .recommendations ul {
             margin: 15px 0;
         }
 
-        .recommendations li {
+            .recommendations li {
             margin: 8px 0;
             line-height: 1.5;
         }
 
-        .raw-data {
+            .raw-data {
             background: #f8f9fa;
             border: 1px solid #dee2e6;
             border-radius: 6px;
@@ -625,7 +625,7 @@ public class BenchmarkReportGenerator {
             overflow-x: auto;
         }
 
-        .chart-container {
+            .chart-container {
             background: white;
             border-radius: 8px;
             padding: 25px;
@@ -651,14 +651,14 @@ public class BenchmarkReportGenerator {
             color: #495057;
         }
 
-        .target-met { color: #28a745; font-weight: bold; }
-        .target-not-met { color: #dc3545; font-weight: bold; }
+            .target-met { color: #28a745; font-weight: bold; }
+            .target-not-met { color: #dc3545; font-weight: bold; }
         """;
     }
 
     /**
-     * Generates executive summary section for HTML.
-     */
+        * Generates executive summary section for HTML.
+        */
     private String generateExecutiveSummary() {
         StringBuilder summary = new StringBuilder();
 
@@ -667,16 +667,16 @@ public class BenchmarkReportGenerator {
 
         // Calculate overall statistics
         double avgThroughput = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
+                .average()
+                .orElse(0.0);
 
         double avgMemory = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
+                .average()
+                .orElse(0.0);
 
         summary.append("        <div class=\"metric-grid\">\n");
         summary.append("            <div class=\"metric-card\">\n");
@@ -703,8 +703,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates detailed results section for HTML.
-     */
+        * Generates detailed results section for HTML.
+        */
     private String generateDetailedResults() {
         StringBuilder results = new StringBuilder();
 
@@ -731,8 +731,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates performance analysis section for HTML.
-     */
+        * Generates performance analysis section for HTML.
+        */
     private String generatePerformanceAnalysis() {
         StringBuilder analysis = new StringBuilder();
 
@@ -746,10 +746,10 @@ public class BenchmarkReportGenerator {
 
         // Backup throughput target
         double avgBackupThroughput = allMetrics.stream()
-            .filter(m -> m.getBenchmarkName().contains("Backup"))
-            .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("throughput_mbps", 0.0))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getBenchmarkName().contains("Backup"))
+                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("throughput_mbps", 0.0))
+                .average()
+                .orElse(0.0);
 
         analysis.append("            <tr>\n");
         analysis.append("                <td>Backup Throughput</td>\n");
@@ -761,10 +761,10 @@ public class BenchmarkReportGenerator {
 
         // Memory usage target
         double avgMemoryUsage = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
-            .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("memory_used_mb", 0.0))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
+                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("memory_used_mb", 0.0))
+                .average()
+                .orElse(0.0);
 
         analysis.append("            <tr>\n");
         analysis.append("                <td>Memory Usage</td>\n");
@@ -781,8 +781,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates recommendations section for HTML.
-     */
+        * Generates recommendations section for HTML.
+        */
     private String generateRecommendations() {
         StringBuilder recommendations = new StringBuilder();
 
@@ -797,23 +797,23 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates recommendations text.
-     */
+        * Generates recommendations text.
+        */
     private String generateTextRecommendations() {
         StringBuilder recs = new StringBuilder();
 
         // Analyze performance and generate recommendations
         double avgThroughput = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
+                .average()
+                .orElse(0.0);
 
         double avgMemory = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
+                .average()
+                .orElse(0.0);
 
         if (avgThroughput < 50.0) {
             recs.append("• Consider optimizing chunk sizes for better throughput\n");
@@ -827,14 +827,14 @@ public class BenchmarkReportGenerator {
 
         // Check deduplication efficiency
         boolean hasDeduplicationTests = allMetrics.stream()
-            .anyMatch(m -> m.getBenchmarkName().contains("Deduplication"));
+                .anyMatch(m -> m.getBenchmarkName().contains("Deduplication"));
 
         if (hasDeduplicationTests) {
             double avgDeduplicationRatio = allMetrics.stream()
-                .filter(m -> m.getBenchmarkName().contains("Deduplication"))
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("deduplication_ratio", 1.0))
-                .average()
-                .orElse(1.0);
+                    .filter(m -> m.getBenchmarkName().contains("Deduplication"))
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("deduplication_ratio", 1.0))
+                    .average()
+                    .orElse(1.0);
 
             if (avgDeduplicationRatio < 2.0) {
                 recs.append("• Deduplication efficiency is low, review chunking strategy\n");
@@ -844,14 +844,14 @@ public class BenchmarkReportGenerator {
 
         // Check concurrency performance
         boolean hasConcurrencyTests = allMetrics.stream()
-            .anyMatch(m -> m.getBenchmarkName().contains("Concurrency"));
+                .anyMatch(m -> m.getBenchmarkName().contains("Concurrency"));
 
         if (hasConcurrencyTests) {
             double avgConcurrencyEfficiency = allMetrics.stream()
-                .filter(m -> m.getBenchmarkName().contains("Concurrency"))
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("concurrency_efficiency", 1.0))
-                .average()
-                .orElse(1.0);
+                    .filter(m -> m.getBenchmarkName().contains("Concurrency"))
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("concurrency_efficiency", 1.0))
+                    .average()
+                    .orElse(1.0);
 
             if (avgConcurrencyEfficiency < 0.6) {
                 recs.append("• Concurrency efficiency is low, review resource contention\n");
@@ -868,23 +868,23 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates recommendations HTML.
-     */
+        * Generates recommendations HTML.
+        */
     private String generateHtmlRecommendations() {
         StringBuilder recs = new StringBuilder();
 
         // Analyze performance and generate recommendations
         double avgThroughput = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
+                .average()
+                .orElse(0.0);
 
         double avgMemory = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
+                .average()
+                .orElse(0.0);
 
         if (avgThroughput < 50.0) {
             recs.append("<li>Consider optimizing chunk sizes for better throughput</li>\n");
@@ -898,14 +898,14 @@ public class BenchmarkReportGenerator {
 
         // Check deduplication efficiency
         boolean hasDeduplicationTests = allMetrics.stream()
-            .anyMatch(m -> m.getBenchmarkName().contains("Deduplication"));
+                .anyMatch(m -> m.getBenchmarkName().contains("Deduplication"));
 
         if (hasDeduplicationTests) {
             double avgDeduplicationRatio = allMetrics.stream()
-                .filter(m -> m.getBenchmarkName().contains("Deduplication"))
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("deduplication_ratio", 1.0))
-                .average()
-                .orElse(1.0);
+                    .filter(m -> m.getBenchmarkName().contains("Deduplication"))
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("deduplication_ratio", 1.0))
+                    .average()
+                    .orElse(1.0);
 
             if (avgDeduplicationRatio < 2.0) {
                 recs.append("<li>Deduplication efficiency is low, review chunking strategy</li>\n");
@@ -915,14 +915,14 @@ public class BenchmarkReportGenerator {
 
         // Check concurrency performance
         boolean hasConcurrencyTests = allMetrics.stream()
-            .anyMatch(m -> m.getBenchmarkName().contains("Concurrency"));
+                .anyMatch(m -> m.getBenchmarkName().contains("Concurrency"));
 
         if (hasConcurrencyTests) {
             double avgConcurrencyEfficiency = allMetrics.stream()
-                .filter(m -> m.getBenchmarkName().contains("Concurrency"))
-                .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("concurrency_efficiency", 1.0))
-                .average()
-                .orElse(1.0);
+                    .filter(m -> m.getBenchmarkName().contains("Concurrency"))
+                    .mapToDouble(m -> (Double) m.getMetrics().getOrDefault("concurrency_efficiency", 1.0))
+                    .average()
+                    .orElse(1.0);
 
             if (avgConcurrencyEfficiency < 0.6) {
                 recs.append("<li>Concurrency efficiency is low, review resource contention</li>\n");
@@ -939,23 +939,23 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates JSON executive summary.
-     */
+        * Generates JSON executive summary.
+        */
     private String generateJsonExecutiveSummary() {
         StringBuilder summary = new StringBuilder();
 
         // Calculate overall statistics
         double avgThroughput = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("throughput_mbps"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("throughput_mbps"))
+                .average()
+                .orElse(0.0);
 
         double avgMemory = allMetrics.stream()
-            .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
-            .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
-            .average()
-            .orElse(0.0);
+                .filter(m -> m.getMetrics().containsKey("memory_used_mb"))
+                .mapToDouble(m -> (Double) m.getMetrics().get("memory_used_mb"))
+                .average()
+                .orElse(0.0);
 
         summary.append("    \"averageThroughput\": ").append(String.format("%.2f", avgThroughput)).append(",\n");
         summary.append("    \"averageMemoryUsage\": ").append(String.format("%.2f", avgMemory)).append(",\n");
@@ -979,8 +979,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates charts section for HTML.
-     */
+        * Generates charts section for HTML.
+        */
     private String generateChartsSection() {
         StringBuilder charts = new StringBuilder();
 
@@ -996,8 +996,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Generates raw data section for HTML.
-     */
+        * Generates raw data section for HTML.
+        */
     private String generateRawDataSection() {
         StringBuilder rawData = new StringBuilder();
 
@@ -1053,14 +1053,14 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-     * Escapes JSON strings.
-     */
+        * Escapes JSON strings.
+        */
     private String escapeJson(String str) {
         if (str == null) return "";
         return str.replace("\\", "\\\\")
-               .replace("\"", "\\\"")
-               .replace("\n", "\\n")
-               .replace("\r", "\\r")
-               .replace("\t", "\\t");
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
     }
 }

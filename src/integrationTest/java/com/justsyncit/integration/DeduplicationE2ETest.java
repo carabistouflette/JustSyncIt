@@ -30,7 +30,9 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * End-to-end integration tests for deduplication functionality.
@@ -259,8 +261,8 @@ public class DeduplicationE2ETest extends E2ETestBase {
 
         // Should have significant deduplication (less than 80% of original size)
         assertTrue(deduplicationRatio < 0.8,
-                "Deduplication should reduce storage significantly: " +
-                        String.format("%.2f", deduplicationRatio) + " ratio (stored/original)");
+                "Deduplication should reduce storage significantly: "
+                        + String.format("%.2f", deduplicationRatio) + " ratio (stored/original)");
 
         // Verify all files are in the snapshot
         var snapshotOpt = metadataService.getSnapshot(snapshotId);
@@ -310,8 +312,8 @@ public class DeduplicationE2ETest extends E2ETestBase {
         long newContentSize = newContent.getBytes().length;
 
         assertTrue(storageIncrease < newContentSize,
-                "Cross-backup deduplication should reduce storage increase: " +
-                        storageIncrease + " increase vs " + newContentSize + " new content size");
+                "Cross-backup deduplication should reduce storage increase: "
+                        + storageIncrease + " increase vs " + newContentSize + " new content size");
 
         // Verify both snapshots exist
         assertSnapshotExists(snapshotId1);

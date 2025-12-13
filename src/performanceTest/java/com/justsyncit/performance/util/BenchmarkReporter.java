@@ -266,7 +266,7 @@ public class BenchmarkReporter {
             background-color: #f5f5f5;
         }
 
-        .header {
+            .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             padding: 30px;
@@ -275,19 +275,19 @@ public class BenchmarkReporter {
             text-align: center;
         }
 
-        .header h1 {
+            .header h1 {
             margin: 0;
             font-size: 2.5em;
             font-weight: 300;
         }
 
-        .timestamp {
+            .timestamp {
             margin: 10px 0 0 0;
             opacity: 0.8;
             font-size: 0.9em;
         }
 
-        .section {
+            .section {
             background: white;
             border-radius: 8px;
             padding: 25px;
@@ -295,48 +295,48 @@ public class BenchmarkReporter {
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
-        .section h2 {
+            .section h2 {
             color: #667eea;
             border-bottom: 2px solid #667eea;
             padding-bottom: 10px;
             margin-top: 0;
         }
 
-        .metric-grid {
+            .metric-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 20px;
             margin: 20px 0;
         }
 
-        .metric-card {
+            .metric-card {
             background: #f8f9fa;
             border: 1px solid #e9ecef;
             border-radius: 6px;
             padding: 20px;
         }
 
-        .metric-card h3 {
+            .metric-card h3 {
             margin: 0 0 10px 0;
             color: #495057;
             font-size: 1.1em;
         }
 
-        .metric-value {
+            .metric-value {
             font-size: 1.8em;
             font-weight: bold;
             color: #28a745;
             margin: 10px 0;
         }
 
-        .metric-label {
+            .metric-label {
             color: #6c757d;
             font-size: 0.9em;
         }
 
-        .improvement-positive { color: #28a745; font-weight: bold; }
-        .improvement-negative { color: #dc3545; font-weight: bold; }
-        .improvement-neutral { color: #ffc107; font-weight: bold; }
+            .improvement-positive { color: #28a745; font-weight: bold; }
+            .improvement-negative { color: #dc3545; font-weight: bold; }
+            .improvement-neutral { color: #ffc107; font-weight: bold; }
 
         table {
             width: 100%;
@@ -356,8 +356,8 @@ public class BenchmarkReporter {
             color: #495057;
         }
 
-        .regression-warning { color: #dc3545; font-weight: bold; }
-        .regression-ok { color: #28a745; font-weight: bold; }
+            .regression-warning { color: #dc3545; font-weight: bold; }
+            .regression-ok { color: #28a745; font-weight: bold; }
         """;
     }
 
@@ -435,7 +435,7 @@ public class BenchmarkReporter {
                 html.append("                <td>").append(String.format("%.2f MB/s", asyncValue)).append("</td>\n");
                 html.append("                <td>").append(String.format("%.2f MB/s", syncValue)).append("</td>\n");
                 html.append("                <td class=\"").append(getImprovementClass(improvement)).append("\">")
-                    .append(String.format("%.1f%%", improvement)).append("</td>\n");
+                        .append(String.format("%.1f%%", improvement)).append("</td>\n");
             } else {
                 html.append("                <td>N/A</td>\n");
                 html.append("                <td>N/A</td>\n");
@@ -477,7 +477,7 @@ public class BenchmarkReporter {
             html.append("            <div class=\"metric-card\">\n");
             html.append("                <h3>").append(description).append("</h3>\n");
             html.append("                <div class=\"metric-value ").append(getImprovementClass(improvement)).append("\">")
-                .append(String.format("%.1f%%", improvement)).append("</div>\n");
+                    .append(String.format("%.1f%%", improvement)).append("</div>\n");
             html.append("                <div class=\"metric-label\">").append(getMetricInterpretation(metricName, improvement)).append("</div>\n");
             html.append("            </div>\n");
         }
@@ -751,10 +751,10 @@ public class BenchmarkReporter {
     private String escapeJson(String str) {
         if (str == null) return "";
         return str.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+                    .replace("\"", "\\\"")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
     }
 
     /**

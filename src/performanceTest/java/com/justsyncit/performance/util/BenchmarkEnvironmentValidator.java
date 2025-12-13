@@ -1,20 +1,20 @@
 /*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+    * JustSyncIt - Backup solution
+    * Copyright (C) 2023 JustSyncIt Team
+    *
+    * This program is free software: you can redistribute it and/or modify
+    * it under the terms of the GNU General Public License as published by
+    * the Free Software Foundation, either version 3 of the License, or
+    * (at your option) any later version.
+    *
+    * This program is distributed in the hope that it will be useful,
+    * but WITHOUT ANY WARRANTY; without even the implied warranty of
+    * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    * GNU General Public License for more details.
+    *
+    * You should have received a copy of the GNU General Public License
+    * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    */
 
 package com.justsyncit.performance.util;
 
@@ -26,9 +26,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Utility class for validating the benchmark environment.
- * Ensures that the system meets minimum requirements for accurate benchmarking.
- */
+    * Utility class for validating the benchmark environment.
+    * Ensures that the system meets minimum requirements for accurate benchmarking.
+    */
 public class BenchmarkEnvironmentValidator {
 
     private final List<String> validationResults;
@@ -37,8 +37,8 @@ public class BenchmarkEnvironmentValidator {
     private final OperatingSystemMXBean osBean;
 
     /**
-     * Creates a new benchmark environment validator.
-     */
+        * Creates a new benchmark environment validator.
+        */
     public BenchmarkEnvironmentValidator() {
         this.validationResults = new ArrayList<>();
         this.runtimeBean = ManagementFactory.getRuntimeMXBean();
@@ -47,10 +47,10 @@ public class BenchmarkEnvironmentValidator {
     }
 
     /**
-     * Validates the benchmark environment.
-     *
-     * @return true if environment is suitable for benchmarking
-     */
+        * Validates the benchmark environment.
+        *
+        * @return true if environment is suitable for benchmarking
+        */
     public boolean validateEnvironment() {
         validationResults.clear();
 
@@ -88,63 +88,63 @@ public class BenchmarkEnvironmentValidator {
     }
 
     /**
-     * Gets validation results.
-     *
-     * @return list of validation results
-     */
+        * Gets validation results.
+        *
+        * @return list of validation results
+        */
     public List<String> getValidationResults() {
         return new ArrayList<>(validationResults);
     }
 
     /**
-     * Validates memory requirements.
-     *
-     * @return true if memory requirements are met
-     */
+        * Validates memory requirements.
+        *
+        * @return true if memory requirements are met
+        */
     private boolean validateMemoryRequirements() {
         long maxMemory = memoryBean.getHeapMemoryUsage().getMax();
         long requiredMemory = 1024 * 1024 * 1024; // 1GB minimum
 
         if (maxMemory < requiredMemory) {
             validationResults.add(String.format(
-                "❌ Insufficient memory: %d MB available, %d MB required (minimum 1GB)",
+                    "❌ Insufficient memory: %d MB available, %d MB required (minimum 1GB)",
                 maxMemory / (1024 * 1024), requiredMemory / (1024 * 1024)));
             return false;
         }
 
         validationResults.add(String.format(
-            "✅ Sufficient memory: %d MB available",
+                "✅ Sufficient memory: %d MB available",
             maxMemory / (1024 * 1024)));
         return true;
     }
 
     /**
-     * Validates CPU requirements.
-     *
-     * @return true if CPU requirements are met
-     */
+        * Validates CPU requirements.
+        *
+        * @return true if CPU requirements are met
+        */
     private boolean validateCpuRequirements() {
         int availableProcessors = osBean.getAvailableProcessors();
         int requiredProcessors = 2; // Minimum 2 cores for meaningful async testing
 
         if (availableProcessors < requiredProcessors) {
             validationResults.add(String.format(
-                "❌ Insufficient CPU cores: %d available, %d required (minimum 2 cores)",
+                    "❌ Insufficient CPU cores: %d available, %d required (minimum 2 cores)",
                 availableProcessors, requiredProcessors));
             return false;
         }
 
         validationResults.add(String.format(
-            "✅ Sufficient CPU cores: %d available",
+                "✅ Sufficient CPU cores: %d available",
             availableProcessors));
         return true;
     }
 
     /**
-     * Validates disk space requirements.
-     *
-     * @return true if disk space requirements are met
-     */
+        * Validates disk space requirements.
+        *
+        * @return true if disk space requirements are met
+        */
     private boolean validateDiskSpace() {
         try {
             java.io.File tempDir = new java.io.File(System.getProperty("java.io.tmpdir"));
@@ -153,13 +153,13 @@ public class BenchmarkEnvironmentValidator {
 
             if (freeSpace < requiredSpace) {
                 validationResults.add(String.format(
-                    "❌ Insufficient disk space: %d GB available, %d GB required (minimum 2GB)",
+                        "❌ Insufficient disk space: %d GB available, %d GB required (minimum 2GB)",
                     freeSpace / (1024 * 1024 * 1024), requiredSpace / (1024 * 1024 * 1024)));
                 return false;
             }
 
             validationResults.add(String.format(
-                "✅ Sufficient disk space: %d GB available",
+                    "✅ Sufficient disk space: %d GB available",
                 freeSpace / (1024 * 1024 * 1024)));
             return true;
         } catch (Exception e) {
@@ -169,10 +169,10 @@ public class BenchmarkEnvironmentValidator {
     }
 
     /**
-     * Validates system load.
-     *
-     * @return true if system load is acceptable
-     */
+        * Validates system load.
+        *
+        * @return true if system load is acceptable
+        */
     private boolean validateSystemLoad() {
         try {
             double systemLoadAverage = osBean.getSystemLoadAverage();
@@ -186,13 +186,13 @@ public class BenchmarkEnvironmentValidator {
 
             if (systemLoadAverage > maxAcceptableLoad) {
                 validationResults.add(String.format(
-                    "❌ High system load: %.2f, maximum acceptable: %.2f",
+                        "❌ High system load: %.2f, maximum acceptable: %.2f",
                     systemLoadAverage, maxAcceptableLoad));
                 return false;
             }
 
             validationResults.add(String.format(
-                "✅ Acceptable system load: %.2f",
+                    "✅ Acceptable system load: %.2f",
                 systemLoadAverage));
             return true;
         } catch (Exception e) {
@@ -202,10 +202,10 @@ public class BenchmarkEnvironmentValidator {
     }
 
     /**
-     * Validates Java version.
-     *
-     * @return true if Java version is supported
-     */
+        * Validates Java version.
+        *
+        * @return true if Java version is supported
+        */
     private boolean validateJavaVersion() {
         String javaVersion = System.getProperty("java.version");
 
@@ -215,23 +215,24 @@ public class BenchmarkEnvironmentValidator {
         }
 
         // Check for Java 11 or higher
-        if (javaVersion.startsWith("1.") || javaVersion.startsWith("9.") ||
-            javaVersion.startsWith("10.")) {
+        if (javaVersion.startsWith("1.")
+                || javaVersion.startsWith("9.")
+            || javaVersion.startsWith("10.")) {
             validationResults.add(String.format(
-                "❌ Unsupported Java version: %s (requires Java 11 or higher)",
+                    "❌ Unsupported Java version: %s (requires Java 11 or higher)",
                 javaVersion));
             return false;
         }
 
         validationResults.add(String.format(
-            "✅ Java version: %s",
+                "✅ Java version: %s",
             javaVersion));
         return true;
     }
 
     /**
-     * Prints validation results.
-     */
+        * Prints validation results.
+        */
     private void printValidationResults() {
         System.out.println("\n=== BENCHMARK ENVIRONMENT VALIDATION ===");
 
@@ -252,10 +253,10 @@ public class BenchmarkEnvironmentValidator {
     }
 
     /**
-     * Gets environment summary.
-     *
-     * @return formatted environment summary
-     */
+        * Gets environment summary.
+        *
+        * @return formatted environment summary
+        */
     public String getEnvironmentSummary() {
         StringBuilder summary = new StringBuilder();
         summary.append("System: ").append(osBean.getName()).append("\n");

@@ -39,7 +39,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Base class for E2E integration tests providing common infrastructure.
@@ -271,8 +275,9 @@ public abstract class E2ETestBase {
     }
 
     protected double calculateThroughput(long bytes, long timeMs) {
-        if (timeMs == 0)
+        if (timeMs == 0) {
             return 0;
+        }
         return (bytes / 1024.0 / 1024.0) / (timeMs / 1000.0); // MB/s
     }
 
@@ -289,7 +294,7 @@ public abstract class E2ETestBase {
     private static class ResourceWrapper<T> implements java.io.Closeable {
         private final T resource;
 
-        public ResourceWrapper(T resource) {
+        ResourceWrapper(T resource) {
             this.resource = resource;
         }
 
@@ -315,7 +320,7 @@ public abstract class E2ETestBase {
     // Network simulation helpers
     protected void enablePoorNetworkSimulation() {
         if (networkServiceWithSimulation instanceof NetworkSimulationUtil.NetworkConditionSimulator) {
-            NetworkSimulationUtil.NetworkConditionSimulator simulator = (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
+            var simulator = (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
             simulator.enableLatencySimulation(500);
             simulator.enablePacketLossSimulation(15);
             simulator.enableConnectionFailureSimulation(10);
@@ -324,7 +329,7 @@ public abstract class E2ETestBase {
 
     protected void disableNetworkSimulation() {
         if (networkServiceWithSimulation instanceof NetworkSimulationUtil.NetworkConditionSimulator) {
-            NetworkSimulationUtil.NetworkConditionSimulator simulator = (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
+            var simulator = (NetworkSimulationUtil.NetworkConditionSimulator) networkServiceWithSimulation;
             simulator.disableLatencySimulation();
             simulator.disablePacketLossSimulation();
             simulator.disableConnectionFailureSimulation();

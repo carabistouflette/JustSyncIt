@@ -1,20 +1,20 @@
 /*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+    * JustSyncIt - Backup solution
+    * Copyright (C) 2023 JustSyncIt Team
+    *
+    * This program is free software: you can redistribute it and/or modify
+    * it under the terms of the GNU General Public License as published by
+    * the Free Software Foundation, either version 3 of the License, or
+    * (at your option) any later version.
+    *
+    * This program is distributed in the hope that it will be useful,
+    * but WITHOUT ANY WARRANTY; without even the implied warranty of
+    * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    * GNU General Public License for more details.
+    *
+    * You should have received a copy of the GNU General Public License
+    * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    */
 
 package com.justsyncit.performance.util;
 
@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Utility class for collecting detailed performance metrics during benchmark execution.
- * Provides real-time monitoring of CPU, memory, thread usage, and other system resources.
- */
+    * Utility class for collecting detailed performance metrics during benchmark execution.
+    * Provides real-time monitoring of CPU, memory, thread usage, and other system resources.
+    */
 public class BenchmarkMetricsCollector {
 
     private final MemoryMXBean memoryBean;
@@ -40,8 +40,8 @@ public class BenchmarkMetricsCollector {
     private final AtomicLong totalAllocations;
 
     /**
-     * Creates a new benchmark metrics collector.
-     */
+        * Creates a new benchmark metrics collector.
+        */
     public BenchmarkMetricsCollector() {
         this.memoryBean = ManagementFactory.getMemoryMXBean();
         this.threadBean = ManagementFactory.getThreadMXBean();
@@ -54,8 +54,8 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Starts CPU monitoring for the current operation.
-     */
+        * Starts CPU monitoring for the current operation.
+        */
     public void startCpuMonitoring() {
         cpuStartNanoTime.set(System.nanoTime());
         cpuStartMilliTime.set(System.currentTimeMillis());
@@ -66,10 +66,10 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Stops CPU monitoring and returns the average CPU usage.
-     *
-     * @return average CPU usage percentage during monitoring period
-     */
+        * Stops CPU monitoring and returns the average CPU usage.
+        *
+        * @return average CPU usage percentage during monitoring period
+        */
     public double stopCpuMonitoring() {
         long endTime = System.nanoTime();
         long durationMs = (endTime - cpuStartNanoTime.get()) / 1_000_000;
@@ -86,8 +86,8 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Starts memory monitoring for the current operation.
-     */
+        * Starts memory monitoring for the current operation.
+        */
     public void startMemoryMonitoring() {
         memoryStartTime.set(System.nanoTime());
 
@@ -101,10 +101,10 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Stops memory monitoring and returns memory statistics.
-     *
-     * @return memory statistics collected during monitoring period
-     */
+        * Stops memory monitoring and returns memory statistics.
+        *
+        * @return memory statistics collected during monitoring period
+        */
     public MemoryStats stopMemoryMonitoring() {
         long endTime = System.nanoTime();
 
@@ -130,19 +130,19 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Records a memory allocation event.
-     *
-     * @param bytes number of bytes allocated
-     */
+        * Records a memory allocation event.
+        *
+        * @param bytes number of bytes allocated
+        */
     public void recordAllocation(long bytes) {
         totalAllocations.addAndGet(bytes);
     }
 
     /**
-     * Gets current CPU usage percentage.
-     *
-     * @return current CPU usage as percentage (0-100)
-     */
+        * Gets current CPU usage percentage.
+        *
+        * @return current CPU usage as percentage (0-100)
+        */
     private double getCurrentCpuUsage() {
         try {
             com.sun.management.OperatingSystemMXBean osBean =
@@ -157,45 +157,45 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Gets current thread count.
-     *
-     * @return current number of threads
-     */
+        * Gets current thread count.
+        *
+        * @return current number of threads
+        */
     public int getCurrentThreadCount() {
         return threadBean.getThreadCount();
     }
 
     /**
-     * Gets current heap memory usage in MB.
-     *
-     * @return heap memory usage in MB
-     */
+        * Gets current heap memory usage in MB.
+        *
+        * @return heap memory usage in MB
+        */
     public double getCurrentHeapMemoryMB() {
         return bytesToMB(memoryBean.getHeapMemoryUsage().getUsed());
     }
 
     /**
-     * Gets current non-heap memory usage in MB.
-     *
-     * @return non-heap memory usage in MB
-     */
+        * Gets current non-heap memory usage in MB.
+        *
+        * @return non-heap memory usage in MB
+        */
     public double getCurrentNonHeapMemoryMB() {
         return bytesToMB(memoryBean.getNonHeapMemoryUsage().getUsed());
     }
 
     /**
-     * Converts bytes to megabytes.
-     *
-     * @param bytes number of bytes
-     * @return megabytes
-     */
+        * Converts bytes to megabytes.
+        *
+        * @param bytes number of bytes
+        * @return megabytes
+        */
     private double bytesToMB(long bytes) {
         return bytes / (1024.0 * 1024.0);
     }
 
     /**
-     * Memory statistics collected during monitoring.
-     */
+        * Memory statistics collected during monitoring.
+        */
     public static class MemoryStats {
         public final long initialHeapUsed;
         public final long initialNonHeapUsed;
@@ -228,8 +228,8 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * CPU statistics collected during monitoring.
-     */
+        * CPU statistics collected during monitoring.
+        */
     public static class CpuStats {
         public final double initialUsage;
         public final double finalUsage;
@@ -248,8 +248,8 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Thread utilization statistics.
-     */
+        * Thread utilization statistics.
+        */
     public static class ThreadStats {
         public final int threadCount;
         public final int peakThreadCount;
@@ -257,7 +257,7 @@ public class BenchmarkMetricsCollector {
         public final long totalTerminatedThreads;
 
         public ThreadStats(int threadCount, int peakThreadCount,
-                         long totalStartedThreads, long totalTerminatedThreads) {
+                            long totalStartedThreads, long totalTerminatedThreads) {
             this.threadCount = threadCount;
             this.peakThreadCount = peakThreadCount;
             this.totalStartedThreads = totalStartedThreads;
@@ -269,8 +269,8 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-     * Garbage collection statistics.
-     */
+        * Garbage collection statistics.
+        */
     public static class GcStats {
         public final long totalCollections;
         public final long totalCollectionTime;
