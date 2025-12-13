@@ -30,7 +30,8 @@ import java.util.Map;
 
 /**
  * Utility class for generating comprehensive benchmark reports.
- * Provides comparative analysis, trend analysis, and visualization data generation.
+ * Provides comparative analysis, trend analysis, and visualization data
+ * generation.
  */
 public class BenchmarkReporter {
 
@@ -49,12 +50,13 @@ public class BenchmarkReporter {
      * Generates a comparative report between async and sync benchmarks.
      *
      * @param asyncMetrics list of async performance metrics
-     * @param syncMetrics list of sync performance metrics
+     * @param syncMetrics  list of sync performance metrics
      * @throws IOException if report generation fails
      */
     public void generateComparativeReport(List<PerformanceMetrics> asyncMetrics,
-                                     List<PerformanceMetrics> syncMetrics) throws IOException {
-        Path reportFile = reportDirectory.resolve("comparative-report-" +
+            List<PerformanceMetrics> syncMetrics) throws IOException {
+        Path reportFile = reportDirectory.resolve("comparative-report-"
+                +
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".html");
 
         StringBuilder html = new StringBuilder();
@@ -72,7 +74,8 @@ public class BenchmarkReporter {
         // Header
         html.append("    <div class=\"header\">\n");
         html.append("        <h1>Async vs Sync Performance Comparison</h1>\n");
-        html.append("        <p class=\"timestamp\">Generated on: ").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("</p>\n");
+        html.append("        <p class=\"timestamp\">Generated on: ")
+                .append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("</p>\n");
         html.append("    </div>\n");
 
         // Executive Summary
@@ -90,7 +93,7 @@ public class BenchmarkReporter {
         html.append("</body>\n");
         html.append("</html>\n");
 
-        Files.write(reportFile, html.toString().getBytes());
+        Files.write(reportFile, html.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         System.out.println("Comparative report generated: " + reportFile);
     }
 
@@ -98,18 +101,20 @@ public class BenchmarkReporter {
      * Generates trend analysis for performance metrics over time.
      *
      * @param asyncMetrics list of async performance metrics
-     * @param syncMetrics list of sync performance metrics
+     * @param syncMetrics  list of sync performance metrics
      * @throws IOException if report generation fails
      */
     public void generateTrendAnalysis(List<PerformanceMetrics> asyncMetrics,
-                                  List<PerformanceMetrics> syncMetrics) throws IOException {
-        Path reportFile = reportDirectory.resolve("trend-analysis-" +
+            List<PerformanceMetrics> syncMetrics) throws IOException {
+        Path reportFile = reportDirectory.resolve("trend-analysis-"
+                +
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".json");
 
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"reportType\": \"trendAnalysis\",\n");
-        json.append("  \"generatedAt\": \"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\",\n");
+        json.append("  \"generatedAt\": \"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .append("\",\n");
         json.append("  \"asyncMetrics\": [\n");
 
         for (int i = 0; i < asyncMetrics.size(); i++) {
@@ -168,7 +173,7 @@ public class BenchmarkReporter {
         json.append("  ]\n");
         json.append("}\n");
 
-        Files.write(reportFile, json.toString().getBytes());
+        Files.write(reportFile, json.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         System.out.println("Trend analysis generated: " + reportFile);
     }
 
@@ -176,18 +181,20 @@ public class BenchmarkReporter {
      * Generates performance regression report.
      *
      * @param asyncMetrics list of async performance metrics
-     * @param syncMetrics list of sync performance metrics
+     * @param syncMetrics  list of sync performance metrics
      * @throws IOException if report generation fails
      */
     public void generateRegressionReport(List<PerformanceMetrics> asyncMetrics,
-                                   List<PerformanceMetrics> syncMetrics) throws IOException {
-        Path reportFile = reportDirectory.resolve("regression-report-" +
+            List<PerformanceMetrics> syncMetrics) throws IOException {
+        Path reportFile = reportDirectory.resolve("regression-report-"
+                +
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".txt");
 
         StringBuilder text = new StringBuilder();
         text.append("PERFORMANCE REGRESSION REPORT\n");
         text.append("=========================\n\n");
-        text.append("Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\n\n");
+        text.append("Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .append("\n\n");
 
         // Calculate regression indicators
         Map<String, RegressionInfo> regressions = calculateRegressions(asyncMetrics, syncMetrics);
@@ -198,9 +205,11 @@ public class BenchmarkReporter {
         for (Map.Entry<String, RegressionInfo> entry : regressions.entrySet()) {
             RegressionInfo info = entry.getValue();
             text.append("Metric: ").append(entry.getKey()).append("\n");
-            text.append("  Expected Improvement: ").append(String.format("%.1f%%", info.expectedImprovement)).append("\n");
+            text.append("  Expected Improvement: ").append(String.format("%.1f%%", info.expectedImprovement))
+                    .append("\n");
             text.append("  Actual Improvement: ").append(String.format("%.1f%%", info.actualImprovement)).append("\n");
-            text.append("  Status: ").append(info.isRegression ? "REGRESSION DETECTED" : "WITHIN EXPECTATIONS").append("\n");
+            text.append("  Status: ").append(info.isRegression ? "REGRESSION DETECTED" : "WITHIN EXPECTATIONS")
+                    .append("\n");
             text.append("  Severity: ").append(info.severity).append("\n\n");
         }
 
@@ -212,7 +221,7 @@ public class BenchmarkReporter {
         text.append("Regressions detected: ").append(regressionCount).append("\n");
         text.append("Overall status: ").append(regressionCount > 0 ? "ACTION REQUIRED" : "PASS").append("\n");
 
-        Files.write(reportFile, text.toString().getBytes());
+        Files.write(reportFile, text.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         System.out.println("Regression report generated: " + reportFile);
     }
 
@@ -220,12 +229,13 @@ public class BenchmarkReporter {
      * Generates visualization data for charts.
      *
      * @param asyncMetrics list of async performance metrics
-     * @param syncMetrics list of sync performance metrics
+     * @param syncMetrics  list of sync performance metrics
      * @throws IOException if data generation fails
      */
     public void generateVisualizationData(List<PerformanceMetrics> asyncMetrics,
-                                   List<PerformanceMetrics> syncMetrics) throws IOException {
-        Path dataFile = reportDirectory.resolve("visualization-data-" +
+            List<PerformanceMetrics> syncMetrics) throws IOException {
+        Path dataFile = reportDirectory.resolve("visualization-data-"
+                +
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".json");
 
         StringBuilder json = new StringBuilder();
@@ -247,7 +257,7 @@ public class BenchmarkReporter {
         json.append("  }\n");
         json.append("}\n");
 
-        Files.write(dataFile, json.toString().getBytes());
+        Files.write(dataFile, json.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
         System.out.println("Visualization data generated: " + dataFile);
     }
 
@@ -256,116 +266,116 @@ public class BenchmarkReporter {
      */
     private String getReportStyles() {
         return """
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f5f5f5;
+                }
 
-            .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            text-align: center;
-        }
+                    .header {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    margin-bottom: 30px;
+                    text-align: center;
+                }
 
-            .header h1 {
-            margin: 0;
-            font-size: 2.5em;
-            font-weight: 300;
-        }
+                    .header h1 {
+                    margin: 0;
+                    font-size: 2.5em;
+                    font-weight: 300;
+                }
 
-            .timestamp {
-            margin: 10px 0 0 0;
-            opacity: 0.8;
-            font-size: 0.9em;
-        }
+                    .timestamp {
+                    margin: 10px 0 0 0;
+                    opacity: 0.8;
+                    font-size: 0.9em;
+                }
 
-            .section {
-            background: white;
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
+                    .section {
+                    background: white;
+                    border-radius: 8px;
+                    padding: 25px;
+                    margin-bottom: 30px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
 
-            .section h2 {
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-            margin-top: 0;
-        }
+                    .section h2 {
+                    color: #667eea;
+                    border-bottom: 2px solid #667eea;
+                    padding-bottom: 10px;
+                    margin-top: 0;
+                }
 
-            .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
+                    .metric-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 20px;
+                    margin: 20px 0;
+                }
 
-            .metric-card {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 20px;
-        }
+                    .metric-card {
+                    background: #f8f9fa;
+                    border: 1px solid #e9ecef;
+                    border-radius: 6px;
+                    padding: 20px;
+                }
 
-            .metric-card h3 {
-            margin: 0 0 10px 0;
-            color: #495057;
-            font-size: 1.1em;
-        }
+                    .metric-card h3 {
+                    margin: 0 0 10px 0;
+                    color: #495057;
+                    font-size: 1.1em;
+                }
 
-            .metric-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #28a745;
-            margin: 10px 0;
-        }
+                    .metric-value {
+                    font-size: 1.8em;
+                    font-weight: bold;
+                    color: #28a745;
+                    margin: 10px 0;
+                }
 
-            .metric-label {
-            color: #6c757d;
-            font-size: 0.9em;
-        }
+                    .metric-label {
+                    color: #6c757d;
+                    font-size: 0.9em;
+                }
 
-            .improvement-positive { color: #28a745; font-weight: bold; }
-            .improvement-negative { color: #dc3545; font-weight: bold; }
-            .improvement-neutral { color: #ffc107; font-weight: bold; }
+                    .improvement-positive { color: #28a745; font-weight: bold; }
+                    .improvement-negative { color: #dc3545; font-weight: bold; }
+                    .improvement-neutral { color: #ffc107; font-weight: bold; }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 20px 0;
+                }
 
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
+                th, td {
+                    padding: 12px;
+                    text-align: left;
+                    border-bottom: 1px solid #dee2e6;
+                }
 
-        th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
+                th {
+                    background-color: #f8f9fa;
+                    font-weight: 600;
+                    color: #495057;
+                }
 
-            .regression-warning { color: #dc3545; font-weight: bold; }
-            .regression-ok { color: #28a745; font-weight: bold; }
-        """;
+                    .regression-warning { color: #dc3545; font-weight: bold; }
+                    .regression-ok { color: #28a745; font-weight: bold; }
+                """;
     }
 
     /**
      * Generates executive summary section.
      */
     private String generateExecutiveSummary(List<PerformanceMetrics> asyncMetrics,
-                                    List<PerformanceMetrics> syncMetrics) {
+            List<PerformanceMetrics> syncMetrics) {
         StringBuilder html = new StringBuilder();
         html.append("    <div class=\"section\">\n");
         html.append("        <h2>Executive Summary</h2>\n");
@@ -379,25 +389,29 @@ public class BenchmarkReporter {
 
         html.append("            <div class=\"metric-card\">\n");
         html.append("                <h3>Average Throughput Improvement</h3>\n");
-        html.append("                <div class=\"metric-value\">").append(String.format("%.1f%%", avgThroughputImprovement)).append("</div>\n");
+        html.append("                <div class=\"metric-value\">")
+                .append(String.format("%.1f%%", avgThroughputImprovement)).append("</div>\n");
         html.append("                <div class=\"metric-label\">Higher is better</div>\n");
         html.append("            </div>\n");
 
         html.append("            <div class=\"metric-card\">\n");
         html.append("                <h3>Average Latency Improvement</h3>\n");
-        html.append("                <div class=\"metric-value\">").append(String.format("%.1f%%", avgLatencyImprovement)).append("</div>\n");
+        html.append("                <div class=\"metric-value\">")
+                .append(String.format("%.1f%%", avgLatencyImprovement)).append("</div>\n");
         html.append("                <div class=\"metric-label\">Higher is better</div>\n");
         html.append("            </div>\n");
 
         html.append("            <div class=\"metric-card\">\n");
         html.append("                <h3>Average CPU Reduction</h3>\n");
-        html.append("                <div class=\"metric-value\">").append(String.format("%.1f%%", avgCpuReduction)).append("</div>\n");
+        html.append("                <div class=\"metric-value\">").append(String.format("%.1f%%", avgCpuReduction))
+                .append("</div>\n");
         html.append("                <div class=\"metric-label\">Higher is better</div>\n");
         html.append("            </div>\n");
 
         html.append("            <div class=\"metric-card\">\n");
         html.append("                <h3>Average Memory Improvement</h3>\n");
-        html.append("                <div class=\"metric-value\">").append(String.format("%.1f%%", avgMemoryImprovement)).append("</div>\n");
+        html.append("                <div class=\"metric-value\">")
+                .append(String.format("%.1f%%", avgMemoryImprovement)).append("</div>\n");
         html.append("                <div class=\"metric-label\">Higher is better</div>\n");
         html.append("            </div>\n");
 
@@ -411,12 +425,13 @@ public class BenchmarkReporter {
      * Generates comparison table.
      */
     private String generateComparisonTable(List<PerformanceMetrics> asyncMetrics,
-                                   List<PerformanceMetrics> syncMetrics) {
+            List<PerformanceMetrics> syncMetrics) {
         StringBuilder html = new StringBuilder();
         html.append("    <div class=\"section\">\n");
         html.append("        <h2>Detailed Comparison</h2>\n");
         html.append("        <table>\n");
-        html.append("            <tr><th>Benchmark</th><th>Async Result</th><th>Sync Result</th><th>Improvement</th></tr>\n");
+        html.append(
+                "            <tr><th>Benchmark</th><th>Async Result</th><th>Sync Result</th><th>Improvement</th></tr>\n");
 
         for (int i = 0; i < Math.min(asyncMetrics.size(), syncMetrics.size()); i++) {
             PerformanceMetrics asyncMetric = asyncMetrics.get(i);
@@ -426,8 +441,9 @@ public class BenchmarkReporter {
             html.append("                <td>").append(asyncMetric.getBenchmarkName()).append("</td>\n");
 
             // Compare specific metrics
-            if (asyncMetric.getMetrics().containsKey("throughput_mbps") &&
-                syncMetric.getMetrics().containsKey("throughput_mbps")) {
+            if (asyncMetric.getMetrics().containsKey("throughput_mbps")
+                    &&
+                    syncMetric.getMetrics().containsKey("throughput_mbps")) {
                 double asyncValue = (Double) asyncMetric.getMetrics().get("throughput_mbps");
                 double syncValue = (Double) syncMetric.getMetrics().get("throughput_mbps");
                 double improvement = ((asyncValue - syncValue) / syncValue) * 100.0;
@@ -455,7 +471,7 @@ public class BenchmarkReporter {
      * Generates performance improvements section.
      */
     private String generatePerformanceImprovements(List<PerformanceMetrics> asyncMetrics,
-                                          List<PerformanceMetrics> syncMetrics) {
+            List<PerformanceMetrics> syncMetrics) {
         StringBuilder html = new StringBuilder();
         html.append("    <div class=\"section\">\n");
         html.append("        <h2>Performance Improvements</h2>\n");
@@ -476,9 +492,11 @@ public class BenchmarkReporter {
 
             html.append("            <div class=\"metric-card\">\n");
             html.append("                <h3>").append(description).append("</h3>\n");
-            html.append("                <div class=\"metric-value ").append(getImprovementClass(improvement)).append("\">")
+            html.append("                <div class=\"metric-value ").append(getImprovementClass(improvement))
+                    .append("\">")
                     .append(String.format("%.1f%%", improvement)).append("</div>\n");
-            html.append("                <div class=\"metric-label\">").append(getMetricInterpretation(metricName, improvement)).append("</div>\n");
+            html.append("                <div class=\"metric-label\">")
+                    .append(getMetricInterpretation(metricName, improvement)).append("</div>\n");
             html.append("            </div>\n");
         }
 
@@ -492,7 +510,7 @@ public class BenchmarkReporter {
      * Generates recommendations section.
      */
     private String generateRecommendations(List<PerformanceMetrics> asyncMetrics,
-                                   List<PerformanceMetrics> syncMetrics) {
+            List<PerformanceMetrics> syncMetrics) {
         StringBuilder html = new StringBuilder();
         html.append("    <div class=\"section\">\n");
         html.append("        <h2>Recommendations</h2>\n");
@@ -515,8 +533,8 @@ public class BenchmarkReporter {
      * Calculates average improvement for a specific metric.
      */
     private double calculateAverageImprovement(List<PerformanceMetrics> asyncMetrics,
-                                       List<PerformanceMetrics> syncMetrics,
-                                       String metricKey) {
+            List<PerformanceMetrics> syncMetrics,
+            String metricKey) {
         double totalImprovement = 0.0;
         int count = 0;
 
@@ -524,18 +542,19 @@ public class BenchmarkReporter {
             PerformanceMetrics asyncMetric = asyncMetrics.get(i);
             PerformanceMetrics syncMetric = syncMetrics.get(i);
 
-            if (asyncMetric.getMetrics().containsKey(metricKey) &&
-                syncMetric.getMetrics().containsKey(metricKey)) {
+            if (asyncMetric.getMetrics().containsKey(metricKey)
+                    &&
+                    syncMetric.getMetrics().containsKey(metricKey)) {
 
                 Object asyncValueObj = asyncMetric.getMetrics().get(metricKey);
                 Object syncValueObj = syncMetric.getMetrics().get(metricKey);
 
                 double asyncValue = (asyncValueObj instanceof Long)
-                    ? ((Long) asyncValueObj).doubleValue()
-                    : ((Double) asyncValueObj);
+                        ? ((Long) asyncValueObj).doubleValue()
+                        : ((Double) asyncValueObj);
                 double syncValue = (syncValueObj instanceof Long)
-                    ? ((Long) syncValueObj).doubleValue()
-                    : ((Double) syncValueObj);
+                        ? ((Long) syncValueObj).doubleValue()
+                        : ((Double) syncValueObj);
 
                 if (syncValue > 0) {
                     totalImprovement += ((asyncValue - syncValue) / syncValue) * 100.0;
@@ -551,8 +570,8 @@ public class BenchmarkReporter {
      * Calculates average reduction for a specific metric (where lower is better).
      */
     private double calculateAverageReduction(List<PerformanceMetrics> asyncMetrics,
-                                     List<PerformanceMetrics> syncMetrics,
-                                     String metricKey) {
+            List<PerformanceMetrics> syncMetrics,
+            String metricKey) {
         double totalReduction = 0.0;
         int count = 0;
 
@@ -560,18 +579,19 @@ public class BenchmarkReporter {
             PerformanceMetrics asyncMetric = asyncMetrics.get(i);
             PerformanceMetrics syncMetric = syncMetrics.get(i);
 
-            if (asyncMetric.getMetrics().containsKey(metricKey) &&
-                syncMetric.getMetrics().containsKey(metricKey)) {
+            if (asyncMetric.getMetrics().containsKey(metricKey)
+                    &&
+                    syncMetric.getMetrics().containsKey(metricKey)) {
 
                 Object asyncValueObj = asyncMetric.getMetrics().get(metricKey);
                 Object syncValueObj = syncMetric.getMetrics().get(metricKey);
 
                 double asyncValue = (asyncValueObj instanceof Long)
-                    ? ((Long) asyncValueObj).doubleValue()
-                    : ((Double) asyncValueObj);
+                        ? ((Long) asyncValueObj).doubleValue()
+                        : ((Double) asyncValueObj);
                 double syncValue = (syncValueObj instanceof Long)
-                    ? ((Long) syncValueObj).doubleValue()
-                    : ((Double) syncValueObj);
+                        ? ((Long) syncValueObj).doubleValue()
+                        : ((Double) syncValueObj);
 
                 if (syncValue > 0) {
                     totalReduction += ((syncValue - asyncValue) / syncValue) * 100.0;
@@ -587,7 +607,7 @@ public class BenchmarkReporter {
      * Calculates regressions.
      */
     private Map<String, RegressionInfo> calculateRegressions(List<PerformanceMetrics> asyncMetrics,
-                                                     List<PerformanceMetrics> syncMetrics) {
+            List<PerformanceMetrics> syncMetrics) {
         Map<String, RegressionInfo> regressions = new HashMap<>();
 
         // Define expected improvements
@@ -603,20 +623,20 @@ public class BenchmarkReporter {
         double actualMemoryImprovement = calculateAverageImprovement(asyncMetrics, syncMetrics, "peak_memory_mb");
 
         regressions.put("throughput", new RegressionInfo(
-            expectedThroughputImprovement, actualThroughputImprovement,
-            actualThroughputImprovement < expectedThroughputImprovement, "medium"));
+                expectedThroughputImprovement, actualThroughputImprovement,
+                actualThroughputImprovement < expectedThroughputImprovement, "medium"));
 
         regressions.put("latency", new RegressionInfo(
-            expectedLatencyImprovement, actualLatencyImprovement,
-            actualLatencyImprovement < expectedLatencyImprovement, "high"));
+                expectedLatencyImprovement, actualLatencyImprovement,
+                actualLatencyImprovement < expectedLatencyImprovement, "high"));
 
         regressions.put("cpu", new RegressionInfo(
-            expectedCpuReduction, actualCpuReduction,
-            actualCpuReduction < expectedCpuReduction, "medium"));
+                expectedCpuReduction, actualCpuReduction,
+                actualCpuReduction < expectedCpuReduction, "medium"));
 
         regressions.put("memory", new RegressionInfo(
-            expectedMemoryImprovement, actualMemoryImprovement,
-            actualMemoryImprovement < expectedMemoryImprovement, "low"));
+                expectedMemoryImprovement, actualMemoryImprovement,
+                actualMemoryImprovement < expectedMemoryImprovement, "low"));
 
         return regressions;
     }
@@ -625,7 +645,7 @@ public class BenchmarkReporter {
      * Generates recommendation list based on performance data.
      */
     private List<String> generateRecommendationList(List<PerformanceMetrics> asyncMetrics,
-                                               List<PerformanceMetrics> syncMetrics) {
+            List<PerformanceMetrics> syncMetrics) {
         List<String> recommendations = new ArrayList<>();
 
         double throughputImprovement = calculateAverageImprovement(asyncMetrics, syncMetrics, "throughput_mbps");
@@ -656,8 +676,12 @@ public class BenchmarkReporter {
      * Gets CSS class for improvement display.
      */
     private String getImprovementClass(double improvement) {
-        if (improvement > 20.0) return "improvement-positive";
-        if (improvement > 5.0) return "improvement-neutral";
+        if (improvement > 20.0) {
+            return "improvement-positive";
+        }
+        if (improvement > 5.0) {
+            return "improvement-neutral";
+        }
         return "improvement-negative";
     }
 
@@ -666,11 +690,16 @@ public class BenchmarkReporter {
      */
     private String getMetricDescription(String metricKey) {
         switch (metricKey) {
-            case "throughput": return "Throughput Improvement";
-            case "latency": return "Latency Improvement";
-            case "cpu": return "CPU Usage Reduction";
-            case "memory": return "Memory Efficiency Improvement";
-            default: return "Performance Improvement";
+            case "throughput":
+                return "Throughput Improvement";
+            case "latency":
+                return "Latency Improvement";
+            case "cpu":
+                return "CPU Usage Reduction";
+            case "memory":
+                return "Memory Efficiency Improvement";
+            default:
+                return "Performance Improvement";
         }
     }
 
@@ -678,9 +707,15 @@ public class BenchmarkReporter {
      * Gets metric interpretation.
      */
     private String getMetricInterpretation(String metricKey, double improvement) {
-        if (improvement > 20.0) return "Excellent performance gains";
-        if (improvement > 10.0) return "Good performance gains";
-        if (improvement > 5.0) return "Modest performance gains";
+        if (improvement > 20.0) {
+            return "Excellent performance gains";
+        }
+        if (improvement > 10.0) {
+            return "Good performance gains";
+        }
+        if (improvement > 5.0) {
+            return "Modest performance gains";
+        }
         return "Minimal performance impact";
     }
 
@@ -688,9 +723,9 @@ public class BenchmarkReporter {
      * Generates chart data for a specific metric.
      */
     private String generateChartData(String metricName,
-                              List<PerformanceMetrics> asyncMetrics,
-                              List<PerformanceMetrics> syncMetrics,
-                              String metricKey) {
+            List<PerformanceMetrics> asyncMetrics,
+            List<PerformanceMetrics> syncMetrics,
+            String metricKey) {
         StringBuilder json = new StringBuilder();
         json.append("    \"").append(metricName).append("\": {\n");
         json.append("      \"labels\": [");
@@ -700,16 +735,24 @@ public class BenchmarkReporter {
         for (int i = 0; i < Math.min(asyncMetrics.size(), syncMetrics.size()); i++) {
             String name = asyncMetrics.get(i).getBenchmarkName();
             // Extract size/type from name
-            if (name.contains("1MB")) labels.add("\"1MB\"");
-            else if (name.contains("10MB")) labels.add("\"10MB\"");
-            else if (name.contains("100MB")) labels.add("\"100MB\"");
-            else if (name.contains("1000MB")) labels.add("\"1GB\"");
-            else labels.add("\"" + name + "\"");
+            if (name.contains("1MB")) {
+                labels.add("\"1MB\"");
+            } else if (name.contains("10MB")) {
+                labels.add("\"10MB\"");
+            } else if (name.contains("100MB")) {
+                labels.add("\"100MB\"");
+            } else if (name.contains("1000MB")) {
+                labels.add("\"1GB\"");
+            } else {
+                labels.add("\"" + name + "\"");
+            }
         }
 
         for (int i = 0; i < labels.size(); i++) {
             json.append(labels.get(i));
-            if (i < labels.size() - 1) json.append(", ");
+            if (i < labels.size() - 1) {
+                json.append(", ");
+            }
         }
         json.append("],\n");
 
@@ -719,10 +762,12 @@ public class BenchmarkReporter {
             if (metric.getMetrics().containsKey(metricKey)) {
                 Object valueObj = metric.getMetrics().get(metricKey);
                 double value = (valueObj instanceof Long)
-                    ? ((Long) valueObj).doubleValue()
-                    : ((Double) valueObj);
+                        ? ((Long) valueObj).doubleValue()
+                        : ((Double) valueObj);
                 json.append(String.format("%.2f", value));
-                if (i < asyncMetrics.size() - 1) json.append(", ");
+                if (i < asyncMetrics.size() - 1) {
+                    json.append(", ");
+                }
             }
         }
         json.append("],\n");
@@ -733,10 +778,12 @@ public class BenchmarkReporter {
             if (metric.getMetrics().containsKey(metricKey)) {
                 Object valueObj = metric.getMetrics().get(metricKey);
                 double value = (valueObj instanceof Long)
-                    ? ((Long) valueObj).doubleValue()
-                    : ((Double) valueObj);
+                        ? ((Long) valueObj).doubleValue()
+                        : ((Double) valueObj);
                 json.append(String.format("%.2f", value));
-                if (i < syncMetrics.size() - 1) json.append(", ");
+                if (i < syncMetrics.size() - 1) {
+                    json.append(", ");
+                }
             }
         }
         json.append("]\n");
@@ -749,12 +796,14 @@ public class BenchmarkReporter {
      * Escapes JSON strings.
      */
     private String escapeJson(String str) {
-        if (str == null) return "";
+        if (str == null) {
+            return "";
+        }
         return str.replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r")
-                    .replace("\t", "\\t");
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     /**
@@ -766,8 +815,8 @@ public class BenchmarkReporter {
         public final boolean isRegression;
         public final String severity;
 
-        public RegressionInfo(double expectedImprovement, double actualImprovement,
-                          boolean isRegression, String severity) {
+        RegressionInfo(double expectedImprovement, double actualImprovement,
+                boolean isRegression, String severity) {
             this.expectedImprovement = expectedImprovement;
             this.actualImprovement = actualImprovement;
             this.isRegression = isRegression;

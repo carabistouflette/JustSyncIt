@@ -108,13 +108,13 @@ public class BenchmarkEnvironmentValidator {
         if (maxMemory < requiredMemory) {
             validationResults.add(String.format(
                     "❌ Insufficient memory: %d MB available, %d MB required (minimum 1GB)",
-                maxMemory / (1024 * 1024), requiredMemory / (1024 * 1024)));
+                    maxMemory / (1024 * 1024), requiredMemory / (1024 * 1024)));
             return false;
         }
 
         validationResults.add(String.format(
                 "✅ Sufficient memory: %d MB available",
-            maxMemory / (1024 * 1024)));
+                maxMemory / (1024 * 1024)));
         return true;
     }
 
@@ -130,13 +130,13 @@ public class BenchmarkEnvironmentValidator {
         if (availableProcessors < requiredProcessors) {
             validationResults.add(String.format(
                     "❌ Insufficient CPU cores: %d available, %d required (minimum 2 cores)",
-                availableProcessors, requiredProcessors));
+                    availableProcessors, requiredProcessors));
             return false;
         }
 
         validationResults.add(String.format(
                 "✅ Sufficient CPU cores: %d available",
-            availableProcessors));
+                availableProcessors));
         return true;
     }
 
@@ -154,13 +154,13 @@ public class BenchmarkEnvironmentValidator {
             if (freeSpace < requiredSpace) {
                 validationResults.add(String.format(
                         "❌ Insufficient disk space: %d GB available, %d GB required (minimum 2GB)",
-                    freeSpace / (1024 * 1024 * 1024), requiredSpace / (1024 * 1024 * 1024)));
+                        freeSpace / (1024 * 1024 * 1024), requiredSpace / (1024 * 1024 * 1024)));
                 return false;
             }
 
             validationResults.add(String.format(
                     "✅ Sufficient disk space: %d GB available",
-                freeSpace / (1024 * 1024 * 1024)));
+                    freeSpace / (1024 * 1024 * 1024)));
             return true;
         } catch (Exception e) {
             validationResults.add("❌ Unable to check disk space: " + e.getMessage());
@@ -187,13 +187,13 @@ public class BenchmarkEnvironmentValidator {
             if (systemLoadAverage > maxAcceptableLoad) {
                 validationResults.add(String.format(
                         "❌ High system load: %.2f, maximum acceptable: %.2f",
-                    systemLoadAverage, maxAcceptableLoad));
+                        systemLoadAverage, maxAcceptableLoad));
                 return false;
             }
 
             validationResults.add(String.format(
                     "✅ Acceptable system load: %.2f",
-                systemLoadAverage));
+                    systemLoadAverage));
             return true;
         } catch (Exception e) {
             validationResults.add("❌ Unable to check system load: " + e.getMessage());
@@ -217,16 +217,16 @@ public class BenchmarkEnvironmentValidator {
         // Check for Java 11 or higher
         if (javaVersion.startsWith("1.")
                 || javaVersion.startsWith("9.")
-            || javaVersion.startsWith("10.")) {
+                || javaVersion.startsWith("10.")) {
             validationResults.add(String.format(
                     "❌ Unsupported Java version: %s (requires Java 11 or higher)",
-                javaVersion));
+                    javaVersion));
             return false;
         }
 
         validationResults.add(String.format(
                 "✅ Java version: %s",
-            javaVersion));
+                javaVersion));
         return true;
     }
 

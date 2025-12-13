@@ -29,30 +29,30 @@ import java.util.List;
 import java.util.Map;
 
 /**
-    * Utility class for generating comprehensive benchmark reports.
-    * Provides methods to create detailed performance analysis and visualizations.
-    */
+ * Utility class for generating comprehensive benchmark reports.
+ * Provides methods to create detailed performance analysis and visualizations.
+ */
 public class BenchmarkReportGenerator {
 
     private final List<PerformanceMetrics> allMetrics;
     private final Path reportDirectory;
 
     /**
-        * Creates a new benchmark report generator.
-        *
-        * @param allMetrics list of all performance metrics from benchmarks
-        * @param reportDirectory directory to save reports to
-        */
+     * Creates a new benchmark report generator.
+     *
+     * @param allMetrics      list of all performance metrics from benchmarks
+     * @param reportDirectory directory to save reports to
+     */
     public BenchmarkReportGenerator(List<PerformanceMetrics> allMetrics, Path reportDirectory) {
         this.allMetrics = new ArrayList<>(allMetrics);
         this.reportDirectory = reportDirectory;
     }
 
     /**
-        * Generates a comprehensive HTML report with all benchmark results.
-        *
-        * @return path to the generated HTML report
-        */
+     * Generates a comprehensive HTML report with all benchmark results.
+     *
+     * @return path to the generated HTML report
+     */
     public Path generateHtmlReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-report-"
                 +
@@ -60,16 +60,16 @@ public class BenchmarkReportGenerator {
                 + ".html");
 
         String htmlContent = generateHtmlContent();
-        Files.write(reportFile, htmlContent.getBytes());
+        Files.write(reportFile, htmlContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         return reportFile;
     }
 
     /**
-        * Generates a comprehensive JSON report with all benchmark results.
-        *
-        * @return path to the generated JSON report
-        */
+     * Generates a comprehensive JSON report with all benchmark results.
+     *
+     * @return path to the generated JSON report
+     */
     public Path generateJsonReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-report-"
                 +
@@ -77,16 +77,16 @@ public class BenchmarkReportGenerator {
                 + ".json");
 
         String jsonContent = generateJsonContent();
-        Files.write(reportFile, jsonContent.getBytes());
+        Files.write(reportFile, jsonContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         return reportFile;
     }
 
     /**
-        * Generates a CSV report with benchmark results for data analysis.
-        *
-        * @return path to the generated CSV report
-        */
+     * Generates a CSV report with benchmark results for data analysis.
+     *
+     * @return path to the generated CSV report
+     */
     public Path generateCsvReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-report-"
                 +
@@ -94,16 +94,16 @@ public class BenchmarkReportGenerator {
                 + ".csv");
 
         String csvContent = generateCsvContent();
-        Files.write(reportFile, csvContent.getBytes());
+        Files.write(reportFile, csvContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         return reportFile;
     }
 
     /**
-        * Generates a text summary report with key findings.
-        *
-        * @return path to the generated text report
-        */
+     * Generates a text summary report with key findings.
+     *
+     * @return path to the generated text report
+     */
     public Path generateTextSummaryReport() throws IOException {
         Path reportFile = reportDirectory.resolve("benchmark-summary-"
                 +
@@ -111,16 +111,16 @@ public class BenchmarkReportGenerator {
                 + ".txt");
 
         String textContent = generateTextSummaryContent();
-        Files.write(reportFile, textContent.getBytes());
+        Files.write(reportFile, textContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         return reportFile;
     }
 
     /**
-        * Generates performance comparison charts data.
-        *
-        * @return path to the generated chart data file
-        */
+     * Generates performance comparison charts data.
+     *
+     * @return path to the generated chart data file
+     */
     public Path generateChartDataFile() throws IOException {
         Path chartFile = reportDirectory.resolve("benchmark-chart-data-"
                 +
@@ -128,14 +128,14 @@ public class BenchmarkReportGenerator {
                 + ".json");
 
         String chartContent = generateChartDataContent();
-        Files.write(chartFile, chartContent.getBytes());
+        Files.write(chartFile, chartContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         return chartFile;
     }
 
     /**
-        * Generates the complete HTML report content.
-        */
+     * Generates the complete HTML report content.
+     */
     private String generateHtmlContent() {
         StringBuilder html = new StringBuilder();
 
@@ -155,7 +155,8 @@ public class BenchmarkReportGenerator {
         // Report header
         html.append("    <div class=\"header\">\n");
         html.append("        <h1>JustSyncIt Performance Benchmark Report</h1>\n");
-        html.append("        <p class=\"timestamp\">Generated on: ").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("</p>\n");
+        html.append("        <p class=\"timestamp\">Generated on: ")
+                .append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("</p>\n");
         html.append("    </div>\n");
 
         // Executive summary
@@ -183,13 +184,14 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates JSON report content.
-        */
+     * Generates JSON report content.
+     */
     private String generateJsonContent() {
         StringBuilder json = new StringBuilder();
         json.append("{\n");
         json.append("  \"reportInfo\": {\n");
-        json.append("    \"generatedAt\": \"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\",\n");
+        json.append("    \"generatedAt\": \"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .append("\",\n");
         json.append("    \"version\": \"1.0\",\n");
         json.append("    \"totalBenchmarks\": ").append(allMetrics.size()).append("\n");
         json.append("  },\n");
@@ -232,8 +234,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates CSV report content.
-        */
+     * Generates CSV report content.
+     */
     private String generateCsvContent() {
         StringBuilder csv = new StringBuilder();
 
@@ -305,15 +307,16 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates text summary content.
-        */
+     * Generates text summary content.
+     */
     private String generateTextSummaryContent() {
         StringBuilder text = new StringBuilder();
 
         text.append("JUSTSYNCIT PERFORMANCE BENCHMARK SUMMARY\n");
         text.append("=====================================\n\n");
 
-        text.append("Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\n");
+        text.append("Generated: ").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+                .append("\n");
         text.append("Total Benchmarks: ").append(allMetrics.size()).append("\n\n");
 
         // Key findings
@@ -341,9 +344,9 @@ public class BenchmarkReportGenerator {
                     .average()
                     .orElse(0.0);
 
-            text.append(String.format("  Average Throughput: %.2f MB/s\n", avgThroughput));
-            text.append(String.format("  Average Memory Usage: %.2f MB\n", avgMemory));
-            text.append(String.format("  Tests Run: %d\n", metrics.size()));
+            text.append(String.format("  Average Throughput: %.2f MB/s%n", avgThroughput));
+            text.append(String.format("  Average Memory Usage: %.2f MB%n", avgMemory));
+            text.append(String.format("  Tests Run: %d%n", metrics.size()));
         }
 
         // Performance targets assessment
@@ -369,7 +372,8 @@ public class BenchmarkReportGenerator {
                 targetsMet++;
                 text.append("✓ Backup throughput target met (>50 MB/s)\n");
             } else {
-                text.append("✗ Backup throughput target not met (").append(String.format("%.2f", avgBackupThroughput)).append(" MB/s)\n");
+                text.append("✗ Backup throughput target not met (").append(String.format("%.2f", avgBackupThroughput))
+                        .append(" MB/s)\n");
             }
         }
 
@@ -389,7 +393,8 @@ public class BenchmarkReportGenerator {
                 targetsMet++;
                 text.append("✓ Memory usage target met (<500 MB)\n");
             } else {
-                text.append("✗ Memory usage target not met (").append(String.format("%.2f", avgMemoryUsage)).append(" MB)\n");
+                text.append("✗ Memory usage target not met (").append(String.format("%.2f", avgMemoryUsage))
+                        .append(" MB)\n");
             }
         }
 
@@ -405,8 +410,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates chart data for visualization.
-        */
+     * Generates chart data for visualization.
+     */
     private String generateChartDataContent() {
         StringBuilder chartData = new StringBuilder();
         chartData.append("{\n");
@@ -479,8 +484,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Groups metrics by benchmark type.
-        */
+     * Groups metrics by benchmark type.
+     */
     private Map<String, List<PerformanceMetrics>> groupMetricsByType() {
         Map<String, List<PerformanceMetrics>> grouped = new HashMap<>();
 
@@ -509,156 +514,154 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates CSS styles for the HTML report.
-        */
+     * Generates CSS styles for the HTML report.
+     */
     private String getReportStyles() {
-        return """
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-
-            .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-
-            .header h1 {
-            margin: 0;
-            font-size: 2.5em;
-            font-weight: 300;
-        }
-
-            .timestamp {
-            margin: 10px 0 0 0;
-            opacity: 0.8;
-            font-size: 0.9em;
-        }
-
-            .section {
-            background: white;
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-            .section h2 {
-            color: #667eea;
-            border-bottom: 2px solid #667eea;
-            padding-bottom: 10px;
-            margin-top: 0;
-        }
-
-            .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin: 20px 0;
-        }
-
-            .metric-card {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 20px;
-        }
-
-            .metric-card h3 {
-            margin: 0 0 10px 0;
-            color: #495057;
-            font-size: 1.1em;
-        }
-
-            .metric-value {
-            font-size: 1.8em;
-            font-weight: bold;
-            color: #28a745;
-            margin: 10px 0;
-        }
-
-            .metric-label {
-            color: #6c757d;
-            font-size: 0.9em;
-        }
-
-            .status-good { color: #28a745; }
-            .status-warning { color: #ffc107; }
-            .status-error { color: #dc3545; }
-
-            .recommendations {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 20px;
-        }
-
-            .recommendations h3 {
-            color: #856404;
-            margin-top: 0;
-        }
-
-            .recommendations ul {
-            margin: 15px 0;
-        }
-
-            .recommendations li {
-            margin: 8px 0;
-            line-height: 1.5;
-        }
-
-            .raw-data {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            padding: 20px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 0.9em;
-            overflow-x: auto;
-        }
-
-            .chart-container {
-            background: white;
-            border-radius: 8px;
-            padding: 25px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        th {
-            background-color: #f8f9fa;
-            font-weight: 600;
-            color: #495057;
-        }
-
-            .target-met { color: #28a745; font-weight: bold; }
-            .target-not-met { color: #dc3545; font-weight: bold; }
-        """;
+        return "body {\n"
+                + "    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;\n"
+                + "    line-height: 1.6;\n"
+                + "    color: #333;\n"
+                + "    max-width: 1200px;\n"
+                + "    margin: 0 auto;\n"
+                + "    padding: 20px;\n"
+                + "    background-color: #f5f5f5;\n"
+                + "}\n"
+                + "\n"
+                + ".header {\n"
+                + "    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n"
+                + "    color: white;\n"
+                + "    padding: 30px;\n"
+                + "    border-radius: 10px;\n"
+                + "    margin-bottom: 30px;\n"
+                + "    text-align: center;\n"
+                + "}\n"
+                + "\n"
+                + ".header h1 {\n"
+                + "    margin: 0;\n"
+                + "    font-size: 2.5em;\n"
+                + "    font-weight: 300;\n"
+                + "}\n"
+                + "\n"
+                + ".timestamp {\n"
+                + "    margin: 10px 0 0 0;\n"
+                + "    opacity: 0.8;\n"
+                + "    font-size: 0.9em;\n"
+                + "}\n"
+                + "\n"
+                + ".section {\n"
+                + "    background: white;\n"
+                + "    border-radius: 8px;\n"
+                + "    padding: 25px;\n"
+                + "    margin-bottom: 30px;\n"
+                + "    box-shadow: 0 2px 10px rgba(0,0,0,0.1);\n"
+                + "}\n"
+                + "\n"
+                + ".section h2 {\n"
+                + "    color: #667eea;\n"
+                + "    border-bottom: 2px solid #667eea;\n"
+                + "    padding-bottom: 10px;\n"
+                + "    margin-top: 0;\n"
+                + "}\n"
+                + "\n"
+                + ".metric-grid {\n"
+                + "    display: grid;\n"
+                + "    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));\n"
+                + "    gap: 20px;\n"
+                + "    margin: 20px 0;\n"
+                + "}\n"
+                + "\n"
+                + ".metric-card {\n"
+                + "    background: #f8f9fa;\n"
+                + "    border: 1px solid #e9ecef;\n"
+                + "    border-radius: 6px;\n"
+                + "    padding: 20px;\n"
+                + "}\n"
+                + "\n"
+                + ".metric-card h3 {\n"
+                + "    margin: 0 0 10px 0;\n"
+                + "    color: #495057;\n"
+                + "    font-size: 1.1em;\n"
+                + "}\n"
+                + "\n"
+                + ".metric-value {\n"
+                + "    font-size: 1.8em;\n"
+                + "    font-weight: bold;\n"
+                + "    color: #28a745;\n"
+                + "    margin: 10px 0;\n"
+                + "}\n"
+                + "\n"
+                + ".metric-label {\n"
+                + "    color: #6c757d;\n"
+                + "    font-size: 0.9em;\n"
+                + "}\n"
+                + "\n"
+                + ".status-good { color: #28a745; }\n"
+                + "    .status-warning { color: #ffc107; }\n"
+                + "    .status-error { color: #dc3545; }\n"
+                + "\n"
+                + ".recommendations {\n"
+                + "    background: #fff3cd;\n"
+                + "    border-left: 4px solid #ffc107;\n"
+                + "    padding: 20px;\n"
+                + "}\n"
+                + "\n"
+                + ".recommendations h3 {\n"
+                + "    color: #856404;\n"
+                + "    margin-top: 0;\n"
+                + "}\n"
+                + "\n"
+                + ".recommendations ul {\n"
+                + "    margin: 15px 0;\n"
+                + "}\n"
+                + "\n"
+                + ".recommendations li {\n"
+                + "    margin: 8px 0;\n"
+                + "    line-height: 1.5;\n"
+                + "}\n"
+                + "\n"
+                + ".raw-data {\n"
+                + "    background: #f8f9fa;\n"
+                + "    border: 1px solid #dee2e6;\n"
+                + "    border-radius: 6px;\n"
+                + "    padding: 20px;\n"
+                + "    font-family: 'Courier New', Courier, monospace;\n"
+                + "    font-size: 0.9em;\n"
+                + "    overflow-x: auto;\n"
+                + "}\n"
+                + "\n"
+                + ".chart-container {\n"
+                + "    background: white;\n"
+                + "    border-radius: 8px;\n"
+                + "    padding: 25px;\n"
+                + "    margin-bottom: 30px;\n"
+                + "    box-shadow: 0 2px 10px rgba(0,0,0,0.1);\n"
+                + "}\n"
+                + "\n"
+                + "table {\n"
+                + "    width: 100%;\n"
+                + "    border-collapse: collapse;\n"
+                + "    margin: 20px 0;\n"
+                + "}\n"
+                + "\n"
+                + "th, td {\n"
+                + "    padding: 12px;\n"
+                + "    text-align: left;\n"
+                + "    border-bottom: 1px solid #dee2e6;\n"
+                + "}\n"
+                + "\n"
+                + "th {\n"
+                + "    background-color: #f8f9fa;\n"
+                + "    font-weight: 600;\n"
+                + "    color: #495057;\n"
+                + "}\n"
+                + "\n"
+                + ".target-met { color: #28a745; font-weight: bold; }\n"
+                + ".target-not-met { color: #dc3545; font-weight: bold; }\n";
     }
 
     /**
-        * Generates executive summary section for HTML.
-        */
+     * Generates executive summary section for HTML.
+     */
     private String generateExecutiveSummary() {
         StringBuilder summary = new StringBuilder();
 
@@ -681,13 +684,15 @@ public class BenchmarkReportGenerator {
         summary.append("        <div class=\"metric-grid\">\n");
         summary.append("            <div class=\"metric-card\">\n");
         summary.append("                <h3>Average Throughput</h3>\n");
-        summary.append("                <div class=\"metric-value\">").append(String.format("%.2f", avgThroughput)).append(" MB/s</div>\n");
+        summary.append("                <div class=\"metric-value\">").append(String.format("%.2f", avgThroughput))
+                .append(" MB/s</div>\n");
         summary.append("                <div class=\"metric-label\">Across all benchmarks</div>\n");
         summary.append("            </div>\n");
 
         summary.append("            <div class=\"metric-card\">\n");
         summary.append("                <h3>Average Memory Usage</h3>\n");
-        summary.append("                <div class=\"metric-value\">").append(String.format("%.2f", avgMemory)).append(" MB</div>\n");
+        summary.append("                <div class=\"metric-value\">").append(String.format("%.2f", avgMemory))
+                .append(" MB</div>\n");
         summary.append("                <div class=\"metric-label\">Peak usage during operations</div>\n");
         summary.append("            </div>\n");
 
@@ -703,8 +708,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates detailed results section for HTML.
-        */
+     * Generates detailed results section for HTML.
+     */
     private String generateDetailedResults() {
         StringBuilder results = new StringBuilder();
 
@@ -720,7 +725,8 @@ public class BenchmarkReportGenerator {
             for (PerformanceMetrics metric : metrics) {
                 results.append("        <div class=\"metric-card\">\n");
                 results.append("            <h3>").append(metric.getBenchmarkName()).append("</h3>\n");
-                results.append("            <div class=\"metric-summary\">").append(metric.generateSummary()).append("</div>\n");
+                results.append("            <div class=\"metric-summary\">").append(metric.generateSummary())
+                        .append("</div>\n");
                 results.append("        </div>\n");
             }
 
@@ -731,8 +737,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates performance analysis section for HTML.
-        */
+     * Generates performance analysis section for HTML.
+     */
     private String generatePerformanceAnalysis() {
         StringBuilder analysis = new StringBuilder();
 
@@ -754,8 +760,10 @@ public class BenchmarkReportGenerator {
         analysis.append("            <tr>\n");
         analysis.append("                <td>Backup Throughput</td>\n");
         analysis.append("                <td>>50 MB/s</td>\n");
-        analysis.append("                <td>").append(String.format("%.2f MB/s", avgBackupThroughput)).append("</td>\n");
-        analysis.append("                <td class=\"").append(avgBackupThroughput >= 50.0 ? "target-met" : "target-not-met").append("\">");
+        analysis.append("                <td>").append(String.format("%.2f MB/s", avgBackupThroughput))
+                .append("</td>\n");
+        analysis.append("                <td class=\"")
+                .append(avgBackupThroughput >= 50.0 ? "target-met" : "target-not-met").append("\">");
         analysis.append(avgBackupThroughput >= 50.0 ? "✓ MET" : "✗ NOT MET").append("</td>\n");
         analysis.append("            </tr>\n");
 
@@ -770,7 +778,8 @@ public class BenchmarkReportGenerator {
         analysis.append("                <td>Memory Usage</td>\n");
         analysis.append("                <td><500 MB</td>\n");
         analysis.append("                <td>").append(String.format("%.2f MB", avgMemoryUsage)).append("</td>\n");
-        analysis.append("                <td class=\"").append(avgMemoryUsage <= 500.0 ? "target-met" : "target-not-met").append("\">");
+        analysis.append("                <td class=\"")
+                .append(avgMemoryUsage <= 500.0 ? "target-met" : "target-not-met").append("\">");
         analysis.append(avgMemoryUsage <= 500.0 ? "✓ MET" : "✗ NOT MET").append("</td>\n");
         analysis.append("            </tr>\n");
 
@@ -781,8 +790,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates recommendations section for HTML.
-        */
+     * Generates recommendations section for HTML.
+     */
     private String generateRecommendations() {
         StringBuilder recommendations = new StringBuilder();
 
@@ -797,8 +806,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates recommendations text.
-        */
+     * Generates recommendations text.
+     */
     private String generateTextRecommendations() {
         StringBuilder recs = new StringBuilder();
 
@@ -868,8 +877,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates recommendations HTML.
-        */
+     * Generates recommendations HTML.
+     */
     private String generateHtmlRecommendations() {
         StringBuilder recs = new StringBuilder();
 
@@ -939,8 +948,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates JSON executive summary.
-        */
+     * Generates JSON executive summary.
+     */
     private String generateJsonExecutiveSummary() {
         StringBuilder summary = new StringBuilder();
 
@@ -979,8 +988,8 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates charts section for HTML.
-        */
+     * Generates charts section for HTML.
+     */
     private String generateChartsSection() {
         StringBuilder charts = new StringBuilder();
 
@@ -996,15 +1005,16 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Generates raw data section for HTML.
-        */
+     * Generates raw data section for HTML.
+     */
     private String generateRawDataSection() {
         StringBuilder rawData = new StringBuilder();
 
         rawData.append("    <div class=\"raw-data\">\n");
         rawData.append("        <h2>Raw Benchmark Data</h2>\n");
         rawData.append("        <table>\n");
-        rawData.append("            <tr><th>Benchmark</th><th>Duration (ms)</th><th>Throughput (MB/s)</th><th>Memory (MB)</th><th>Files</th><th>Chunks</th></tr>\n");
+        rawData.append("            <tr><th>Benchmark</th><th>Duration (ms)</th><th>Throughput (MB/s)</th>")
+                .append("<th>Memory (MB)</th><th>Files</th><th>Chunks</th></tr>\n");
 
         for (PerformanceMetrics metrics : allMetrics) {
             rawData.append("            <tr>\n");
@@ -1012,10 +1022,12 @@ public class BenchmarkReportGenerator {
             rawData.append("                <td>").append(metrics.getDurationMs()).append("</td>\n");
 
             Double throughput = (Double) metrics.getMetrics().get("throughput_mbps");
-            rawData.append("                <td>").append(throughput != null ? String.format("%.2f", throughput) : "").append("</td>\n");
+            rawData.append("                <td>").append(throughput != null ? String.format("%.2f", throughput) : "")
+                    .append("</td>\n");
 
             Double memory = (Double) metrics.getMetrics().get("memory_used_mb");
-            rawData.append("                <td>").append(memory != null ? String.format("%.2f", memory) : "").append("</td>\n");
+            rawData.append("                <td>").append(memory != null ? String.format("%.2f", memory) : "")
+                    .append("</td>\n");
 
             Object filesObj = metrics.getMetrics().get("file_count");
             String filesStr = "";
@@ -1053,14 +1065,16 @@ public class BenchmarkReportGenerator {
     }
 
     /**
-        * Escapes JSON strings.
-        */
+     * Escapes JSON strings.
+     */
     private String escapeJson(String str) {
-        if (str == null) return "";
+        if (str == null) {
+            return "";
+        }
         return str.replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r")
-                    .replace("\t", "\\t");
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 }

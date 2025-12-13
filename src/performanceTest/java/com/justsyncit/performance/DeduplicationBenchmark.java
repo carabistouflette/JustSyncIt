@@ -66,6 +66,7 @@ public class DeduplicationBenchmark {
     private BackupService backupService;
 
     private final List<PerformanceMetrics> benchmarkResults = new ArrayList<>();
+    private static final java.util.Random RANDOM = new java.util.Random(42);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -103,7 +104,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPerfectDeduplication() throws Exception {
         // Test with identical files (perfect deduplication scenario)
-        int[] duplicateCounts = {10, 50, 100, 500 };
+        int[] duplicateCounts = {10, 50, 100, 500};
         int fileSizeKB = 100; // 100KB per file
 
         for (int duplicateCount : duplicateCounts) {
@@ -176,7 +177,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPartialDeduplication() throws Exception {
         // Test with files having partial duplication
-        int[] fileCounts = {50, 100, 200 };
+        int[] fileCounts = {50, 100, 200};
         int duplicateRatio = 50; // 50% of content is duplicated
         int fileSizeKB = 100;
 
@@ -256,7 +257,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkNoDeduplication() throws Exception {
         // Test with completely unique files (no deduplication)
-        int[] fileCounts = {50, 100, 200 };
+        int[] fileCounts = {50, 100, 200};
         int fileSizeKB = 100;
 
         for (int fileCount : fileCounts) {
@@ -325,7 +326,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkChunkSizeImpact() throws Exception {
         // Test impact of chunk size on deduplication efficiency
-        int[] chunkSizes = {32 * 1024, 64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024 }; // 32KB to 1MB
+        int[] chunkSizes = {32 * 1024, 64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024}; // 32KB to 1MB
         int duplicateRatio = 30; // 30% duplication
 
         for (int chunkSize : chunkSizes) {
@@ -389,7 +390,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkDeduplicationOverhead() throws Exception {
         // Test performance overhead of deduplication processing
-        int[] fileCounts = {50, 100, 200, 500 };
+        int[] fileCounts = {50, 100, 200, 500};
         int fileSizeKB = 50;
 
         for (int fileCount : fileCounts) {
@@ -475,7 +476,7 @@ public class DeduplicationBenchmark {
     void benchmarkIncrementalDeduplication() throws Exception {
         // Test deduplication efficiency in incremental backups
         int initialSizeMB = 50;
-        int[] changePercentages = {5, 10, 20, 30 }; // Percentage of files changed
+        int[] changePercentages = {5, 10, 20, 30}; // Percentage of files changed
 
         for (int changePercent : changePercentages) {
             PerformanceMetrics metrics = new PerformanceMetrics(
@@ -672,7 +673,7 @@ public class DeduplicationBenchmark {
      */
     private byte[] generateRandomContent(int size) {
         byte[] content = new byte[size];
-        new java.util.Random(42).nextBytes(content); // Fixed seed for reproducible tests
+        RANDOM.nextBytes(content); // Fixed seed for reproducible tests
         return content;
     }
 

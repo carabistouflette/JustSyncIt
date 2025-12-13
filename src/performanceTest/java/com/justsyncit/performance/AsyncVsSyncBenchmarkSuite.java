@@ -54,6 +54,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class AsyncVsSyncBenchmarkSuite {
 
+    private static final java.util.Random RANDOM = new java.util.Random(42);
+
     @TempDir
     Path tempDir;
 
@@ -145,7 +147,7 @@ public class AsyncVsSyncBenchmarkSuite {
                             .forEach(path -> {
                                 try {
                                     java.nio.file.Files.deleteIfExists(path);
-                                } catch (Exception e) {
+                                } catch (IOException e) {
                                     // Ignore cleanup errors
                                 }
                             });
@@ -158,13 +160,13 @@ public class AsyncVsSyncBenchmarkSuite {
                             .forEach(path -> {
                                 try {
                                     java.nio.file.Files.deleteIfExists(path);
-                                } catch (Exception e) {
+                                } catch (IOException e) {
                                     // Ignore cleanup errors
                                 }
                             });
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             // Ignore cleanup errors
         }
     }
@@ -267,7 +269,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runThroughputBenchmarks() throws Exception {
         System.out.println("Running Throughput benchmarks...");
 
-        int[] fileSizesMB = { 1, 2, 3, 4 }; // Very small sizes to avoid disk quota issues
+        int[] fileSizesMB = {1, 2, 3, 4}; // Very small sizes to avoid disk quota issues
 
         for (int sizeMB : fileSizesMB) {
             // Async throughput test
@@ -294,7 +296,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runLatencyBenchmarks() throws Exception {
         System.out.println("Running Latency benchmarks...");
 
-        int[] smallFileSizes = { 1, 4, 16, 64 }; // KB
+        int[] smallFileSizes = {1, 4, 16, 64}; // KB
 
         for (int sizeKB : smallFileSizes) {
             // Async latency test
@@ -321,7 +323,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runCpuOverheadBenchmarks() throws Exception {
         System.out.println("Running CPU Overhead benchmarks...");
 
-        int[] workloads = { 2, 5, 8, 10 }; // Very small sizes to avoid disk quota issues
+        int[] workloads = {2, 5, 8, 10}; // Very small sizes to avoid disk quota issues
 
         for (int workloadMB : workloads) {
             // Async CPU test
@@ -348,7 +350,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runScalabilityBenchmarks() throws Exception {
         System.out.println("Running Scalability benchmarks...");
 
-        int[] concurrentOperations = { 1, 4, 8, 16, 32 };
+        int[] concurrentOperations = {1, 4, 8, 16, 32};
 
         for (int concurrency : concurrentOperations) {
             // Async scalability test
@@ -375,7 +377,7 @@ public class AsyncVsSyncBenchmarkSuite {
     private void runMemoryEfficiencyBenchmarks() throws Exception {
         System.out.println("Running Memory Efficiency benchmarks...");
 
-        int[] datasetSizes = { 5, 10, 15 }; // Very small sizes to avoid disk quota issues
+        int[] datasetSizes = {5, 10, 15}; // Very small sizes to avoid disk quota issues
 
         for (int sizeMB : datasetSizes) {
             // Async memory test
@@ -467,8 +469,7 @@ public class AsyncVsSyncBenchmarkSuite {
         byte[] content = new byte[sizeBytes];
 
         // Fill with some pattern to make it more realistic
-        java.util.Random random = new java.util.Random(42);
-        random.nextBytes(content);
+        RANDOM.nextBytes(content);
 
         return content;
     }
@@ -540,8 +541,7 @@ public class AsyncVsSyncBenchmarkSuite {
         byte[] content = new byte[sizeBytes];
 
         // Fill with some pattern to make it more realistic
-        java.util.Random random = new java.util.Random(42);
-        random.nextBytes(content);
+        RANDOM.nextBytes(content);
 
         return content;
     }
@@ -644,7 +644,7 @@ public class AsyncVsSyncBenchmarkSuite {
             long durationMs = (endTime - startTime) / 1_000_000;
 
             // Calculate total data processed
-            long totalSize = testData.length * concurrency;
+            long totalSize = (long) testData.length * concurrency;
 
             metrics.recordThroughput(totalSize, durationMs);
             metrics.recordMetric("concurrent_operations", concurrency);
@@ -753,8 +753,7 @@ public class AsyncVsSyncBenchmarkSuite {
         byte[] content = new byte[sizeBytes];
 
         // Fill with some pattern to make it more realistic
-        java.util.Random random = new java.util.Random(42);
-        random.nextBytes(content);
+        RANDOM.nextBytes(content);
 
         Files.createDirectories(filePath.getParent());
         Files.write(filePath, content);
@@ -768,8 +767,7 @@ public class AsyncVsSyncBenchmarkSuite {
         byte[] content = new byte[sizeBytes];
 
         // Fill with some pattern to make it more realistic
-        java.util.Random random = new java.util.Random(42);
-        random.nextBytes(content);
+        RANDOM.nextBytes(content);
 
         Files.createDirectories(filePath.getParent());
         Files.write(filePath, content);

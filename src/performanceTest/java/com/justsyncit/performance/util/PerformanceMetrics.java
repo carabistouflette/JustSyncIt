@@ -253,26 +253,30 @@ public class PerformanceMetrics {
 
     // Utility methods for calculations
     private double calculateThroughputMBps(long bytes, long durationMs) {
-        if (durationMs == 0)
+        if (durationMs == 0) {
             return 0;
+        }
         return (bytes / 1024.0 / 1024.0) / (durationMs / 1000.0);
     }
 
     private double calculateOperationsPerSecond(long operations, long durationMs) {
-        if (durationMs == 0)
+        if (durationMs == 0) {
             return 0;
+        }
         return operations * 1000.0 / durationMs;
     }
 
     private double calculateDeduplicationRatio(long originalSize, long storedSize) {
-        if (storedSize == 0)
+        if (storedSize == 0) {
             return 0;
+        }
         return (double) originalSize / storedSize;
     }
 
     private double calculateSpaceSavingsPercent(long originalSize, long storedSize) {
-        if (originalSize == 0)
+        if (originalSize == 0) {
             return 0;
+        }
         return (1.0 - (double) storedSize / originalSize) * 100.0;
     }
 
@@ -300,13 +304,15 @@ public class PerformanceMetrics {
             try {
                 com.sun.management.OperatingSystemMXBean sunOsBean = (com.sun.management.OperatingSystemMXBean) osBean;
                 usagePercent = sunOsBean.getProcessCpuLoad() * 100.0;
-                if (usagePercent < 0)
+                if (usagePercent < 0) {
                     usagePercent = 0.0; // Can return -1 on some systems
+                }
             } catch (ClassCastException e) {
                 // Fallback to system CPU load
                 usagePercent = osBean.getSystemLoadAverage();
-                if (usagePercent < 0)
+                if (usagePercent < 0) {
                     usagePercent = 0.0;
+                }
             }
 
             return new CpuMeasurement(usagePercent);

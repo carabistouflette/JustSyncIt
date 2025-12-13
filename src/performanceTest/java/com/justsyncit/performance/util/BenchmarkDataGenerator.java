@@ -389,7 +389,7 @@ public class BenchmarkDataGenerator {
         }
 
         String fileContent = content.substring(0, Math.min(size, content.length()));
-        Files.write(filePath, fileContent.getBytes());
+        Files.write(filePath, fileContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private static void createBinaryFile(Path filePath, int size) throws IOException {

@@ -26,9 +26,6 @@ import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 import com.justsyncit.performance.util.BenchmarkDataGenerator;
 import com.justsyncit.performance.util.PerformanceMetrics;
-import com.justsyncit.restore.RestoreService;
-import com.justsyncit.storage.ContentStore;
-import com.justsyncit.storage.metadata.MetadataService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,12 +59,10 @@ public class NetworkBenchmark extends E2ETestBase {
 
     private NetworkService tcpNetworkService;
     private NetworkService quicNetworkService;
-    private ContentStore remoteContentStore;
-    private MetadataService remoteMetadataService;
-    private BackupService remoteBackupService;
-    private RestoreService remoteRestoreService;
 
     private final List<PerformanceMetrics> benchmarkResults = new ArrayList<>();
+
+    private static final java.util.Random RANDOM = new java.util.Random(42);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -79,15 +74,8 @@ public class NetworkBenchmark extends E2ETestBase {
         backupService = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
         restoreService = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
         networkService = serviceFactory.createNetworkService();
+        networkService = serviceFactory.createNetworkService();
         networkServiceWithSimulation = null; // Not used in network benchmarks
-
-        // Create remote services for network testing
-        remoteContentStore = serviceFactory.createSqliteContentStore(blake3Service);
-        remoteMetadataService = serviceFactory.createMetadataService(tempDir.resolve("remote-metadata.db").toString());
-        remoteBackupService = serviceFactory.createBackupService(remoteContentStore, remoteMetadataService,
-                blake3Service);
-        remoteRestoreService = serviceFactory.createRestoreService(remoteContentStore, remoteMetadataService,
-                blake3Service);
 
         // Create network services for different transports
         tcpNetworkService = serviceFactory.createNetworkService();
@@ -138,7 +126,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicSmallFiles() throws Exception {
         // Test TCP vs QUIC with small files
-        int[] fileCounts = {10, 50, 100, 500 };
+        int[] fileCounts = {10, 50, 100, 500};
         int fileSizeKB = 10; // 10KB files
 
         for (int fileCount : fileCounts) {
@@ -169,7 +157,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicLargeFiles() throws Exception {
         // Test TCP vs QUIC with large files
-        int[] fileSizesMB = {1, 5, 10, 50 }; // MB
+        int[] fileSizesMB = {1, 5, 10, 50}; // MB
         int fileCount = 5;
 
         for (int fileSizeMB : fileSizesMB) {
@@ -200,7 +188,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicMixedWorkload() throws Exception {
         // Test TCP vs QUIC with mixed file sizes
-        int[] datasetSizesMB = {10, 50, 100, 250 };
+        int[] datasetSizesMB = {10, 50, 100, 250};
 
         for (int sizeMB : datasetSizesMB) {
             // Test TCP
@@ -230,7 +218,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicLatencySensitivity() throws Exception {
         // Test TCP vs QUIC under different latency conditions
-        int[] latencyMs = {0, 50, 100, 200, 500 };
+        int[] latencyMs = {0, 50, 100, 200, 500};
         int datasetSizeMB = 50;
 
         for (int latency : latencyMs) {
@@ -261,7 +249,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicPacketLoss() throws Exception {
         // Test TCP vs QUIC under packet loss conditions
-        double[] packetLossPercent = {0.0, 0.1, 0.5, 1.0, 2.0 };
+        double[] packetLossPercent = {0.0, 0.1, 0.5, 1.0, 2.0};
         int datasetSizeMB = 50;
 
         for (double packetLoss : packetLossPercent) {
@@ -292,7 +280,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicConcurrentConnections() throws Exception {
         // Test TCP vs QUIC with concurrent connections
-        int[] connectionCounts = {1, 2, 4, 8 };
+        int[] connectionCounts = {1, 2, 4, 8};
         int datasetSizeMB = 25; // Per connection
 
         for (int connections : connectionCounts) {
@@ -334,7 +322,6 @@ public class NetworkBenchmark extends E2ETestBase {
         long totalSize = calculateTotalSize(sourceDir);
 
         // Simulate network transfer
-        NetworkService networkService = transportType == TransportType.TCP ? tcpNetworkService : quicNetworkService;
 
         // Measure backup transfer
         long startTime = System.currentTimeMillis();
@@ -375,7 +362,6 @@ public class NetworkBenchmark extends E2ETestBase {
         int fileCount = countFiles(sourceDir);
 
         // Simulate network transfer
-        NetworkService networkService = transportType == TransportType.TCP ? tcpNetworkService : quicNetworkService;
 
         // Measure backup transfer
         long startTime = System.currentTimeMillis();
@@ -578,7 +564,7 @@ public class NetworkBenchmark extends E2ETestBase {
      */
     private static byte[] generateRandomContent(int size) {
         byte[] content = new byte[size];
-        new java.util.Random(42).nextBytes(content); // Fixed seed for reproducible tests
+        RANDOM.nextBytes(content); // Fixed seed for reproducible tests
         return content;
     }
 

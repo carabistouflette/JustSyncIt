@@ -39,10 +39,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Comprehensive benchmark suite that runs all performance tests
  * and generates detailed reports.
  */
+@SuppressFBWarnings("DM_GC")
 public class ComprehensiveBenchmarkSuite {
 
     @TempDir
@@ -138,7 +141,7 @@ public class ComprehensiveBenchmarkSuite {
         // Linear scalability test
         PerformanceMetrics linearScalabilityMetrics = runBenchmark("Linear Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int size : new int[]{100, 200, 400, 800 }) {
+            for (int size : new int[] {100, 200, 400, 800}) {
                 Path dataset = tempDir.resolve("dataset-" + size);
                 BenchmarkDataGenerator.createMixedDataset(dataset, size);
                 datasets.add(dataset);
@@ -150,7 +153,7 @@ public class ComprehensiveBenchmarkSuite {
         // File count scalability
         PerformanceMetrics fileCountMetrics = runBenchmark("File Count Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int fileCount : new int[]{100, 500, 1000, 2000 }) {
+            for (int fileCount : new int[] {100, 500, 1000, 2000}) {
                 Path dataset = tempDir.resolve("files-" + fileCount);
                 BenchmarkDataGenerator.createSmallFilesDataset(dataset, 100); // 100MB with many files
                 datasets.add(dataset);
@@ -162,7 +165,7 @@ public class ComprehensiveBenchmarkSuite {
         // Directory depth scalability
         PerformanceMetrics dirDepthMetrics = runBenchmark("Directory Depth Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int depth : new int[]{5, 10, 15, 20 }) {
+            for (int depth : new int[] {5, 10, 15, 20}) {
                 Path dataset = tempDir.resolve("depth-" + depth);
                 BenchmarkDataGenerator.createDeepDirectoryDataset(dataset, depth, 10, 10240);
                 datasets.add(dataset);
@@ -339,7 +342,8 @@ public class ComprehensiveBenchmarkSuite {
             metrics.recordMetric("duration_ms", durationMs);
 
             if (datasetSize > 0 && durationMs > 0) {
-                double throughputMBps = (datasetSize / (1024.0 * 1024.0)) / (durationMs / 1000.0);
+                // double throughputMBps = (datasetSize / (1024.0 * 1024.0)) / (durationMs /
+                // 1000.0);
                 metrics.recordThroughput(datasetSize, durationMs);
             }
 
@@ -661,7 +665,7 @@ public class ComprehensiveBenchmarkSuite {
             }
         }
 
-        System.out.println(String.format("\nOverall: %d/%d targets met (%.1f%%)",
+        System.out.println(String.format("%nOverall: %d/%d targets met (%.1f%%)",
                 targetsMet, totalTargets, (double) targetsMet / totalTargets * 100.0));
 
         if (targetsMet == totalTargets) {

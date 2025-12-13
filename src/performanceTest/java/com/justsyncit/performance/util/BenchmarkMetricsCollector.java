@@ -25,9 +25,11 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
-    * Utility class for collecting detailed performance metrics during benchmark execution.
-    * Provides real-time monitoring of CPU, memory, thread usage, and other system resources.
-    */
+ * Utility class for collecting detailed performance metrics during benchmark
+ * execution.
+ * Provides real-time monitoring of CPU, memory, thread usage, and other system
+ * resources.
+ */
 public class BenchmarkMetricsCollector {
 
     private final MemoryMXBean memoryBean;
@@ -40,8 +42,8 @@ public class BenchmarkMetricsCollector {
     private final AtomicLong totalAllocations;
 
     /**
-        * Creates a new benchmark metrics collector.
-        */
+     * Creates a new benchmark metrics collector.
+     */
     public BenchmarkMetricsCollector() {
         this.memoryBean = ManagementFactory.getMemoryMXBean();
         this.threadBean = ManagementFactory.getThreadMXBean();
@@ -54,8 +56,8 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-        * Starts CPU monitoring for the current operation.
-        */
+     * Starts CPU monitoring for the current operation.
+     */
     public void startCpuMonitoring() {
         cpuStartNanoTime.set(System.nanoTime());
         cpuStartMilliTime.set(System.currentTimeMillis());
@@ -66,10 +68,10 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-        * Stops CPU monitoring and returns the average CPU usage.
-        *
-        * @return average CPU usage percentage during monitoring period
-        */
+     * Stops CPU monitoring and returns the average CPU usage.
+     *
+     * @return average CPU usage percentage during monitoring period
+     */
     public double stopCpuMonitoring() {
         long endTime = System.nanoTime();
         long durationMs = (endTime - cpuStartNanoTime.get()) / 1_000_000;
@@ -86,8 +88,8 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-        * Starts memory monitoring for the current operation.
-        */
+     * Starts memory monitoring for the current operation.
+     */
     public void startMemoryMonitoring() {
         memoryStartTime.set(System.nanoTime());
 
@@ -96,15 +98,15 @@ public class BenchmarkMetricsCollector {
         long initialNonHeapUsed = memoryBean.getNonHeapMemoryUsage().getUsed();
 
         currentMemoryStats.set(new MemoryStats(
-            initialHeapUsed, initialNonHeapUsed,
-            initialHeapUsed, initialNonHeapUsed, 0));
+                initialHeapUsed, initialNonHeapUsed,
+                initialHeapUsed, initialNonHeapUsed, 0));
     }
 
     /**
-        * Stops memory monitoring and returns memory statistics.
-        *
-        * @return memory statistics collected during monitoring period
-        */
+     * Stops memory monitoring and returns memory statistics.
+     *
+     * @return memory statistics collected during monitoring period
+     */
     public MemoryStats stopMemoryMonitoring() {
         long endTime = System.nanoTime();
 
@@ -118,35 +120,35 @@ public class BenchmarkMetricsCollector {
             long peakNonHeapUsed = Math.max(stats.initialNonHeapUsed, finalNonHeapUsed);
 
             return new MemoryStats(
-                stats.initialHeapUsed, stats.initialNonHeapUsed,
-                finalHeapUsed, finalNonHeapUsed,
-                totalAllocations.get());
+                    stats.initialHeapUsed, stats.initialNonHeapUsed,
+                    finalHeapUsed, finalNonHeapUsed,
+                    totalAllocations.get());
         }
 
         return new MemoryStats(
-            finalHeapUsed, finalNonHeapUsed,
-            finalHeapUsed, finalNonHeapUsed,
-            totalAllocations.get());
+                finalHeapUsed, finalNonHeapUsed,
+                finalHeapUsed, finalNonHeapUsed,
+                totalAllocations.get());
     }
 
     /**
-        * Records a memory allocation event.
-        *
-        * @param bytes number of bytes allocated
-        */
+     * Records a memory allocation event.
+     *
+     * @param bytes number of bytes allocated
+     */
     public void recordAllocation(long bytes) {
         totalAllocations.addAndGet(bytes);
     }
 
     /**
-        * Gets current CPU usage percentage.
-        *
-        * @return current CPU usage as percentage (0-100)
-        */
+     * Gets current CPU usage percentage.
+     *
+     * @return current CPU usage as percentage (0-100)
+     */
     private double getCurrentCpuUsage() {
         try {
-            com.sun.management.OperatingSystemMXBean osBean =
-                (com.sun.management.OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
+            com.sun.management.OperatingSystemMXBean osBean = (com.sun.management.OperatingSystemMXBean) ManagementFactory
+                    .getOperatingSystemMXBean();
             double cpuUsage = osBean.getProcessCpuLoad() * 100.0;
             return Math.max(0.0, Math.min(100.0, cpuUsage));
         } catch (Exception e) {
@@ -157,45 +159,45 @@ public class BenchmarkMetricsCollector {
     }
 
     /**
-        * Gets current thread count.
-        *
-        * @return current number of threads
-        */
+     * Gets current thread count.
+     *
+     * @return current number of threads
+     */
     public int getCurrentThreadCount() {
         return threadBean.getThreadCount();
     }
 
     /**
-        * Gets current heap memory usage in MB.
-        *
-        * @return heap memory usage in MB
-        */
+     * Gets current heap memory usage in MB.
+     *
+     * @return heap memory usage in MB
+     */
     public double getCurrentHeapMemoryMB() {
         return bytesToMB(memoryBean.getHeapMemoryUsage().getUsed());
     }
 
     /**
-        * Gets current non-heap memory usage in MB.
-        *
-        * @return non-heap memory usage in MB
-        */
+     * Gets current non-heap memory usage in MB.
+     *
+     * @return non-heap memory usage in MB
+     */
     public double getCurrentNonHeapMemoryMB() {
         return bytesToMB(memoryBean.getNonHeapMemoryUsage().getUsed());
     }
 
     /**
-        * Converts bytes to megabytes.
-        *
-        * @param bytes number of bytes
-        * @return megabytes
-        */
+     * Converts bytes to megabytes.
+     *
+     * @param bytes number of bytes
+     * @return megabytes
+     */
     private double bytesToMB(long bytes) {
         return bytes / (1024.0 * 1024.0);
     }
 
     /**
-        * Memory statistics collected during monitoring.
-        */
+     * Memory statistics collected during monitoring.
+     */
     public static class MemoryStats {
         public final long initialHeapUsed;
         public final long initialNonHeapUsed;
@@ -206,7 +208,7 @@ public class BenchmarkMetricsCollector {
         public final double averageMemoryMB;
 
         public MemoryStats(long initialHeapUsed, long initialNonHeapUsed,
-                        long finalHeapUsed, long finalNonHeapUsed, long allocations) {
+                long finalHeapUsed, long finalNonHeapUsed, long allocations) {
             this.initialHeapUsed = initialHeapUsed;
             this.initialNonHeapUsed = initialNonHeapUsed;
             this.finalHeapUsed = finalHeapUsed;
@@ -222,14 +224,22 @@ public class BenchmarkMetricsCollector {
             this.averageMemoryMB = (avgHeapUsed + avgNonHeapUsed) / (1024.0 * 1024.0);
         }
 
-        public long getPeakMemoryMB() { return peakMemoryMB; }
-        public double getAverageMemoryMB() { return averageMemoryMB; }
-        public long getAllocations() { return allocations; }
+        public long getPeakMemoryMB() {
+            return peakMemoryMB;
+        }
+
+        public double getAverageMemoryMB() {
+            return averageMemoryMB;
+        }
+
+        public long getAllocations() {
+            return allocations;
+        }
     }
 
     /**
-        * CPU statistics collected during monitoring.
-        */
+     * CPU statistics collected during monitoring.
+     */
     public static class CpuStats {
         public final double initialUsage;
         public final double finalUsage;
@@ -243,13 +253,18 @@ public class BenchmarkMetricsCollector {
             this.durationMs = 0; // Will be set by the collector
         }
 
-        public double getAverageUsage() { return averageUsage; }
-        public long getDurationMs() { return durationMs; }
+        public double getAverageUsage() {
+            return averageUsage;
+        }
+
+        public long getDurationMs() {
+            return durationMs;
+        }
     }
 
     /**
-        * Thread utilization statistics.
-        */
+     * Thread utilization statistics.
+     */
     public static class ThreadStats {
         public final int threadCount;
         public final int peakThreadCount;
@@ -257,20 +272,25 @@ public class BenchmarkMetricsCollector {
         public final long totalTerminatedThreads;
 
         public ThreadStats(int threadCount, int peakThreadCount,
-                            long totalStartedThreads, long totalTerminatedThreads) {
+                long totalStartedThreads, long totalTerminatedThreads) {
             this.threadCount = threadCount;
             this.peakThreadCount = peakThreadCount;
             this.totalStartedThreads = totalStartedThreads;
             this.totalTerminatedThreads = totalTerminatedThreads;
         }
 
-        public int getThreadCount() { return threadCount; }
-        public int getPeakThreadCount() { return peakThreadCount; }
+        public int getThreadCount() {
+            return threadCount;
+        }
+
+        public int getPeakThreadCount() {
+            return peakThreadCount;
+        }
     }
 
     /**
-        * Garbage collection statistics.
-        */
+     * Garbage collection statistics.
+     */
     public static class GcStats {
         public final long totalCollections;
         public final long totalCollectionTime;
@@ -284,9 +304,20 @@ public class BenchmarkMetricsCollector {
             this.gcOverheadPercent = totalRuntime > 0 ? (double) totalCollectionTime / totalRuntime * 100.0 : 0.0;
         }
 
-        public long getTotalCollections() { return totalCollections; }
-        public long getTotalCollectionTime() { return totalCollectionTime; }
-        public double getAverageCollectionTime() { return averageCollectionTime; }
-        public double getGcOverheadPercent() { return gcOverheadPercent; }
+        public long getTotalCollections() {
+            return totalCollections;
+        }
+
+        public long getTotalCollectionTime() {
+            return totalCollectionTime;
+        }
+
+        public double getAverageCollectionTime() {
+            return averageCollectionTime;
+        }
+
+        public double getGcOverheadPercent() {
+            return gcOverheadPercent;
+        }
     }
 }

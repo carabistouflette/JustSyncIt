@@ -47,14 +47,17 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
-    * Comprehensive performance tests for AsyncByteBufferPool implementations.
-    * Tests against performance targets:
-    * - CPU overhead reduced by 20%+ vs synchronous I/O
-    * - Throughput >3GB/s on NVMe through optimized buffer management
-    * - Reduced latency for small file operations through efficient buffer handling
-    * - Memory efficiency improvements to reduce GC pressure
-    */
+ * Comprehensive performance tests for AsyncByteBufferPool implementations.
+ * Tests against performance targets:
+ * - CPU overhead reduced by 20%+ vs synchronous I/O
+ * - Throughput >3GB/s on NVMe through optimized buffer management
+ * - Reduced latency for small file operations through efficient buffer handling
+ * - Memory efficiency improvements to reduce GC pressure
+ */
+@SuppressFBWarnings("DM_GC")
 public class AsyncByteBufferPoolPerformanceTest {
 
     private static final int WARMUP_ITERATIONS = 1000;
@@ -124,7 +127,7 @@ public class AsyncByteBufferPoolPerformanceTest {
 
             for (int thread = 0; thread < CONCURRENT_THREADS; thread++) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    java.util.Random random = new java.util.Random();
+                    java.util.Random random = java.util.concurrent.ThreadLocalRandom.current();
 
                     for (int i = 0; i < PERFORMANCE_ITERATIONS; i++) {
                         int bufferSize = TEST_SIZES[random.nextInt(TEST_SIZES.length)];
@@ -184,7 +187,7 @@ public class AsyncByteBufferPoolPerformanceTest {
         }
 
         @ParameterizedTest
-        @ValueSource(ints = { 1024, 4096, 65536, 262144, 1048576})
+        @ValueSource(ints = { 1024, 4096, 65536, 262144, 1048576 })
         @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test throughput for specific buffer sizes")
         void testThroughputForBufferSize(int bufferSize) throws Exception {
@@ -535,6 +538,11 @@ public class AsyncByteBufferPoolPerformanceTest {
                     memoryHogs.add(new byte[10 * 1024 * 1024]); // 10MB each
                 }
 
+                // Use the list to avoid finding about useless object
+                if (memoryHogs.isEmpty()) {
+                    throw new RuntimeException("Memory allocation failed");
+                }
+
                 // Test buffer pool performance under pressure
                 long startTime = System.nanoTime();
                 int operations = 1000;
@@ -600,7 +608,7 @@ public class AsyncByteBufferPoolPerformanceTest {
             // Start continuous load
             for (int thread = 0; thread < CONCURRENT_THREADS; thread++) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    java.util.Random random = new java.util.Random();
+                    java.util.Random random = java.util.concurrent.ThreadLocalRandom.current();
 
                     while (System.currentTimeMillis() < endTime) {
                         long opStart = System.nanoTime();
