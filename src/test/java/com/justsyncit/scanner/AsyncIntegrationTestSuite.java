@@ -32,7 +32,10 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Integration test suite for async component coordination.
@@ -67,8 +70,8 @@ public class AsyncIntegrationTestSuite extends AsyncTestBase {
         for (int i = 0; i < 5; i++) {
             Path testFile = tempDir.resolve("test_file_" + i + ".dat");
             try {
-                AsyncTestUtils.createTestFile(tempDir, "test_file_" + i + ".dat", 1024 * (i + 1)); // 1KB, 2KB, 3KB,
-                                                                                                   // 4KB, 5KB
+                // 1KB, 2KB, 3KB, 4KB, 5KB
+                AsyncTestUtils.createTestFile(tempDir, "test_file_" + i + ".dat", 1024 * (i + 1));
             } catch (AsyncTestUtils.AsyncTestException e) {
                 throw new RuntimeException("Failed to create test file", e);
             }

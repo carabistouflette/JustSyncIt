@@ -32,7 +32,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Scalability test suite for async components.
@@ -57,8 +59,9 @@ public class AsyncScalabilityTest extends AsyncTestBase {
             // Create files with exponential size growth
             for (int i = 0; i < 15; i++) {
                 int fileSize = (int) Math.pow(2, i) * 1024; // 1KB to 16MB
-                if (fileSize > 16 * 1024 * 1024)
+                if (fileSize > 16 * 1024 * 1024) {
                     fileSize = 16 * 1024 * 1024; // Cap at 16MB
+                }
 
                 Path file = tempDir.resolve("scalability_test_" + i + ".dat");
                 AsyncTestUtils.createTestFile(tempDir, "scalability_test_" + i + ".dat", fileSize);

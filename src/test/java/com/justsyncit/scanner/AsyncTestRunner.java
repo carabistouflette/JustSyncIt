@@ -90,9 +90,9 @@ public final class AsyncTestRunner {
             boolean classSuccess = failedCount == 0;
             Duration executionTime = Duration.between(startTime, Instant.now());
 
-            System.out.println("Completed test class: " + className + " - " +
-                    (classSuccess ? "PASSED" : "FAILED") +
-                    " (" + passedCount + " passed, " + failedCount + " failed, " + skippedCount + " skipped)");
+            System.out.println("Completed test class: " + className + " - "
+                    + (classSuccess ? "PASSED" : "FAILED")
+                    + " (" + passedCount + " passed, " + failedCount + " failed, " + skippedCount + " skipped)");
 
             return new AsyncTestSuite.ClassTestResult(
                     className, classSuccess, testMethods.size(),
@@ -173,10 +173,10 @@ public final class AsyncTestRunner {
      */
     private boolean isTestMethod(Method method) {
         // Simple heuristic: public methods starting with "test" or annotated with @Test
-        return (method.getName().startsWith("test") &&
-                java.lang.reflect.Modifier.isPublic(method.getModifiers()) &&
-                method.getParameterCount() == 0) ||
-                method.isAnnotationPresent(org.junit.jupiter.api.Test.class);
+        return (method.getName().startsWith("test")
+                && java.lang.reflect.Modifier.isPublic(method.getModifiers())
+                && method.getParameterCount() == 0)
+                || method.isAnnotationPresent(org.junit.jupiter.api.Test.class);
     }
 
     /**

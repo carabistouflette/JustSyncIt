@@ -39,7 +39,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Comprehensive unit tests for AsyncByteBufferPool following TDD principles.
@@ -69,8 +73,8 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             } catch (Exception e) {
                 // Clear operation might fail due to thread pool shutdown, which is acceptable
                 // during test teardown
-                if (!(e.getCause() instanceof java.util.concurrent.RejectedExecutionException) &&
-                        !(e instanceof java.util.concurrent.RejectedExecutionException)) {
+                if (!(e.getCause() instanceof java.util.concurrent.RejectedExecutionException)
+                        && !(e instanceof java.util.concurrent.RejectedExecutionException)) {
                     // Log other exceptions but don't fail the test
                     System.err.println("Warning: Clear operation failed during teardown: " + e.getMessage());
                 }
@@ -288,10 +292,10 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
             } catch (Exception e) {
                 // Expected to fail with OutOfMemoryError or similar
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
-                assertTrue(cause instanceof OutOfMemoryError ||
-                        cause instanceof IllegalArgumentException ||
-                        cause instanceof RuntimeException ||
-                        cause instanceof Exception); // Test framework may wrap the exception
+                assertTrue(cause instanceof OutOfMemoryError
+                        || cause instanceof IllegalArgumentException
+                        || cause instanceof RuntimeException
+                        || cause instanceof Exception); // Test framework may wrap the exception
             }
         }
 
@@ -322,8 +326,8 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 // Success is acceptable
             } catch (AsyncTestUtils.AsyncTestException e) {
                 // Failure is also acceptable
-                assertTrue(e.getCause() instanceof IllegalArgumentException ||
-                        e.getCause() instanceof IllegalStateException);
+                assertTrue(e.getCause() instanceof IllegalArgumentException
+                        || e.getCause() instanceof IllegalStateException);
             }
         }
     }
@@ -674,8 +678,8 @@ class AsyncByteBufferPoolComprehensiveTest extends AsyncTestBase {
                 clearSucceeded = true;
             } catch (Exception e) {
                 // Clear operation might fail due to thread pool shutdown, which is acceptable
-                if (!(e.getCause() instanceof java.util.concurrent.RejectedExecutionException) &&
-                        !(e instanceof java.util.concurrent.RejectedExecutionException)) {
+                if (!(e.getCause() instanceof java.util.concurrent.RejectedExecutionException)
+                        && !(e instanceof java.util.concurrent.RejectedExecutionException)) {
                     // Skip the rest of the test if clear fails unexpectedly
                     return;
                 }

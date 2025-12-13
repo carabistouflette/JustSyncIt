@@ -40,7 +40,8 @@ public class MockAsyncChunkHandler implements AsyncChunkHandler {
     }
 
     @Override
-    public CompletableFuture<String> processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file) {
+    public CompletableFuture<String> processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks,
+            Path file) {
         if (closed) {
             return CompletableFuture.failedFuture(new IllegalStateException("Handler is closed"));
         }
@@ -50,39 +51,38 @@ public class MockAsyncChunkHandler implements AsyncChunkHandler {
         }
 
         activeOperations.incrementAndGet();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 if (simulatedDelayMs > 0) {
                     Thread.sleep(simulatedDelayMs);
                 }
-                
+
                 long startTime = System.nanoTime();
-                
+
                 // Simulate chunk processing
                 int chunkSize = chunkData.remaining();
                 totalBytesProcessed.addAndGet(chunkSize);
-                
+
                 // Generate mock hash
                 String hash = "mock-hash-" + chunkIndex + "-" + System.currentTimeMillis();
-                
+
                 long processingTime = System.nanoTime() - startTime;
                 totalProcessingTime.addAndGet(processingTime);
-                
+
                 // Record chunk info
                 ChunkInfo chunkInfo = new ChunkInfo(
-                    file,
-                    chunkIndex,
-                    totalChunks,
-                    chunkSize,
-                    hash,
-                    System.currentTimeMillis()
-                );
+                        file,
+                        chunkIndex,
+                        totalChunks,
+                        chunkSize,
+                        hash,
+                        System.currentTimeMillis());
                 chunkHistory.add(chunkInfo);
-                
+
                 chunksHandled.incrementAndGet();
                 return hash;
-                
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Chunk processing interrupted", e);
@@ -96,7 +96,7 @@ public class MockAsyncChunkHandler implements AsyncChunkHandler {
 
     @Override
     public void processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file,
-                              CompletionHandler<String, Exception> handler) {
+            CompletionHandler<String, Exception> handler) {
         if (closed) {
             handler.failed(new IllegalStateException("Handler is closed"));
             return;
@@ -108,39 +108,38 @@ public class MockAsyncChunkHandler implements AsyncChunkHandler {
         }
 
         activeOperations.incrementAndGet();
-        
+
         CompletableFuture.runAsync(() -> {
             try {
                 if (simulatedDelayMs > 0) {
                     Thread.sleep(simulatedDelayMs);
                 }
-                
+
                 long startTime = System.nanoTime();
-                
+
                 // Simulate chunk processing
                 int chunkSize = chunkData.remaining();
                 totalBytesProcessed.addAndGet(chunkSize);
-                
+
                 // Generate mock hash
                 String hash = "mock-hash-" + chunkIndex + "-" + System.currentTimeMillis();
-                
+
                 long processingTime = System.nanoTime() - startTime;
                 totalProcessingTime.addAndGet(processingTime);
-                
+
                 // Record chunk info
                 ChunkInfo chunkInfo = new ChunkInfo(
-                    file,
-                    chunkIndex,
-                    totalChunks,
-                    chunkSize,
-                    hash,
-                    System.currentTimeMillis()
-                );
+                        file,
+                        chunkIndex,
+                        totalChunks,
+                        chunkSize,
+                        hash,
+                        System.currentTimeMillis());
                 chunkHistory.add(chunkInfo);
-                
+
                 chunksHandled.incrementAndGet();
                 handler.completed(hash);
-                
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 handler.failed(new RuntimeException("Chunk processing interrupted", e));
@@ -163,43 +162,42 @@ public class MockAsyncChunkHandler implements AsyncChunkHandler {
         }
 
         activeOperations.incrementAndGet();
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 if (simulatedDelayMs > 0) {
                     Thread.sleep(simulatedDelayMs);
                 }
-                
+
                 long startTime = System.nanoTime();
                 String[] results = new String[chunks.length];
-                
+
                 for (int i = 0; i < chunks.length; i++) {
                     ByteBuffer chunk = chunks[i];
                     int chunkSize = chunk.remaining();
                     totalBytesProcessed.addAndGet(chunkSize);
-                    
+
                     // Generate mock hash
                     String hash = "mock-hash-" + i + "-" + System.currentTimeMillis();
                     results[i] = hash;
-                    
+
                     // Record chunk info
                     ChunkInfo chunkInfo = new ChunkInfo(
-                        file,
-                        i,
-                        chunks.length,
-                        chunkSize,
-                        hash,
-                        System.currentTimeMillis()
-                    );
+                            file,
+                            i,
+                            chunks.length,
+                            chunkSize,
+                            hash,
+                            System.currentTimeMillis());
                     chunkHistory.add(chunkInfo);
                 }
-                
+
                 long processingTime = System.nanoTime() - startTime;
                 totalProcessingTime.addAndGet(processingTime);
                 chunksHandled.addAndGet(chunks.length);
-                
+
                 return results;
-                
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Chunks processing interrupted", e);
@@ -213,7 +211,7 @@ public class MockAsyncChunkHandler implements AsyncChunkHandler {
 
     @Override
     public void processChunksAsync(ByteBuffer[] chunks, Path file,
-                              CompletionHandler<String[], Exception> handler) {
+            CompletionHandler<String[], Exception> handler) {
         if (closed) {
             handler.failed(new IllegalStateException("Handler is closed"));
             return;
@@ -225,43 +223,42 @@ public class MockAsyncChunkHandler implements AsyncChunkHandler {
         }
 
         activeOperations.incrementAndGet();
-        
+
         CompletableFuture.runAsync(() -> {
             try {
                 if (simulatedDelayMs > 0) {
                     Thread.sleep(simulatedDelayMs);
                 }
-                
+
                 long startTime = System.nanoTime();
                 String[] results = new String[chunks.length];
-                
+
                 for (int i = 0; i < chunks.length; i++) {
                     ByteBuffer chunk = chunks[i];
                     int chunkSize = chunk.remaining();
                     totalBytesProcessed.addAndGet(chunkSize);
-                    
+
                     // Generate mock hash
                     String hash = "mock-hash-" + i + "-" + System.currentTimeMillis();
                     results[i] = hash;
-                    
+
                     // Record chunk info
                     ChunkInfo chunkInfo = new ChunkInfo(
-                        file,
-                        i,
-                        chunks.length,
-                        chunkSize,
-                        hash,
-                        System.currentTimeMillis()
-                    );
+                            file,
+                            i,
+                            chunks.length,
+                            chunkSize,
+                            hash,
+                            System.currentTimeMillis());
                     chunkHistory.add(chunkInfo);
                 }
-                
+
                 long processingTime = System.nanoTime() - startTime;
                 totalProcessingTime.addAndGet(processingTime);
                 chunksHandled.addAndGet(chunks.length);
-                
+
                 handler.completed(results);
-                
+
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 handler.failed(new RuntimeException("Chunks processing interrupted", e));

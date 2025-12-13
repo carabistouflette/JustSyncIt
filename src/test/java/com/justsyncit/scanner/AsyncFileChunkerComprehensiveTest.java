@@ -45,7 +45,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Comprehensive unit tests for AsyncFileChunker following TDD principles.
@@ -563,8 +569,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             } catch (AsyncTestUtils.AsyncTestAssertionError e) {
                 // If the assertion fails with a different exception type, that's also
                 // acceptable
-                assertTrue(e.getCause() instanceof IllegalArgumentException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof IllegalArgumentException
+                        || e.getCause() instanceof RuntimeException);
             }
         }
 
@@ -1042,8 +1048,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
                 fail("Should have thrown exception due to interruption");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getCause() instanceof InterruptedException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof InterruptedException
+                        || e.getCause() instanceof RuntimeException);
             } finally {
                 // Clear interrupt status
                 Thread.interrupted();
@@ -1069,8 +1075,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.ULTRA_SHORT_TIMEOUT);
                 fail("Should have timed out");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getMessage().contains("timed out") ||
-                        e.getCause() instanceof java.util.concurrent.TimeoutException);
+                assertTrue(e.getMessage().contains("timed out")
+                        || e.getCause() instanceof java.util.concurrent.TimeoutException);
             }
         }
 
@@ -1125,8 +1131,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             } catch (AsyncTestUtils.AsyncTestAssertionError e) {
                 // If the assertion fails with a different exception type, that's also
                 // acceptable
-                assertTrue(e.getCause() instanceof IllegalStateException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof IllegalStateException
+                        || e.getCause() instanceof RuntimeException);
             }
         }
     }

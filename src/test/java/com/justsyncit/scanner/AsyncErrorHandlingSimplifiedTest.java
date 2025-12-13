@@ -19,7 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Simplified error handling tests for async components.
@@ -37,7 +37,7 @@ class AsyncErrorHandlingSimplifiedTest {
         testDir = Files.createTempDirectory("async-error-simple-test");
         testFile = testDir.resolve("test.txt");
         Files.write(testFile, "Hello, World!".getBytes(), StandardOpenOption.CREATE);
-        
+
         // Create a dedicated executor service for this test class
         executorService = Executors.newFixedThreadPool(2);
     }
@@ -55,7 +55,7 @@ class AsyncErrorHandlingSimplifiedTest {
                 Thread.currentThread().interrupt();
             }
         }
-        
+
         // Clean up test files
         try {
             if (testFile != null) {
@@ -80,7 +80,7 @@ class AsyncErrorHandlingSimplifiedTest {
             // Create a small pool
             AsyncByteBufferPool smallPool = AsyncByteBufferPoolImpl.create(8192, 2);
             List<ByteBuffer> acquiredBuffers = new ArrayList<>();
-            
+
             try {
                 // Acquire all buffers
                 for (int i = 0; i < 2; i++) {
@@ -89,7 +89,7 @@ class AsyncErrorHandlingSimplifiedTest {
                     acquiredBuffers.add(buffer);
                     assertNotNull(buffer);
                 }
-                
+
                 // Try to acquire one more - this should timeout or fail
                 CompletableFuture<ByteBuffer> excessFuture = smallPool.acquireAsync(8192);
                 try {
@@ -101,18 +101,18 @@ class AsyncErrorHandlingSimplifiedTest {
                     // Timeout or other exception is also acceptable
                     System.out.println("Expected exception during excess acquisition: " + e.getMessage());
                 }
-                
+
                 // Release one buffer
                 if (!acquiredBuffers.isEmpty()) {
                     smallPool.releaseAsync(acquiredBuffers.remove(0));
                 }
-                
+
                 // Now acquisition should work
                 CompletableFuture<ByteBuffer> future = smallPool.acquireAsync(8192);
                 ByteBuffer buffer = future.get(5, TimeUnit.SECONDS);
                 assertNotNull(buffer);
                 acquiredBuffers.add(buffer); // Add to list for cleanup
-                
+
             } finally {
                 // CRITICAL: Release ALL acquired buffers back to prevent state bleeding
                 for (ByteBuffer buffer : acquiredBuffers) {

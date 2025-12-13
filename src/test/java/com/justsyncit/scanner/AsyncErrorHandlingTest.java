@@ -10,7 +10,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Comprehensive error handling tests for async components.
@@ -58,8 +63,8 @@ class AsyncErrorHandlingTest extends AsyncTestBase {
                 pool.releaseAsync(buffer);
             } catch (CompletionException e) {
                 // If it fails, that's also acceptable
-                assertTrue(e.getCause() instanceof IllegalArgumentException ||
-                        e.getCause() instanceof OutOfMemoryError);
+                assertTrue(e.getCause() instanceof IllegalArgumentException
+                        || e.getCause() instanceof OutOfMemoryError);
             }
         });
     }
@@ -112,9 +117,8 @@ class AsyncErrorHandlingTest extends AsyncTestBase {
                 // Try to acquire one more - this should timeout or fail
                 CompletableFuture<ByteBuffer> excessFuture = pool.acquireAsync(8192);
                 try {
-                    ByteBuffer buffer = AsyncTestUtils.getFutureResult(excessFuture, SHORT_TIMEOUT.dividedBy(50)); // Very
-                                                                                                                   // short
-                                                                                                                   // timeout
+                    ByteBuffer buffer = AsyncTestUtils.getFutureResult(excessFuture, SHORT_TIMEOUT.dividedBy(50));
+                    // Very short timeout
                     // If it succeeds, that's also acceptable behavior
                     assertNotNull(buffer);
                     pool.releaseAsync(buffer);

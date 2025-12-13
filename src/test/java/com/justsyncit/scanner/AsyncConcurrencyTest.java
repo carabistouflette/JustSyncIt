@@ -33,7 +33,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Concurrency test suite for async components.
@@ -318,8 +320,8 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                             int writtenThreadId = buffer.getInt();
                             int writtenOpId = buffer.getInt();
 
-                            if (writtenThreadId != threadId * 1000 + op * 10 + cycle ||
-                                    writtenOpId != op) {
+                            if (writtenThreadId != threadId * 1000 + op * 10 + cycle
+                                    || writtenOpId != op) {
                                 dataCorruptionErrors.incrementAndGet();
                             }
 
