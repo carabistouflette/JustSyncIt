@@ -34,11 +34,18 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Comprehensive performance tests for AsyncByteBufferPool implementations.
@@ -144,7 +151,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                             fail("Operation failed: " + e.getMessage());
                         }
                     }
-                }, executorService);
+               }, executorService);
 
                 futures.add(future);
             }
@@ -159,25 +166,25 @@ public class AsyncByteBufferPoolPerformanceTest {
 
             // Calculate throughput
             double throughputBytesPerSec = totalBytesProcessed.get() / durationSeconds;
-            double throughputGBPerSec = throughputBytesPerSec / (1024.0 * 1024.0 * 1024.0);
+            double throughputGbPerSec = throughputBytesPerSec / (1024.0 * 1024.0 * 1024.0);
 
             // Performance assertions
             assertEquals(totalOperations, completedOperations.get(), "Not all operations completed");
-            assertTrue(throughputGBPerSec >= 1.0,
+            assertTrue(throughputGbPerSec >= 1.0,
                     String.format("Throughput too low: %.2f GB/s (target: >1.0 GB/s, optimal: >3.0 GB/s)",
-                            throughputGBPerSec));
+                            throughputGbPerSec));
 
             // Log performance results
             System.out.printf("Throughput Performance Results:%n");
             System.out.printf("  Total Operations: %d%n", totalOperations);
             System.out.printf("  Total Bytes Processed: %d MB%n", totalBytesProcessed.get() / (1024 * 1024));
             System.out.printf("  Duration: %.2f seconds%n", durationSeconds);
-            System.out.printf("  Throughput: %.2f GB/s%n", throughputGBPerSec);
+            System.out.printf("  Throughput: %.2f GB/s%n", throughputGbPerSec);
             System.out.printf("  Operations/sec: %.0f%n", totalOperations / durationSeconds);
         }
 
         @ParameterizedTest
-        @ValueSource(ints = { 1024, 4096, 65536, 262144, 1048576 })
+        @ValueSource(ints = { 1024, 4096, 65536, 262144, 1048576})
         @Timeout(value = 3, unit = TimeUnit.MINUTES)
         @DisplayName("Test throughput for specific buffer sizes")
         void testThroughputForBufferSize(int bufferSize) throws Exception {
@@ -210,7 +217,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                             fail("Operation failed: " + e.getMessage());
                         }
                     }
-                }, executorService);
+               }, executorService);
 
                 futures.add(future);
             }
@@ -313,7 +320,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
-                }, executorService);
+               }, executorService);
 
                 futures.add(future);
             }
@@ -327,7 +334,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                             fail("Future failed: " + e.getMessage());
                             return Long.MAX_VALUE;
                         }
-                    })
+                   })
                     .toList();
 
             // Calculate statistics
@@ -546,7 +553,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                         } catch (Exception e) {
                             // Some failures are expected under memory pressure
                         }
-                    }, executorService);
+                   }, executorService);
 
                     futures.add(future);
                 }
@@ -613,7 +620,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                             // Log but continue
                         }
                     }
-                }, executorService);
+               }, executorService);
 
                 futures.add(future);
             }

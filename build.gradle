@@ -931,8 +931,8 @@ checkstyle {
 spotbugs {
     toolVersion = '4.9.0'
     ignoreFailures = true  // Don't fail the build on SpotBugs findings
-    effort = 'max'
-    reportLevel = 'low'
+    effort = effort.class.enumConstants.find { it.name() == 'MAX' }
+    reportLevel = reportLevel.class.enumConstants.find { it.name() == 'LOW' }
     excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
     showStackTraces = true
     showProgress = true

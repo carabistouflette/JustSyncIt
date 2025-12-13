@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.DisplayName;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.fail;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -22,14 +22,16 @@ public class AsyncVsSyncBenchmarkSuiteTest {
     public void testCompleteBenchmarkSuite() throws Exception {
         AsyncVsSyncBenchmarkSuite suite = new AsyncVsSyncBenchmarkSuite();
 
-        // Execute the complete benchmark suite using reflection since the main method is private
+        // Execute the complete benchmark suite using reflection since the main method
+        // is private
         try {
             // Use reflection to call the main test method
             java.lang.reflect.Method setUpMethod = AsyncVsSyncBenchmarkSuite.class.getDeclaredMethod("setUp");
             setUpMethod.setAccessible(true);
             setUpMethod.invoke(suite);
 
-            java.lang.reflect.Method runMethod = AsyncVsSyncBenchmarkSuite.class.getDeclaredMethod("runComprehensiveBenchmarkSuite");
+            java.lang.reflect.Method runMethod = AsyncVsSyncBenchmarkSuite.class
+                    .getDeclaredMethod("runComprehensiveBenchmarkSuite");
             runMethod.setAccessible(true);
             runMethod.invoke(suite);
 
@@ -57,7 +59,8 @@ public class AsyncVsSyncBenchmarkSuiteTest {
             setUpMethod.invoke(suite);
 
             // Use reflection to call only core performance benchmarks
-            java.lang.reflect.Method coreMethod = AsyncVsSyncBenchmarkSuite.class.getDeclaredMethod("runCorePerformanceBenchmarks");
+            java.lang.reflect.Method coreMethod = AsyncVsSyncBenchmarkSuite.class
+                    .getDeclaredMethod("runCorePerformanceBenchmarks");
             coreMethod.setAccessible(true);
             coreMethod.invoke(suite);
 
@@ -93,12 +96,14 @@ public class AsyncVsSyncBenchmarkSuiteTest {
             setUpMethod.invoke(suite);
 
             // Use reflection to call core benchmarks first
-            java.lang.reflect.Method coreMethod = AsyncVsSyncBenchmarkSuite.class.getDeclaredMethod("runCorePerformanceBenchmarks");
+            java.lang.reflect.Method coreMethod = AsyncVsSyncBenchmarkSuite.class
+                    .getDeclaredMethod("runCorePerformanceBenchmarks");
             coreMethod.setAccessible(true);
             coreMethod.invoke(suite);
 
             // Use reflection to call performance target validation
-            java.lang.reflect.Method validateMethod = AsyncVsSyncBenchmarkSuite.class.getDeclaredMethod("validatePerformanceTargets");
+            java.lang.reflect.Method validateMethod = AsyncVsSyncBenchmarkSuite.class
+                    .getDeclaredMethod("validatePerformanceTargets");
             validateMethod.setAccessible(true);
             validateMethod.invoke(suite);
 
