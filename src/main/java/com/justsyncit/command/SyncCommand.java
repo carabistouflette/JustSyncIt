@@ -39,7 +39,8 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Command for synchronizing local directory with remote server.
- * Follows Single Responsibility Principle by handling only synchronization operations.
+ * Follows Single Responsibility Principle by handling only synchronization
+ * operations.
  */
 public class SyncCommand implements Command {
 
@@ -79,147 +80,39 @@ public class SyncCommand implements Command {
             return true;
         }
 
-        // Parse required arguments
-        if (args.length < 2) {
-            System.err.println("Error: Missing required arguments");
-            System.err.println("Usage: " + getUsage());
-            System.err.println("Use 'help sync' for more information");
+        // Parse required arguments and options
+        SyncOptions options = parseOptions(args);
+        if (options == null) {
             return false;
         }
 
-        String localPath = args[0];
-        String remoteServer = args[1];
-        Path localDir = Paths.get(localPath);
-
-        // Validate local directory
-        if (!Files.exists(localDir)) {
-            System.err.println("Error: Local directory does not exist: " + localPath);
-            return false;
+        if (options.helpRequested) {
+            displayHelp();
+            return true;
         }
 
-        if (!Files.isDirectory(localDir)) {
-            System.err.println("Error: Local path is not a directory: " + localPath);
-            return false;
-        }
-
-        // Parse remote server address
-        InetSocketAddress serverAddress;
-        try {
-            String[] parts = remoteServer.split(":");
-            if (parts.length != 2) {
-                System.err.println("Error: Invalid server format. Use host:port");
+        // Initialize services
+        try (ServiceContext services = initializeServices()) {
+            if (services == null) {
                 return false;
             }
-            String host = parts[0];
-            if (host == null || host.trim().isEmpty()) {
-                System.err.println("Error: Hostname cannot be empty");
-                return false;
-            }
-            int port = Integer.parseInt(parts[1]);
-            if (port < 1 || port > 65535) {
-                System.err.println("Error: Port must be between 1 and 65535");
-                return false;
-            }
-            serverAddress = new InetSocketAddress(host, port);
-        } catch (NumberFormatException e) {
-            System.err.println("Error: Invalid port number in server address: " + remoteServer);
-            return false;
-        }
 
-        // Parse options
-        TransportType transportType = TransportType.TCP;
-        boolean bidirectional = true;
-        boolean deleteExtra = false;
-        boolean verifyIntegrity = true;
-        boolean dryRun = false;
-        boolean verbose = true;
-
-        for (int i = 2; i < args.length; i++) {
-            String arg = args[i];
-            switch (arg) {
-                case "--transport":
-                    if (i + 1 < args.length) {
-                        try {
-                            transportType = TransportType.valueOf(args[i + 1].toUpperCase());
-                            i++; // Skip the next argument
-                        } catch (IllegalArgumentException e) {
-                            System.err.println("Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
-                            return false;
-                        }
-                    } else {
-                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
-                        return false;
-                    }
-                    break;
-                case "--one-way":
-                    bidirectional = false;
-                    break;
-                case "--delete-extra":
-                    deleteExtra = true;
-                    break;
-                case "--no-verify":
-                    verifyIntegrity = false;
-                    break;
-                case "--dry-run":
-                    dryRun = true;
-                    break;
-                case "--quiet":
-                case "-q":
-                    verbose = false;
-                    break;
-                case "--help":
-                    displayHelp();
-                    return true;
-                default:
-                    if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
-                    }
-                    break;
-            }
-        }
-
-        // Create services if not provided
-        final NetworkService netService;
-        final MetadataService metadataService;
-        final ContentStore contentStore;
-        final Blake3Service blake3Service;
-
-        try {
-            netService = networkService != null ? networkService : serviceFactory.createNetworkService();
-            metadataService = serviceFactory.createMetadataService();
-            blake3Service = serviceFactory.createBlake3Service();
-            contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-        } catch (Exception e) {
-            System.err.println("Error: Failed to initialize services: " + e.getMessage());
-            return false;
-        }
-
-        try {
-            if (verbose) {
-                System.out.println("Synchronization Settings:");
-                System.out.println("=======================");
-                System.out.println("Local Path: " + localDir.toAbsolutePath());
-                System.out.println("Remote Server: " + serverAddress);
-                System.out.println("Transport: " + transportType);
-                System.out.println("Bidirectional: " + (bidirectional ? "enabled" : "disabled"));
-                System.out.println("Delete Extra Files: " + (deleteExtra ? "enabled" : "disabled"));
-                System.out.println("Verify Integrity: " + verifyIntegrity);
-                System.out.println("Dry Run: " + (dryRun ? "enabled" : "disabled"));
-                System.out.println();
+            if (options.verbose) {
+                printSyncSettings(options);
             }
 
-            if (dryRun) {
+            if (options.dryRun) {
                 System.out.println("DRY RUN MODE - No actual changes will be made");
                 System.out.println();
             }
 
             // Connect to remote server
-            if (verbose) {
+            if (options.verbose) {
                 System.out.println("Connecting to remote server...");
             }
 
-            CompletableFuture<Void> connectFuture = netService.connectToNode(serverAddress, transportType);
+            CompletableFuture<Void> connectFuture = services.netService.connectToNode(options.serverAddress,
+                    options.transportType);
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
@@ -227,17 +120,39 @@ public class SyncCommand implements Command {
                 return false;
             }
 
-            if (verbose) {
+            if (options.verbose) {
                 System.out.println("Connected to server successfully.");
                 System.out.println("Starting synchronization...");
             }
 
+            boolean success = performSynchronization(services, options);
+
+            // Disconnect from remote server
+            try {
+                services.netService.disconnectFromNode(options.serverAddress).get(10, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                System.err.println("Warning: Disconnect timeout after 10 seconds");
+            }
+
+            return success;
+
+        } catch (Exception e) {
+            System.err.println("Error: Synchronization failed: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("Cause: " + e.getCause().getMessage());
+            }
+            return false;
+        }
+    }
+
+    private boolean performSynchronization(ServiceContext services, SyncOptions options) {
+        try {
             // Get local and remote snapshots
             List<Snapshot> localSnapshots;
             List<Snapshot> remoteSnapshots;
 
             try {
-                localSnapshots = metadataService.listSnapshots();
+                localSnapshots = services.metadataService.listSnapshots();
                 if (localSnapshots == null) {
                     localSnapshots = List.of();
                 }
@@ -247,20 +162,16 @@ public class SyncCommand implements Command {
             }
 
             // In a real implementation, we would query the remote server for its snapshots
-            // For now, we'll simulate this
             remoteSnapshots = simulateRemoteSnapshots();
 
-            if (verbose) {
+            if (options.verbose) {
                 System.out.println("Local snapshots: " + localSnapshots.size());
                 System.out.println("Remote snapshots: " + remoteSnapshots.size());
                 System.out.println();
             }
 
             // Perform synchronization logic
-            int syncedToRemote = 0;
-            int syncedToLocal = 0;
-            int conflicts = 0;
-            long totalBytesTransferred = 0;
+            SyncResult result = new SyncResult();
 
             // Create sets for efficient lookup
             Set<String> localSnapshotIds = new HashSet<>();
@@ -278,100 +189,236 @@ public class SyncCommand implements Command {
                 }
             }
 
-            if (bidirectional) {
-                // Sync local to remote
-                for (Snapshot localSnapshot : localSnapshots) {
-                    if (localSnapshot == null || localSnapshot.getId() == null) {
-                        continue;
-                    }
-
-                    if (!remoteSnapshotIds.contains(localSnapshot.getId())) {
-                        if (verbose) {
-                            System.out.println("Syncing to remote: " + localSnapshot.getName() + " (" + localSnapshot.getId() + ")");
-                        }
-
-                        if (!dryRun) {
-                            // In a real implementation, we would transfer the snapshot
-                            totalBytesTransferred += localSnapshot.getTotalSize();
-                            simulateTransfer(localSnapshot.getTotalSize());
-                        }
-                        syncedToRemote++;
-                    }
-                }
-
-                // Sync remote to local
-                for (Snapshot remoteSnapshot : remoteSnapshots) {
-                    if (remoteSnapshot == null || remoteSnapshot.getId() == null) {
-                        continue;
-                    }
-
-                    if (!localSnapshotIds.contains(remoteSnapshot.getId())) {
-                        if (verbose) {
-                            System.out.println("Syncing to local: " + remoteSnapshot.getName() + " (" + remoteSnapshot.getId() + ")");
-                        }
-
-                        if (!dryRun) {
-                            // In a real implementation, we would download and restore the snapshot
-                            totalBytesTransferred += remoteSnapshot.getTotalSize();
-                            simulateTransfer(remoteSnapshot.getTotalSize());
-                        }
-                        syncedToLocal++;
-                    }
-                }
+            if (options.bidirectional) {
+                syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
+                syncRemoteToLocal(remoteSnapshots, localSnapshotIds, result, options);
             } else {
-                // One-way sync (local to remote only)
-                for (Snapshot localSnapshot : localSnapshots) {
-                    if (localSnapshot == null || localSnapshot.getId() == null) {
-                        continue;
-                    }
-
-                    if (!remoteSnapshotIds.contains(localSnapshot.getId())) {
-                        if (verbose) {
-                            System.out.println("Syncing to remote: " + localSnapshot.getName() + " (" + localSnapshot.getId() + ")");
-                        }
-
-                        if (!dryRun) {
-                            totalBytesTransferred += localSnapshot.getTotalSize();
-                            simulateTransfer(localSnapshot.getTotalSize());
-                        }
-                        syncedToRemote++;
-                    }
-                }
+                syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
             }
 
-            // Disconnect from remote server
-            try {
-                netService.disconnectFromNode(serverAddress).get(10, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
-                System.err.println("Warning: Disconnect timeout after 10 seconds");
-            }
-
-            if (verbose) {
-                System.out.println();
-                System.out.println("Synchronization completed!");
-                System.out.println("========================");
-                System.out.println("Synced to remote: " + syncedToRemote + " snapshots");
-                System.out.println("Synced to local: " + syncedToLocal + " snapshots");
-                System.out.println("Conflicts: " + conflicts);
-                System.out.println("Total bytes transferred: " + formatFileSize(totalBytesTransferred));
-
-                if (dryRun) {
-                    System.out.println();
-                    System.out.println("This was a dry run. No actual changes were made.");
-                }
+            if (options.verbose) {
+                printSyncSummary(result, options);
             } else {
-                System.out.println("Sync completed: " + syncedToRemote + " to remote, " + syncedToLocal + " to local");
+                System.out.println("Sync completed: " + result.syncedToRemote + " to remote, " + result.syncedToLocal
+                        + " to local");
             }
+
+            return true;
 
         } catch (Exception e) {
-            System.err.println("Error: Synchronization failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
+            System.err.println("Error: Synchronization logic failed: " + e.getMessage());
             return false;
-        } finally {
-            // Clean up resources if we created them
-            if (networkService == null && netService != null) {
+        }
+    }
+
+    private void syncLocalToRemote(List<Snapshot> localSnapshots, Set<String> remoteSnapshotIds, SyncResult result,
+            SyncOptions options) throws InterruptedException {
+        for (Snapshot localSnapshot : localSnapshots) {
+            if (localSnapshot == null || localSnapshot.getId() == null) {
+                continue;
+            }
+
+            if (!remoteSnapshotIds.contains(localSnapshot.getId())) {
+                if (options.verbose) {
+                    System.out.println(
+                            "Syncing to remote: " + localSnapshot.getName() + " (" + localSnapshot.getId() + ")");
+                }
+
+                if (!options.dryRun) {
+                    result.totalBytesTransferred += localSnapshot.getTotalSize();
+                    simulateTransfer(localSnapshot.getTotalSize());
+                }
+                result.syncedToRemote++;
+            }
+        }
+    }
+
+    private void syncRemoteToLocal(List<Snapshot> remoteSnapshots, Set<String> localSnapshotIds, SyncResult result,
+            SyncOptions options) throws InterruptedException {
+        for (Snapshot remoteSnapshot : remoteSnapshots) {
+            if (remoteSnapshot == null || remoteSnapshot.getId() == null) {
+                continue;
+            }
+
+            if (!localSnapshotIds.contains(remoteSnapshot.getId())) {
+                if (options.verbose) {
+                    System.out.println(
+                            "Syncing to local: " + remoteSnapshot.getName() + " (" + remoteSnapshot.getId() + ")");
+                }
+
+                if (!options.dryRun) {
+                    result.totalBytesTransferred += remoteSnapshot.getTotalSize();
+                    simulateTransfer(remoteSnapshot.getTotalSize());
+                }
+                result.syncedToLocal++;
+            }
+        }
+    }
+
+    private static class SyncResult {
+        int syncedToRemote = 0;
+        int syncedToLocal = 0;
+        int conflicts = 0;
+        long totalBytesTransferred = 0;
+    }
+
+    private void printSyncSettings(SyncOptions options) {
+        System.out.println("Synchronization Settings:");
+        System.out.println("=======================");
+        System.out.println("Local Path: " + options.localDir.toAbsolutePath());
+        System.out.println("Remote Server: " + options.serverAddress);
+        System.out.println("Transport: " + options.transportType);
+        System.out.println("Bidirectional: " + (options.bidirectional ? "enabled" : "disabled"));
+        System.out.println("Delete Extra Files: " + (options.deleteExtra ? "enabled" : "disabled"));
+        System.out.println("Verify Integrity: " + options.verifyIntegrity);
+        System.out.println("Dry Run: " + (options.dryRun ? "enabled" : "disabled"));
+        System.out.println();
+    }
+
+    private void printSyncSummary(SyncResult result, SyncOptions options) {
+        System.out.println();
+        System.out.println("Synchronization completed!");
+        System.out.println("========================");
+        System.out.println("Synced to remote: " + result.syncedToRemote + " snapshots");
+        System.out.println("Synced to local: " + result.syncedToLocal + " snapshots");
+        System.out.println("Conflicts: " + result.conflicts);
+        System.out.println("Total bytes transferred: " + formatFileSize(result.totalBytesTransferred));
+
+        if (options.dryRun) {
+            System.out.println();
+            System.out.println("This was a dry run. No actual changes were made.");
+        }
+    }
+
+    private static class SyncOptions {
+        Path localDir;
+        InetSocketAddress serverAddress;
+        TransportType transportType = TransportType.TCP;
+        boolean bidirectional = true;
+        boolean deleteExtra = false;
+        boolean verifyIntegrity = true;
+        boolean dryRun = false;
+        boolean verbose = true;
+        boolean helpRequested = false;
+    }
+
+    private SyncOptions parseOptions(String[] args) {
+        if (args.length < 2) {
+            // Handle special case where user asks for help without other args, but the
+            // initial check should cover it.
+            // If we are here, args are insufficient for real work.
+            if (args.length == 1 && args[0].equals("--help")) {
+                SyncOptions opts = new SyncOptions();
+                opts.helpRequested = true;
+                return opts;
+            }
+            System.err.println("Error: Missing required arguments");
+            System.err.println("Usage: " + getUsage());
+            System.err.println("Use 'help sync' for more information");
+            return null;
+        }
+
+        SyncOptions options = new SyncOptions();
+        String localPath = args[0];
+        String remoteServer = args[1];
+        options.localDir = Paths.get(localPath);
+
+        // Validate local directory
+        if (!Files.exists(options.localDir)) {
+            System.err.println("Error: Local directory does not exist: " + localPath);
+            return null;
+        }
+
+        if (!Files.isDirectory(options.localDir)) {
+            System.err.println("Error: Local path is not a directory: " + localPath);
+            return null;
+        }
+
+        // Parse remote server address
+        try {
+            String[] parts = remoteServer.split(":");
+            if (parts.length != 2) {
+                System.err.println("Error: Invalid server format. Use host:port");
+                return null;
+            }
+            String host = parts[0];
+            if (host == null || host.trim().isEmpty()) {
+                System.err.println("Error: Hostname cannot be empty");
+                return null;
+            }
+            int port = Integer.parseInt(parts[1]);
+            if (port < 1 || port > 65535) {
+                System.err.println("Error: Port must be between 1 and 65535");
+                return null;
+            }
+            options.serverAddress = new InetSocketAddress(host, port);
+        } catch (NumberFormatException e) {
+            System.err.println("Error: Invalid port number in server address: " + remoteServer);
+            return null;
+        }
+
+        for (int i = 2; i < args.length; i++) {
+            String arg = args[i];
+            switch (arg) {
+                case "--transport":
+                    if (i + 1 < args.length) {
+                        try {
+                            options.transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            i++;
+                        } catch (IllegalArgumentException e) {
+                            System.err.println(
+                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
+                            return null;
+                        }
+                    } else {
+                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
+                        return null;
+                    }
+                    break;
+                case "--one-way":
+                    options.bidirectional = false;
+                    break;
+                case "--delete-extra":
+                    options.deleteExtra = true;
+                    break;
+                case "--no-verify":
+                    options.verifyIntegrity = false;
+                    break;
+                case "--dry-run":
+                    options.dryRun = true;
+                    break;
+                case "--quiet":
+                case "-q":
+                    options.verbose = false;
+                    break;
+                case "--help":
+                    options.helpRequested = true;
+                    return options;
+                default:
+                    if (arg.startsWith("--")) {
+                        System.err.println("Error: Unknown option: " + arg);
+                        return null;
+                    }
+                    break;
+            }
+        }
+        return options;
+    }
+
+    private static class ServiceContext implements AutoCloseable {
+        final NetworkService netService;
+        final MetadataService metadataService;
+        final ContentStore contentStore;
+
+        ServiceContext(NetworkService netService, MetadataService metadataService, ContentStore contentStore) {
+            this.netService = netService;
+            this.metadataService = metadataService;
+            this.contentStore = contentStore;
+        }
+
+        @Override
+        public void close() {
+            if (netService != null) {
                 try {
                     netService.close();
                 } catch (Exception e) {
@@ -392,11 +439,44 @@ public class SyncCommand implements Command {
                     System.err.println("Warning: Failed to close content store: " + e.getMessage());
                 }
             }
-            // Note: Blake3Service, BackupService, and RestoreService don't implement AutoCloseable
-            // They will be garbage collected when no longer needed
         }
+    }
 
-        return true;
+    private ServiceContext initializeServices() {
+        NetworkService ns = null;
+        MetadataService ms = null;
+        Blake3Service bs = null;
+        ContentStore cs = null;
+
+        try {
+            ns = networkService != null ? networkService : serviceFactory.createNetworkService();
+            ms = serviceFactory.createMetadataService();
+            bs = serviceFactory.createBlake3Service();
+            cs = serviceFactory.createSqliteContentStore(bs);
+        } catch (Exception e) {
+            System.err.println("Error: Failed to initialize services: " + e.getMessage());
+            // Cleanup partilly initialized services
+            if (ns != null && networkService == null) {
+                try {
+                    ns.close();
+                } catch (Exception ignored) {
+                }
+            }
+            if (ms != null) {
+                try {
+                    ms.close();
+                } catch (Exception ignored) {
+                }
+            }
+            if (cs != null) {
+                try {
+                    cs.close();
+                } catch (Exception ignored) {
+                }
+            }
+            return null;
+        }
+        return new ServiceContext(ns, ms, cs);
     }
 
     /**

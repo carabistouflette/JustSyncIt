@@ -284,10 +284,12 @@ public final class MemoryPressureDetector implements Runnable {
             long count = gcBean.getCollectionCount();
             long time = gcBean.getCollectionTime();
 
-            if (count != -1)
+            if (count != -1) {
                 totalGcCount += count;
-            if (time != -1)
+            }
+            if (time != -1) {
                 totalGcTime += time;
+            }
         }
 
         // Check if GC is thrashing (frequent GCs with little memory reclaimed)

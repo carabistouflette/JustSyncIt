@@ -52,9 +52,9 @@ public class JustSyncItApplication {
     /**
      * Creates a new JustSyncItApplicationRefactored with all dependencies.
      *
-     * @param blake3Service the BLAKE3 service
+     * @param blake3Service   the BLAKE3 service
      * @param commandRegistry the command registry
-     * @param infoDisplay the application info display
+     * @param infoDisplay     the application info display
      */
     public JustSyncItApplication(
             Blake3Service blake3Service,
@@ -90,6 +90,11 @@ public class JustSyncItApplication {
      * @param args command line arguments
      */
     public void run(String[] args) {
+        // Handle null arguments
+        if (args == null) {
+            args = new String[0];
+        }
+
         // Process logging options first
         String[] processedArgs = processLoggingOptions(args);
 
@@ -256,9 +261,9 @@ public class JustSyncItApplication {
     /**
      * Extracts arguments for a specific command.
      *
-     * @param args all arguments
+     * @param args       all arguments
      * @param startIndex starting index of command
-     * @param command the command being executed
+     * @param command    the command being executed
      * @return array of arguments for the command
      */
     private String[] extractCommandArgs(String[] args, int startIndex, Command command) {
@@ -266,7 +271,7 @@ public class JustSyncItApplication {
 
         // Special handling for --help as second argument
         if (startIndex + 1 < args.length && args[startIndex + 1].equals("--help")) {
-            return new String[] {"--help"};
+            return new String[] { "--help" };
         }
 
         int argCount = getExpectedArgCount(commandName);
