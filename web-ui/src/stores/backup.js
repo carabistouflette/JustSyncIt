@@ -42,7 +42,8 @@ export const useBackupStore = defineStore('backup', {
         async fetchStatus() {
             try {
                 const response = await backupApi.getStatus()
-                Object.assign(this, response.data)
+                const { progressPercent, ...data } = response.data
+                Object.assign(this, data)
             } catch (error) {
                 console.error('Failed to fetch backup status:', error)
             }

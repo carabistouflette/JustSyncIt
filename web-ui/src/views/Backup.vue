@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useBackupStore } from '../stores/backup'
 import { filesApi } from '../services/api'
 
@@ -11,14 +11,17 @@ const includeHidden = ref(false)
 const verifyIntegrity = ref(true)
 const browsePath = ref('')
 const files = ref([])
+const parentPath = ref(null)
 const showFileBrowser = ref(false)
 const error = ref(null)
+let pollInterval = null
 
 async function browseDirectory(path = '') {
   try {
     const response = await filesApi.browse(path, true)
     files.value = response.data.entries || []
-    browsePath.value = path
+    browsePath.value = response.data.path || path
+    parentPath.value = response.data.parent
   } catch (e) {
     error.value = e.response?.data?.message || e.message
   }
@@ -61,8 +64,44 @@ async function startBackup() {
   }
 }
 
+function startPolling() {
+  if (pollInterval) return
+  // Fetch immediately then poll
+  backupStore.fetchStatus()
+  pollInterval = setInterval(() => {
+    backupStore.fetchStatus()
+  }, 1000)
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
+
+// Watch for backup running state to toggle polling
+watch(() => backupStore.isRunning, (isRunning) => {
+  if (isRunning) {
+    startPolling()
+  } else {
+    // Continue polling for a few seconds after it stops to ensure we catch the final state
+    setTimeout(() => {
+      if (!backupStore.isRunning) {
+        stopPolling()
+        // One final fetch to ensure completion state is consistent
+        backupStore.fetchStatus()
+      }
+    }, 2000)
+  }
+}, { immediate: true })
+
 onMounted(() => {
   backupStore.fetchStatus()
+})
+
+onUnmounted(() => {
+  stopPolling()
 })
 </script>
 
@@ -117,7 +156,7 @@ onMounted(() => {
             </button>
           </div>
           
-          <button type="button" class="btn btn-secondary" @click="showFileBrowser = true; browseDirectory('/')">
+          <button type="button" class="btn btn-secondary" @click="showFileBrowser = true; browseDirectory(browsePath || '/')">
             + Add Directory
           </button>
         </div>
@@ -168,8 +207,15 @@ onMounted(() => {
         </div>
         
         <div class="browser-path">
-          <button class="btn btn-secondary" @click="browseDirectory('/')" v-if="browsePath !== '/'">
-            Root
+          <button class="btn btn-secondary" @click="browseDirectory('/')" :disabled="!parentPath" title="Go to Root">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+          </button>
+          <button class="btn btn-secondary" @click="browseDirectory(parentPath)" :disabled="!parentPath" title="Go Up">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M5 15l7-7 7 7"/>
+            </svg>
           </button>
           <span>{{ browsePath || '/' }}</span>
         </div>

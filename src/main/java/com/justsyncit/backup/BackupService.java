@@ -89,19 +89,7 @@ public class BackupService {
                         .withIncludeHiddenFiles(options.isIncludeHiddenFiles())
                         .withMaxDepth(options.getMaxDepth());
 
-                // Configure chunking options
-                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
-                        .withChunkSize(options.getChunkSize())
-                        .withDetectSparseFiles(true);
-
-                // Create file processor
-                FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
-
-                // Process directory
-                FileProcessor.ProcessingResult result = processor
-                        .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
-
-                // Create snapshot
+                // Create snapshot details
                 String snapshotId = options.getSnapshotName() != null
                         ? options.getSnapshotName()
                         : "backup-" + Instant.now().toString();
@@ -110,7 +98,98 @@ public class BackupService {
                         ? options.getDescription()
                         : "Backup created on " + Instant.now();
 
+                // Create snapshot in DB before processing
                 metadataService.createSnapshot(snapshotId, description);
+                LOGGER.info("Created snapshot: " + snapshotId);
+
+                // Configure chunking options
+                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+                        .withChunkSize(options.getChunkSize())
+                        .withDetectSparseFiles(true);
+
+                // Create file processor and set snapshot ID
+                FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
+                processor.setSnapshotId(snapshotId);
+
+                // Process directory
+                FileProcessor.ProcessingResult result = processor
+                        .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
+
+                LOGGER.info(String.format("Backup completed successfully: %s", snapshotId));
+
+                // Calculate chunks created (approximate based on total bytes and chunk size)
+                int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
+
+                return BackupResult.success(snapshotId, result.getProcessedFiles(),
+                        result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
+
+            } catch (Exception e) {
+                LOGGER.severe("Backup failed: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    /**
+     * Backs up a directory to content store with progress tracking.
+     *
+     * @param sourceDir        directory to backup
+     * @param options          backup options
+     * @param progressListener listener for progress updates
+     * @return future that completes with snapshot ID
+     */
+    public CompletableFuture<BackupResult> backup(Path sourceDir, BackupOptions options,
+            java.util.function.Consumer<FileProcessor> progressListener) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Validate source directory
+                if (sourceDir == null) {
+                    throw new IllegalArgumentException("Source directory cannot be null");
+                }
+                if (!java.nio.file.Files.exists(sourceDir)) {
+                    throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
+                }
+                if (!java.nio.file.Files.isDirectory(sourceDir)) {
+                    throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
+                }
+
+                LOGGER.info(String.format("Starting backup of %s", sourceDir));
+
+                // Configure scan options
+                ScanOptions scanOptions = new ScanOptions()
+                        .withSymlinkStrategy(options.getSymlinkStrategy())
+                        .withIncludeHiddenFiles(options.isIncludeHiddenFiles())
+                        .withMaxDepth(options.getMaxDepth());
+
+                // Create snapshot details
+                String snapshotId = options.getSnapshotName() != null
+                        ? options.getSnapshotName()
+                        : "backup-" + Instant.now().toString();
+
+                String description = options.getDescription() != null
+                        ? options.getDescription()
+                        : "Backup created on " + Instant.now();
+
+                // Create snapshot in DB before processing
+                metadataService.createSnapshot(snapshotId, description);
+                LOGGER.info("Created snapshot: " + snapshotId);
+
+                // Configure chunking options
+                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+                        .withChunkSize(options.getChunkSize())
+                        .withDetectSparseFiles(true);
+
+                // Create file processor and set snapshot ID
+                FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
+                processor.setSnapshotId(snapshotId);
+
+                if (progressListener != null) {
+                    processor.setProgressListener(progressListener);
+                }
+
+                // Process directory
+                FileProcessor.ProcessingResult result = processor
+                        .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
 
                 LOGGER.info(String.format("Backup completed successfully: %s", snapshotId));
 

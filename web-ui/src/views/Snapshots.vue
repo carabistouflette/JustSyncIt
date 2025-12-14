@@ -8,7 +8,7 @@ const formattedSnapshots = computed(() =>
   snapshotStore.sortedSnapshots.map(s => ({
     ...s,
     formattedDate: new Date(s.createdAt).toLocaleString(),
-    formattedSize: formatBytes(s.totalSize)
+    formattedSize: formatBytes(s.totalBytes)
   }))
 )
 

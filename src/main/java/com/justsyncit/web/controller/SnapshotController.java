@@ -65,9 +65,11 @@ public final class SnapshotController {
                 response.setId(snapshot.getId());
                 response.setDescription(snapshot.getDescription());
                 response.setCreatedAt(snapshot.getCreatedAt());
-                // These would require additional queries
-                response.setFileCount(0);
-                response.setTotalBytes(0);
+                // These are now available in the Snapshot object
+                response.setFileCount(snapshot.getTotalFiles());
+                response.setTotalBytes(snapshot.getTotalSize());
+                LOGGER.info(String.format("Snapshot %s: files=%d, bytes=%d",
+                        snapshot.getId(), snapshot.getTotalFiles(), snapshot.getTotalSize()));
                 responses.add(response);
             }
 
@@ -102,6 +104,8 @@ public final class SnapshotController {
             response.setId(snapshot.getId());
             response.setDescription(snapshot.getDescription());
             response.setCreatedAt(snapshot.getCreatedAt());
+            response.setFileCount(snapshot.getTotalFiles());
+            response.setTotalBytes(snapshot.getTotalSize());
 
             ctx.json(response);
         } catch (Exception e) {

@@ -30,7 +30,7 @@ public final class SnapshotResponse {
     private String description;
     private Instant createdAt;
     private long totalBytes;
-    private int fileCount;
+    private long fileCount;
     private int chunkCount;
     private boolean verified;
     private List<String> tags;
@@ -71,11 +71,11 @@ public final class SnapshotResponse {
         this.totalBytes = totalBytes;
     }
 
-    public int getFileCount() {
+    public long getFileCount() {
         return fileCount;
     }
 
-    public void setFileCount(int fileCount) {
+    public void setFileCount(long fileCount) {
         this.fileCount = fileCount;
     }
 

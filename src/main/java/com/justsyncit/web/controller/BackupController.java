@@ -113,7 +113,16 @@ public final class BackupController {
                     newState.setStatus("running");
                     webServer.broadcast("backup:started", Map.of("snapshotId", newState.getSnapshotId()));
 
-                    BackupService.BackupResult result = backupService.backup(sourcePath, finalOptions).get();
+                    // Use the overload with progress listener
+                    BackupService.BackupResult result = backupService.backup(sourcePath, finalOptions, processor -> {
+                        // Update state with live progress from processor
+                        newState.setFilesProcessed(processor.getProcessedFilesCount());
+                        newState.setBytesProcessed(processor.getProcessedBytesCount());
+                        newState.setTotalFiles(processor.getProcessedFilesCount() + processor.getSkippedFilesCount()); // Approximation
+                        newState.setTotalBytes(processor.getTotalBytesCount());
+                        // We could also broadcast periodic updates here if needed, but polling handles
+                        // the UI
+                    }).get();
 
                     if (result.isSuccess()) {
                         newState.setStatus("completed");
@@ -266,8 +275,16 @@ public final class BackupController {
             return totalFiles;
         }
 
+        void setTotalFiles(int totalFiles) {
+            this.totalFiles = totalFiles;
+        }
+
         long getTotalBytes() {
             return totalBytes;
+        }
+
+        void setTotalBytes(long totalBytes) {
+            this.totalBytes = totalBytes;
         }
 
         String getCurrentFile() {

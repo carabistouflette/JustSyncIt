@@ -5,6 +5,7 @@ import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.ChunkMetadata;
 import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
+import com.justsyncit.storage.metadata.Snapshot;
 import com.justsyncit.storage.metadata.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +17,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -59,6 +61,21 @@ public class FileProcessor {
     private final AtomicLong processedBytes = new AtomicLong(0);
     /** Current snapshot ID for this processing session. */
     private String currentSnapshotId;
+    /** Optional listener for progress updates. */
+    private volatile java.util.function.Consumer<FileProcessor> progressListener;
+
+    /**
+     * Sets a listener to be notified of progress updates.
+     * 
+     * @param listener the listener to notify
+     */
+    public void setSnapshotId(String snapshotId) {
+        this.currentSnapshotId = snapshotId;
+    }
+
+    public void setProgressListener(java.util.function.Consumer<FileProcessor> progressListener) {
+        this.progressListener = progressListener;
+    }
 
     /**
      * Creates a new FileProcessor with specified dependencies.
@@ -163,56 +180,55 @@ public class FileProcessor {
             isRunning = true;
             resetCounters();
 
-            // Create a single snapshot for this processing session
-            currentSnapshotId = "processing-" + System.currentTimeMillis() + "-"
-                    + UUID.randomUUID().toString().substring(0, 8);
+            // Determine snapshot ID (use existing or generate new)
+            boolean externalSnapshot = (currentSnapshotId != null);
+            if (!externalSnapshot) {
+                currentSnapshotId = "processing-" + System.currentTimeMillis() + "-"
+                        + UUID.randomUUID().toString().substring(0, 8);
+            }
             logger.info("Starting file processing for directory: {} with snapshot: {}", directory, currentSnapshotId);
 
             try {
-                // Create snapshot first in a transaction to ensure visibility
-                // Use a transaction to ensure the snapshot is properly committed and visible
-                Transaction snapshotTransaction = null;
-                try {
-                    snapshotTransaction = metadataService.beginTransaction();
-                    metadataService.createSnapshot(currentSnapshotId, "Processing session for directory: " + directory);
-                    snapshotTransaction.commit();
-                    logger.debug("Snapshot created and committed: {}", currentSnapshotId);
-                    // Wait a moment to ensure the snapshot is visible to all connections
-                    // This addresses SQLite's connection isolation issues with DELETE journal mode
+                // Create snapshot if it doesn't exist
+                if (!metadataService.getSnapshot(currentSnapshotId).isPresent()) {
+                    Transaction snapshotTransaction = null;
                     try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        // Don't fail the operation if interrupted
-                    }
-                    // Verify the snapshot exists before proceeding
-                    if (!metadataService.getSnapshot(currentSnapshotId).isPresent()) {
-                        throw new IOException("Snapshot was not committed properly: " + currentSnapshotId);
-                    }
-                    logger.debug("Snapshot verified to exist: {}", currentSnapshotId);
-                } catch (IOException e) {
-                    if (snapshotTransaction != null) {
+                        snapshotTransaction = metadataService.beginTransaction();
+                        metadataService.createSnapshot(currentSnapshotId,
+                                "Processing session for directory: " + directory);
+                        snapshotTransaction.commit();
+                        logger.debug("Snapshot created and committed: {}", currentSnapshotId);
+
+                        // Wait a moment to ensure the snapshot is visible to all connections
                         try {
-                            snapshotTransaction.rollback();
-                        } catch (Exception rollbackEx) {
-                            logger.warn("Failed to rollback snapshot transaction: {}", rollbackEx.getMessage());
+                            Thread.sleep(1000);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
+                    } catch (IOException e) {
+                        if (snapshotTransaction != null) {
+                            try {
+                                snapshotTransaction.rollback();
+                            } catch (Exception rollbackEx) {
+                                logger.warn("Failed to rollback snapshot transaction: {}", rollbackEx.getMessage());
+                            }
+                        }
+                        throw new IOException("Failed to create snapshot for file processing", e);
+                    } finally {
+                        if (snapshotTransaction != null) {
+                            try {
+                                snapshotTransaction.close();
+                            } catch (Exception closeEx) {
+                                logger.warn("Failed to close snapshot transaction: {}", closeEx.getMessage());
+                            }
                         }
                     }
-                    logger.error("Failed to create snapshot: {}", e.getMessage());
-                    // If snapshot creation fails, we can't proceed
-                    throw new IOException("Failed to create snapshot for file processing", e);
-                } finally {
-                    if (snapshotTransaction != null) {
-                        try {
-                            snapshotTransaction.close();
-                        } catch (Exception closeEx) {
-                            logger.warn("Failed to close snapshot transaction: {}", closeEx.getMessage());
-                        }
-                    }
+                } else {
+                    logger.debug("Using existing snapshot: {}", currentSnapshotId);
                 }
 
                 // Configure scanner with file visitor that handles chunking
-                ChunkingFileVisitor fileVisitor = new ChunkingFileVisitor(chunkingOptions);
+                ChunkingFileVisitor fileVisitor = new ChunkingFileVisitor(chunkingOptions, currentSnapshotId);
                 scanner.setFileVisitor(fileVisitor);
 
                 // Configure scanner with progress listener
@@ -234,6 +250,31 @@ public class FileProcessor {
                 logger.info("File processing completed. Processed: {}, Skipped: {}, Errors: {}, Total bytes: {}",
                         result.getProcessedFiles(), result.getSkippedFiles(), result.getErrorFiles(),
                         result.getTotalBytes());
+
+                // Update snapshot with final statistics
+                try {
+                    // Fetch the current snapshot to ensure we have the correct ID and created_at
+                    Optional<Snapshot> currentSnapshotOpt = metadataService.getSnapshot(currentSnapshotId);
+                    if (currentSnapshotOpt.isPresent()) {
+                        Snapshot currentSnapshot = currentSnapshotOpt.get();
+                        // Create a new snapshot instance with updated stats
+                        Snapshot updatedSnapshot = new Snapshot(
+                                currentSnapshot.getId(),
+                                currentSnapshot.getName(),
+                                currentSnapshot.getDescription(),
+                                currentSnapshot.getCreatedAt(),
+                                result.getProcessedFiles(),
+                                result.getProcessedBytes());
+
+                        metadataService.updateSnapshot(updatedSnapshot);
+                        logger.info("Updated snapshot statistics for {}", currentSnapshotId);
+                    } else {
+                        logger.warn("Could not find snapshot {} to update statistics", currentSnapshotId);
+                    }
+                } catch (IOException e) {
+                    logger.error("Failed to update snapshot statistics", e);
+                    // Don't fail the whole operation just because stats update failed
+                }
 
                 return result;
 
@@ -299,9 +340,12 @@ public class FileProcessor {
         private final Object chunkingFuturesLock = new Object();
         /** Chunking options to use. */
         private final FileChunker.ChunkingOptions options;
+        /** Snapshot ID to use for this visitor. */
+        private final String snapshotId;
 
-        ChunkingFileVisitor(FileChunker.ChunkingOptions options) {
+        ChunkingFileVisitor(FileChunker.ChunkingOptions options, String snapshotId) {
             this.options = options;
+            this.snapshotId = snapshotId;
         }
 
         @Override
@@ -403,18 +447,11 @@ public class FileProcessor {
                 String fileId = java.util.UUID.randomUUID().toString();
 
                 // The FixedSizeFileChunker now handles chunk storage automatically
-                // when it has a content store set, so we don't need to
-                // manually ensure chunks exist here.
+                // when it has a content store set.
                 List<String> chunkHashes = result.getChunkHashes();
 
-                // Wait longer to ensure all chunk metadata is committed
-                // This addresses SQLite's connection isolation issues
-                try {
-                    Thread.sleep(3000); // Further increased delay to ensure chunk metadata is committed
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    // Don't fail operation if interrupted
-                }
+                // Verification of chunks happens below with retries, effectively handling
+                // any slight delay in DB visibility without blocking the thread for 3s.
 
                 // Verify chunks exist with retries
                 boolean allChunksExist = true;
@@ -437,7 +474,7 @@ public class FileProcessor {
 
                 FileMetadata fileMetadata = new FileMetadata(
                         fileId,
-                        currentSnapshotId,
+                        this.snapshotId,
                         result.getFile().toString(),
                         result.getTotalSize(),
                         Instant.now(),
@@ -680,8 +717,13 @@ public class FileProcessor {
                 long fileSize = java.nio.file.Files.size(file);
                 totalBytes.addAndGet(fileSize);
                 logger.debug("Processed file: {} ({} bytes)", file, fileSize);
+            } catch (java.nio.file.NoSuchFileException e) {
+                logger.debug("File processed but no longer exists (skipping size check): {}", file);
             } catch (IOException e) {
                 logger.warn("Could not get size for file: {}", file, e);
+            }
+            if (progressListener != null) {
+                progressListener.accept(FileProcessor.this);
             }
         }
 
@@ -776,5 +818,46 @@ public class FileProcessor {
         public double getProcessingPercentage() {
             return totalBytes > 0 ? (double) processedBytes / totalBytes * 100 : 0;
         }
+    }
+
+    // Public getters for live progress monitoring
+
+    /**
+     * @return Current number of processed files.
+     */
+    public int getProcessedFilesCount() {
+        return processedFiles.get();
+    }
+
+    /**
+     * @return Current number of skipped files.
+     */
+    public int getSkippedFilesCount() {
+        return skippedFiles.get();
+    }
+
+    /**
+     * @return Current number of files with errors.
+     */
+    public int getErrorFilesCount() {
+        return errorFiles.get();
+    }
+
+    /**
+     * @return Current total bytes discovered.
+     */
+    public long getTotalBytesCount() {
+        return totalBytes.get();
+    }
+
+    /**
+     * @return Current total bytes processed.
+     */
+    public long getProcessedBytesCount() {
+        return processedBytes.get();
+    }
+
+    public double getProcessingPercentage() {
+        return totalBytes.get() > 0 ? (double) processedBytes.get() / totalBytes.get() * 100 : 0;
     }
 }
