@@ -24,6 +24,7 @@ import com.justsyncit.network.protocol.ChunkDataMessage;
 import com.justsyncit.network.protocol.ChunkAckMessage;
 import com.justsyncit.network.protocol.TransferCompleteMessage;
 import com.justsyncit.storage.ContentStore;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -55,8 +56,6 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
     /** Default chunk size for file transfers. */
     private static final int DEFAULT_CHUNK_SIZE = 64 * 1024; // 64KB chunks
-    /** Maximum number of concurrent chunks. */
-    private static final int MAX_CONCURRENT_CHUNKS = 10;
 
     /** Active file transfers. */
     private final Map<String, FileTransferStatus> activeTransfers;
@@ -66,6 +65,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
     private final AtomicBoolean running;
     /** Counter for generating transfer IDs. */
     private final AtomicLong transferIdCounter;
+    /** The network service. */
+    private com.justsyncit.network.NetworkService networkService;
 
     /**
      * Creates a new file transfer manager.
@@ -75,6 +76,12 @@ public class FileTransferManagerImpl implements FileTransferManager {
         this.listeners = new CopyOnWriteArrayList<>();
         this.running = new AtomicBoolean(false);
         this.transferIdCounter = new AtomicLong(0);
+    }
+
+    @Override
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "NetworkService is mutable but required for functionality")
+    public void setNetworkService(com.justsyncit.network.NetworkService networkService) {
+        this.networkService = networkService;
     }
 
     @Override
@@ -156,7 +163,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
     }
 
     /**
-     * Simulates a file transfer for demonstration purposes.
+     * Executes a file transfer using the NetworkService.
      */
     private CompletableFuture<FileTransferResult> simulateFileTransfer(String transferId, Path filePath,
             InetSocketAddress remoteAddress,
@@ -166,23 +173,43 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 long fileSize = Files.size(filePath);
                 FileTransferStatus status = activeTransfers.get(transferId);
 
-                // Simulate chunk transfer
-                int chunkCount = (int) Math.ceil((double) fileSize / DEFAULT_CHUNK_SIZE);
-                for (int i = 0; i < chunkCount; i++) {
+                if (status == null) {
+                    throw new IOException("Transfer not found: " + transferId);
+                }
+
+                status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
+
+                // Use zero-copy transfer via NetworkService
+                // We send the file in chunks or one go.
+                // For better progress tracking and to match existing chunking logic, we can
+                // loop.
+                // However, zero-copy is best when sending large chunks.
+
+                long offset = 0;
+                long remaining = fileSize;
+
+                while (remaining > 0) {
                     if (!running.get() || status.isCancelled()) {
                         break;
                     }
 
-                    status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
+                    long chunkSize = Math.min(DEFAULT_CHUNK_SIZE, remaining);
 
-                    // Simulate transfer progress
-                    int chunkSize = (int) Math.min(DEFAULT_CHUNK_SIZE, fileSize - (i * (long) DEFAULT_CHUNK_SIZE));
-                    long bytesTransferred = status.addBytesTransferred(chunkSize);
+                    // This is asynchronous, but we blocking-wait here for simplicity in this
+                    // refactor
+                    // to maintain the loop structure.
+                    // ideally we should chain futures.
+                    try {
+                        networkService.sendFilePart(filePath, offset, chunkSize, remoteAddress).join();
+                    } catch (Exception e) {
+                        throw new IOException("Failed to send file part", e);
+                    }
 
-                    notifyTransferProgress(filePath, remoteAddress, bytesTransferred, fileSize);
+                    status.addBytesTransferred(chunkSize);
+                    notifyTransferProgress(filePath, remoteAddress, status.getBytesTransferred(), fileSize);
 
-                    // Simulate network delay
-                    Thread.sleep(10);
+                    offset += chunkSize;
+                    remaining -= chunkSize;
                 }
 
                 long endTime = System.currentTimeMillis();
@@ -196,6 +223,21 @@ public class FileTransferManagerImpl implements FileTransferManager {
                     result = FileTransferResult.success(transferId, filePath, remoteAddress,
                             fileSize, fileSize, startTime, endTime);
                     status.setState(FileTransferStatus.TransferState.COMPLETED);
+
+                    // Send transfer complete message
+                    // Note: In a real protocol, we should wait for all ChunkAcks before declaring
+                    // success.
+                    // But for this zero-copy refactor, we are mimicking the simulation behavior
+                    // which assumes success.
+                    // We should probably rely on TCP guarantees + checksums in a real scenario.
+                    // We will send a completion message.
+                    try {
+                        networkService.sendMessage(
+                                new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, "dummy-hash"),
+                                remoteAddress);
+                    } catch (Exception e) {
+                        logger.warn("Failed to send transfer complete message", e);
+                    }
                 }
 
                 activeTransfers.remove(transferId);
@@ -203,33 +245,6 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 return result;
 
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                long endTime = System.currentTimeMillis();
-                FileTransferStatus status = activeTransfers.get(transferId);
-                long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
-                FileTransferResult result = FileTransferResult.failure(
-                        transferId, filePath, remoteAddress, "Transfer interrupted",
-                        bytesTransferred, startTime, endTime);
-
-                activeTransfers.remove(transferId);
-                notifyTransferCompleted(filePath, remoteAddress, false, e.getMessage());
-                notifyError(e, "File transfer simulation");
-
-                return result;
-            } catch (RuntimeException e) {
-                long endTime = System.currentTimeMillis();
-                FileTransferStatus status = activeTransfers.get(transferId);
-                long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
-                FileTransferResult result = FileTransferResult.failure(
-                        transferId, filePath, remoteAddress, e.getMessage(),
-                        bytesTransferred, startTime, endTime);
-
-                activeTransfers.remove(transferId);
-                notifyTransferCompleted(filePath, remoteAddress, false, e.getMessage());
-                notifyError(e, "File transfer simulation");
-
-                return result;
             } catch (Exception e) {
                 long endTime = System.currentTimeMillis();
                 FileTransferStatus status = activeTransfers.get(transferId);
@@ -240,7 +255,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 activeTransfers.remove(transferId);
                 notifyTransferCompleted(filePath, remoteAddress, false, e.getMessage());
-                notifyError(e, "File transfer simulation");
+                notifyError(e, "File transfer execution");
 
                 return result;
             }
@@ -265,21 +280,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         // Check if we can accept the transfer
         boolean accept = true;
-        String reason = null;
-
         // Check available space (simplified)
-        try {
-            // For now, we'll assume sufficient space
-            // In a real implementation, this would check actual available space
-            // long freeSpace = filePath.getParent().toFile().getFreeSpace();
-            // if (freeSpace < fileSize) {
-            // accept = false;
-            // reason = "Insufficient disk space";
-            // }
-        } catch (Exception e) {
-            accept = false;
-            reason = "Cannot check disk space";
-        }
+        // For now, we'll assume sufficient space
+        // In a real implementation, this would check actual available space
 
         // Create and send response
         if (accept) {

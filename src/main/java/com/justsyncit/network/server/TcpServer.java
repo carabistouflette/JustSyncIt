@@ -45,8 +45,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * TCP server implementation using Java NIO with ServerSocketChannel.
- * Provides non-blocking I/O for efficient handling of multiple client connections.
- * Follows Single Responsibility Principle by focusing solely on server operations.
+ * Provides non-blocking I/O for efficient handling of multiple client
+ * connections.
+ * Follows Single Responsibility Principle by focusing solely on server
+ * operations.
  */
 public class TcpServer {
 
@@ -68,13 +70,16 @@ public class TcpServer {
     private ServerSocketChannel serverChannel;
     /** The selector. */
     private Selector selector;
+    /** The buffer pool. */
+    private final com.justsyncit.scanner.AsyncByteBufferPool bufferPool;
+
     /** The server thread. */
     private Thread serverThread;
 
     /**
      * Creates a new TCP server.
      */
-    public TcpServer() {
+    public TcpServer(com.justsyncit.scanner.AsyncByteBufferPool bufferPool) {
         this.listeners = new CopyOnWriteArrayList<>();
         this.clients = new ConcurrentHashMap<>();
         this.executorService = Executors.newCachedThreadPool(r -> {
@@ -84,6 +89,11 @@ public class TcpServer {
         });
         this.running = new AtomicBoolean(false);
         this.accepting = new AtomicBoolean(false);
+        this.bufferPool = bufferPool;
+    }
+
+    public TcpServer() {
+        this(null);
     }
 
     /**
@@ -224,7 +234,18 @@ public class TcpServer {
 
             // Create client connection
             SocketAddress clientAddress = clientChannel.getRemoteAddress();
-            ClientConnection connection = ClientConnection.create(clientChannel, clientAddress);
+            ClientConnection connection = ClientConnection.create(clientChannel, clientAddress, bufferPool,
+                    (enable) -> {
+                        SelectionKey k = clientChannel.keyFor(selector);
+                        if (k != null && k.isValid()) {
+                            if (enable) {
+                                k.interestOps(k.interestOps() | SelectionKey.OP_WRITE);
+                            } else {
+                                k.interestOps(k.interestOps() & ~SelectionKey.OP_WRITE);
+                            }
+                            selector.wakeup();
+                        }
+                    });
 
             // Use putIfAbsent to avoid race conditions
             ClientConnection existingConnection = clients.putIfAbsent(clientAddress, connection);
@@ -265,7 +286,12 @@ public class TcpServer {
             }
 
             // Process received data
-            connection.processReceivedData(readBuffer, message -> handleMessage(message, remoteAddress));
+            readBuffer.flip();
+            try {
+                connection.processReceivedData(readBuffer, message -> handleMessage(message, remoteAddress));
+            } finally {
+                readBuffer.clear();
+            }
 
         } catch (IOException e) {
             logger.error("Error reading from client: {}", remoteAddress, e);
@@ -376,9 +402,26 @@ public class TcpServer {
     }
 
     /**
+     * Sends a raw byte buffer to a specific client.
+     *
+     * @param buffer        the buffer to send
+     * @param clientAddress the client address
+     * @return a CompletableFuture that completes when the buffer is queued
+     */
+    public CompletableFuture<Void> send(ByteBuffer buffer, InetSocketAddress clientAddress) {
+        ClientConnection connection = clients.get(clientAddress);
+        if (connection != null) {
+            return connection.send(buffer);
+        } else {
+            return CompletableFuture.failedFuture(
+                    new IOException("Client not connected: " + clientAddress));
+        }
+    }
+
+    /**
      * Sends a message to a specific client.
      *
-     * @param message the message to send
+     * @param message       the message to send
      * @param clientAddress the client address
      * @return a CompletableFuture that completes when the message is sent
      */
@@ -388,8 +431,38 @@ public class TcpServer {
             return connection.sendMessage(message);
         } else {
             return CompletableFuture.failedFuture(
-                new IOException("Client not connected: " + clientAddress));
+                    new IOException("Client not connected: " + clientAddress));
         }
+    }
+
+    /**
+     * Sends a file region to a specific client using zero-copy transfer.
+     *
+     * @param fileChannel   the file channel to read from
+     * @param position      the position to start reading from
+     * @param count         the number of bytes to transfer
+     * @param clientAddress the client address
+     * @return a CompletableFuture that completes when the transfer is queued
+     */
+    public CompletableFuture<Void> sendFileRegion(java.nio.channels.FileChannel fileChannel, long position, long count,
+            InetSocketAddress clientAddress) {
+        ClientConnection connection = clients.get(clientAddress);
+        if (connection != null) {
+            return connection.sendFileRegion(fileChannel, position, count);
+        } else {
+            return CompletableFuture.failedFuture(
+                    new IOException("Client not connected: " + clientAddress));
+        }
+    }
+
+    /**
+     * Gets the connection for the specified client address.
+     * 
+     * @param clientAddress the client address
+     * @return the connection, or null if not found
+     */
+    public com.justsyncit.network.connection.Connection getConnection(InetSocketAddress clientAddress) {
+        return clients.get(clientAddress);
     }
 
     /**
@@ -477,7 +550,6 @@ public class TcpServer {
         }
     }
 
-
     /**
      * Interface for server event listeners.
      */
@@ -494,7 +566,7 @@ public class TcpServer {
          * Called when a client disconnects.
          *
          * @param clientAddress the client address
-         * @param cause the reason for disconnection (null if normal)
+         * @param cause         the reason for disconnection (null if normal)
          */
         void onClientDisconnected(InetSocketAddress clientAddress, Throwable cause);
 
@@ -502,14 +574,14 @@ public class TcpServer {
          * Called when a message is received from a client.
          *
          * @param clientAddress the client address
-         * @param message the received message
+         * @param message       the received message
          */
         void onMessageReceived(InetSocketAddress clientAddress, ProtocolMessage message);
 
         /**
          * Called when an error occurs.
          *
-         * @param error the error that occurred
+         * @param error   the error that occurred
          * @param context the context in which the error occurred
          */
         void onError(Throwable error, String context);

@@ -45,7 +45,8 @@ import org.slf4j.LoggerFactory;
 /**
  * TCP client implementation using Java NIO with SocketChannel.
  * Provides non-blocking I/O for efficient communication with remote servers.
- * Follows Single Responsibility Principle by focusing solely on client operations.
+ * Follows Single Responsibility Principle by focusing solely on client
+ * operations.
  */
 public class TcpClient {
 
@@ -142,13 +143,12 @@ public class TcpClient {
 
         // Apply socket buffer tuning
         socketChannel.socket().setSendBufferSize(
-                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_SEND_BUFFER_SIZE
-        );
+                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_SEND_BUFFER_SIZE);
         socketChannel.socket().setReceiveBufferSize(
-                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_RECEIVE_BUFFER_SIZE
-        );
+                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_RECEIVE_BUFFER_SIZE);
 
-        // Store the connection future (already checked with putIfAbsent in connect method)
+        // Store the connection future (already checked with putIfAbsent in connect
+        // method)
         pendingConnections.putIfAbsent(address, connectFuture);
 
         // Create selector if not exists
@@ -176,8 +176,7 @@ public class TcpClient {
      */
     private void clientLoop() {
         ByteBuffer readBuffer = ByteBuffer.allocate(
-                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_CHUNK_SIZE * 2
-        );
+                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_CHUNK_SIZE * 2);
 
         while (running.get() || hasActiveConnections()) {
             try {
@@ -230,7 +229,17 @@ public class TcpClient {
             if (socketChannel.finishConnect()) {
                 // Connection successful
                 logger.info("TCP connection established to server: {}", serverAddress);
-                ServerConnection connection = ServerConnection.create(socketChannel, serverAddress);
+                ServerConnection connection = ServerConnection.create(socketChannel, serverAddress, (enable) -> {
+                    SelectionKey k = socketChannel.keyFor(selector);
+                    if (k != null && k.isValid()) {
+                        if (enable) {
+                            k.interestOps(k.interestOps() | SelectionKey.OP_WRITE);
+                        } else {
+                            k.interestOps(k.interestOps() & ~SelectionKey.OP_WRITE);
+                        }
+                        selector.wakeup();
+                    }
+                });
 
                 // Use putIfAbsent to avoid race conditions
                 ServerConnection existingConnection = connections.putIfAbsent(serverAddress, connection);
@@ -295,7 +304,12 @@ public class TcpClient {
             }
 
             // Process received data
-            connection.processReceivedData(readBuffer, message -> handleMessage(message, remoteAddress));
+            readBuffer.flip();
+            try {
+                connection.processReceivedData(readBuffer, message -> handleMessage(message, remoteAddress));
+            } finally {
+                readBuffer.clear();
+            }
 
         } catch (IOException e) {
             logger.error("Error reading from server: {}", socketChannel.getRemoteAddress(), e);
@@ -365,11 +379,11 @@ public class TcpClient {
         ServerConnection connection = connections.get(address);
         if (connection != null) {
             return connection.closeAsync()
-                .thenRun(() -> {
-                    connections.remove(address);
-                    logger.info("Disconnected from server: {}", address);
-                    notifyDisconnected(address, null);
-                });
+                    .thenRun(() -> {
+                        connections.remove(address);
+                        logger.info("Disconnected from server: {}", address);
+                        notifyDisconnected(address, null);
+                    });
         } else {
             return CompletableFuture.completedFuture(null);
         }
@@ -378,7 +392,7 @@ public class TcpClient {
     /**
      * Sends a message to a specific server.
      *
-     * @param message the message to send
+     * @param message       the message to send
      * @param serverAddress the server address
      * @return a CompletableFuture that completes when the message is sent
      */
@@ -388,8 +402,44 @@ public class TcpClient {
             return connection.sendMessage(message);
         } else {
             return CompletableFuture.failedFuture(
-                new IOException("Not connected to server: " + serverAddress)
-            );
+                    new IOException("Not connected to server: " + serverAddress));
+        }
+    }
+
+    /**
+     * Sends a raw buffer to a specific server.
+     * 
+     * @param buffer        the buffer to send
+     * @param serverAddress the server address
+     * @return a CompletableFuture that completes when the buffer is sent
+     */
+    public CompletableFuture<Void> send(ByteBuffer buffer, InetSocketAddress serverAddress) {
+        ServerConnection connection = connections.get(serverAddress);
+        if (connection != null) {
+            return connection.send(buffer);
+        } else {
+            return CompletableFuture.failedFuture(
+                    new IOException("Not connected to server: " + serverAddress));
+        }
+    }
+
+    /**
+     * Sends a file region to a specific server using zero-copy transfer.
+     * 
+     * @param fileChannel   the file channel to read from
+     * @param position      the position to start reading from
+     * @param count         the number of bytes to transfer
+     * @param serverAddress the server address
+     * @return a CompletableFuture that completes when the transfer is complete
+     */
+    public CompletableFuture<Void> sendFileRegion(java.nio.channels.FileChannel fileChannel, long position, long count,
+            InetSocketAddress serverAddress) {
+        ServerConnection connection = connections.get(serverAddress);
+        if (connection != null) {
+            return connection.sendFileRegion(fileChannel, position, count);
+        } else {
+            return CompletableFuture.failedFuture(
+                    new IOException("Not connected to server: " + serverAddress));
         }
     }
 
@@ -500,7 +550,6 @@ public class TcpClient {
         }
     }
 
-
     /**
      * Interface for client event listeners.
      */
@@ -517,7 +566,7 @@ public class TcpClient {
          * Called when disconnected from server.
          *
          * @param serverAddress the server address
-         * @param cause the reason for disconnection (null if normal)
+         * @param cause         the reason for disconnection (null if normal)
          */
         void onDisconnected(InetSocketAddress serverAddress, Throwable cause);
 
@@ -525,14 +574,14 @@ public class TcpClient {
          * Called when a message is received from server.
          *
          * @param serverAddress the server address
-         * @param message the received message
+         * @param message       the received message
          */
         void onMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message);
 
         /**
          * Called when an error occurs.
          *
-         * @param error the error that occurred
+         * @param error   the error that occurred
          * @param context the context in which the error occurred
          */
         void onError(Throwable error, String context);
@@ -540,7 +589,8 @@ public class TcpClient {
 
     /**
      * Checks if there are active connections in a thread-safe way.
-     * This method avoids the SpotBugs warning about non-atomic operations on ConcurrentHashMap.
+     * This method avoids the SpotBugs warning about non-atomic operations on
+     * ConcurrentHashMap.
      *
      * @return true if there are active connections, false otherwise
      */

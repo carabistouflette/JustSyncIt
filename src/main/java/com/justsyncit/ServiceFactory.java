@@ -137,13 +137,33 @@ public class ServiceFactory {
      *
      * @return configured network service
      */
+    /**
+     * Creates a network service with a new BLAKE3 service.
+     * Maintained for backward compatibility and tests.
+     *
+     * @return configured network service
+     */
     public NetworkService createNetworkService() {
+        try {
+            return createNetworkService(createBlake3Service());
+        } catch (ServiceException e) {
+            throw new RuntimeException("Failed to create default Blake3Service for NetworkService", e);
+        }
+    }
+
+    /**
+     * Creates a network service with the provided BLAKE3 service.
+     *
+     * @param blake3Service the BLAKE3 service to use
+     * @return configured network service
+     */
+    public NetworkService createNetworkService(Blake3Service blake3Service) {
         TcpServer tcpServer = new TcpServer();
         TcpClient tcpClient = new TcpClient();
         ConnectionManager connectionManager = new ConnectionManagerImpl();
         FileTransferManager fileTransferManager = new FileTransferManagerImpl();
 
-        return new NetworkServiceImpl(tcpServer, tcpClient, connectionManager, fileTransferManager);
+        return new NetworkServiceImpl(tcpServer, tcpClient, connectionManager, fileTransferManager, blake3Service);
     }
 
     /**
@@ -237,7 +257,8 @@ public class ServiceFactory {
     public com.justsyncit.command.BackupCommand createBackupCommand(com.justsyncit.backup.BackupService backupService)
             throws ServiceException {
         try {
-            NetworkService networkService = createNetworkService();
+            Blake3Service blake3Service = createBlake3Service();
+            NetworkService networkService = createNetworkService(blake3Service);
             return new com.justsyncit.command.BackupCommand(backupService, networkService);
         } catch (Exception e) {
             throw new ServiceException("Failed to create backup command", e);
@@ -271,7 +292,8 @@ public class ServiceFactory {
     public com.justsyncit.command.RestoreCommand createRestoreCommand(
             com.justsyncit.restore.RestoreService restoreService) throws ServiceException {
         try {
-            NetworkService networkService = createNetworkService();
+            Blake3Service blake3Service = createBlake3Service();
+            NetworkService networkService = createNetworkService(blake3Service);
             return new com.justsyncit.command.RestoreCommand(restoreService, networkService);
         } catch (Exception e) {
             throw new ServiceException("Failed to create restore command", e);

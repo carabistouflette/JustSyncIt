@@ -115,6 +115,24 @@ public interface Connection {
     ConnectionType getConnectionType();
 
     /**
+     * Sends a raw buffer over the connection.
+     * 
+     * @param buffer the buffer to send
+     * @return a CompletableFuture that completes when the buffer is sent
+     */
+    CompletableFuture<Void> send(java.nio.ByteBuffer buffer);
+
+    /**
+     * Sends a file region over the connection using zero-copy transfer.
+     * 
+     * @param fileChannel the file channel to read from
+     * @param position    the position to start reading from
+     * @param count       the number of bytes to transfer
+     * @return a CompletableFuture that completes when the transfer is complete
+     */
+    CompletableFuture<Void> sendFileRegion(java.nio.channels.FileChannel fileChannel, long position, long count);
+
+    /**
      * Enumeration of connection types.
      */
     enum ConnectionType {
