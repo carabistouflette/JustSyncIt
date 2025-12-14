@@ -41,6 +41,13 @@ public interface FileTransferManager {
         void setNetworkService(com.justsyncit.network.NetworkService networkService);
 
         /**
+         * Sets the compression service to use for transfers.
+         * 
+         * @param compressionService the compression service
+         */
+        void setCompressionService(com.justsyncit.network.compression.CompressionService compressionService);
+
+        /**
          * Starts the file transfer manager.
          *
          * @return a CompletableFuture that completes when the manager is started
