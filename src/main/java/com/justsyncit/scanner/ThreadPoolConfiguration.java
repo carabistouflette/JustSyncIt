@@ -120,7 +120,7 @@ public class ThreadPoolConfiguration {
             }
 
             public Builder affinityCores(int[] affinityCores) {
-                this.affinityCores = affinityCores;
+                this.affinityCores = affinityCores != null ? affinityCores.clone() : null;
                 return this;
             }
 

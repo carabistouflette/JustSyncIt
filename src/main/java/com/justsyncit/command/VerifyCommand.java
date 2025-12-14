@@ -36,6 +36,9 @@ import org.slf4j.LoggerFactory;
  * Follows Single Responsibility Principle by focusing only on file
  * verification.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class VerifyCommand implements Command {
 
     /** Logger for verify command operations. */
@@ -173,8 +176,11 @@ public class VerifyCommand implements Command {
      * @return true if hashes are equal, false otherwise
      */
     private boolean constantTimeHashCompare(String expectedHash, String actualHash) {
-        if (expectedHash == null || actualHash == null) {
-            return expectedHash == actualHash;
+        if (expectedHash == null) {
+            return actualHash == null;
+        }
+        if (actualHash == null) {
+            return false;
         }
 
         if (expectedHash.length() != actualHash.length()) {

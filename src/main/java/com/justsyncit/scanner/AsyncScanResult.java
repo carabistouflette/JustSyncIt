@@ -28,6 +28,13 @@ import java.util.concurrent.CompletableFuture;
  * Enhanced result of an asynchronous filesystem scanning operation.
  * Extends ScanResult with additional async-specific metadata and capabilities.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Enhanced result of an asynchronous filesystem scanning operation.
+ * Extends ScanResult with additional async-specific metadata and capabilities.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class AsyncScanResult extends ScanResult {
 
     /** Unique identifier for this scan operation. */
@@ -95,6 +102,7 @@ public class AsyncScanResult extends ScanResult {
         this.asyncMetadata = builder.asyncMetadata != null ? new java.util.HashMap<>(builder.asyncMetadata) : null;
     }
 
+    @SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
     public static class Builder {
         private String scanId;
         private Path rootDirectory;

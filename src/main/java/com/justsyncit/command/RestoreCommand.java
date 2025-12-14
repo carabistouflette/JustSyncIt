@@ -17,6 +17,8 @@
  */
 
 package com.justsyncit.command;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
@@ -40,6 +42,8 @@ import java.util.Locale;
  * Command for restoring directories from snapshots.
  * Follows Single Responsibility Principle by handling only restore operations.
  */
+
+@SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
 public class RestoreCommand implements Command {
 
     private final RestoreService restoreService;

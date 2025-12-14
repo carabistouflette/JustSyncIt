@@ -398,7 +398,7 @@ public class BenchmarkReportGenerator {
             }
         }
 
-        text.append(String.format("\nOverall: %d/%d targets met (%.1f%%)\n",
+        text.append(String.format("%nOverall: %d/%d targets met (%.1f%%)%n",
                 targetsMet, totalTargets, (double) targetsMet / totalTargets * 100.0));
 
         // Recommendations

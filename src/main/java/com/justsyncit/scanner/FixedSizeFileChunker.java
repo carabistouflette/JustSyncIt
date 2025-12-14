@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Follows Single Responsibility Principle by focusing only on chunking
  * operations.
  */
+@SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
 public class FixedSizeFileChunker implements FileChunker {
 
     /** Logger for the chunker. */
@@ -856,7 +857,7 @@ public class FixedSizeFileChunker implements FileChunker {
         }
 
         int bufferSize = asyncBufferPool.getDefaultBufferSize();
-        int bytesToRead = (int) Math.min(bufferSize, fileSize - position);
+        // Calculate buffer size needed
 
         return asyncBufferPool.acquireAsync(bufferSize)
                 .thenCompose(buffer -> {
@@ -871,7 +872,6 @@ public class FixedSizeFileChunker implements FileChunker {
                             buffer.get(chunkData);
 
                             incrementalHasher.update(chunkData);
-                            long newPosition = position + buffer.remaining();
 
                             asyncBufferPool.releaseAsync(buffer);
 

@@ -25,6 +25,13 @@ import java.util.List;
  * Result of a batch buffer allocation operation.
  * Contains information about allocated buffers and operation statistics.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Result of a batch buffer allocation operation.
+ * Contains information about allocated buffers and operation statistics.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class BatchAllocationResult {
 
     /** List of allocated buffers. */
@@ -45,8 +52,8 @@ public class BatchAllocationResult {
     /**
      * Creates a successful BatchAllocationResult.
      *
-     * @param buffers list of allocated buffers
-     * @param totalSize total size of all allocated buffers in bytes
+     * @param buffers        list of allocated buffers
+     * @param totalSize      total size of all allocated buffers in bytes
      * @param allocatedCount number of buffers allocated
      */
     public BatchAllocationResult(List<ByteBuffer> buffers, long totalSize, int allocatedCount) {
@@ -56,9 +63,9 @@ public class BatchAllocationResult {
     /**
      * Creates a BatchAllocationResult with timing information.
      *
-     * @param buffers list of allocated buffers
-     * @param totalSize total size of all allocated buffers in bytes
-     * @param allocatedCount number of buffers allocated
+     * @param buffers          list of allocated buffers
+     * @param totalSize        total size of all allocated buffers in bytes
+     * @param allocatedCount   number of buffers allocated
      * @param allocationTimeMs time taken for allocation in milliseconds
      */
     public BatchAllocationResult(List<ByteBuffer> buffers, long totalSize, int allocatedCount, long allocationTimeMs) {
@@ -68,14 +75,14 @@ public class BatchAllocationResult {
     /**
      * Creates a BatchAllocationResult with full information.
      *
-     * @param buffers list of allocated buffers
-     * @param totalSize total size of all allocated buffers in bytes
-     * @param allocatedCount number of buffers allocated
+     * @param buffers          list of allocated buffers
+     * @param totalSize        total size of all allocated buffers in bytes
+     * @param allocatedCount   number of buffers allocated
      * @param allocationTimeMs time taken for allocation in milliseconds
-     * @param error error if allocation failed
+     * @param error            error if allocation failed
      */
     public BatchAllocationResult(List<ByteBuffer> buffers, long totalSize, int allocatedCount,
-                               long allocationTimeMs, Exception error) {
+            long allocationTimeMs, Exception error) {
         this.buffers = buffers != null ? List.copyOf(buffers) : List.of();
         this.totalSize = totalSize;
         this.allocatedCount = allocatedCount;
@@ -166,7 +173,6 @@ public class BatchAllocationResult {
         return String.format(
                 "BatchAllocationResult{buffers=%d, totalSize=%dMB, allocatedCount=%d, avgSize=%dKB, time=%dms, success=%s}",
                 buffers.size(), totalSize / (1024 * 1024), allocatedCount, getAverageBufferSize() / 1024,
-                allocationTimeMs, isSuccess()
-        );
+                allocationTimeMs, isSuccess());
     }
 }

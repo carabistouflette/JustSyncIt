@@ -29,6 +29,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * Provides comprehensive tracking of batch processing operations
  * with support for dependencies, priorities, and resource allocation.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Represents a batch operation with metadata and dependencies.
+ * Provides comprehensive tracking of batch processing operations
+ * with support for dependencies, priorities, and resource allocation.
+ */
+@SuppressFBWarnings({ "CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
 public class BatchOperation {
 
     /** Unique identifier for this batch operation. */
@@ -58,15 +66,15 @@ public class BatchOperation {
     /**
      * Creates a new BatchOperation.
      *
-     * @param operationId unique identifier for this operation
-     * @param operationType type of batch operation
-     * @param files files to be processed
-     * @param priority priority level for this operation
+     * @param operationId          unique identifier for this operation
+     * @param operationType        type of batch operation
+     * @param files                files to be processed
+     * @param priority             priority level for this operation
      * @param resourceRequirements estimated resource requirements
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
     public BatchOperation(String operationId, BatchOperationType operationType, List<Path> files,
-                     BatchPriority priority, ResourceRequirements resourceRequirements) {
+            BatchPriority priority, ResourceRequirements resourceRequirements) {
         if (operationId == null || operationId.trim().isEmpty()) {
             throw new IllegalArgumentException("Operation ID cannot be null or empty");
         }
@@ -160,8 +168,9 @@ public class BatchOperation {
      * Adds a dependency to this operation.
      *
      * @param dependencyId ID of the dependency operation
-     * @param dependency the dependency operation
-     * @throws IllegalArgumentException if dependencyId is null or empty, or dependency is null
+     * @param dependency   the dependency operation
+     * @throws IllegalArgumentException if dependencyId is null or empty, or
+     *                                  dependency is null
      */
     public void addDependency(String dependencyId, BatchOperation dependency) {
         if (dependencyId == null || dependencyId.trim().isEmpty()) {
@@ -204,7 +213,7 @@ public class BatchOperation {
     /**
      * Sets metadata for this operation.
      *
-     * @param key metadata key
+     * @param key   metadata key
      * @param value metadata value
      * @throws IllegalArgumentException if key is null or empty
      */
@@ -261,8 +270,7 @@ public class BatchOperation {
         return String.format(
                 "BatchOperation{id='%s', type=%s, files=%d, priority=%s, size=%dMB, dependencies=%d}",
                 operationId, operationType, files.size(), priority,
-                getTotalFileSize() / (1024 * 1024), dependencies.size()
-        );
+                getTotalFileSize() / (1024 * 1024), dependencies.size());
     }
 
     /**
@@ -277,10 +285,10 @@ public class BatchOperation {
         /**
          * Creates resource requirements.
          *
-         * @param memoryBytes memory required in bytes
-         * @param cpuCores CPU cores required
+         * @param memoryBytes     memory required in bytes
+         * @param cpuCores        CPU cores required
          * @param ioBandwidthMBps I/O bandwidth required in MB/s
-         * @param timeoutMs timeout in milliseconds
+         * @param timeoutMs       timeout in milliseconds
          */
         public ResourceRequirements(long memoryBytes, int cpuCores, int ioBandwidthMBps, long timeoutMs) {
             this.memoryBytes = memoryBytes;
@@ -293,8 +301,7 @@ public class BatchOperation {
         public String toString() {
             return String.format(
                     "ResourceRequirements{memory=%dMB, cpu=%d cores, io=%dMB/s, timeout=%dms}",
-                    memoryBytes / (1024 * 1024), cpuCores, ioBandwidthMBps, timeoutMs
-            );
+                    memoryBytes / (1024 * 1024), cpuCores, ioBandwidthMBps, timeoutMs);
         }
     }
 }

@@ -73,8 +73,8 @@ public class BenchmarkMetricsCollector {
      * @return average CPU usage percentage during monitoring period
      */
     public double stopCpuMonitoring() {
-        long endTime = System.nanoTime();
-        long durationMs = (endTime - cpuStartNanoTime.get()) / 1_000_000;
+        // long endTime = System.nanoTime();
+        // long durationMs = (endTime - cpuStartNanoTime.get()) / 1_000_000;
 
         double finalCpuUsage = getCurrentCpuUsage();
         CpuStats stats = currentCpuStats.get();
@@ -108,7 +108,7 @@ public class BenchmarkMetricsCollector {
      * @return memory statistics collected during monitoring period
      */
     public MemoryStats stopMemoryMonitoring() {
-        long endTime = System.nanoTime();
+        // long endTime = System.nanoTime();
 
         // Record final memory metrics
         long finalHeapUsed = memoryBean.getHeapMemoryUsage().getUsed();
@@ -116,8 +116,8 @@ public class BenchmarkMetricsCollector {
 
         MemoryStats stats = currentMemoryStats.get();
         if (stats != null) {
-            long peakHeapUsed = Math.max(stats.initialHeapUsed, finalHeapUsed);
-            long peakNonHeapUsed = Math.max(stats.initialNonHeapUsed, finalNonHeapUsed);
+            // long peakHeapUsed = Math.max(stats.initialHeapUsed, finalHeapUsed);
+            // long peakNonHeapUsed = Math.max(stats.initialNonHeapUsed, finalNonHeapUsed);
 
             return new MemoryStats(
                     stats.initialHeapUsed, stats.initialNonHeapUsed,

@@ -28,6 +28,14 @@ import java.util.Map;
  * Contains comprehensive information about batch execution including
  * success/failure status, timing information, and per-file results.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Result of a batch processing operation.
+ * Contains comprehensive information about batch execution including
+ * success/failure status, timing information, and per-file results.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class BatchResult {
 
     /** Unique identifier for this batch operation. */

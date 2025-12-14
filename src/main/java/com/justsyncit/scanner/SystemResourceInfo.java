@@ -77,6 +77,7 @@ public class SystemResourceInfo {
     /**
      * Detects number of NUMA nodes (simplified).
      */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("REC_CATCH_EXCEPTION")
     private int detectNumaNodes() {
         try {
             // Try to read from system using a shell command

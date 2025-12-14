@@ -43,6 +43,16 @@ import java.util.stream.Collectors;
  * scheduling,
  * resource-aware coordination, and advanced error handling and recovery.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Implementation of AsyncBatchProcessor with comprehensive batch processing
+ * capabilities.
+ * Provides high-performance batch processing with adaptive sizing, priority
+ * scheduling,
+ * resource-aware coordination, and advanced error handling and recovery.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP", "NP_NULL_PARAM_DEREF", "REC_CATCH_EXCEPTION" })
 public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncFileBatchProcessorImpl.class);

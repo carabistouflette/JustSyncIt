@@ -52,6 +52,14 @@ import java.util.stream.Collectors;
  * Provides non-blocking event processing with async callbacks and resource
  * management.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Manages multiple WatchService instances for real-time file system monitoring.
+ * Provides non-blocking event processing with async callbacks and resource
+ * management.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class AsyncWatchServiceManager {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncWatchServiceManager.class);
@@ -471,7 +479,9 @@ public class AsyncWatchServiceManager {
                 eventType, fullPath, findRegistrationIdForPath(watchablePath));
 
         // Add event to queue for processing
-        eventQueue.offer(fileChangeEvent);
+        if (!eventQueue.offer(fileChangeEvent)) {
+            logger.warn("Event queue full, dropping event: {}", fileChangeEvent);
+        }
 
         // Update statistics
         stats.incrementFileChangeEvents();

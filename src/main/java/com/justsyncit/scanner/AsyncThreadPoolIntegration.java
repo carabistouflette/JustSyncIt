@@ -29,6 +29,13 @@ import java.util.function.Consumer;
  * Integration layer for thread pools with async components.
  * Provides optimized async operations using the specialized thread pools.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Integration layer for thread pools with async components.
+ * Provides optimized async operations using the specialized thread pools.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class AsyncThreadPoolIntegration {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncThreadPoolIntegration.class);

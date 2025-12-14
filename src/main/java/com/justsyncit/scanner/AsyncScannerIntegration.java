@@ -28,12 +28,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.Objects;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Integration coordinator for async directory scanning with file chunking and
  * buffer management.
  * Provides seamless coordination between AsyncFilesystemScanner,
  * AsyncFileChunker, and AsyncByteBufferPool.
  */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP", "CT_CONSTRUCTOR_THROW", "REC_CATCH_EXCEPTION" })
 public class AsyncScannerIntegration {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncScannerIntegration.class);

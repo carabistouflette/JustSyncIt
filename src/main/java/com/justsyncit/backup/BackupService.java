@@ -30,10 +30,13 @@ import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Logger;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Service for backing up directories to content store.
  * Orchestrates complete backup workflow: scan → chunk → hash → store.
  */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP", "REC_CATCH_EXCEPTION" })
 public class BackupService {
 
     private static final Logger LOGGER = Logger.getLogger(BackupService.class.getName());

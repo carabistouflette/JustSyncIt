@@ -560,6 +560,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                             successfulOps.incrementAndGet();
                         } catch (Exception e) {
                             // Some failures are expected under memory pressure
+                            System.err.println("Operation failed under pressure: " + e.getMessage());
                         }
                     }, executorService);
 
@@ -599,7 +600,7 @@ public class AsyncByteBufferPoolPerformanceTest {
                     durationSeconds, targetOpsPerSecond);
 
             long startTime = System.currentTimeMillis();
-            long endTime = startTime + (durationSeconds * 1000);
+            long endTime = startTime + ((long) durationSeconds * 1000);
             AtomicInteger totalOperations = new AtomicInteger(0);
             AtomicLong totalLatency = new AtomicLong(0);
 
@@ -626,6 +627,7 @@ public class AsyncByteBufferPoolPerformanceTest {
 
                         } catch (Exception e) {
                             // Log but continue
+                            System.err.println("Operation failed during sustained load: " + e.getMessage());
                         }
                     }
                 }, executorService);

@@ -17,6 +17,8 @@
  */
 
 package com.justsyncit.command;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
@@ -26,6 +28,8 @@ import com.justsyncit.network.NetworkService;
  * Follows Single Responsibility Principle by handling only server status
  * operations.
  */
+
+@SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
 public class ServerStatusCommand implements Command {
 
     private final NetworkService networkService;

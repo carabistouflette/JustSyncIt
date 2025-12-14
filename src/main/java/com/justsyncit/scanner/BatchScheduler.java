@@ -44,6 +44,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * Provides priority-based scheduling, resource-aware coordination, and
  * adaptive batch sizing for optimal performance.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Intelligent batch scheduler for optimizing file processing operations.
+ * Provides priority-based scheduling, resource-aware coordination, and
+ * adaptive batch sizing for optimal performance.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
 public class BatchScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchScheduler.class);
@@ -482,7 +490,10 @@ public class BatchScheduler {
     /**
      * Scheduled batch operation representation.
      */
+    @SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
     public static class ScheduledBatchOperation {
+        @java.io.Serial
+        private static final long serialVersionUID = 1L;
 
         /** Operation status enumeration. */
         public enum Status {

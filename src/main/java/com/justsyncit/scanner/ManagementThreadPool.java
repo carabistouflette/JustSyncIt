@@ -143,7 +143,6 @@ public class ManagementThreadPool extends ManagedThreadPool {
             return;
         }
 
-        int activeThreads = executor.getActiveCount();
         int coreSize = executor.getCorePoolSize();
         int maxSize = executor.getMaximumPoolSize();
         int queueSize = executor.getQueue().size();

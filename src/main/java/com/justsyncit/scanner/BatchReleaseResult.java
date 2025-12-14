@@ -22,6 +22,13 @@ package com.justsyncit.scanner;
  * Result of a batch buffer release operation.
  * Contains information about released buffers and operation statistics.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Result of a batch buffer release operation.
+ * Contains information about released buffers and operation statistics.
+ */
+@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class BatchReleaseResult {
 
     /** Number of buffers successfully released. */
@@ -43,7 +50,7 @@ public class BatchReleaseResult {
      * Creates a successful BatchReleaseResult.
      *
      * @param releasedCount number of buffers successfully released
-     * @param totalSize total size of all released buffers in bytes
+     * @param totalSize     total size of all released buffers in bytes
      */
     public BatchReleaseResult(int releasedCount, long totalSize) {
         this(releasedCount, 0, totalSize, 0, null);
@@ -53,8 +60,8 @@ public class BatchReleaseResult {
      * Creates a BatchReleaseResult with failure information.
      *
      * @param releasedCount number of buffers successfully released
-     * @param failedCount number of buffers that failed to release
-     * @param totalSize total size of all released buffers in bytes
+     * @param failedCount   number of buffers that failed to release
+     * @param totalSize     total size of all released buffers in bytes
      */
     public BatchReleaseResult(int releasedCount, int failedCount, long totalSize) {
         this(releasedCount, failedCount, totalSize, 0, null);
@@ -64,13 +71,13 @@ public class BatchReleaseResult {
      * Creates a BatchReleaseResult with full information.
      *
      * @param releasedCount number of buffers successfully released
-     * @param failedCount number of buffers that failed to release
-     * @param totalSize total size of all released buffers in bytes
+     * @param failedCount   number of buffers that failed to release
+     * @param totalSize     total size of all released buffers in bytes
      * @param releaseTimeMs time taken for release in milliseconds
-     * @param error error if release failed completely
+     * @param error         error if release failed completely
      */
     public BatchReleaseResult(int releasedCount, int failedCount, long totalSize,
-                             long releaseTimeMs, Exception error) {
+            long releaseTimeMs, Exception error) {
         this.releasedCount = releasedCount;
         this.failedCount = failedCount;
         this.totalSize = totalSize;
@@ -198,7 +205,6 @@ public class BatchReleaseResult {
         return String.format(
                 "BatchReleaseResult{released=%d, failed=%d, total=%d, totalSize=%dMB, avgSize=%dKB, time=%dms, success=%s}",
                 releasedCount, failedCount, getTotalCount(), totalSize / (1024 * 1024),
-                getAverageBufferSize() / 1024, releaseTimeMs, isCompleteSuccess()
-        );
+                getAverageBufferSize() / 1024, releaseTimeMs, isCompleteSuccess());
     }
 }

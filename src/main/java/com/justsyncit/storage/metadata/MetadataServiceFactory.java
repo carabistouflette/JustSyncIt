@@ -132,18 +132,20 @@ public final class MetadataServiceFactory {
         if (sharedInMemoryConnectionManager == null) {
             synchronized (MetadataServiceFactory.class) {
                 if (sharedInMemoryConnectionManager == null) {
-                    sharedInMemoryConnectionManager = new SqliteConnectionManager("file::memory:?cache=shared",
+                    DatabaseConnectionManager localManager = new SqliteConnectionManager("file::memory:?cache=shared",
                             maxConnections);
 
                     // Get the shared connection to ensure it's initialized
                     try {
-                        try (Connection sharedConnection = sharedInMemoryConnectionManager.getConnection()) {
+                        try (Connection sharedConnection = localManager.getConnection()) {
                             logger.info("Pre-initialized shared in-memory database connection: {}", sharedConnection);
                         }
                     } catch (Exception e) {
                         logger.error("Failed to pre-initialize shared in-memory database", e);
                         throw new IOException("Failed to initialize shared in-memory database", e);
                     }
+
+                    sharedInMemoryConnectionManager = localManager;
                 }
             }
         }

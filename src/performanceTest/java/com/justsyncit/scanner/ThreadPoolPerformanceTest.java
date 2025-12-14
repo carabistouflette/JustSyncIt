@@ -81,7 +81,7 @@ public class ThreadPoolPerformanceTest {
             final int taskId = i;
             CompletableFuture<Void> future = integration.executeAsyncFileRead(
                     "test_file_" + taskId + ".dat",
-                    taskId * bufferSize,
+                    taskId * (long) bufferSize,
                     bufferSize).thenCompose(bufferHandle -> {
                         // Simulate processing
                         return integration.executeAsyncFileWrite(
@@ -283,7 +283,7 @@ public class ThreadPoolPerformanceTest {
     @DisplayName("Should scale efficiently for concurrent operations")
     void shouldScaleEfficientlyForConcurrentOperations() throws Exception {
         // Test scalability with increasing load
-        int[] loadLevels = {100, 500, 1000, 2000 };
+        int[] loadLevels = { 100, 500, 1000, 2000 };
 
         for (int loadLevel : loadLevels) {
             long startTime = System.nanoTime();
@@ -328,7 +328,7 @@ public class ThreadPoolPerformanceTest {
     @DisplayName("Should validate resource utilization targets")
     void shouldValidateResourceUtilizationTargets() throws Exception {
         // Test resource utilization under various conditions
-        ThreadPoolStats initialStats = threadPoolManager.getStats();
+        // ThreadPoolStats initialStats = threadPoolManager.getStats();
 
         // Apply different load conditions
         threadPoolManager.applyBackpressure(0.3); // Light load

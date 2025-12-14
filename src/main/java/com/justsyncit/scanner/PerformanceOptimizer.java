@@ -69,6 +69,7 @@ public class PerformanceOptimizer {
     /**
      * Optimizes performance parameters based on current system state.
      */
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings("REC_CATCH_EXCEPTION")
     public void optimize() {
 
         try {

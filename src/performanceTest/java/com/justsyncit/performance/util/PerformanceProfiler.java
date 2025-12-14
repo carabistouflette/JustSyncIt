@@ -24,8 +24,6 @@ import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
-import java.nio.file.FileStore;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -200,8 +198,8 @@ public class PerformanceProfiler implements AutoCloseable {
 
             // CPU usage
             snapshot.cpuUsage = getCpuUsage();
-            snapshot.systemLoadAverage = osBean.getSystemLoadAverage();
-            snapshot.availableProcessors = osBean.getAvailableProcessors();
+            // snapshot.systemLoadAverage = osBean.getSystemLoadAverage();
+            // snapshot.availableProcessors = osBean.getAvailableProcessors();
 
             // Memory usage
             MemoryUsage heapUsage = memoryBean.getHeapMemoryUsage();
@@ -209,15 +207,15 @@ public class PerformanceProfiler implements AutoCloseable {
 
             snapshot.heapUsed = heapUsage.getUsed();
             snapshot.heapMax = heapUsage.getMax();
-            snapshot.heapCommitted = heapUsage.getCommitted();
+            // snapshot.heapCommitted = heapUsage.getCommitted();
             snapshot.nonHeapUsed = nonHeapUsage.getUsed();
             snapshot.nonHeapMax = nonHeapUsage.getMax();
-            snapshot.nonHeapCommitted = nonHeapUsage.getCommitted();
+            // snapshot.nonHeapCommitted = nonHeapUsage.getCommitted();
 
             // Thread information
             snapshot.threadCount = threadBean.getThreadCount();
-            snapshot.daemonThreadCount = threadBean.getDaemonThreadCount();
-            snapshot.peakThreadCount = threadBean.getPeakThreadCount();
+            // snapshot.daemonThreadCount = threadBean.getDaemonThreadCount();
+            // snapshot.peakThreadCount = threadBean.getPeakThreadCount();
 
             // Garbage collection
             snapshot.gcCount = 0;
@@ -229,11 +227,11 @@ public class PerformanceProfiler implements AutoCloseable {
 
             // Disk I/O
             if (monitoredPath != null) {
-                snapshot.diskUsage = getDiskUsage(monitoredPath);
+                // snapshot.diskUsage = getDiskUsage(monitoredPath);
             }
 
             // Timestamp
-            snapshot.timestamp = Instant.now();
+            // snapshot.timestamp = Instant.now();
 
             snapshots.add(snapshot);
 
@@ -260,28 +258,6 @@ public class PerformanceProfiler implements AutoCloseable {
             }
         }
         return 0.0;
-    }
-
-    /**
-     * Gets disk usage information.
-     */
-    private DiskUsage getDiskUsage(Path path) {
-        try {
-            FileStore store = Files.getFileStore(path);
-            long total = store.getTotalSpace();
-            long free = store.getUsableSpace();
-            long used = total - free;
-
-            DiskUsage usage = new DiskUsage();
-            // usage.totalSpace = total;
-            // usage.freeSpace = free;
-            // usage.usedSpace = used;
-            // usage.usagePercent = (double) used / total * 100.0;
-
-            return usage;
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     /**
@@ -321,14 +297,14 @@ public class PerformanceProfiler implements AutoCloseable {
     /**
      * Gets long value from method using reflection.
      */
-    private long getLongMethod(Object obj, String methodName) {
-        try {
-            java.lang.reflect.Method method = obj.getClass().getMethod(methodName);
-            return (Long) method.invoke(obj);
-        } catch (Exception e) {
-            return 0;
-        }
-    }
+    // private long getLongMethod(Object obj, String methodName) {
+    // try {
+    // java.lang.reflect.Method method = obj.getClass().getMethod(methodName);
+    // return (Long) method.invoke(obj);
+    // } catch (Exception e) {
+    // return 0;
+    // }
+    // }
 
     @Override
     public void close() {
@@ -339,32 +315,32 @@ public class PerformanceProfiler implements AutoCloseable {
      * Resource snapshot captured at a point in time.
      */
     public static class ResourceSnapshot {
-        public Instant timestamp;
+        // public Instant timestamp;
 
         // CPU metrics
         public double cpuUsage; // percentage
-        public double systemLoadAverage;
-        public int availableProcessors;
+        // public double systemLoadAverage;
+        // public int availableProcessors;
 
         // Memory metrics (bytes)
         public long heapUsed;
         public long heapMax;
-        public long heapCommitted;
+        // public long heapCommitted;
         public long nonHeapUsed;
         public long nonHeapMax;
-        public long nonHeapCommitted;
+        // public long nonHeapCommitted;
 
         // Thread metrics
         public int threadCount;
-        public int daemonThreadCount;
-        public int peakThreadCount;
+        // public int daemonThreadCount;
+        // public int peakThreadCount;
 
         // Garbage collection metrics
         public long gcCount;
         public long gcTime; // milliseconds
 
         // Disk metrics
-        public DiskUsage diskUsage;
+        // public DiskUsage diskUsage;
 
         /**
          * Gets heap memory usage percentage.

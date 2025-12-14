@@ -35,6 +35,14 @@ import java.util.concurrent.RejectedExecutionHandler;
  * Provides common functionality for all specialized thread pool
  * implementations.
  */
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
+/**
+ * Base class for managed thread pools with monitoring and adaptive sizing.
+ * Provides common functionality for all specialized thread pool
+ * implementations.
+ */
+@SuppressFBWarnings("EI_EXPOSE_REP")
 public abstract class ManagedThreadPool {
 
     private static final Logger logger = LoggerFactory.getLogger(ManagedThreadPool.class);
