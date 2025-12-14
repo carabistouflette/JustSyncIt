@@ -62,3 +62,4 @@ Old keys preserved for decrypting existing backups.
 | Authenticity | AEAD with transfer ID binding |
 | Key Protection | PKCS12 keystore + Argon2id |
 | IV Uniqueness | SecureRandom per chunk |
+| Memory Protection | Key zeroization after use |
