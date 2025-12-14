@@ -271,7 +271,7 @@ public class JustSyncItApplication {
 
         // Special handling for --help as second argument
         if (startIndex + 1 < args.length && args[startIndex + 1].equals("--help")) {
-            return new String[] {"--help"};
+            return new String[] { "--help" };
         }
 
         int argCount = getExpectedArgCount(commandName);
@@ -305,6 +305,10 @@ public class JustSyncItApplication {
                 return 1; // source directory (minimum)
             case "restore":
                 return 2; // snapshot ID and target directory (minimum)
+            case "web":
+            case "snapshots":
+            case "server":
+                return Integer.MAX_VALUE; // Command groups consume all remaining args
             default:
                 return 0;
         }

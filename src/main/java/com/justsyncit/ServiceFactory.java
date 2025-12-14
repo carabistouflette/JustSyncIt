@@ -108,7 +108,7 @@ public class ServiceFactory {
      * @param blake3Service BLAKE3 service for hashing
      * @return configured content store
      */
-    ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
+    public ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
         java.nio.file.Path storageDir = java.nio.file.Paths.get("storage", "chunks");
         java.nio.file.Path indexFile = java.nio.file.Paths.get("storage", "index.txt");
 

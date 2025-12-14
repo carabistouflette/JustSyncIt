@@ -48,6 +48,9 @@ public final class CommandRegistry {
         register(new ServerCommandGroup());
         register(new com.justsyncit.command.TransferCommand(null)); // Will be injected properly
         register(new com.justsyncit.command.SyncCommand(null)); // Will be injected properly
+
+        // Register web management command
+        register(new WebCommandGroup());
     }
 
     /**
