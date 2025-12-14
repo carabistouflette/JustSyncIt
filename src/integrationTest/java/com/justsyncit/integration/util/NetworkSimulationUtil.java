@@ -224,6 +224,33 @@ public class NetworkSimulationUtil {
         }
 
         @Override
+        public CompletableFuture<Void> sendFilePart(Path filePath, long offset, long length,
+                InetSocketAddress remoteAddress)
+                throws IOException {
+            return simulate(() -> {
+                try {
+                    bytesTransferred.addAndGet(length);
+                    return delegate.sendFilePart(filePath, offset, length, remoteAddress);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, false, true);
+        }
+
+        @Override
+        public CompletableFuture<Void> sendFilePart(Path filePath, long offset, long length,
+                InetSocketAddress remoteAddress, TransportType transportType) throws IOException {
+            return simulate(() -> {
+                try {
+                    bytesTransferred.addAndGet(length);
+                    return delegate.sendFilePart(filePath, offset, length, remoteAddress, transportType);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, false, true);
+        }
+
+        @Override
         public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress,
                 TransportType transportType) throws IOException {
             return simulate(() -> {
