@@ -53,6 +53,9 @@ dependencies {
     
     // No external BLAKE3 dependency - using pure Java implementation
     
+    // Zstandard compression
+    implementation 'com.github.luben:zstd-jni:1.5.5-11'
+    
     // SQLite JDBC driver for metadata management
     implementation 'org.xerial:sqlite-jdbc:3.47.1.0'
     
