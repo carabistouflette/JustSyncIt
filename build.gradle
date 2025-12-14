@@ -62,6 +62,9 @@ dependencies {
     // SpotBugs annotations for suppressing warnings
     implementation 'com.github.spotbugs:spotbugs-annotations:4.9.0'
     
+    // Web server (Javalin with embedded Jetty)
+    implementation 'io.javalin:javalin:6.4.0'
+    
 }
 
 application {
