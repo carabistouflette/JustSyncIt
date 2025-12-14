@@ -26,11 +26,15 @@ import com.justsyncit.network.protocol.TransferCompleteMessage;
 import com.justsyncit.storage.ContentStore;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+import com.justsyncit.network.compression.CompressionService;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -61,12 +65,15 @@ public class FileTransferManagerImpl implements FileTransferManager {
     private final Map<String, FileTransferStatus> activeTransfers;
     /** Listeners for transfer events. */
     private final List<TransferEventListener> listeners;
+    private static final String PLACEHOLDER_HASH = "pending_calculation";
     /** Flag indicating if the manager is running. */
     private final AtomicBoolean running;
     /** Counter for generating transfer IDs. */
     private final AtomicLong transferIdCounter;
     /** The network service. */
     private com.justsyncit.network.NetworkService networkService;
+    /** The compression service. */
+    private CompressionService compressionService;
 
     /**
      * Creates a new file transfer manager.
@@ -82,6 +89,12 @@ public class FileTransferManagerImpl implements FileTransferManager {
     @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "NetworkService is mutable but required for functionality")
     public void setNetworkService(com.justsyncit.network.NetworkService networkService) {
         this.networkService = networkService;
+    }
+
+    @Override
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "CompressionService is mutable but required for functionality")
+    public void setCompressionService(CompressionService compressionService) {
+        this.compressionService = compressionService;
     }
 
     @Override
@@ -133,7 +146,10 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         try {
             long fileSize = Files.size(filePath);
-            FileTransferStatus status = FileTransferStatus.pending(transferId, filePath, remoteAddress, fileSize);
+            String compressionType = (compressionService != null) ? compressionService.getAlgorithmName() : "NONE";
+
+            FileTransferStatus status = FileTransferStatus.pending(transferId, filePath, remoteAddress, fileSize,
+                    compressionType);
             activeTransfers.put(transferId, status);
 
             notifyTransferStarted(filePath, remoteAddress, fileSize);
@@ -141,17 +157,18 @@ public class FileTransferManagerImpl implements FileTransferManager {
             // Create file transfer request
             Path fileNamePath = filePath.getFileName();
             String fileName = fileNamePath != null ? fileNamePath.toString() : "unknown";
-            if (fileName.trim().isEmpty()) {
+            if (fileName == null || fileName.trim().isEmpty()) {
                 throw new IOException("Invalid file path: filename is empty");
             }
-            // Create request message to validate parameters, but don't store it since it's
-            // not used
-            new FileTransferRequestMessage(
-                    fileName, fileSize, System.currentTimeMillis(), "dummy_hash", DEFAULT_CHUNK_SIZE);
 
-            // This would delegate to NetworkService to send the message
-            // For now, we'll simulate the transfer
-            return simulateFileTransfer(transferId, filePath, remoteAddress, contentStore, startTime);
+            // Send transfer request
+            FileTransferRequestMessage request = new FileTransferRequestMessage(
+                    fileName, fileSize, System.currentTimeMillis(), PLACEHOLDER_HASH, DEFAULT_CHUNK_SIZE,
+                    compressionType);
+
+            return networkService.sendMessage(request, remoteAddress)
+                    .thenCompose(
+                            v -> simulateFileTransfer(transferId, filePath, remoteAddress, contentStore, startTime));
 
         } catch (IOException e) {
             FileTransferResult result = FileTransferResult.failure(
@@ -178,38 +195,73 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 }
 
                 status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
-
-                // Use zero-copy transfer via NetworkService
-                // We send the file in chunks or one go.
-                // For better progress tracking and to match existing chunking logic, we can
-                // loop.
-                // However, zero-copy is best when sending large chunks.
+                String compressionType = status.getCompressionType();
+                boolean useCompression = !"NONE".equals(compressionType) && compressionService != null;
 
                 long offset = 0;
                 long remaining = fileSize;
 
-                while (remaining > 0) {
-                    if (!running.get() || status.isCancelled()) {
-                        break;
+                // Open file channel for reading if using compression (manual chunking)
+                // If not using compression, we might use sendFilePart (zero-copy)
+
+                try (java.nio.channels.FileChannel fileChannel = useCompression
+                        ? java.nio.channels.FileChannel.open(filePath)
+                        : null) {
+
+                    ByteBuffer buffer = useCompression ? ByteBuffer.allocate(DEFAULT_CHUNK_SIZE) : null;
+
+                    while (remaining > 0) {
+                        if (!running.get() || status.isCancelled()) {
+                            break;
+                        }
+
+                        long chunkSize = Math.min(DEFAULT_CHUNK_SIZE, remaining);
+
+                        try {
+                            if (useCompression) {
+                                // Manual read and compress
+                                if (fileChannel == null || buffer == null) {
+                                    throw new IllegalStateException("Compression enabled but resources are null");
+                                }
+
+                                buffer.clear();
+                                buffer.limit((int) chunkSize);
+                                while (buffer.hasRemaining()) {
+                                    fileChannel.read(buffer);
+                                }
+                                buffer.flip();
+
+                                byte[] rawData = new byte[buffer.remaining()];
+                                buffer.get(rawData);
+
+                                byte[] compressedData = compressionService.compress(rawData);
+
+                                // Send chunk data message
+                                // We use valid hash of raw data for verification, but send compressed data
+                                String chunkHash = computeChecksum(rawData);
+
+                                // Use consistent file path/ID. Using file name to match request.
+                                String identifier = filePath.getFileName().toString();
+
+                                ChunkDataMessage chunkMsg = new ChunkDataMessage(identifier, offset,
+                                        compressedData.length, fileSize, chunkHash, compressedData);
+
+                                networkService.sendMessage(chunkMsg, remoteAddress).join();
+
+                            } else {
+                                // Zero-copy transfer
+                                networkService.sendFilePart(filePath, offset, chunkSize, remoteAddress).join();
+                            }
+                        } catch (Exception e) {
+                            throw new IOException("Failed to send file part", e);
+                        }
+
+                        status.addBytesTransferred(chunkSize);
+                        notifyTransferProgress(filePath, remoteAddress, status.getBytesTransferred(), fileSize);
+
+                        offset += chunkSize;
+                        remaining -= chunkSize;
                     }
-
-                    long chunkSize = Math.min(DEFAULT_CHUNK_SIZE, remaining);
-
-                    // This is asynchronous, but we blocking-wait here for simplicity in this
-                    // refactor
-                    // to maintain the loop structure.
-                    // ideally we should chain futures.
-                    try {
-                        networkService.sendFilePart(filePath, offset, chunkSize, remoteAddress).join();
-                    } catch (Exception e) {
-                        throw new IOException("Failed to send file part", e);
-                    }
-
-                    status.addBytesTransferred(chunkSize);
-                    notifyTransferProgress(filePath, remoteAddress, status.getBytesTransferred(), fileSize);
-
-                    offset += chunkSize;
-                    remaining -= chunkSize;
                 }
 
                 long endTime = System.currentTimeMillis();
@@ -224,16 +276,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
                             fileSize, fileSize, startTime, endTime);
                     status.setState(FileTransferStatus.TransferState.COMPLETED);
 
-                    // Send transfer complete message
-                    // Note: In a real protocol, we should wait for all ChunkAcks before declaring
-                    // success.
-                    // But for this zero-copy refactor, we are mimicking the simulation behavior
-                    // which assumes success.
-                    // We should probably rely on TCP guarantees + checksums in a real scenario.
-                    // We will send a completion message.
                     try {
                         networkService.sendMessage(
-                                new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, "dummy-hash"),
+                                new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, PLACEHOLDER_HASH),
                                 remoteAddress);
                     } catch (Exception e) {
                         logger.warn("Failed to send transfer complete message", e);
@@ -274,26 +319,28 @@ public class FileTransferManagerImpl implements FileTransferManager {
         FileTransferRequestMessage fileRequest = (FileTransferRequestMessage) request;
         String fileName = fileRequest.getFilePath();
         long fileSize = fileRequest.getFileSize();
+        String compressionType = fileRequest.getCompressionType();
 
-        logger.info("Received file transfer request: {} ({}) from {}",
-                fileName, formatFileSize(fileSize), remoteAddress);
+        logger.info("Received file transfer request: {} ({}) from {} [Compression: {}]",
+                fileName, formatFileSize(fileSize), remoteAddress, compressionType);
 
         // Check if we can accept the transfer
-        boolean accept = true;
-        // Check available space (simplified)
-        // For now, we'll assume sufficient space
-        // In a real implementation, this would check actual available space
+        // For now, accept all
 
-        // Create and send response
-        if (accept) {
-            // This would delegate to NetworkService to send the response
-            logger.debug("Accepting file transfer request for {}", fileName);
-        } else {
-            // This would delegate to NetworkService to send the response
-            logger.debug("Rejecting file transfer request for {}: {}", fileName, "Unknown reason");
-        }
+        // Register the transfer
+        // Use fileName as ID for receiving to match what we expect in chunks
+        // In a real system we would map this to a local temporary file path
+        Path localPath = java.nio.file.Paths.get(fileName); // Simplified
 
-        // This would delegate to NetworkService to send the response
+        FileTransferStatus status = FileTransferStatus.pending(fileName, localPath, remoteAddress, fileSize,
+                compressionType);
+        activeTransfers.put(fileName, status);
+
+        notifyTransferStarted(localPath, remoteAddress, fileSize);
+
+        logger.debug("Accepting file transfer request for {}", fileName);
+
+        // In a real implementation we should send an ACK here
         return CompletableFuture.completedFuture(null);
     }
 
@@ -318,22 +365,40 @@ public class FileTransferManagerImpl implements FileTransferManager {
                     new IOException("Unknown transfer ID: " + filePath));
         }
 
-        // Verify chunk checksum
+        status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
+
+        // Verify chunk checksum can only be done on raw data if that's what sender
+        // signed.
+        // My implementation signs RAW data.
+
         try {
-            String actualChecksum = computeChecksum(chunkDataBytes);
+            byte[] dataToStore = chunkDataBytes;
+
+            // Decompress if needed
+            if ("ZSTD".equals(status.getCompressionType()) && compressionService != null) {
+                dataToStore = compressionService.decompress(chunkDataBytes);
+            } else if ("ZSTD".equals(status.getCompressionType()) && compressionService == null) {
+                throw new IOException("Received ZSTD compressed data but no compression service configured");
+            }
+
+            // Verify checksum (on raw data)
+            String actualChecksum = computeChecksum(dataToStore);
             if (!checksum.equals(actualChecksum)) {
                 return CompletableFuture.failedFuture(
                         new IOException("Checksum mismatch for chunk " + chunkOffset));
             }
 
             // Store chunk in content store
-            contentStore.storeChunk(chunkDataBytes);
+            contentStore.storeChunk(dataToStore);
 
-            // Update progress
-            status.addBytesTransferred(chunkDataBytes.length);
+            // Update progress - we use UNCOMPRESSED size for progress to match file size
+            status.addBytesTransferred(dataToStore.length);
+
+            notifyTransferProgress(status.getFilePath(), remoteAddress, status.getBytesTransferred(),
+                    status.getFileSize());
 
             // Send acknowledgment
-            new ChunkAckMessage(filePath, chunkOffset, chunkDataBytes.length);
+            new ChunkAckMessage(filePath, chunkOffset, dataToStore.length);
             logger.debug("Sending chunk acknowledgment for offset {}", chunkOffset);
 
             // This would delegate to NetworkService to send the acknowledgment
