@@ -47,6 +47,7 @@ public final class WebServer {
     private final AtomicBoolean running;
     private final ConcurrentHashMap<String, WsContext> wsClients;
     private Javalin app;
+    private UserController userController;
 
     /**
      * Creates a new web server with default port.
@@ -78,10 +79,10 @@ public final class WebServer {
             LOGGER.info("Starting web server on port " + port);
 
             app = Javalin.create(config -> {
-                // Enable CORS for development
+                // Enable CORS for development (restricted to localhost)
                 config.bundledPlugins.enableCors(cors -> {
                     cors.addRule(it -> {
-                        it.anyHost();
+                        it.allowHost("http://localhost:5173", "http://127.0.0.1:5173");
                     });
                 });
 
@@ -100,6 +101,39 @@ public final class WebServer {
                 });
             });
 
+            // Initialize User Controller
+            this.userController = new UserController(context);
+
+            // Auth Middleware
+            app.before("/api/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return; // Allow CORS preflight
+
+                String path = ctx.path();
+                // Public endpoints
+                if (path.equals("/api/auth/login") ||
+                        path.equals("/api/auth/logout") ||
+                        path.equals("/api/health")) {
+                    return;
+                }
+
+                String authHeader = ctx.header("Authorization");
+                if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                    ctx.status(401)
+                            .json(java.util.Map.of("error", "Unauthorized", "message", "Missing or invalid token"));
+                    ctx.skipRemainingHandlers();
+                    return;
+                }
+
+                String token = authHeader.substring(7);
+                if (!userController.isValidSession(token)) {
+                    ctx.status(401)
+                            .json(java.util.Map.of("error", "Unauthorized", "message", "Invalid or expired token"));
+                    ctx.skipRemainingHandlers();
+                    return;
+                }
+            });
+
             // Configure WebSocket
             configureWebSocket();
 
@@ -113,7 +147,9 @@ public final class WebServer {
 
             app.start(port);
             LOGGER.info("Web server started successfully at http://localhost:" + port);
-        } else {
+        } else
+
+        {
             LOGGER.warning("Web server is already running");
         }
     }
@@ -149,6 +185,16 @@ public final class WebServer {
      */
     public int getPort() {
         return port;
+    }
+
+    /**
+     * Returns the actual bound port.
+     * Useful when starting with port 0 (random port).
+     *
+     * @return the bound port or -1 if not running
+     */
+    public int getBoundPort() {
+        return app != null ? app.port() : -1;
     }
 
     /**
@@ -201,7 +247,7 @@ public final class WebServer {
         RestoreController restoreController = new RestoreController(context, this);
         FileBrowserController fileBrowserController = new FileBrowserController();
         ConfigController configController = new ConfigController(context);
-        UserController userController = new UserController(context);
+        // UserController is already initialized in start()
 
         // Backup endpoints
         app.post("/api/backup", backupController::startBackup);

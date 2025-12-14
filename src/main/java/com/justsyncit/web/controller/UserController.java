@@ -40,6 +40,11 @@ public final class UserController {
     private static final Logger LOGGER = Logger.getLogger(UserController.class.getName());
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    // PBKDF2 constants
+    private static final int ITERATIONS = 10000;
+    private static final int KEY_LENGTH = 256;
+    private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
+
     private final WebServerContext context;
 
     // In-memory user storage (would typically use a database)
@@ -52,7 +57,9 @@ public final class UserController {
         this.sessions = new ConcurrentHashMap<>();
 
         // Create default admin user
+        // Salt is generated automatically in User constructor now
         User admin = new User("admin", "admin", "Administrator", "admin");
+        admin.setPassword("admin"); // Explicitly set password to generate hash/salt
         users.put(admin.getId(), admin);
     }
 
@@ -103,7 +110,7 @@ public final class UserController {
 
             User user = new User(generateId(), username,
                     displayName != null ? displayName : username, role);
-            user.setPasswordHash(hashPassword(password));
+            user.setPassword(password);
             users.put(user.getId(), user);
 
             LOGGER.info("Created user: " + username);
@@ -143,7 +150,7 @@ public final class UserController {
                 user.setRole(body.get("role"));
             }
             if (body.containsKey("password") && !body.get("password").isEmpty()) {
-                user.setPasswordHash(hashPassword(body.get("password")));
+                user.setPassword(body.get("password"));
             }
 
             LOGGER.info("Updated user: " + user.getUsername());
@@ -200,7 +207,7 @@ public final class UserController {
                     .findFirst()
                     .orElse(null);
 
-            if (user == null || !verifyPassword(password, user.getPasswordHash())) {
+            if (user == null || !verifyPassword(password, user.getPasswordHash(), user.getSalt())) {
                 ctx.status(401).json(ApiError.of(401, "Unauthorized",
                         "Invalid username or password", ctx.path()));
                 return;
@@ -252,13 +259,26 @@ public final class UserController {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private String hashPassword(String password) {
-        // Simple hash for demo - in production use bcrypt or similar
-        return Base64.getEncoder().encodeToString(password.getBytes());
+    private static String hashPassword(String password, byte[] salt) {
+        try {
+            javax.crypto.spec.PBEKeySpec spec = new javax.crypto.spec.PBEKeySpec(
+                    password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
+            javax.crypto.SecretKeyFactory skf = javax.crypto.SecretKeyFactory.getInstance(ALGORITHM);
+            byte[] hash = skf.generateSecret(spec).getEncoded();
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("Error hashing password", e);
+        }
     }
 
-    private boolean verifyPassword(String password, String hash) {
-        return hashPassword(password).equals(hash);
+    private static boolean verifyPassword(String password, String storedHash, String storedSalt) {
+        byte[] salt = Base64.getDecoder().decode(storedSalt);
+        String newHash = hashPassword(password, salt);
+        return newHash.equals(storedHash);
+    }
+
+    public boolean isValidSession(String token) {
+        return sessions.containsKey(token);
     }
 
     // User class
@@ -269,17 +289,20 @@ public final class UserController {
         private String displayName;
         private String role;
         private String passwordHash;
+        private String salt;
 
         User(String id, String username, String displayName, String role) {
             this.id = id;
             this.username = username;
             this.displayName = displayName;
             this.role = role;
-            this.passwordHash = hashDefaultPassword();
         }
 
-        private String hashDefaultPassword() {
-            return Base64.getEncoder().encodeToString("admin".getBytes());
+        void setPassword(String password) {
+            byte[] saltBytes = new byte[16];
+            RANDOM.nextBytes(saltBytes);
+            this.salt = Base64.getEncoder().encodeToString(saltBytes);
+            this.passwordHash = UserController.hashPassword(password, saltBytes);
         }
 
         String getId() {
@@ -312,6 +335,14 @@ public final class UserController {
 
         void setPasswordHash(String passwordHash) {
             this.passwordHash = passwordHash;
+        }
+
+        String getSalt() {
+            return salt;
+        }
+
+        void setSalt(String salt) {
+            this.salt = salt;
         }
     }
 }
