@@ -71,14 +71,18 @@ public final class AesGcmEncryptionService implements EncryptionService {
             throws EncryptionException {
         validateKey(key);
 
+        byte[] iv = new byte[IV_SIZE_BYTES];
+        byte[] keyCopy = null;
         try {
             // Generate unique IV for each encryption
-            byte[] iv = new byte[IV_SIZE_BYTES];
             secureRandom.nextBytes(iv);
+
+            // Create a copy of the key for internal use
+            keyCopy = Arrays.copyOf(key, key.length);
 
             Cipher cipher = cipherThreadLocal.get();
             GCMParameterSpec gcmSpec = new GCMParameterSpec(TAG_SIZE_BITS, iv);
-            SecretKeySpec keySpec = new SecretKeySpec(key, ALGORITHM);
+            SecretKeySpec keySpec = new SecretKeySpec(keyCopy, ALGORITHM);
 
             cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmSpec);
 
@@ -98,6 +102,12 @@ public final class AesGcmEncryptionService implements EncryptionService {
 
         } catch (Exception e) {
             throw new EncryptionException("Encryption failed", e);
+        } finally {
+            // Zero out sensitive key material
+            if (keyCopy != null) {
+                Arrays.fill(keyCopy, (byte) 0);
+            }
+            Arrays.fill(iv, (byte) 0);
         }
     }
 
@@ -112,14 +122,20 @@ public final class AesGcmEncryptionService implements EncryptionService {
         validateKey(key);
         validateCiphertext(ciphertext);
 
+        byte[] iv = null;
+        byte[] encryptedData = null;
+        byte[] keyCopy = null;
         try {
             // Extract IV from beginning of ciphertext
-            byte[] iv = Arrays.copyOfRange(ciphertext, 0, IV_SIZE_BYTES);
-            byte[] encryptedData = Arrays.copyOfRange(ciphertext, IV_SIZE_BYTES, ciphertext.length);
+            iv = Arrays.copyOfRange(ciphertext, 0, IV_SIZE_BYTES);
+            encryptedData = Arrays.copyOfRange(ciphertext, IV_SIZE_BYTES, ciphertext.length);
+
+            // Create a copy of the key for internal use
+            keyCopy = Arrays.copyOf(key, key.length);
 
             Cipher cipher = cipherThreadLocal.get();
             GCMParameterSpec gcmSpec = new GCMParameterSpec(TAG_SIZE_BITS, iv);
-            SecretKeySpec keySpec = new SecretKeySpec(key, ALGORITHM);
+            SecretKeySpec keySpec = new SecretKeySpec(keyCopy, ALGORITHM);
 
             cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
 
@@ -134,6 +150,17 @@ public final class AesGcmEncryptionService implements EncryptionService {
             throw new EncryptionException("Authentication failed: data may have been tampered", e);
         } catch (Exception e) {
             throw new EncryptionException("Decryption failed", e);
+        } finally {
+            // Zero out sensitive key material
+            if (keyCopy != null) {
+                Arrays.fill(keyCopy, (byte) 0);
+            }
+            if (iv != null) {
+                Arrays.fill(iv, (byte) 0);
+            }
+            if (encryptedData != null) {
+                Arrays.fill(encryptedData, (byte) 0);
+            }
         }
     }
 
