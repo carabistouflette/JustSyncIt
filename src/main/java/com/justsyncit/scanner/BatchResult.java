@@ -28,15 +28,14 @@ import java.util.Map;
  * Contains comprehensive information about batch execution including
  * success/failure status, timing information, and per-file results.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Result of a batch processing operation.
  * Contains comprehensive information about batch execution including
  * success/failure status, timing information, and per-file results.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
-public class BatchResult {
+
+public final class BatchResult {
 
     /** Unique identifier for this batch operation. */
     private final String batchId;
@@ -125,7 +124,7 @@ public class BatchResult {
         this.batchId = batchId;
         this.files = new java.util.ArrayList<>(files);
         this.success = false;
-        this.error = error;
+        this.error = error != null ? createExceptionCopy(error) : null;
         this.startTime = startTime;
         this.endTime = endTime;
         this.processingTimeMs = java.time.Duration.between(startTime, endTime).toMillis();
@@ -170,7 +169,17 @@ public class BatchResult {
      * @return error, or null if successful
      */
     public Exception getError() {
-        return error;
+        return error != null ? createExceptionCopy(error) : null;
+    }
+
+    private static Exception createExceptionCopy(Exception original) {
+        try {
+            return (Exception) original.getClass()
+                    .getConstructor(String.class)
+                    .newInstance(original.getMessage());
+        } catch (ReflectiveOperationException e) {
+            return new RuntimeException(original.getMessage(), original.getCause());
+        }
     }
 
     /**

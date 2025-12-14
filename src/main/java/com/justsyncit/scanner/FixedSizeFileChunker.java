@@ -21,7 +21,7 @@ package com.justsyncit.scanner;
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.StorageIntegrityException;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Follows Single Responsibility Principle by focusing only on chunking
  * operations.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
+
 public class FixedSizeFileChunker implements FileChunker {
 
     /** Logger for the chunker. */
@@ -182,7 +182,7 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     @Deprecated
     @SuppressWarnings("EI_EXPOSE_REP2")
-    @SuppressFBWarnings("EI_EXPOSE_REP2")
+
     public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize) {
         // No validation in constructor - use static factory method instead
         this.blake3Service = blake3Service;
@@ -210,7 +210,7 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     @Deprecated
     @SuppressWarnings("EI_EXPOSE_REP2")
-    @SuppressFBWarnings("EI_EXPOSE_REP2")
+
     public FixedSizeFileChunker(Blake3Service blake3Service, BufferPool bufferPool, int chunkSize,
             ContentStore contentStore) {
         // No validation in constructor - use static factory method instead
@@ -292,7 +292,7 @@ public class FixedSizeFileChunker implements FileChunker {
 
     @Override
     @SuppressWarnings("EI_EXPOSE_REP2")
-    @SuppressFBWarnings("EI_EXPOSE_REP2")
+
     public void setBufferPool(BufferPool bufferPool) {
         if (bufferPool == null) {
             throw new IllegalArgumentException("Buffer pool cannot be null");

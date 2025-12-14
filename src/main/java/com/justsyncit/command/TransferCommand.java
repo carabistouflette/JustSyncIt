@@ -36,9 +36,7 @@ import java.util.Locale;
  * Follows Single Responsibility Principle by handling only snapshot transfer
  * operations.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class TransferCommand implements Command {
 
     private final NetworkService networkService;

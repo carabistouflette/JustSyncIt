@@ -42,11 +42,7 @@ import java.util.concurrent.CompletableFuture;
  * Follows Single Responsibility Principle by focusing only on restore workflow
  * orchestration.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP", "CT_CONSTRUCTOR_THROW",
-        "OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE" })
-public class RestoreService {
+final public class RestoreService {
 
     /** Logger for restore operations. */
     private static final Logger logger = LoggerFactory.getLogger(RestoreService.class);
@@ -456,7 +452,7 @@ public class RestoreService {
     /**
      * Result of a restore operation.
      */
-    public static class RestoreResult {
+    public static final class RestoreResult {
         /** Number of files successfully restored. */
         private final int filesRestored;
         /** Number of files skipped. */

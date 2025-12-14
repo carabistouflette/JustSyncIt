@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Provides optimized chunking operations for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Batch-aware implementation of AsyncFileChunker that integrates with the batch
@@ -40,8 +39,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Provides optimized chunking operations for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
-@SuppressFBWarnings({ "CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
-public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
+
+public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchAwareAsyncFileChunker.class);
 
@@ -73,7 +72,7 @@ public class BatchAwareAsyncFileChunker implements AsyncFileChunker {
 
         this.delegate = delegate;
         this.batchProcessor = batchProcessor;
-        this.batchConfig = batchConfig;
+        this.batchConfig = new BatchConfiguration(batchConfig);
         this.activeBatchOperations = new AtomicInteger(0);
     }
 

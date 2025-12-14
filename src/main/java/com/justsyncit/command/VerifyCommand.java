@@ -36,9 +36,7 @@ import org.slf4j.LoggerFactory;
  * Follows Single Responsibility Principle by focusing only on file
  * verification.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
 public class VerifyCommand implements Command {
 
     /** Logger for verify command operations. */

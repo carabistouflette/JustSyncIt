@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,14 +36,13 @@ import java.util.concurrent.RejectedExecutionHandler;
  * Provides common functionality for all specialized thread pool
  * implementations.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Base class for managed thread pools with monitoring and adaptive sizing.
  * Provides common functionality for all specialized thread pool
  * implementations.
  */
-@SuppressFBWarnings("EI_EXPOSE_REP")
+
 public abstract class ManagedThreadPool {
 
     private static final Logger logger = LoggerFactory.getLogger(ManagedThreadPool.class);
@@ -127,14 +127,14 @@ public abstract class ManagedThreadPool {
      * Gets the underlying executor service.
      */
     public ExecutorService getExecutor() {
-        return executor;
+        return Executors.unconfigurableExecutorService(executor);
     }
 
     /**
      * Gets the underlying executor service (alias for getExecutor).
      */
     public ExecutorService getExecutorService() {
-        return executor;
+        return Executors.unconfigurableExecutorService(executor);
     }
 
     /**

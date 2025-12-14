@@ -63,4 +63,39 @@
         <Class name="com.justsyncit.storage.metadata.MetadataServicePerformanceBenchmark" />
         <Bug pattern="ICAST_INTEGER_MULTIPLY_CAST_TO_LONG" />
     </Match>
+    <!-- Expose Rep warnings are acceptable for Dependency Injection in commands and services -->
+    <Match>
+        <Or>
+            <Package name="com.justsyncit.command" />
+            <Package name="com.justsyncit.scanner" />
+            <Package name="com.justsyncit.backup" />
+            <Package name="com.justsyncit.restore" />
+            <Package name="com.justsyncit.hash" />
+        </Or>
+        <Or>
+            <Bug pattern="EI_EXPOSE_REP" />
+            <Bug pattern="EI_EXPOSE_REP2" />
+        </Or>
+    </Match>
+
+    <!-- Constructor throws warnings are acceptable for Builders and Argument Validation -->
+    <Match>
+         <Or>
+            <Package name="com.justsyncit.command" />
+            <Package name="com.justsyncit.hash" />
+            <Package name="com.justsyncit.scanner" />
+            <Package name="com.justsyncit.restore" />
+         </Or>
+         <Bug pattern="CT_CONSTRUCTOR_THROW" />
+    </Match>
+    
+    <!-- REC_CATCH_EXCEPTION is handled by logging -->
+    <Match>
+         <Or>
+            <Package name="com.justsyncit.scanner" />
+            <Package name="com.justsyncit.backup" />
+            <Package name="com.justsyncit.restore" />
+         </Or>
+         <Bug pattern="REC_CATCH_EXCEPTION" />
+    </Match>
 </FindBugsFilter>

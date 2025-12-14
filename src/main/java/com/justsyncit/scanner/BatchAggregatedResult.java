@@ -27,14 +27,13 @@ import java.util.Map;
  * Provides comprehensive summary of batch execution across
  * multiple batches with combined statistics and performance metrics.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Aggregated result of multiple batch processing operations.
  * Provides comprehensive summary of batch execution across
  * multiple batches with combined statistics and performance metrics.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
+
 public class BatchAggregatedResult {
 
     /** Unique identifier for this aggregated operation. */
@@ -112,7 +111,7 @@ public class BatchAggregatedResult {
     /**
      * Builder for BatchAggregatedResult.
      */
-    @SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
+
     public static class Builder {
         private String operationId;
         private List<BatchResult> batchResults = new java.util.ArrayList<>();
@@ -132,7 +131,8 @@ public class BatchAggregatedResult {
         }
 
         public Builder setBatchResults(List<BatchResult> batchResults) {
-            this.batchResults = batchResults;
+            this.batchResults = batchResults != null ? new java.util.ArrayList<>(batchResults)
+                    : new java.util.ArrayList<>();
             return this;
         }
 

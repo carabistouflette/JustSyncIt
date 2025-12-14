@@ -43,7 +43,6 @@ import java.util.stream.Collectors;
  * scheduling,
  * resource-aware coordination, and advanced error handling and recovery.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Implementation of AsyncBatchProcessor with comprehensive batch processing
@@ -52,7 +51,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * scheduling,
  * resource-aware coordination, and advanced error handling and recovery.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP", "NP_NULL_PARAM_DEREF", "REC_CATCH_EXCEPTION" })
+
 public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncFileBatchProcessorImpl.class);
@@ -161,7 +160,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
         this.asyncFileChunker = asyncFileChunker;
         this.asyncBufferPool = asyncBufferPool;
         this.threadPoolManager = threadPoolManager;
-        this.configuration = configuration;
+        this.configuration = new BatchConfiguration(configuration);
         this.batchOperationSemaphore = new Semaphore(this.maxConcurrentBatchOperations);
         this.batchProcessingStats = new BatchProcessingStats();
 
@@ -176,8 +175,9 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     @Override
     public CompletableFuture<BatchResult> processBatch(List<Path> files, BatchOptions options, BatchPriority priority) {
         if (files == null || files.isEmpty()) {
+            List<Path> safeFiles = files != null ? files : java.util.Collections.emptyList();
             return CompletableFuture.completedFuture(
-                    new BatchResult("empty-batch", files, Instant.now(), Instant.now(),
+                    new BatchResult("empty-batch", safeFiles, Instant.now(), Instant.now(),
                             new IllegalArgumentException("Files list cannot be null or empty"), null));
         }
         if (options == null) {
@@ -444,7 +444,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
 
     @Override
     public BatchConfiguration getConfiguration() {
-        return configuration;
+        return new BatchConfiguration(configuration);
     }
 
     @Override
@@ -453,7 +453,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
             throw new IllegalArgumentException("Configuration cannot be null");
         }
 
-        this.configuration = configuration;
+        this.configuration = new BatchConfiguration(configuration);
 
         // Update max concurrent operations if needed
         if (configuration.getMaxConcurrentBatches() != maxConcurrentBatchOperations) {

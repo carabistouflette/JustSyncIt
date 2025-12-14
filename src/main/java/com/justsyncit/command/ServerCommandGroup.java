@@ -23,9 +23,7 @@ package com.justsyncit.command;
  * This command delegates to specific server subcommands.
  * Follows Composite Pattern by grouping related commands together.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
 public class ServerCommandGroup implements Command {
 
     private static final String SUBCOMMAND_START = "start";

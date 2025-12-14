@@ -22,14 +22,13 @@ package com.justsyncit.scanner;
  * Result of a batch buffer release operation.
  * Contains information about released buffers and operation statistics.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Result of a batch buffer release operation.
  * Contains information about released buffers and operation statistics.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
-public class BatchReleaseResult {
+
+public final class BatchReleaseResult {
 
     /** Number of buffers successfully released. */
     private final int releasedCount;
@@ -82,7 +81,7 @@ public class BatchReleaseResult {
         this.failedCount = failedCount;
         this.totalSize = totalSize;
         this.releaseTimeMs = releaseTimeMs;
-        this.error = error;
+        this.error = error != null ? createExceptionCopy(error) : null;
     }
 
     /**
@@ -146,7 +145,17 @@ public class BatchReleaseResult {
      * @return error, or null if successful or partially successful
      */
     public Exception getError() {
-        return error;
+        return error != null ? createExceptionCopy(error) : null;
+    }
+
+    private static Exception createExceptionCopy(Exception original) {
+        try {
+            return (Exception) original.getClass()
+                    .getConstructor(String.class)
+                    .newInstance(original.getMessage());
+        } catch (ReflectiveOperationException e) {
+            return new RuntimeException(original.getMessage(), original.getCause());
+        }
     }
 
     /**

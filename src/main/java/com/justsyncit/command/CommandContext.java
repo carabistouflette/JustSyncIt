@@ -23,13 +23,11 @@ import com.justsyncit.network.NetworkService;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.ContentStore;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 /**
  * Context object that provides services to commands.
  * Follows Dependency Inversion Principle by providing abstractions to commands.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2", "CT_CONSTRUCTOR_THROW" })
+
 public class CommandContext {
 
     /** BLAKE3 service instance (required). */
@@ -147,7 +145,7 @@ public class CommandContext {
          * @param blake3Service the BLAKE3 service (required)
          * @throws IllegalArgumentException if blake3Service is null
          */
-        @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
+
         public Builder(Blake3Service blake3Service) {
             if (blake3Service == null) {
                 throw new IllegalArgumentException("blake3Service cannot be null");

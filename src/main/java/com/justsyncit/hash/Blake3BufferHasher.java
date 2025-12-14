@@ -30,9 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * This implementation ensures thread safety through synchronization and provides
  * additional validation and error handling.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 public class Blake3BufferHasher implements BufferHasher {
 
     /** Logger for the buffer hasher. */

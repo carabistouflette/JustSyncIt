@@ -17,7 +17,6 @@
  */
 
 package com.justsyncit.command;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 
 import com.justsyncit.ServiceException;
@@ -38,7 +37,6 @@ import java.util.List;
  * operations.
  */
 
-@SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
 public class SnapshotsListCommand implements Command {
 
     private final MetadataService metadataService;

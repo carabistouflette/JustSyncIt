@@ -34,7 +34,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * Provides optimized thread pool management for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Batch-aware wrapper for ThreadPoolManager that integrates with the batch
@@ -42,8 +41,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Provides optimized thread pool management for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
-@SuppressFBWarnings({ "CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
-public class BatchAwareThreadPoolManager {
+
+public final class BatchAwareThreadPoolManager {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchAwareThreadPoolManager.class);
 
@@ -77,7 +76,7 @@ public class BatchAwareThreadPoolManager {
 
         this.delegate = delegate;
         this.batchProcessor = batchProcessor;
-        this.batchConfig = batchConfig;
+        this.batchConfig = new BatchConfiguration(batchConfig);
         this.activeBatchOperations = new AtomicInteger(0);
         this.totalTasksSubmitted = new AtomicLong(0);
         this.totalTasksCompleted = new AtomicLong(0);

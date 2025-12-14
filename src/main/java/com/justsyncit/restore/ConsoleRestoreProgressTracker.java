@@ -21,14 +21,12 @@ package com.justsyncit.restore;
 import com.justsyncit.storage.metadata.Snapshot;
 import java.io.PrintStream;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
 /**
  * Console-based implementation of RestoreProgressTracker.
  * Provides progress updates to the console during restore operations.
  * Follows Single Responsibility Principle by focusing only on console output.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
+
 public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
 
     private final PrintStream out;

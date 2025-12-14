@@ -44,14 +44,13 @@ import java.util.concurrent.atomic.AtomicReference;
  * Provides priority-based scheduling, resource-aware coordination, and
  * adaptive batch sizing for optimal performance.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Intelligent batch scheduler for optimizing file processing operations.
  * Provides priority-based scheduling, resource-aware coordination, and
  * adaptive batch sizing for optimal performance.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
+
 public class BatchScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchScheduler.class);
@@ -144,7 +143,7 @@ public class BatchScheduler {
             BatchConfiguration configuration) {
         this.threadPoolManager = threadPoolManager;
         this.asyncBatchProcessor = asyncBatchProcessor;
-        this.configuration = configuration;
+        this.configuration = new BatchConfiguration(configuration);
         this.batchQueue = new PriorityBlockingQueue<>(DEFAULT_MAX_QUEUE_SIZE,
                 Comparator.comparing(ScheduledBatchOperation::getPriority).reversed()
                         .thenComparing(ScheduledBatchOperation::getSubmissionTime));
@@ -490,7 +489,6 @@ public class BatchScheduler {
     /**
      * Scheduled batch operation representation.
      */
-    @SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
     public static class ScheduledBatchOperation {
         @java.io.Serial
         private static final long serialVersionUID = 1L;
@@ -516,7 +514,7 @@ public class BatchScheduler {
                 BatchPriority priority, Instant submissionTime) {
             this.operationId = operationId;
             this.files = new ArrayList<>(files);
-            this.options = options;
+            this.options = new BatchOptions(options);
             this.priority = priority;
             this.submissionTime = submissionTime;
             this.status = Status.PENDING;

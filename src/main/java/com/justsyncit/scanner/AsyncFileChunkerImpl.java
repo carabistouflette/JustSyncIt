@@ -43,7 +43,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Follows Single Responsibility Principle by focusing only on async chunking
  * operations.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Implementation of AsyncFileChunker with CompletionHandler pattern and async
@@ -52,7 +51,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Follows Single Responsibility Principle by focusing only on async chunking
  * operations.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP", "REC_CATCH_EXCEPTION" })
+
 public class AsyncFileChunkerImpl implements AsyncFileChunker {
 
     /** Logger for the async chunker. */

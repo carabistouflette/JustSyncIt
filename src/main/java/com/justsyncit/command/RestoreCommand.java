@@ -17,7 +17,6 @@
  */
 
 package com.justsyncit.command;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 
 import com.justsyncit.ServiceException;
@@ -43,7 +42,6 @@ import java.util.Locale;
  * Follows Single Responsibility Principle by handling only restore operations.
  */
 
-@SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
 public class RestoreCommand implements Command {
 
     private final RestoreService restoreService;

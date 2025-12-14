@@ -38,9 +38,7 @@ import java.util.function.Consumer;
  * This implementation is thread-safe and can be safely used by multiple threads
  * concurrently.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 public class Blake3FileHasher implements FileHasher {
 
     /** Logger for the file hasher. */

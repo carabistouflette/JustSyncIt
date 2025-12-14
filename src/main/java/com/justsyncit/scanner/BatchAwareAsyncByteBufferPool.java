@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * Provides optimized buffer management for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Batch-aware implementation of AsyncByteBufferPool that integrates with the
@@ -41,8 +40,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Provides optimized buffer management for batch processing scenarios.
  * Enhances performance through batch coordination and resource optimization.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP", "CT_CONSTRUCTOR_THROW" })
-public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
+
+public final class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchAwareAsyncByteBufferPool.class);
 
@@ -76,7 +75,7 @@ public class BatchAwareAsyncByteBufferPool implements AsyncByteBufferPool {
 
         this.delegate = delegate;
         this.batchProcessor = batchProcessor;
-        this.batchConfig = batchConfig;
+        this.batchConfig = new BatchConfiguration(batchConfig);
         this.activeBatchOperations = new AtomicInteger(0);
         this.totalBuffersAllocated = new AtomicLong(0);
         this.totalBuffersReleased = new AtomicLong(0);

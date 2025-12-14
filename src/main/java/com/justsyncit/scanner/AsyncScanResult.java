@@ -28,13 +28,12 @@ import java.util.concurrent.CompletableFuture;
  * Enhanced result of an asynchronous filesystem scanning operation.
  * Extends ScanResult with additional async-specific metadata and capabilities.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Enhanced result of an asynchronous filesystem scanning operation.
  * Extends ScanResult with additional async-specific metadata and capabilities.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
+
 public class AsyncScanResult extends ScanResult {
 
     /** Unique identifier for this scan operation. */
@@ -102,7 +101,6 @@ public class AsyncScanResult extends ScanResult {
         this.asyncMetadata = builder.asyncMetadata != null ? new java.util.HashMap<>(builder.asyncMetadata) : null;
     }
 
-    @SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
     public static class Builder {
         private String scanId;
         private Path rootDirectory;
@@ -132,12 +130,12 @@ public class AsyncScanResult extends ScanResult {
         }
 
         public Builder setScannedFiles(List<ScannedFile> scannedFiles) {
-            this.scannedFiles = scannedFiles;
+            this.scannedFiles = scannedFiles != null ? new java.util.ArrayList<>(scannedFiles) : null;
             return this;
         }
 
         public Builder setErrors(List<ScanError> errors) {
-            this.errors = errors;
+            this.errors = errors != null ? new java.util.ArrayList<>(errors) : null;
             return this;
         }
 
@@ -152,7 +150,7 @@ public class AsyncScanResult extends ScanResult {
         }
 
         public Builder setMetadata(Map<String, Object> metadata) {
-            this.metadata = metadata;
+            this.metadata = metadata != null ? new java.util.HashMap<>(metadata) : null;
             return this;
         }
 
@@ -197,7 +195,7 @@ public class AsyncScanResult extends ScanResult {
         }
 
         public Builder setAsyncMetadata(Map<String, Object> asyncMetadata) {
-            this.asyncMetadata = asyncMetadata;
+            this.asyncMetadata = asyncMetadata != null ? new java.util.HashMap<>(asyncMetadata) : null;
             return this;
         }
 

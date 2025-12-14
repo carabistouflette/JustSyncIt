@@ -25,14 +25,13 @@ import java.util.List;
  * Result of a batch buffer allocation operation.
  * Contains information about allocated buffers and operation statistics.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Result of a batch buffer allocation operation.
  * Contains information about allocated buffers and operation statistics.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
-public class BatchAllocationResult {
+
+public final class BatchAllocationResult {
 
     /** List of allocated buffers. */
     private final List<ByteBuffer> buffers;
@@ -87,7 +86,7 @@ public class BatchAllocationResult {
         this.totalSize = totalSize;
         this.allocatedCount = allocatedCount;
         this.allocationTimeMs = allocationTimeMs;
-        this.error = error;
+        this.error = error != null ? createExceptionCopy(error) : null;
     }
 
     /**
@@ -142,7 +141,18 @@ public class BatchAllocationResult {
      * @return error, or null if successful
      */
     public Exception getError() {
-        return error;
+        return error != null ? createExceptionCopy(error) : null;
+    }
+
+    private static Exception createExceptionCopy(Exception original) {
+        if (original == null) {
+            return null;
+        }
+        try {
+            return original.getClass().getConstructor(String.class).newInstance(original.getMessage());
+        } catch (ReflectiveOperationException e) {
+            return new RuntimeException(original.getMessage());
+        }
     }
 
     /**

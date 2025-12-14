@@ -33,9 +33,7 @@ import org.slf4j.LoggerFactory;
  * Command for hashing files.
  * Follows Single Responsibility Principle by focusing only on file hashing.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
 public class HashCommand implements Command {
 
     /** Logger for hash command operations. */

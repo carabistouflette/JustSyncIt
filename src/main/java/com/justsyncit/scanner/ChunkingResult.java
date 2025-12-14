@@ -18,7 +18,6 @@
 
 package com.justsyncit.scanner;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -26,7 +25,7 @@ import java.util.List;
  * Result of a file chunking operation.
  * Contains metadata about the chunking process and resulting chunks.
  */
-public class ChunkingResult {
+public final class ChunkingResult {
 
     /** The file that was chunked. */
     private final Path file;
@@ -55,15 +54,15 @@ public class ChunkingResult {
     /**
      * Creates a successful chunking result.
      *
-     * @param file the file that was chunked
-     * @param chunkCount number of chunks created
-     * @param fileSize total size of the file
-     * @param sparseSize size of sparse regions
-     * @param fileHash hash of the entire file
+     * @param file        the file that was chunked
+     * @param chunkCount  number of chunks created
+     * @param fileSize    total size of the file
+     * @param sparseSize  size of sparse regions
+     * @param fileHash    hash of the entire file
      * @param chunkHashes list of chunk hashes
      */
     public ChunkingResult(Path file, int chunkCount, long fileSize, long sparseSize,
-                       String fileHash, List<String> chunkHashes) {
+            String fileHash, List<String> chunkHashes) {
         this.file = file;
         this.chunkCount = chunkCount;
         this.fileSize = fileSize;
@@ -77,13 +76,11 @@ public class ChunkingResult {
     /**
      * Creates a failed chunking result.
      *
-     * @param file the file that failed to chunk
+     * @param file  the file that failed to chunk
      * @param error the error that occurred
      * @deprecated Use {@link #createFailed(Path, Exception)} instead
      */
     @Deprecated
-    @SuppressWarnings("finalizer")
-    @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
     public ChunkingResult(Path file, Exception error) {
         // No validation in constructor - use static factory method instead
         // Note: createExceptionCopy() handles exceptions safely
@@ -100,7 +97,7 @@ public class ChunkingResult {
     /**
      * Creates a failed chunking result.
      *
-     * @param file the file that failed to chunk
+     * @param file  the file that failed to chunk
      * @param error the error that occurred
      * @return a new failed ChunkingResult
      */
@@ -195,15 +192,12 @@ public class ChunkingResult {
      * @param original the original exception
      * @return a copy of the exception
      */
-    private Exception createExceptionCopy(Exception original) {
+    private static Exception createExceptionCopy(Exception original) {
         try {
             return (Exception) original.getClass()
                     .getConstructor(String.class)
                     .newInstance(original.getMessage());
-        } catch (NoSuchMethodException
-                | InstantiationException
-                | IllegalAccessException
-                | java.lang.reflect.InvocationTargetException e) {
+        } catch (ReflectiveOperationException e) {
             // Fallback to a generic exception if copying fails
             return new RuntimeException(original.getMessage(), original.getCause());
         }

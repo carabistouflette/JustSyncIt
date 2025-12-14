@@ -17,7 +17,6 @@
  */
 
 package com.justsyncit.command;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 
 import com.justsyncit.ServiceException;
@@ -37,7 +36,6 @@ import java.util.Scanner;
  * operations.
  */
 
-@SuppressFBWarnings({"EI_EXPOSE_REP2", "EI_EXPOSE_REP"})
 public class SnapshotsDeleteCommand implements Command {
 
     private static final long KB = 1024;

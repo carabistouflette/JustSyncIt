@@ -36,9 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * different streams concurrently, as each hashing operation uses its own buffer
  * and hasher instance.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
-@SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
 public class Blake3StreamHasher implements StreamHasher {
 
     /** Logger for the stream hasher. */

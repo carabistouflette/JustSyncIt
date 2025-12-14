@@ -34,19 +34,17 @@ import java.util.function.Function;
  * Implements various optimization strategies including batch I/O, SIMD hashing,
  * transaction management, and compression/deduplication optimizations.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Performance optimizer for batch processing operations.
  * Implements various optimization strategies including batch I/O, SIMD hashing,
  * transaction management, and compression/deduplication optimizations.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
+
 public class BatchProcessingPerformanceOptimizer {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchProcessingPerformanceOptimizer.class);
 
-    private final BatchConfiguration config;
     private final SystemResourceInfo systemInfo;
     private final Map<String, PerformanceMetrics> operationMetrics;
     private final AtomicLong totalBytesProcessed;
@@ -60,7 +58,7 @@ public class BatchProcessingPerformanceOptimizer {
      * @param systemInfo system resource information
      */
     public BatchProcessingPerformanceOptimizer(BatchConfiguration config, SystemResourceInfo systemInfo) {
-        this.config = config;
+
         this.systemInfo = systemInfo;
         this.operationMetrics = new ConcurrentHashMap<>();
         this.totalBytesProcessed = new AtomicLong(0);
@@ -470,13 +468,12 @@ public class BatchProcessingPerformanceOptimizer {
      */
     public static class StorageOperation {
         private final String operation;
-        @SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
         private final byte[] data;
         private final boolean requiresTransaction;
 
         public StorageOperation(String operation, byte[] data, boolean requiresTransaction) {
             this.operation = operation;
-            this.data = data;
+            this.data = data != null ? java.util.Arrays.copyOf(data, data.length) : null;
             this.requiresTransaction = requiresTransaction;
         }
 
@@ -485,7 +482,7 @@ public class BatchProcessingPerformanceOptimizer {
         }
 
         public byte[] getData() {
-            return data;
+            return data != null ? java.util.Arrays.copyOf(data, data.length) : null;
         }
 
         public boolean requiresTransaction() {
@@ -497,24 +494,25 @@ public class BatchProcessingPerformanceOptimizer {
      * Represents a compressed data chunk.
      */
     public static class CompressedChunk {
-        @SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
         private final byte[] originalData;
-        @SuppressFBWarnings({ "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
         private final byte[] compressedData;
         private final String compressionAlgorithm;
 
         public CompressedChunk(byte[] originalData, String compressionAlgorithm) {
-            this.originalData = originalData;
-            this.compressedData = originalData; // Simplified - just copy for now
+            this.originalData = originalData != null ? java.util.Arrays.copyOf(originalData, originalData.length)
+                    : null;
+            this.compressedData = this.originalData != null
+                    ? java.util.Arrays.copyOf(this.originalData, this.originalData.length)
+                    : null;
             this.compressionAlgorithm = compressionAlgorithm;
         }
 
         public byte[] getOriginalData() {
-            return originalData;
+            return originalData != null ? java.util.Arrays.copyOf(originalData, originalData.length) : null;
         }
 
         public byte[] getCompressedData() {
-            return compressedData;
+            return compressedData != null ? java.util.Arrays.copyOf(compressedData, compressedData.length) : null;
         }
 
         public String getCompressionAlgorithm() {

@@ -26,14 +26,13 @@ import java.util.Map;
  * Provides detailed information about the operation outcome
  * including success status, timing, and resource utilization.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Result of a batch operation execution.
  * Provides detailed information about the operation outcome
  * including success status, timing, and resource utilization.
  */
-@SuppressFBWarnings({ "EI_EXPOSE_REP2", "EI_EXPOSE_REP" })
+
 public class BatchOperationResult {
 
     /** Unique identifier for the batch operation. */

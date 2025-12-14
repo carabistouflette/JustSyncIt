@@ -29,15 +29,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * Provides comprehensive tracking of batch processing operations
  * with support for dependencies, priorities, and resource allocation.
  */
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Represents a batch operation with metadata and dependencies.
  * Provides comprehensive tracking of batch processing operations
  * with support for dependencies, priorities, and resource allocation.
  */
-@SuppressFBWarnings({ "CT_CONSTRUCTOR_THROW", "EI_EXPOSE_REP", "EI_EXPOSE_REP2" })
-public class BatchOperation {
+
+public final class BatchOperation {
 
     /** Unique identifier for this batch operation. */
     private final String operationId;
