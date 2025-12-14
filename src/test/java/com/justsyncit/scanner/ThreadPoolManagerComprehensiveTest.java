@@ -26,13 +26,18 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.util.List;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Comprehensive unit tests for ThreadPoolManager following TDD principles.
@@ -80,7 +85,7 @@ class ThreadPoolManagerComprehensiveTest {
             // Then
             assertNotNull(ioThreadPool, "IO thread pool should not be null");
             assertFalse(ioThreadPool.isShutdown(), "IO thread pool should not be shutdown");
-            
+
             // Test that it can execute tasks
             CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> "test", ioThreadPool);
             String result = future.get(2, TimeUnit.SECONDS);
@@ -96,7 +101,7 @@ class ThreadPoolManagerComprehensiveTest {
             // Then
             assertNotNull(cpuThreadPool, "CPU thread pool should not be null");
             assertFalse(cpuThreadPool.isShutdown(), "CPU thread pool should not be shutdown");
-            
+
             // Test that it can execute tasks
             CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> 42, cpuThreadPool);
             Integer result = future.get(2, TimeUnit.SECONDS);
@@ -111,8 +116,9 @@ class ThreadPoolManagerComprehensiveTest {
 
             // Then
             assertNotNull(completionHandlerThreadPool, "Completion handler thread pool should not be null");
-            assertFalse(completionHandlerThreadPool.isShutdown(), "Completion handler thread pool should not be shutdown");
-            
+            assertFalse(completionHandlerThreadPool.isShutdown(),
+                    "Completion handler thread pool should not be shutdown");
+
             // Test that it can execute tasks
             CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> true, completionHandlerThreadPool);
             Boolean result = future.get(2, TimeUnit.SECONDS);
@@ -128,7 +134,7 @@ class ThreadPoolManagerComprehensiveTest {
             // Then
             assertNotNull(batchThreadPool, "Batch processing thread pool should not be null");
             assertFalse(batchThreadPool.isShutdown(), "Batch processing thread pool should not be shutdown");
-            
+
             // Test that it can execute tasks
             CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> "batch", batchThreadPool);
             String result = future.get(2, TimeUnit.SECONDS);
@@ -144,7 +150,7 @@ class ThreadPoolManagerComprehensiveTest {
             // Then
             assertNotNull(watchThreadPool, "Watch service thread pool should not be null");
             assertFalse(watchThreadPool.isShutdown(), "Watch service thread pool should not be shutdown");
-            
+
             // Test that it can execute tasks
             CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> "watch", watchThreadPool);
             String result = future.get(2, TimeUnit.SECONDS);
@@ -162,9 +168,12 @@ class ThreadPoolManagerComprehensiveTest {
             // When
             ThreadPoolStats.PoolSpecificStats ioStats = threadPoolManager.getPoolStats(ThreadPoolManager.PoolType.IO);
             ThreadPoolStats.PoolSpecificStats cpuStats = threadPoolManager.getPoolStats(ThreadPoolManager.PoolType.CPU);
-            ThreadPoolStats.PoolSpecificStats completionHandlerStats = threadPoolManager.getPoolStats(ThreadPoolManager.PoolType.COMPLETION_HANDLER);
-            ThreadPoolStats.PoolSpecificStats batchStats = threadPoolManager.getPoolStats(ThreadPoolManager.PoolType.BATCH_PROCESSING);
-            ThreadPoolStats.PoolSpecificStats watchStats = threadPoolManager.getPoolStats(ThreadPoolManager.PoolType.WATCH_SERVICE);
+            ThreadPoolStats.PoolSpecificStats completionHandlerStats = threadPoolManager
+                    .getPoolStats(ThreadPoolManager.PoolType.COMPLETION_HANDLER);
+            ThreadPoolStats.PoolSpecificStats batchStats = threadPoolManager
+                    .getPoolStats(ThreadPoolManager.PoolType.BATCH_PROCESSING);
+            ThreadPoolStats.PoolSpecificStats watchStats = threadPoolManager
+                    .getPoolStats(ThreadPoolManager.PoolType.WATCH_SERVICE);
 
             // Then
             assertNotNull(ioStats);
@@ -183,11 +192,16 @@ class ThreadPoolManagerComprehensiveTest {
         @DisplayName("Should provide configuration for each thread pool type")
         void shouldProvideConfigurationForEachThreadPoolType() throws Exception {
             // When
-            ThreadPoolConfiguration.PoolConfig ioConfig = threadPoolManager.getConfiguration().getPoolConfig(ThreadPoolManager.PoolType.IO);
-            ThreadPoolConfiguration.PoolConfig cpuConfig = threadPoolManager.getConfiguration().getPoolConfig(ThreadPoolManager.PoolType.CPU);
-            ThreadPoolConfiguration.PoolConfig completionHandlerConfig = threadPoolManager.getConfiguration().getPoolConfig(ThreadPoolManager.PoolType.COMPLETION_HANDLER);
-            ThreadPoolConfiguration.PoolConfig batchConfig = threadPoolManager.getConfiguration().getPoolConfig(ThreadPoolManager.PoolType.BATCH_PROCESSING);
-            ThreadPoolConfiguration.PoolConfig watchConfig = threadPoolManager.getConfiguration().getPoolConfig(ThreadPoolManager.PoolType.WATCH_SERVICE);
+            ThreadPoolConfiguration.PoolConfig ioConfig = threadPoolManager.getConfiguration()
+                    .getPoolConfig(ThreadPoolManager.PoolType.IO);
+            ThreadPoolConfiguration.PoolConfig cpuConfig = threadPoolManager.getConfiguration()
+                    .getPoolConfig(ThreadPoolManager.PoolType.CPU);
+            ThreadPoolConfiguration.PoolConfig completionHandlerConfig = threadPoolManager.getConfiguration()
+                    .getPoolConfig(ThreadPoolManager.PoolType.COMPLETION_HANDLER);
+            ThreadPoolConfiguration.PoolConfig batchConfig = threadPoolManager.getConfiguration()
+                    .getPoolConfig(ThreadPoolManager.PoolType.BATCH_PROCESSING);
+            ThreadPoolConfiguration.PoolConfig watchConfig = threadPoolManager.getConfiguration()
+                    .getPoolConfig(ThreadPoolManager.PoolType.WATCH_SERVICE);
 
             // Then
             assertNotNull(ioConfig);
@@ -216,23 +230,22 @@ class ThreadPoolManagerComprehensiveTest {
             AtomicInteger completedTasks = new AtomicInteger(0);
 
             // When
-            CompletableFuture<?>[] futures = new CompletableFuture[taskCount];
+            List<CompletableFuture<?>> futures = new java.util.ArrayList<>();
             for (int i = 0; i < taskCount; i++) {
-                final int taskId = i;
-                futures[i] = CompletableFuture.runAsync(() -> {
+                futures.add(CompletableFuture.runAsync(() -> {
                     // Simple task
                     completedTasks.incrementAndGet();
-                }, ioThreadPool);
+                }, ioThreadPool));
             }
 
             // Then
-            CompletableFuture.allOf(futures).get(5, TimeUnit.SECONDS);
-            
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(5), futures);
+
             // All futures should be completed
             for (CompletableFuture<?> future : futures) {
                 assertTrue(future.isDone(), "All tasks should be completed");
             }
-            
+
             assertEquals(taskCount, completedTasks.get(), "All tasks should have completed");
         }
 
@@ -242,21 +255,23 @@ class ThreadPoolManagerComprehensiveTest {
             // Given
             int taskCount = 5; // Reduced task count
             ExecutorService cpuThreadPool = threadPoolManager.getCpuThreadPool();
+            java.util.concurrent.atomic.AtomicLong totalSum = new java.util.concurrent.atomic.AtomicLong();
 
             // When
             long startTime = System.currentTimeMillis();
-            CompletableFuture<?>[] futures = new CompletableFuture[taskCount];
+            List<CompletableFuture<?>> futures = new java.util.ArrayList<>();
             for (int i = 0; i < taskCount; i++) {
-                futures[i] = CompletableFuture.runAsync(() -> {
+                futures.add(CompletableFuture.runAsync(() -> {
                     // Lightweight task
                     long sum = 0;
                     for (int j = 0; j < 10; j++) {
                         sum += j;
                     }
-                }, cpuThreadPool);
+                    totalSum.addAndGet(sum);
+                }, cpuThreadPool));
             }
-            
-            CompletableFuture.allOf(futures).get(3, TimeUnit.SECONDS);
+
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(3), futures);
             long endTime = System.currentTimeMillis();
             long duration = endTime - startTime;
 
@@ -277,10 +292,10 @@ class ThreadPoolManagerComprehensiveTest {
             AtomicInteger exceptionCount = new AtomicInteger(0);
 
             // When
-            CompletableFuture<?>[] futures = new CompletableFuture[6];
+            List<CompletableFuture<?>> futures = new java.util.ArrayList<>();
             for (int i = 0; i < 6; i++) {
                 final int taskId = i;
-                futures[i] = CompletableFuture.runAsync(() -> {
+                futures.add(CompletableFuture.runAsync(() -> {
                     try {
                         if (taskId % 2 == 0) {
                             throw new RuntimeException("Simulated task failure " + taskId);
@@ -290,30 +305,30 @@ class ThreadPoolManagerComprehensiveTest {
                         exceptionCount.incrementAndGet();
                         // Don't re-throw, just count
                     }
-                }, ioThreadPool);
+                }, ioThreadPool));
             }
 
             // Wait for all tasks to complete
-            CompletableFuture.allOf(futures).get(3, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(3), futures);
 
             // Then
             // Thread pool should still be functional
             assertNotNull(ioThreadPool);
             assertFalse(ioThreadPool.isShutdown(), "Thread pool should still be functional");
-            
+
             // Should be able to submit new tasks
             CompletableFuture<Void> newTask = CompletableFuture.runAsync(() -> {
                 // Simple task
             }, ioThreadPool);
             newTask.get(2, TimeUnit.SECONDS);
-            
+
             // Should have caught some exceptions
             assertTrue(exceptionCount.get() > 0, "Should have caught some exceptions");
         }
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"io", "cpu", "completion", "batch", "watch"})
+    @ValueSource(strings = { "io", "cpu", "completion", "batch", "watch" })
     @DisplayName("Should handle various thread pool types")
     void shouldHandleVariousThreadPoolTypes(String poolType) throws Exception {
         // Given

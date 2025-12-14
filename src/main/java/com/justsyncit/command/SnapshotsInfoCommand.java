@@ -18,6 +18,7 @@
 
 package com.justsyncit.command;
 
+
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.storage.metadata.FileMetadata;
@@ -38,6 +39,7 @@ import java.util.Optional;
  * Follows Single Responsibility Principle by handling only snapshot information
  * display.
  */
+
 public class SnapshotsInfoCommand implements Command {
 
     private static final long KB = 1024;
@@ -285,8 +287,8 @@ public class SnapshotsInfoCommand implements Command {
         System.out.println("Regular Files: " + totalRegularFiles);
         System.out.println("Directories: " + totalDirectories);
         System.out.println("Symbolic Links: " + totalSymlinks);
-        System.out.println("Average File Size: " +
-                (totalRegularFiles > 0 ? formatFileSize(totalSize / totalRegularFiles) : "0 B"));
+        System.out.println("Average File Size: "
+                + (totalRegularFiles > 0 ? formatFileSize(totalSize / totalRegularFiles) : "0 B"));
 
         if (!largestFile.isEmpty()) {
             System.out.println("Largest File: " + largestFile + " (" + formatFileSize(maxFileSize) + ")");

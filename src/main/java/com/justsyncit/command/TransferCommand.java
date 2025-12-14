@@ -29,11 +29,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.Locale;
 
 /**
  * Command for transferring snapshots to another server.
- * Follows Single Responsibility Principle by handling only snapshot transfer operations.
+ * Follows Single Responsibility Principle by handling only snapshot transfer
+ * operations.
  */
+
 public class TransferCommand implements Command {
 
     private final NetworkService networkService;
@@ -73,156 +76,49 @@ public class TransferCommand implements Command {
         }
 
         // Parse required arguments
-        if (args.length < 3) {
-            System.err.println("Error: Missing required arguments");
-            System.err.println("Usage: " + getUsage());
-            System.err.println("Use 'help transfer' for more information");
+        TransferOptions options = parseOptions(args);
+        if (options == null) {
             return false;
         }
 
-        String snapshotId = args[0];
-        InetSocketAddress serverAddress = null;
-        TransportType transportType = TransportType.TCP;
+        if (options.helpRequested) {
+            displayHelp();
+            return true;
+        }
 
-        // Find --to argument
-        boolean foundTo = false;
-        for (int i = 1; i < args.length; i++) {
-            if (args[i].equals("--to")) {
-                if (i + 1 < args.length) {
-                    try {
-                        String[] parts = args[i + 1].split(":");
-                        if (parts.length != 2) {
-                            System.err.println("Error: Invalid server format. Use host:port");
-                            return false;
-                        }
-                        String host = parts[0];
-                        if (host == null || host.trim().isEmpty()) {
-                            System.err.println("Error: Hostname cannot be empty");
-                            return false;
-                        }
-                        int port = Integer.parseInt(parts[1]);
-                        if (port < 1 || port > 65535) {
-                            System.err.println("Error: Port must be between 1 and 65535");
-                            return false;
-                        }
-                        serverAddress = new InetSocketAddress(host, port);
-                        foundTo = true;
-                        i++; // Skip the server address
-                    } catch (NumberFormatException e) {
-                        System.err.println("Error: Invalid port number: " + args[i + 1]);
-                        return false;
-                    }
-                } else {
-                    System.err.println("Error: --to requires a server address (host:port)");
-                    return false;
-                }
-                break;
+        // Initialize services
+        try (ServiceContext services = initializeServices()) {
+            if (services == null) {
+                return false;
             }
-        }
 
-        if (!foundTo || serverAddress == null) {
-            System.err.println("Error: --to option is required");
-            return false;
-        }
-
-        // Parse options
-        boolean verifyAfterTransfer = true;
-        boolean compress = false;
-        boolean resume = false;
-        boolean verbose = true;
-
-        for (int i = 1; i < args.length; i++) {
-            String arg = args[i];
-            switch (arg) {
-                case "--transport":
-                    if (i + 1 < args.length) {
-                        try {
-                            transportType = TransportType.valueOf(args[i + 1].toUpperCase());
-                            i++; // Skip the next argument
-                        } catch (IllegalArgumentException e) {
-                            System.err.println("Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
-                            return false;
-                        }
-                    } else {
-                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
-                        return false;
-                    }
-                    break;
-                case "--no-verify":
-                    verifyAfterTransfer = false;
-                    break;
-                case "--compress":
-                    compress = true;
-                    break;
-                case "--resume":
-                    resume = true;
-                    break;
-                case "--quiet":
-                case "-q":
-                    verbose = false;
-                    break;
-                case "--help":
-                    displayHelp();
-                    return true;
-                default:
-                    if (arg.startsWith("--") && !arg.equals("--to")) {
-                        System.err.println("Error: Unknown option: " + arg);
-                        return false;
-                    }
-                    break;
-            }
-        }
-
-        // Create services if not provided
-        final NetworkService netService;
-        final MetadataService metadataService;
-
-        try {
-            netService = networkService != null ? networkService : serviceFactory.createNetworkService();
-            metadataService = serviceFactory.createMetadataService();
-        } catch (Exception e) {
-            System.err.println("Error: Failed to initialize services: " + e.getMessage());
-            return false;
-        }
-
-        try {
             // Verify snapshot exists
-            Optional<Snapshot> snapshotOpt = metadataService.getSnapshot(snapshotId);
+            Optional<Snapshot> snapshotOpt;
+            try {
+                snapshotOpt = services.metadataService.getSnapshot(options.snapshotId);
+            } catch (Exception e) {
+                System.err.println("Error: Failed to retrieve snapshot: " + e.getMessage());
+                return false;
+            }
+
             if (snapshotOpt.isEmpty()) {
-                System.err.println("Error: Snapshot not found: " + snapshotId);
+                System.err.println("Error: Snapshot not found: " + options.snapshotId);
                 return false;
             }
 
             Snapshot snapshot = snapshotOpt.get();
 
-            if (verbose) {
-                System.out.println("Transfer Snapshot Information:");
-                System.out.println("=============================");
-                System.out.println("Snapshot ID: " + snapshot.getId());
-                System.out.println("Name: " + snapshot.getName());
-                if (snapshot.getDescription() != null && !snapshot.getDescription().trim().isEmpty()) {
-                    System.out.println("Description: " + snapshot.getDescription());
-                }
-                System.out.println("Created: " + snapshot.getCreatedAt());
-                System.out.println("Total Files: " + snapshot.getTotalFiles());
-                System.out.println("Total Size: " + formatFileSize(snapshot.getTotalSize()));
-                System.out.println();
-                System.out.println("Transfer Settings:");
-                System.out.println("==================");
-                System.out.println("Target Server: " + serverAddress);
-                System.out.println("Transport: " + transportType);
-                System.out.println("Verify After Transfer: " + verifyAfterTransfer);
-                System.out.println("Compression: " + (compress ? "enabled" : "disabled"));
-                System.out.println("Resume: " + (resume ? "enabled" : "disabled"));
-                System.out.println();
+            if (options.verbose) {
+                printTransferInfo(snapshot, options);
             }
 
             // Connect to remote server
-            if (verbose) {
+            if (options.verbose) {
                 System.out.println("Connecting to remote server...");
             }
 
-            CompletableFuture<Void> connectFuture = netService.connectToNode(serverAddress, transportType);
+            CompletableFuture<Void> connectFuture = services.netService.connectToNode(options.serverAddress,
+                    options.transportType);
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
@@ -230,23 +126,55 @@ public class TransferCommand implements Command {
                 return false;
             }
 
-            if (verbose) {
+            if (options.verbose) {
                 System.out.println("Connected to server successfully.");
                 System.out.println("Starting transfer...");
             }
 
+            boolean success = performTransfer(snapshot, options);
+
+            // Disconnect from remote server
+            try {
+                services.netService.disconnectFromNode(options.serverAddress).get(10, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                System.err.println("Warning: Disconnect timeout after 10 seconds");
+            }
+
+            if (options.verbose) {
+                System.out.println("Disconnected from remote server.");
+                if (success) {
+                    printTransferSummary(snapshot, options);
+                }
+            } else if (success) {
+                System.out.println("Transfer completed: " + options.snapshotId + " -> " + options.serverAddress);
+            }
+
+            return success;
+
+        } catch (Exception e) {
+            System.err.println("Error: Transfer failed: " + e.getMessage());
+            if (e.getCause() != null) {
+                System.err.println("Cause: " + e.getCause().getMessage());
+            }
+            return false;
+        }
+    }
+
+    private boolean performTransfer(Snapshot snapshot, TransferOptions options) {
+        try {
             // Create a temporary file for the snapshot metadata
             // In a real implementation, we would serialize the snapshot and transfer it
             // For now, we'll simulate the transfer process
             long totalBytes = snapshot.getTotalSize();
             long bytesTransferred = 0;
             int chunksTransferred = 0;
-            int totalChunks = totalBytes > 0 ? (int) Math.ceil(totalBytes / (64.0 * 1024)) : 1; // Assume 64KB chunks
+            // Assume 64KB chunks
+            int totalChunks = totalBytes > 0 ? (int) Math.ceil(totalBytes / (64.0 * 1024)) : 1;
 
             // Simulate transfer progress
             while (bytesTransferred < totalBytes) {
                 long chunkSize = Math.min(64 * 1024, totalBytes - bytesTransferred);
-                
+
                 // Simulate chunk transfer
                 try {
                     Thread.sleep(100); // Simulate network delay
@@ -258,25 +186,28 @@ public class TransferCommand implements Command {
                 bytesTransferred += chunkSize;
                 chunksTransferred++;
 
-                if (verbose) {
+                if (options.verbose) {
                     double progress = totalBytes > 0 ? (bytesTransferred * 100.0) / totalBytes : 100.0;
                     System.out.printf("\rProgress: %.1f%% (%d/%d chunks, %s/%s)",
-                        progress, chunksTransferred, totalChunks,
-                        formatFileSize(bytesTransferred), formatFileSize(totalBytes));
+                            progress, chunksTransferred, totalChunks,
+                            formatFileSize(bytesTransferred), formatFileSize(totalBytes));
                     System.out.flush();
                 }
             }
 
-            if (verbose) {
+            if (options.verbose) {
                 System.out.println(); // New line after progress
                 System.out.println("Transfer completed successfully!");
                 System.out.println("Chunks transferred: " + chunksTransferred);
                 System.out.println("Total bytes: " + formatFileSize(bytesTransferred));
             }
 
+            options.bytesTransferred = bytesTransferred; // Store for summary
+            options.chunksTransferred = chunksTransferred;
+
             // Verify transfer if requested
-            if (verifyAfterTransfer) {
-                if (verbose) {
+            if (options.verifyAfterTransfer) {
+                if (options.verbose) {
                     System.out.println("Verifying transfer integrity...");
                 }
 
@@ -290,42 +221,192 @@ public class TransferCommand implements Command {
                     return false;
                 }
 
-                if (verbose) {
+                if (options.verbose) {
                     System.out.println("Transfer verification completed successfully.");
                 }
             }
 
-            // Disconnect from remote server
-            try {
-                netService.disconnectFromNode(serverAddress).get(10, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
-                System.err.println("Warning: Disconnect timeout after 10 seconds");
-            }
-
-            if (verbose) {
-                System.out.println("Disconnected from remote server.");
-                System.out.println();
-                System.out.println("Transfer Summary:");
-                System.out.println("================");
-                System.out.println("Snapshot: " + snapshotId);
-                System.out.println("Target: " + serverAddress);
-                System.out.println("Size: " + formatFileSize(bytesTransferred));
-                System.out.println("Chunks: " + chunksTransferred);
-                System.out.println("Transport: " + transportType);
-                System.out.println("Verified: " + (verifyAfterTransfer ? "Yes" : "No"));
-            } else {
-                System.out.println("Transfer completed: " + snapshotId + " -> " + serverAddress);
-            }
+            return true;
 
         } catch (Exception e) {
-            System.err.println("Error: Transfer failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
+            System.err.println("Error: Transfer logic failed: " + e.getMessage());
             return false;
-        } finally {
-            // Clean up resources if we created them
-            if (networkService == null && netService != null) {
+        }
+    }
+
+    private void printTransferInfo(Snapshot snapshot, TransferOptions options) {
+        System.out.println("Transfer Snapshot Information:");
+        System.out.println("=============================");
+        System.out.println("Snapshot ID: " + snapshot.getId());
+        System.out.println("Name: " + snapshot.getName());
+        if (snapshot.getDescription() != null && !snapshot.getDescription().trim().isEmpty()) {
+            System.out.println("Description: " + snapshot.getDescription());
+        }
+        System.out.println("Created: " + snapshot.getCreatedAt());
+        System.out.println("Total Files: " + snapshot.getTotalFiles());
+        System.out.println("Total Size: " + formatFileSize(snapshot.getTotalSize()));
+        System.out.println();
+        System.out.println("Transfer Settings:");
+        System.out.println("==================");
+        System.out.println("Target Server: " + options.serverAddress);
+        System.out.println("Transport: " + options.transportType);
+        System.out.println("Verify After Transfer: " + options.verifyAfterTransfer);
+        System.out.println("Compression: " + (options.compress ? "enabled" : "disabled"));
+        System.out.println("Resume: " + (options.resume ? "enabled" : "disabled"));
+        System.out.println();
+    }
+
+    private void printTransferSummary(Snapshot snapshot, TransferOptions options) {
+        System.out.println();
+        System.out.println("Transfer Summary:");
+        System.out.println("================");
+        System.out.println("Snapshot: " + options.snapshotId);
+        System.out.println("Target: " + options.serverAddress);
+        System.out.println("Size: " + formatFileSize(options.bytesTransferred));
+        System.out.println("Chunks: " + options.chunksTransferred);
+        System.out.println("Transport: " + options.transportType);
+        System.out.println("Verified: " + (options.verifyAfterTransfer ? "Yes" : "No"));
+    }
+
+    private static class TransferOptions {
+        String snapshotId;
+        InetSocketAddress serverAddress;
+        TransportType transportType = TransportType.TCP;
+        boolean verifyAfterTransfer = true;
+        boolean compress = false;
+        boolean resume = false;
+        boolean verbose = true;
+        boolean helpRequested = false;
+
+        // Results
+        long bytesTransferred = 0;
+        int chunksTransferred = 0;
+    }
+
+    private TransferOptions parseOptions(String[] args) {
+        if (args.length < 3) {
+            // Handle help request with minimal args
+            if (args.length == 1 && args[0].equals("--help")) {
+                TransferOptions opts = new TransferOptions();
+                opts.helpRequested = true;
+                return opts;
+            }
+            System.err.println("Error: Missing required arguments");
+            System.err.println("Usage: " + getUsage());
+            System.err.println("Use 'help transfer' for more information");
+            return null;
+        }
+
+        TransferOptions options = new TransferOptions();
+        options.snapshotId = args[0];
+
+        // Find --to argument first as it's required
+        boolean foundTo = false;
+        for (int i = 1; i < args.length; i++) {
+            if (args[i].equals("--to")) {
+                if (i + 1 < args.length) {
+                    try {
+                        String[] parts = args[i + 1].split(":");
+                        if (parts.length != 2) {
+                            System.err.println("Error: Invalid server format. Use host:port");
+                            return null;
+                        }
+                        String host = parts[0];
+                        if (host == null || host.trim().isEmpty()) {
+                            System.err.println("Error: Hostname cannot be empty");
+                            return null;
+                        }
+                        int port = Integer.parseInt(parts[1]);
+                        if (port < 1 || port > 65535) {
+                            System.err.println("Error: Port must be between 1 and 65535");
+                            return null;
+                        }
+                        options.serverAddress = new InetSocketAddress(host, port);
+                        foundTo = true;
+                        // We need to advance i here, but the loop continues.
+                        // However, we re-iterate for other options below or just skip properly.
+                        // Actually, let's just parse fully here.
+                    } catch (NumberFormatException e) {
+                        System.err.println("Error: Invalid port number: " + args[i + 1]);
+                        return null;
+                    }
+                } else {
+                    System.err.println("Error: --to requires a server address (host:port)");
+                    return null;
+                }
+                break;
+            }
+        }
+
+        if (!foundTo || options.serverAddress == null) {
+            System.err.println("Error: --to option is required");
+            return null;
+        }
+
+        for (int i = 1; i < args.length; i++) {
+            String arg = args[i];
+
+            // Skip --to and its value as we handled it
+            if (arg.equals("--to")) {
+                i++;
+                continue;
+            }
+
+            switch (arg) {
+                case "--transport":
+                    if (i + 1 < args.length) {
+                        try {
+                            options.transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
+                            i++;
+                        } catch (IllegalArgumentException e) {
+                            System.err.println(
+                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
+                            return null;
+                        }
+                    } else {
+                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
+                        return null;
+                    }
+                    break;
+                case "--no-verify":
+                    options.verifyAfterTransfer = false;
+                    break;
+                case "--compress":
+                    options.compress = true;
+                    break;
+                case "--resume":
+                    options.resume = true;
+                    break;
+                case "--quiet":
+                case "-q":
+                    options.verbose = false;
+                    break;
+                case "--help":
+                    options.helpRequested = true;
+                    return options;
+                default:
+                    if (arg.startsWith("--")) {
+                        System.err.println("Error: Unknown option: " + arg);
+                        return null;
+                    }
+                    break;
+            }
+        }
+        return options;
+    }
+
+    private static class ServiceContext implements AutoCloseable {
+        final NetworkService netService;
+        final MetadataService metadataService;
+
+        ServiceContext(NetworkService netService, MetadataService metadataService) {
+            this.netService = netService;
+            this.metadataService = metadataService;
+        }
+
+        @Override
+        public void close() {
+            if (netService != null) {
                 try {
                     netService.close();
                 } catch (Exception e) {
@@ -339,10 +420,28 @@ public class TransferCommand implements Command {
                     System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
                 }
             }
-            
+        }
+    }
+
+    private ServiceContext initializeServices() {
+        NetworkService ns = null;
+        MetadataService ms = null;
+
+        try {
+            ns = networkService != null ? networkService : serviceFactory.createNetworkService();
+            ms = serviceFactory.createMetadataService();
+        } catch (Exception e) {
+            System.err.println("Error: Failed to initialize services: " + e.getMessage());
+            if (ns != null && networkService == null) {
+                try {
+                    ns.close();
+                } catch (Exception ignored) {
+                }
+            }
+            return null;
         }
 
-        return true;
+        return new ServiceContext(ns, ms);
     }
 
     /**

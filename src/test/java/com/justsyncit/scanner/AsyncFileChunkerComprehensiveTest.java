@@ -45,7 +45,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Comprehensive unit tests for AsyncFileChunker following TDD principles.
@@ -433,7 +439,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
         @ParameterizedTest
         @Timeout(15)
-        @ValueSource(ints = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
+        @ValueSource(ints = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
         @DisplayName("Should handle various file sizes")
         void shouldHandleVariousFileSizes(int fileSize) throws Exception {
             // Given
@@ -456,7 +462,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
         @ParameterizedTest
         @Timeout(15)
-        @ValueSource(ints = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
+        @ValueSource(ints = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
         @DisplayName("Should handle various chunk sizes")
         void shouldHandleVariousChunkSizes(int chunkSize) throws Exception {
             // Given
@@ -563,8 +569,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             } catch (AsyncTestUtils.AsyncTestAssertionError e) {
                 // If the assertion fails with a different exception type, that's also
                 // acceptable
-                assertTrue(e.getCause() instanceof IllegalArgumentException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof IllegalArgumentException
+                        || e.getCause() instanceof RuntimeException);
             }
         }
 
@@ -637,7 +643,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             List<FileChunker.ChunkingResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                    AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             assertEquals(fileCount, results.size());
@@ -681,7 +687,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 futures.add(threadFuture);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             // All operations should complete successfully
@@ -715,7 +721,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             List<FileChunker.ChunkingResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                    AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+                    AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             assertEquals(fileCount, results.size());
@@ -761,7 +767,10 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                             }
                         }
 
-                        return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        @SuppressWarnings("rawtypes")
+                        CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
+                        CompletableFuture<Void> allFutures = CompletableFuture.allOf(futuresArray);
+                        return allFutures
                                 .thenApply(v -> futures.stream()
                                         .map(future -> {
                                             try {
@@ -780,7 +789,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             double averageTimePerFile = result.getDurationMillis() / fileCount;
             assertTrue(averageTimePerFile <= maxAverageTime.toMillis(),
                     String.format("Average time per file (%.2f ms) exceeds target (%.2f ms)",
-                            (double) averageTimePerFile, (double) maxAverageTime.toMillis()));
+                            averageTimePerFile, (double) maxAverageTime.toMillis()));
         }
 
         @Test
@@ -820,7 +829,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 futures.add(future);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
@@ -830,7 +839,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             double averageTimePerOperation = totalDuration / 1_000_000.0 / totalOperations;
             assertTrue(averageTimePerOperation <= maxAverageTime.toMillis(),
                     String.format("Average time per operation under load (%.2f ms) exceeds target (%.2f ms)",
-                            (double) averageTimePerOperation, (double) maxAverageTime.toMillis()));
+                            averageTimePerOperation, (double) maxAverageTime.toMillis()));
 
             executor.shutdown();
             executor.awaitTermination(10, TimeUnit.SECONDS);
@@ -1039,8 +1048,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
                 fail("Should have thrown exception due to interruption");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getCause() instanceof InterruptedException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof InterruptedException
+                        || e.getCause() instanceof RuntimeException);
             } finally {
                 // Clear interrupt status
                 Thread.interrupted();
@@ -1066,8 +1075,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.ULTRA_SHORT_TIMEOUT);
                 fail("Should have timed out");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getMessage().contains("timed out") ||
-                        e.getCause() instanceof java.util.concurrent.TimeoutException);
+                assertTrue(e.getMessage().contains("timed out")
+                        || e.getCause() instanceof java.util.concurrent.TimeoutException);
             }
         }
 
@@ -1122,8 +1131,8 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             } catch (AsyncTestUtils.AsyncTestAssertionError e) {
                 // If the assertion fails with a different exception type, that's also
                 // acceptable
-                assertTrue(e.getCause() instanceof IllegalStateException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof IllegalStateException
+                        || e.getCause() instanceof RuntimeException);
             }
         }
     }
@@ -1207,7 +1216,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 break;
             case REPEATING:
                 data = new byte[size];
-                byte[] dataPattern = { 0x42, 0x43, 0x44, 0x45 };
+                byte[] dataPattern = {0x42, 0x43, 0x44, 0x45 };
                 for (int i = 0; i < size; i++) {
                     data[i] = dataPattern[i % dataPattern.length];
                 }

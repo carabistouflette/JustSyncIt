@@ -34,6 +34,7 @@ import java.util.logging.Logger;
  * Service for backing up directories to content store.
  * Orchestrates complete backup workflow: scan → chunk → hash → store.
  */
+
 public class BackupService {
 
     private static final Logger LOGGER = Logger.getLogger(BackupService.class.getName());

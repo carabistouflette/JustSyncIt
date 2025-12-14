@@ -23,31 +23,31 @@ package com.justsyncit.scanner;
  * Controls the order and resource allocation for batch operations.
  */
 public enum BatchPriority {
-    
+
     /**
      * Critical priority - processed immediately with maximum resources.
      * Used for emergency operations and system-critical files.
      */
     CRITICAL(1, "Critical", "Processed immediately with maximum resources"),
-    
+
     /**
      * High priority - processed before normal priority batches.
      * Used for important user operations and time-sensitive files.
      */
     HIGH(2, "High", "Processed before normal priority batches"),
-    
+
     /**
      * Normal priority - standard processing order.
      * Used for regular backup operations and routine processing.
      */
     NORMAL(3, "Normal", "Standard processing order"),
-    
+
     /**
      * Low priority - processed when system resources are available.
      * Used for background operations and non-urgent tasks.
      */
     LOW(4, "Low", "Processed when system resources are available"),
-    
+
     /**
      * Background priority - processed only during idle periods.
      * Used for maintenance tasks and non-time-critical operations.

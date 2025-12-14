@@ -35,7 +35,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Utility class for simulating network conditions and testing network resilience.
+ * Utility class for simulating network conditions and testing network
+ * resilience.
  * Provides methods to simulate various network scenarios for E2E testing.
  */
 public class NetworkSimulationUtil {
@@ -44,7 +45,7 @@ public class NetworkSimulationUtil {
      * Network condition simulator that wraps a real NetworkService.
      */
     public static class NetworkConditionSimulator implements NetworkService {
-        
+
         private final NetworkService delegate;
         private final AtomicBoolean simulateLatency = new AtomicBoolean(false);
         private final AtomicBoolean simulatePacketLoss = new AtomicBoolean(false);
@@ -111,22 +112,39 @@ public class NetworkSimulationUtil {
             return false;
         }
 
-        @Override
-        public CompletableFuture<Void> startServer(int port) throws IOException, ServiceException {
-            if (shouldSimulateConnectionFailure()) {
+        private <T> CompletableFuture<T> simulate(java.util.function.Supplier<CompletableFuture<T>> action,
+                boolean checkConnectionFailure, boolean checkPacketLoss) {
+            if (checkConnectionFailure && shouldSimulateConnectionFailure()) {
                 return CompletableFuture.failedFuture(new IOException("Simulated connection failure"));
             }
+            if (checkPacketLoss && shouldSimulatePacketLoss()) {
+                return CompletableFuture.failedFuture(new IOException("Simulated packet loss"));
+            }
             simulateLatency();
-            return delegate.startServer(port);
+            return action.get();
         }
 
         @Override
-        public CompletableFuture<Void> startServer(int port, TransportType transportType) throws IOException, ServiceException {
-            if (shouldSimulateConnectionFailure()) {
-                return CompletableFuture.failedFuture(new IOException("Simulated connection failure"));
-            }
-            simulateLatency();
-            return delegate.startServer(port, transportType);
+        public CompletableFuture<Void> startServer(int port) throws IOException, ServiceException {
+            return simulate(() -> {
+                try {
+                    return delegate.startServer(port);
+                } catch (IOException | ServiceException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, true, false);
+        }
+
+        @Override
+        public CompletableFuture<Void> startServer(int port, TransportType transportType)
+                throws IOException, ServiceException {
+            return simulate(() -> {
+                try {
+                    return delegate.startServer(port, transportType);
+                } catch (IOException | ServiceException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, true, false);
         }
 
         @Override
@@ -137,22 +155,27 @@ public class NetworkSimulationUtil {
 
         @Override
         public CompletableFuture<Void> connectToNode(InetSocketAddress address) throws IOException {
-            if (shouldSimulateConnectionFailure()) {
-                return CompletableFuture.failedFuture(new IOException("Simulated connection failure"));
-            }
-            simulateLatency();
-            connectionCount.incrementAndGet();
-            return delegate.connectToNode(address);
+            return simulate(() -> {
+                try {
+                    connectionCount.incrementAndGet();
+                    return delegate.connectToNode(address);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, true, false);
         }
 
         @Override
-        public CompletableFuture<Void> connectToNode(InetSocketAddress address, TransportType transportType) throws IOException {
-            if (shouldSimulateConnectionFailure()) {
-                return CompletableFuture.failedFuture(new IOException("Simulated connection failure"));
-            }
-            simulateLatency();
-            connectionCount.incrementAndGet();
-            return delegate.connectToNode(address, transportType);
+        public CompletableFuture<Void> connectToNode(InetSocketAddress address, TransportType transportType)
+                throws IOException {
+            return simulate(() -> {
+                try {
+                    connectionCount.incrementAndGet();
+                    return delegate.connectToNode(address, transportType);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, true, false);
         }
 
         @Override
@@ -162,43 +185,55 @@ public class NetworkSimulationUtil {
         }
 
         @Override
-        public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress, ContentStore contentStore) throws IOException {
-            if (shouldSimulatePacketLoss()) {
-                return CompletableFuture.failedFuture(new IOException("Simulated packet loss"));
-            }
-            simulateLatency();
-            bytesTransferred.addAndGet(Files.size(filePath));
-            return delegate.sendFile(filePath, remoteAddress, contentStore);
+        public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
+                ContentStore contentStore) throws IOException {
+            return simulate(() -> {
+                try {
+                    bytesTransferred.addAndGet(Files.size(filePath));
+                    return delegate.sendFile(filePath, remoteAddress, contentStore);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, false, true);
         }
 
         @Override
-        public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress, ContentStore contentStore, TransportType transportType) throws IOException {
-            if (shouldSimulatePacketLoss()) {
-                return CompletableFuture.failedFuture(new IOException("Simulated packet loss"));
-            }
-            simulateLatency();
-            bytesTransferred.addAndGet(Files.size(filePath));
-            return delegate.sendFile(filePath, remoteAddress, contentStore, transportType);
+        public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
+                ContentStore contentStore, TransportType transportType) throws IOException {
+            return simulate(() -> {
+                try {
+                    bytesTransferred.addAndGet(Files.size(filePath));
+                    return delegate.sendFile(filePath, remoteAddress, contentStore, transportType);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, false, true);
         }
 
         @Override
-        public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress) throws IOException {
-            if (shouldSimulatePacketLoss()) {
-                return CompletableFuture.failedFuture(new IOException("Simulated packet loss"));
-            }
-            simulateLatency();
-            messagesTransferred.incrementAndGet();
-            return delegate.sendMessage(message, remoteAddress);
+        public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress)
+                throws IOException {
+            return simulate(() -> {
+                try {
+                    messagesTransferred.incrementAndGet();
+                    return delegate.sendMessage(message, remoteAddress);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, false, true);
         }
 
         @Override
-        public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress, TransportType transportType) throws IOException {
-            if (shouldSimulatePacketLoss()) {
-                return CompletableFuture.failedFuture(new IOException("Simulated packet loss"));
-            }
-            simulateLatency();
-            messagesTransferred.incrementAndGet();
-            return delegate.sendMessage(message, remoteAddress, transportType);
+        public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress,
+                TransportType transportType) throws IOException {
+            return simulate(() -> {
+                try {
+                    messagesTransferred.incrementAndGet();
+                    return delegate.sendMessage(message, remoteAddress, transportType);
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }, false, true);
         }
 
         @Override

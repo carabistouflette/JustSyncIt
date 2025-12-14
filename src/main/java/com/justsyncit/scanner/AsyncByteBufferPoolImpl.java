@@ -198,10 +198,10 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
             totalBuffers.set(0);
             buffersInUse.set(0);
             closed = true;
-            
+
             // Capture executor reference while holding lock
             final ExecutorService executorToShutdown = executorService;
-            
+
             // Schedule shutdown on a separate daemon thread to avoid deadlock
             CompletableFuture<Void> result = new CompletableFuture<>();
             Thread shutdownThread = new Thread(() -> {
@@ -216,7 +216,7 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
             }, "AsyncByteBufferPool-shutdown");
             shutdownThread.setDaemon(true);
             shutdownThread.start();
-            
+
             return result;
         } finally {
             cleanupLock.unlock();
@@ -250,7 +250,7 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
     @Override
     public ByteBuffer acquire(int size) {
         logger.debug("Acquiring buffer of size {}", size);
-        
+
         if (closed) {
             throw new IllegalStateException("Buffer pool has been closed");
         }
@@ -315,7 +315,7 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
     public void clear() {
         // Capture executor reference locally to minimize critical section
         ExecutorService executorToShutdown = null;
-        
+
         // First check if already closed to avoid unnecessary locking
         if (closed) {
             return;
@@ -338,13 +338,13 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
             totalBuffers.set(0);
             buffersInUse.set(0);
             closed = true;
-            
+
             // Capture executor reference while holding lock
             executorToShutdown = executorService;
         } finally {
             cleanupLock.unlock();
         }
-        
+
         // Shutdown executor service outside of lock to avoid deadlock
         if (executorToShutdown != null && !executorToShutdown.isShutdown()) {
             shutdownExecutorService(executorToShutdown, "AsyncByteBufferPool sync executor");
@@ -433,7 +433,7 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
         if (executor == null || executor.isShutdown()) {
             return;
         }
-        
+
         try {
             executor.shutdown();
             if (!executor.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS)) {

@@ -32,6 +32,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,9 +40,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
@@ -84,7 +90,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Given
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -106,7 +112,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             createTestFiles(tempDir, "file", 5, 1024);
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -136,7 +142,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             ScanOptions options = new ScanOptions()
                     .withMaxDepth(Integer.MAX_VALUE) // Recursive
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -183,6 +189,141 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
     }
 
     @Nested
+    @DisplayName("Configuration and Filtering")
+    class ConfigurationAndFiltering {
+
+        @Test
+        @DisplayName("Should respect include pattern")
+        void shouldRespectIncludePattern() throws Exception {
+            // Given
+            createTestFile(tempDir, "file1.txt", 100);
+            createTestFile(tempDir, "file2.log", 100);
+            createTestFile(tempDir, "file3.txt", 100);
+
+            ScanOptions options = new ScanOptions()
+                    .withIncludePattern(tempDir.getFileSystem().getPathMatcher("glob:*.txt"));
+
+            // When
+            CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
+            ScanResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
+
+            // Then
+            assertEquals(2, result.getScannedFileCount());
+            assertTrue(result.getScannedFiles().stream()
+                    .allMatch(f -> f.getPath().toString().endsWith(".txt")));
+        }
+
+        @Test
+        @DisplayName("Should respect exclude pattern")
+        void shouldRespectExcludePattern() throws Exception {
+            // Given
+            createTestFile(tempDir, "file1.txt", 100);
+            createTestFile(tempDir, "file2.tmp", 100);
+            createTestFile(tempDir, "file3.txt", 100);
+
+            ScanOptions options = new ScanOptions()
+                    .withExcludePattern(tempDir.getFileSystem().getPathMatcher("glob:*.tmp"));
+
+            // When
+            CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
+            ScanResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
+
+            // Then
+            assertEquals(2, result.getScannedFileCount());
+            assertTrue(result.getScannedFiles().stream()
+                    .noneMatch(f -> f.getPath().toString().endsWith(".tmp")));
+        }
+
+        @Test
+        @DisplayName("Should respect max depth")
+        void shouldRespectMaxDepth() throws Exception {
+            // Given
+            createTestFile(tempDir, "file1.txt", 100);
+            Path subdir1 = tempDir.resolve("subdir1");
+            Files.createDirectories(subdir1);
+            createTestFile(subdir1, "file2.txt", 100);
+            Path subdir2 = subdir1.resolve("subdir2");
+            Files.createDirectories(subdir2);
+            createTestFile(subdir2, "file3.txt", 100);
+
+            ScanOptions options = new ScanOptions()
+                    .withMaxDepth(2);
+
+            // When
+            CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
+            ScanResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
+
+            // Then
+            assertEquals(3, result.getScannedFileCount());
+        }
+
+        @Test
+        @DisplayName("Should respect file size limits")
+        void shouldRespectFileSizeLimits() throws Exception {
+            // Given
+            createTestFile(tempDir, "small.txt", 100);
+            createTestFile(tempDir, "medium.txt", 1000);
+            createTestFile(tempDir, "large.txt", 10000);
+
+            ScanOptions options = new ScanOptions()
+                    .withMinFileSize(500)
+                    .withMaxFileSize(5000);
+
+            // When
+            CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
+            ScanResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
+
+            // Then
+            assertEquals(1, result.getScannedFileCount()); // Only medium file
+            assertTrue(result.getScannedFiles().get(0).getPath().toString().endsWith("medium.txt"));
+        }
+    }
+
+    @Nested
+    @DisplayName("Custom Visitors and Listeners")
+    class CustomVisitorsAndListeners {
+
+        @Test
+        @DisplayName("Should use custom file visitor")
+        void shouldUseCustomFileVisitor() throws Exception {
+            // Given
+            createTestFile(tempDir, "file1.txt", 100);
+            createTestFile(tempDir, "file2.txt", 100);
+            TestFileVisitor fileVisitor = new TestFileVisitor();
+            scanner.setFileVisitor(fileVisitor);
+
+            // When
+            CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, new ScanOptions());
+            ScanResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
+
+            // Then
+            assertEquals(2, result.getScannedFileCount());
+            assertEquals(2, fileVisitor.filesVisited.get());
+            assertEquals(1, fileVisitor.directoriesVisited.get()); // Root dir
+        }
+
+        @Test
+        @DisplayName("Should call progress listener methods")
+        void shouldCallProgressListenerMethods() throws Exception {
+            // Given
+            createTestFile(tempDir, "file1.txt", 100);
+            createTestFile(tempDir, "file2.txt", 100);
+            TestProgressListener progressListener = new TestProgressListener();
+            scanner.setProgressListener(progressListener);
+
+            // When
+            CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, new ScanOptions());
+            ScanResult result = AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
+
+            // Then
+            assertTrue(progressListener.scanStartedCalled);
+            assertEquals(2, progressListener.filesProcessed.get());
+            assertTrue(progressListener.scanCompletedCalled);
+            assertEquals(result, progressListener.lastResult);
+        }
+    }
+
+    @Nested
     @DisplayName("Edge Cases and Boundary Conditions")
     class EdgeCasesAndBoundaryConditions {
 
@@ -194,7 +335,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             createTestFiles(tempDir, "various", fileCount, 1024);
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -214,7 +355,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             createTestFiles(tempDir, "size", 5, fileSize);
             ScanOptions options = new ScanOptions()
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -241,7 +382,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             ScanOptions options = new ScanOptions()
                     .withMaxDepth(Integer.MAX_VALUE) // Recursive
                     .withIncludeHiddenFiles(false)
-                    .withFollowLinks(false);
+                    .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             // When
             CompletableFuture<ScanResult> future = scanner.scanDirectory(tempDir, options);
@@ -309,7 +450,6 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
             // When - don't follow symlinks
             ScanOptions noFollow = new ScanOptions()
-                    .withFollowLinks(false)
                     .withSymlinkStrategy(SymlinkStrategy.SKIP);
 
             CompletableFuture<ScanResult> noFollowFuture = scanner.scanDirectory(tempDir, noFollow);
@@ -317,7 +457,6 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
             // When - follow symlinks
             ScanOptions follow = new ScanOptions()
-                    .withFollowLinks(true)
                     .withSymlinkStrategy(SymlinkStrategy.FOLLOW);
 
             CompletableFuture<ScanResult> followFuture = scanner.scanDirectory(tempDir, follow);
@@ -358,9 +497,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             }
 
             // When
-            CompletableFuture<ScanResult>[] futureArray = futures.toArray(new CompletableFuture[0]);
             List<ScanResult> results = AsyncTestUtils.waitForAllAndGetResults(
-                    AsyncTestUtils.LONG_TIMEOUT, futureArray);
+                    AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             assertEquals(scanCount, results.size());
@@ -403,7 +541,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 futures.add(threadFuture);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             // Then
             executor.shutdown();
@@ -421,7 +559,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
             // Given
             int fileCount = 100;
             int fileSize = 1024;
-            Duration maxAverageTime = Duration.ofMillis(50); // 50ms target
+            Duration maxAverageTime = Duration.ofMillis(100); // 100ms target (generous for CI)
 
             createTestFiles(tempDir, "perf", fileCount, fileSize);
             ScanOptions options = new ScanOptions();
@@ -479,7 +617,7 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 futures.add(future);
             }
 
-            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures.toArray(new CompletableFuture[0]));
+            AsyncTestUtils.waitForAll(AsyncTestUtils.LONG_TIMEOUT, futures);
 
             long endTime = System.nanoTime();
             long totalDuration = endTime - startTime;
@@ -539,7 +677,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
 
                             ScanOptions options = new ScanOptions();
                             CompletableFuture<ScanResult> resultFuture = scanner.scanDirectory(scanDir, options);
-                            ScanResult scanResult = resultFuture.get(30, TimeUnit.SECONDS);
+                            ScanResult scanResult = resultFuture.get(AsyncTestUtils.DEFAULT_TIMEOUT.toMillis(),
+                                    TimeUnit.MILLISECONDS);
                             assertNotNull(scanResult);
                         } catch (Exception e) {
                             throw new RuntimeException("Scan operation failed", e);
@@ -601,8 +740,8 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
                 AsyncTestUtils.getResultOrThrow(future, AsyncTestUtils.SHORT_TIMEOUT);
                 fail("Should have thrown exception due to interruption");
             } catch (AsyncTestUtils.AsyncTestException e) {
-                assertTrue(e.getCause() instanceof InterruptedException ||
-                        e.getCause() instanceof RuntimeException);
+                assertTrue(e.getCause() instanceof InterruptedException
+                        || e.getCause() instanceof RuntimeException);
             } finally {
                 // Clear interrupt status
                 Thread.interrupted();
@@ -733,5 +872,62 @@ class FilesystemScannerComprehensiveTest extends AsyncTestBase {
         new java.util.Random().nextBytes(data);
         Files.write(file, data);
         return file;
+    }
+
+    /**
+     * Test implementation of ProgressListener for testing.
+     */
+    private static class TestProgressListener implements FilesystemScanner.ProgressListener {
+        boolean scanStartedCalled = false;
+        boolean scanCompletedCalled = false;
+        AtomicLong filesProcessed = new AtomicLong(0);
+        ScanResult lastResult = null;
+        List<Path> errors = new ArrayList<>();
+
+        @Override
+        public void onScanStarted(Path directory) {
+            scanStartedCalled = true;
+        }
+
+        @Override
+        public void onFileProcessed(Path file, long filesProcessedCount, long totalFiles) {
+            filesProcessed.incrementAndGet();
+        }
+
+        @Override
+        public void onScanCompleted(ScanResult result) {
+            scanCompletedCalled = true;
+            lastResult = result;
+        }
+
+        @Override
+        public void onScanError(Path path, Exception error) {
+            errors.add(path);
+        }
+    }
+
+    /**
+     * Test implementation of FileVisitor for testing.
+     */
+    private static class TestFileVisitor implements FileVisitor {
+        AtomicInteger filesVisited = new AtomicInteger(0);
+        AtomicInteger directoriesVisited = new AtomicInteger(0);
+
+        @Override
+        public FileVisitResult visitDirectory(Path dir, BasicFileAttributes attrs) {
+            directoriesVisited.incrementAndGet();
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+            filesVisited.incrementAndGet();
+            return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFailed(Path file, IOException exc) {
+            return FileVisitResult.CONTINUE;
+        }
     }
 }

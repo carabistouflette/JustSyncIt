@@ -33,7 +33,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Concurrency test suite for async components.
@@ -51,17 +53,17 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
     @BeforeEach
     void setUp() {
         super.setUp();
-        
+
         // Create test components
         bufferPool = AsyncByteBufferPoolImpl.create(32 * 1024, 20); // 32KB buffers, 20 max
         fileChunker = AsyncFileChunkerImpl.create(createMockBlake3Service());
         chunkHandler = AsyncFileChunkHandler.create(createMockBlake3Service());
-        
+
         // Configure components
         fileChunker.setAsyncBufferPool(bufferPool);
         fileChunker.setAsyncChunkHandler(chunkHandler);
         fileChunker.setMaxConcurrentOperations(6);
-        
+
         // Create test files
         testFiles = new ArrayList<>();
         try {
@@ -103,10 +105,10 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
         int operationsPerThread = 50;
         AtomicInteger successfulOperations = new AtomicInteger(0);
         AtomicInteger failedOperations = new AtomicInteger(0);
-        
+
         // When - Execute concurrent buffer operations
         List<CompletableFuture<Void>> threadFutures = new ArrayList<>();
-        
+
         for (int t = 0; t < threadCount; t++) {
             final int threadId = t;
             CompletableFuture<Void> threadFuture = CompletableFuture.runAsync(() -> {
@@ -116,14 +118,14 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                         java.nio.ByteBuffer buffer = bufferPool.acquire(8192);
                         assertNotNull(buffer, "Buffer should not be null");
                         assertTrue(buffer.capacity() >= 8192, "Buffer should have sufficient capacity");
-                        
+
                         // Simulate work
                         Thread.sleep(1);
-                        
+
                         // Release buffer
                         bufferPool.release(buffer);
                         successfulOperations.incrementAndGet();
-                        
+
                     } catch (Exception e) {
                         failedOperations.incrementAndGet();
                         // Some failures are expected under high contention
@@ -132,21 +134,19 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             });
             threadFutures.add(threadFuture);
         }
-        
+
         // Then - All threads should complete
-        CompletableFuture<Void> allThreadsFuture = CompletableFuture.allOf(
-            threadFutures.toArray(new CompletableFuture[0]));
-        allThreadsFuture.get(20, TimeUnit.SECONDS);
-        
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(20), threadFutures);
+
         int totalOperations = successfulOperations.get() + failedOperations.get();
-        assertEquals(threadCount * operationsPerThread, totalOperations, 
-            "All operations should be accounted for");
-        
+        assertEquals(threadCount * operationsPerThread, totalOperations,
+                "All operations should be accounted for");
+
         // Most operations should succeed
         double successRate = (double) successfulOperations.get() / totalOperations;
-        assertTrue(successRate >= 0.8, 
-            String.format("Success rate should be at least 80%%: %.2f", successRate));
-        
+        assertTrue(successRate >= 0.8,
+                String.format("Success rate should be at least 80%%: %.2f", successRate));
+
         // Verify pool consistency
         CompletableFuture<String> statsFuture = bufferPool.getStatsAsync();
         String statsString = statsFuture.get(5, TimeUnit.SECONDS);
@@ -164,17 +164,16 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
         AtomicInteger successfulChunking = new AtomicInteger(0);
         AtomicInteger failedChunking = new AtomicInteger(0);
         AtomicLong totalBytesProcessed = new AtomicLong(0);
-        
+
         // When - Execute concurrent chunking operations
         List<CompletableFuture<FileChunker.ChunkingResult>> chunkingFutures = new ArrayList<>();
-        
+
         for (int round = 0; round < 5; round++) {
             for (int i = 0; i < concurrentChunking; i++) {
                 Path testFile = testFiles.get(i % testFiles.size());
-                
-                CompletableFuture<FileChunker.ChunkingResult> future = 
-                    fileChunker.chunkFileAsync(testFile, null);
-                
+
+                CompletableFuture<FileChunker.ChunkingResult> future = fileChunker.chunkFileAsync(testFile, null);
+
                 future.whenComplete((result, throwable) -> {
                     if (throwable == null && result.isSuccess()) {
                         successfulChunking.incrementAndGet();
@@ -183,29 +182,28 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                         failedChunking.incrementAndGet();
                     }
                 });
-                
+
                 chunkingFutures.add(future);
             }
-            
+
             // Wait for this round to complete before starting next
-            CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0]))
-                .get(15, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(15), chunkingFutures);
             chunkingFutures.clear();
         }
-        
+
         // Then - Operations should complete with reasonable success rate
         int totalOperations = successfulChunking.get() + failedChunking.get();
         assertTrue(totalOperations > 0, "Some operations should complete");
-        
+
         double successRate = (double) successfulChunking.get() / totalOperations;
-        assertTrue(successRate >= 0.7, 
-            String.format("Success rate should be at least 70%%: %.2f", successRate));
-        
+        assertTrue(successRate >= 0.7,
+                String.format("Success rate should be at least 70%%: %.2f", successRate));
+
         assertTrue(totalBytesProcessed.get() > 0, "Some bytes should be processed");
-        
+
         System.out.printf("Concurrent chunking: %d successful, %d failed, %.2f MB processed%n",
-            successfulChunking.get(), failedChunking.get(), 
-            totalBytesProcessed.get() / (1024.0 * 1024.0));
+                successfulChunking.get(), failedChunking.get(),
+                totalBytesProcessed.get() / (1024.0 * 1024.0));
     }
 
     @Test
@@ -216,15 +214,15 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
         int bufferOperations = 20;
         int chunkingOperations = 10;
         int handlerOperations = 15;
-        
+
         AtomicInteger bufferSuccess = new AtomicInteger(0);
         AtomicInteger chunkingSuccess = new AtomicInteger(0);
         AtomicInteger handlerSuccess = new AtomicInteger(0);
-        
+
         List<CompletableFuture<?>> allFutures = new ArrayList<>();
-        
+
         // When - Execute mixed concurrent operations
-        
+
         // Buffer pool operations
         for (int i = 0; i < bufferOperations; i++) {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -239,13 +237,12 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             });
             allFutures.add(future);
         }
-        
+
         // File chunking operations
         for (int i = 0; i < chunkingOperations; i++) {
             Path testFile = testFiles.get(i % testFiles.size());
-            CompletableFuture<FileChunker.ChunkingResult> future =
-                fileChunker.chunkFileAsync(testFile, null);
-            
+            CompletableFuture<FileChunker.ChunkingResult> future = fileChunker.chunkFileAsync(testFile, null);
+
             future.whenComplete((result, throwable) -> {
                 if (throwable == null && result.isSuccess()) {
                     chunkingSuccess.incrementAndGet();
@@ -253,7 +250,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             });
             allFutures.add(future);
         }
-        
+
         // Chunk handler operations
         java.nio.ByteBuffer[] testChunks = new java.nio.ByteBuffer[3];
         for (int i = 0; i < testChunks.length; i++) {
@@ -261,12 +258,11 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             testChunks[i].put(("test chunk data " + i).getBytes());
             testChunks[i].flip();
         }
-        
+
         for (int i = 0; i < handlerOperations; i++) {
             Path testFile = testFiles.get(0);
-            CompletableFuture<String[]> future =
-                chunkHandler.processChunksAsync(testChunks, testFile);
-            
+            CompletableFuture<String[]> future = chunkHandler.processChunksAsync(testChunks, testFile);
+
             future.whenComplete((result, throwable) -> {
                 if (throwable == null && result != null) {
                     handlerSuccess.incrementAndGet();
@@ -274,19 +270,17 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             });
             allFutures.add(future);
         }
-        
+
         // Then - All operations should complete
-        CompletableFuture<Void> allOperationsFuture = CompletableFuture.allOf(
-            allFutures.toArray(new CompletableFuture[0]));
-        allOperationsFuture.get(25, TimeUnit.SECONDS);
-        
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(25), allFutures);
+
         // Verify results
         assertTrue(bufferSuccess.get() > 0, "Some buffer operations should succeed");
         assertTrue(chunkingSuccess.get() > 0, "Some chunking operations should succeed");
         assertTrue(handlerSuccess.get() > 0, "Some handler operations should succeed");
-        
+
         System.out.printf("Mixed operations - Buffer: %d, Chunking: %d, Handler: %d%n",
-            bufferSuccess.get(), chunkingSuccess.get(), handlerSuccess.get());
+                bufferSuccess.get(), chunkingSuccess.get(), handlerSuccess.get());
     }
 
     @Test
@@ -298,10 +292,10 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
         int contentionOperations = 100;
         AtomicInteger dataCorruptionErrors = new AtomicInteger(0);
         AtomicInteger illegalStateErrors = new AtomicInteger(0);
-        
+
         // When - Create high contention scenario
         List<CompletableFuture<Void>> contentionFutures = new ArrayList<>();
-        
+
         for (int t = 0; t < contentionThreads; t++) {
             final int threadId = t;
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -310,27 +304,27 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                         // Rapid acquire/release cycles to create contention
                         for (int cycle = 0; cycle < 5; cycle++) {
                             java.nio.ByteBuffer buffer = bufferPool.acquire(2048);
-                            
+
                             // Validate buffer state
                             if (buffer == null || buffer.capacity() < 2048) {
                                 dataCorruptionErrors.incrementAndGet();
                                 break;
                             }
-                            
+
                             // Write test data
                             buffer.putInt(threadId * 1000 + op * 10 + cycle);
                             buffer.putInt(op);
-                            
+
                             // Read back and validate
                             buffer.flip();
                             int writtenThreadId = buffer.getInt();
                             int writtenOpId = buffer.getInt();
-                            
-                            if (writtenThreadId != threadId * 1000 + op * 10 + cycle || 
-                                writtenOpId != op) {
+
+                            if (writtenThreadId != threadId * 1000 + op * 10 + cycle
+                                    || writtenOpId != op) {
                                 dataCorruptionErrors.incrementAndGet();
                             }
-                            
+
                             buffer.clear();
                             bufferPool.release(buffer);
                         }
@@ -343,19 +337,17 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             });
             contentionFutures.add(future);
         }
-        
+
         // Then - System should maintain thread safety
-        CompletableFuture<Void> allContentionFuture = CompletableFuture.allOf(
-            contentionFutures.toArray(new CompletableFuture[0]));
-        allContentionFuture.get(15, TimeUnit.SECONDS);
-        
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(15), contentionFutures);
+
         // Verify no data corruption
-        assertEquals(0, dataCorruptionErrors.get(), 
-            "No data corruption should occur under contention");
-        
+        assertEquals(0, dataCorruptionErrors.get(),
+                "No data corruption should occur under contention");
+
         // Some illegal state exceptions are expected under high contention
         System.out.printf("Contention test - Data corruption: %d, Illegal state: %d%n",
-            dataCorruptionErrors.get(), illegalStateErrors.get());
+                dataCorruptionErrors.get(), illegalStateErrors.get());
     }
 
     @Test
@@ -368,10 +360,10 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
         AtomicInteger allocatedBuffers = new AtomicInteger(0);
         AtomicInteger deallocatedBuffers = new AtomicInteger(0);
         List<java.nio.ByteBuffer> sharedBuffers = new ArrayList<>();
-        
+
         // When - Execute concurrent allocation and deallocation
         List<CompletableFuture<Void>> allocationFutures = new ArrayList<>();
-        
+
         // Allocation threads
         for (int t = 0; t < allocationThreads; t++) {
             final int threadId = t;
@@ -383,7 +375,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                             // Mark buffer with thread ID
                             buffer.putInt(threadId);
                             buffer.flip();
-                            
+
                             synchronized (sharedBuffers) {
                                 sharedBuffers.add(buffer);
                                 allocatedBuffers.incrementAndGet();
@@ -397,7 +389,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             });
             allocationFutures.add(future);
         }
-        
+
         // Deallocation threads
         for (int t = 0; t < deallocationThreads; t++) {
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -411,14 +403,14 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                                 buffer = null;
                             }
                         }
-                        
+
                         if (buffer != null) {
                             // Validate and release
                             buffer.clear();
                             bufferPool.release(buffer);
                             deallocatedBuffers.incrementAndGet();
                         }
-                        
+
                         Thread.sleep(15);
                     } catch (Exception e) {
                         // Expected under concurrent access
@@ -427,16 +419,14 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             });
             allocationFutures.add(future);
         }
-        
+
         // Then - Operations should complete safely
-        CompletableFuture<Void> allResourceFuture = CompletableFuture.allOf(
-            allocationFutures.toArray(new CompletableFuture[0]));
-        allResourceFuture.get(20, TimeUnit.SECONDS);
-        
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(20), allocationFutures);
+
         // Verify resource management
         assertTrue(allocatedBuffers.get() > 0, "Some buffers should be allocated");
         assertTrue(deallocatedBuffers.get() > 0, "Some buffers should be deallocated");
-        
+
         // Clean up remaining buffers
         synchronized (sharedBuffers) {
             for (java.nio.ByteBuffer buffer : sharedBuffers) {
@@ -448,9 +438,9 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             }
             sharedBuffers.clear();
         }
-        
+
         System.out.printf("Resource management - Allocated: %d, Deallocated: %d%n",
-            allocatedBuffers.get(), deallocatedBuffers.get());
+                allocatedBuffers.get(), deallocatedBuffers.get());
     }
 
     /**
@@ -467,19 +457,21 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
             public String hashBuffer(byte[] data) throws com.justsyncit.hash.HashingException {
                 return "mock_buffer_hash_" + java.util.Arrays.hashCode(data);
             }
-            
+
             @Override
             public String hashBuffer(byte[] data, int offset, int length) throws com.justsyncit.hash.HashingException {
-                return "mock_buffer_hash_" + java.util.Arrays.hashCode(java.util.Arrays.copyOfRange(data, offset, offset + length));
+                return "mock_buffer_hash_"
+                        + java.util.Arrays.hashCode(java.util.Arrays.copyOfRange(data, offset, offset + length));
             }
-            
+
             @Override
             public String hashBuffer(java.nio.ByteBuffer buffer) throws com.justsyncit.hash.HashingException {
                 return "mock_buffer_hash_" + buffer.hashCode();
             }
 
             @Override
-            public String hashStream(java.io.InputStream inputStream) throws java.io.IOException, com.justsyncit.hash.HashingException {
+            public String hashStream(java.io.InputStream inputStream)
+                    throws java.io.IOException, com.justsyncit.hash.HashingException {
                 return "mock_stream_hash_" + inputStream.hashCode();
             }
 
@@ -488,7 +480,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                 return new Blake3IncrementalHasher() {
                     private final java.security.MessageDigest digest;
                     private long bytesProcessed = 0;
-                    
+
                     {
                         try {
                             digest = java.security.MessageDigest.getInstance("SHA-256");
@@ -508,7 +500,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                         digest.update(data, offset, length);
                         bytesProcessed += length;
                     }
-                    
+
                     @Override
                     public void update(java.nio.ByteBuffer buffer) {
                         byte[] data = new byte[buffer.remaining()];
@@ -532,7 +524,7 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                         digest.reset();
                         bytesProcessed = 0;
                     }
-                    
+
                     @Override
                     public String peek() throws com.justsyncit.hash.HashingException {
                         byte[] hash = digest.digest();
@@ -542,24 +534,26 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                         }
                         return sb.toString();
                     }
-                    
+
                     @Override
                     public long getBytesProcessed() {
                         return bytesProcessed;
                     }
                 };
             }
-            
+
             @Override
-            public Blake3IncrementalHasher createKeyedIncrementalHasher(byte[] key) throws com.justsyncit.hash.HashingException {
+            public Blake3IncrementalHasher createKeyedIncrementalHasher(byte[] key)
+                    throws com.justsyncit.hash.HashingException {
                 return createIncrementalHasher();
             }
-            
+
             @Override
-            public java.util.concurrent.CompletableFuture<java.util.List<String>> hashFilesParallel(java.util.List<Path> filePaths) {
+            public java.util.concurrent.CompletableFuture<java.util.List<String>> hashFilesParallel(
+                    java.util.List<Path> filePaths) {
                 return java.util.concurrent.CompletableFuture.completedFuture(
-                    filePaths.stream().map(p -> "mock_file_hash_" + p.hashCode()).collect(java.util.stream.Collectors.toList())
-                );
+                        filePaths.stream().map(p -> "mock_file_hash_" + p.hashCode())
+                                .collect(java.util.stream.Collectors.toList()));
             }
 
             @Override
@@ -584,24 +578,24 @@ public class AsyncConcurrencyTest extends AsyncTestBase {
                     public boolean isJniImplementation() {
                         return false;
                     }
-                    
+
                     @Override
                     public int getOptimalBufferSize() {
                         return 8192;
                     }
-                    
+
                     @Override
                     public boolean supportsConcurrentHashing() {
                         return true;
                     }
-                    
+
                     @Override
                     public int getMaxConcurrentThreads() {
                         return Runtime.getRuntime().availableProcessors();
                     }
                 };
             }
-            
+
             @Override
             public boolean verify(byte[] data, String expectedHash) throws com.justsyncit.hash.HashingException {
                 return hashBuffer(data).equals(expectedHash);

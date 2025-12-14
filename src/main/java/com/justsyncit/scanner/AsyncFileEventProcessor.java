@@ -21,19 +21,30 @@ package com.justsyncit.scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 /**
- * Processes file change events asynchronously with batching, debouncing, and filtering capabilities.
- * Provides high-performance event processing for real-time file system monitoring.
+ * Processes file change events asynchronously with batching, debouncing, and
+ * filtering capabilities.
+ * Provides high-performance event processing for real-time file system
+ * monitoring.
  */
 public class AsyncFileEventProcessor {
 
@@ -41,37 +52,37 @@ public class AsyncFileEventProcessor {
 
     /** Thread pool for event processing. */
     private final ExecutorService eventProcessorPool;
-    
+
     /** Queue for batching events. */
     private final BlockingQueue<FileChangeEvent> eventQueue;
-    
+
     /** Event handler for processed events. */
     private final Consumer<FileChangeEvent> eventHandler;
-    
+
     /** Event filters to apply before processing. */
     private final List<Predicate<FileChangeEvent>> eventFilters;
-    
+
     /** Event matcher for pattern-based filtering. */
     private PathMatcher eventMatcher;
-    
+
     /** Debounce delay in milliseconds. */
     private final long debounceDelayMs;
-    
+
     /** Batch size for event processing. */
     private final int batchSize;
-    
+
     /** Maximum queue size. */
     private final int maxQueueSize;
-    
+
     /** Processor state. */
     private final AtomicBoolean running;
-    
+
     /** Statistics tracking. */
     private final EventProcessorStats stats;
-    
+
     /** Debounce map for tracking recent events. */
     private final Map<String, Instant> debounceMap;
-    
+
     /** Scheduled executor for debounce cleanup. */
     private final ScheduledExecutorService debounceExecutor;
 
@@ -86,26 +97,57 @@ public class AsyncFileEventProcessor {
         private final AtomicLong processingErrors = new AtomicLong(0);
         private volatile Instant lastProcessedTime = Instant.now();
 
-        public long getTotalEventsProcessed() { return totalEventsProcessed.get(); }
-        public long getEventsFiltered() { return eventsFiltered.get(); }
-        public long getEventsBatched() { return eventsBatched.get(); }
-        public long getEventsDebounced() { return eventsDebounced.get(); }
-        public long getProcessingErrors() { return processingErrors.get(); }
-        public Instant getLastProcessedTime() { return lastProcessedTime; }
+        public long getTotalEventsProcessed() {
+            return totalEventsProcessed.get();
+        }
 
-        void incrementTotalProcessed() { totalEventsProcessed.incrementAndGet(); lastProcessedTime = Instant.now(); }
-        void incrementFiltered() { eventsFiltered.incrementAndGet(); }
-        void incrementBatched(int count) { eventsBatched.addAndGet(count); }
-        void incrementDebounced() { eventsDebounced.incrementAndGet(); }
-        void incrementErrors() { processingErrors.incrementAndGet(); }
+        public long getEventsFiltered() {
+            return eventsFiltered.get();
+        }
+
+        public long getEventsBatched() {
+            return eventsBatched.get();
+        }
+
+        public long getEventsDebounced() {
+            return eventsDebounced.get();
+        }
+
+        public long getProcessingErrors() {
+            return processingErrors.get();
+        }
+
+        public Instant getLastProcessedTime() {
+            return lastProcessedTime;
+        }
+
+        void incrementTotalProcessed() {
+            totalEventsProcessed.incrementAndGet();
+            lastProcessedTime = Instant.now();
+        }
+
+        void incrementFiltered() {
+            eventsFiltered.incrementAndGet();
+        }
+
+        void incrementBatched(int count) {
+            eventsBatched.addAndGet(count);
+        }
+
+        void incrementDebounced() {
+            eventsDebounced.incrementAndGet();
+        }
+
+        void incrementErrors() {
+            processingErrors.incrementAndGet();
+        }
 
         @Override
         public String toString() {
             return String.format(
-                "EventProcessorStats{processed=%d, filtered=%d, batched=%d, debounced=%d, errors=%d, lastProcessed=%s}",
-                getTotalEventsProcessed(), getEventsFiltered(), getEventsBatched(), 
-                getEventsDebounced(), getProcessingErrors(), getLastProcessedTime()
-            );
+                    "EventProcessorStats{processed=%d, filtered=%d, batched=%d, debounced=%d, errors=%d, lastProcessed=%s}",
+                    getTotalEventsProcessed(), getEventsFiltered(), getEventsBatched(),
+                    getEventsDebounced(), getProcessingErrors(), getLastProcessedTime());
         }
     }
 
@@ -151,12 +193,29 @@ public class AsyncFileEventProcessor {
         }
 
         // Getters
-        public int getThreadPoolSize() { return threadPoolSize; }
-        public int getQueueSize() { return queueSize; }
-        public int getBatchSize() { return batchSize; }
-        public long getDebounceDelayMs() { return debounceDelayMs; }
-        public PathMatcher getEventMatcher() { return eventMatcher; }
-        public List<Predicate<FileChangeEvent>> getEventFilters() { return new ArrayList<>(eventFilters); }
+        public int getThreadPoolSize() {
+            return threadPoolSize;
+        }
+
+        public int getQueueSize() {
+            return queueSize;
+        }
+
+        public int getBatchSize() {
+            return batchSize;
+        }
+
+        public long getDebounceDelayMs() {
+            return debounceDelayMs;
+        }
+
+        public PathMatcher getEventMatcher() {
+            return eventMatcher;
+        }
+
+        public List<Predicate<FileChangeEvent>> getEventFilters() {
+            return new ArrayList<>(eventFilters);
+        }
     }
 
     /**
@@ -171,7 +230,7 @@ public class AsyncFileEventProcessor {
     /**
      * Creates a new AsyncFileEventProcessor with custom configuration.
      *
-     * @param config the processor configuration
+     * @param config       the processor configuration
      * @param eventHandler the event handler to call for processed events
      */
     public AsyncFileEventProcessor(EventProcessorConfig config, Consumer<FileChangeEvent> eventHandler) {
@@ -188,8 +247,9 @@ public class AsyncFileEventProcessor {
         this.debounceMap = new ConcurrentHashMap<>();
         this.debounceExecutor = Executors.newSingleThreadScheduledExecutor();
 
-        logger.info("AsyncFileEventProcessor initialized with config: threads={}, queueSize={}, batchSize={}, debounceMs={}",
-            config.getThreadPoolSize(), config.getQueueSize(), config.getBatchSize(), config.getDebounceDelayMs());
+        logger.info(
+                "AsyncFileEventProcessor initialized with config: threads={}, queueSize={}, batchSize={}, debounceMs={}",
+                config.getThreadPoolSize(), config.getQueueSize(), config.getBatchSize(), config.getDebounceDelayMs());
     }
 
     /**
@@ -212,11 +272,10 @@ public class AsyncFileEventProcessor {
             // Start debounce cleanup task
             if (debounceDelayMs > 0) {
                 debounceExecutor.scheduleAtFixedRate(
-                    this::cleanupDebounceMap,
-                    debounceDelayMs,
-                    debounceDelayMs,
-                    TimeUnit.MILLISECONDS
-                );
+                        this::cleanupDebounceMap,
+                        debounceDelayMs,
+                        debounceDelayMs,
+                        TimeUnit.MILLISECONDS);
             }
 
             logger.info("AsyncFileEventProcessor started successfully");
@@ -419,8 +478,8 @@ public class AsyncFileEventProcessor {
                 }
             }
 
-            logger.debug("Processed batch of {} events ({} filtered)", 
-                events.size(), events.size() - processedEvents.size());
+            logger.debug("Processed batch of {} events ({} filtered)",
+                    events.size(), events.size() - processedEvents.size());
 
         } catch (Exception e) {
             logger.error("Error processing event batch", e);
@@ -456,11 +515,11 @@ public class AsyncFileEventProcessor {
         if (debounceDelayMs > 0) {
             String eventKey = createEventKey(event);
             Instant now = Instant.now();
-            
+
             synchronized (debounceMap) {
                 Instant lastEventTime = debounceMap.get(eventKey);
-                if (lastEventTime != null && 
-                    now.toEpochMilli() - lastEventTime.toEpochMilli() < debounceDelayMs) {
+                if (lastEventTime != null
+                        && now.toEpochMilli() - lastEventTime.toEpochMilli() < debounceDelayMs) {
                     stats.incrementDebounced();
                     return false;
                 }
@@ -478,10 +537,10 @@ public class AsyncFileEventProcessor {
      * @return the event key
      */
     private String createEventKey(FileChangeEvent event) {
-        return String.format("%s:%s:%s", 
-            event.getEventType(), 
-            event.getFilePath().toString(),
-            event.getFileSize() // Include size to detect file modifications
+        return String.format("%s:%s:%s",
+                event.getEventType(),
+                event.getFilePath().toString(),
+                event.getFileSize() // Include size to detect file modifications
         );
     }
 
@@ -515,8 +574,7 @@ public class AsyncFileEventProcessor {
     @Override
     public String toString() {
         return String.format(
-            "AsyncFileEventProcessor{running=%b, queueSize=%d, stats=%s}",
-            running.get(), getQueueSize(), stats
-        );
+                "AsyncFileEventProcessor{running=%b, queueSize=%d, stats=%s}",
+                running.get(), getQueueSize(), stats);
     }
 }

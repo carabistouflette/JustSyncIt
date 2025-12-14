@@ -23,6 +23,7 @@ package com.justsyncit.command;
  * This command delegates to specific server subcommands.
  * Follows Composite Pattern by grouping related commands together.
  */
+
 public class ServerCommandGroup implements Command {
 
     private static final String SUBCOMMAND_START = "start";

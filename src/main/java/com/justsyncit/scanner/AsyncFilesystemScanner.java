@@ -26,7 +26,7 @@ import java.util.function.Consumer;
 /**
  * Interface for asynchronous filesystem scanning operations with WatchService integration.
  * Extends FilesystemScanner to maintain compatibility while adding advanced async capabilities.
- * 
+ *
  * Features:
  * - Non-blocking directory traversal using CompletableFuture
  * - Real-time file change monitoring through WatchService
@@ -60,8 +60,8 @@ public interface AsyncFilesystemScanner extends FilesystemScanner {
      * @throws IllegalArgumentException if directory is null or invalid
      */
     CompletableFuture<WatchServiceRegistration> startDirectoryMonitoring(
-            Path directory, 
-            AsyncScanOptions options, 
+            Path directory,
+            AsyncScanOptions options,
             Consumer<FileChangeEvent> eventHandler);
 
     /**
@@ -81,8 +81,8 @@ public interface AsyncFilesystemScanner extends FilesystemScanner {
      * @return a CompletableFuture that completes with the parallel scan result
      */
     CompletableFuture<AsyncScanResult> scanDirectoryParallel(
-            Path directory, 
-            ScanOptions options, 
+            Path directory,
+            ScanOptions options,
             int concurrency);
 
     /**
@@ -95,8 +95,8 @@ public interface AsyncFilesystemScanner extends FilesystemScanner {
      * @return a CompletableFuture that completes when scanning is finished
      */
     CompletableFuture<Void> scanDirectoryStreaming(
-            Path directory, 
-            ScanOptions options, 
+            Path directory,
+            ScanOptions options,
             Consumer<AsyncScanResult> resultConsumer);
 
     /**

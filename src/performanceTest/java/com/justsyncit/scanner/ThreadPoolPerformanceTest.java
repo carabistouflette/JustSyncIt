@@ -23,7 +23,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -80,7 +81,7 @@ public class ThreadPoolPerformanceTest {
             final int taskId = i;
             CompletableFuture<Void> future = integration.executeAsyncFileRead(
                     "test_file_" + taskId + ".dat",
-                    taskId * bufferSize,
+                    taskId * (long) bufferSize,
                     bufferSize).thenCompose(bufferHandle -> {
                         // Simulate processing
                         return integration.executeAsyncFileWrite(
@@ -98,7 +99,7 @@ public class ThreadPoolPerformanceTest {
         assertTrue(latch.await(60, TimeUnit.SECONDS));
 
         // Wait for all futures to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                 .get(30, TimeUnit.SECONDS);
 
         long endTime = System.nanoTime();
@@ -162,7 +163,7 @@ public class ThreadPoolPerformanceTest {
         }
 
         assertTrue(asyncLatch.await(60, TimeUnit.SECONDS));
-        CompletableFuture.allOf(asyncFutures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(asyncFutures.toArray(new CompletableFuture<?>[0]))
                 .get(30, TimeUnit.SECONDS);
 
         long asyncEndTime = System.nanoTime();
@@ -238,6 +239,8 @@ public class ThreadPoolPerformanceTest {
                     });
                     completionFutures.add(future);
                     break;
+                default:
+                    throw new IllegalStateException("Unexpected pool type: " + poolType);
             }
         }
 
@@ -245,11 +248,11 @@ public class ThreadPoolPerformanceTest {
         assertTrue(coordinationLatch.await(30, TimeUnit.SECONDS));
 
         // Verify all pools completed efficiently
-        CompletableFuture.allOf(ioFutures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(ioFutures.toArray(new CompletableFuture<?>[0]))
                 .get(10, TimeUnit.SECONDS);
-        CompletableFuture.allOf(cpuFutures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(cpuFutures.toArray(new CompletableFuture<?>[0]))
                 .get(10, TimeUnit.SECONDS);
-        CompletableFuture.allOf(completionFutures.toArray(new CompletableFuture[0]))
+        CompletableFuture.allOf(completionFutures.toArray(new CompletableFuture<?>[0]))
                 .get(10, TimeUnit.SECONDS);
 
         // Verify thread pool statistics
@@ -303,7 +306,7 @@ public class ThreadPoolPerformanceTest {
             }
 
             assertTrue(loadLatch.await(60, TimeUnit.SECONDS));
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
                     .get(30, TimeUnit.SECONDS);
 
             long endTime = System.nanoTime();
@@ -325,7 +328,7 @@ public class ThreadPoolPerformanceTest {
     @DisplayName("Should validate resource utilization targets")
     void shouldValidateResourceUtilizationTargets() throws Exception {
         // Test resource utilization under various conditions
-        ThreadPoolStats initialStats = threadPoolManager.getStats();
+        // ThreadPoolStats initialStats = threadPoolManager.getStats();
 
         // Apply different load conditions
         threadPoolManager.applyBackpressure(0.3); // Light load

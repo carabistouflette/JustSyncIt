@@ -30,9 +30,7 @@ dependencies {
     testImplementation 'org.mockito:mockito-junit-jupiter:5.19.0'
     
     // Performance testing and benchmarking
-    testImplementation 'org.openjdk.jmh:jmh-core:1.37'
-    testImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
-    testAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+
     
     // Performance monitoring and profiling
     testImplementation 'org.hdrhistogram:HdrHistogram:2.2.2'
@@ -178,6 +176,14 @@ java {
     }
 }
 
+tasks.withType(JavaCompile) {
+    options.compilerArgs << "-Xlint:all"
+    options.compilerArgs << "-Werror" // Optional: treat warnings as errors to force clean build? Maybe too aggressive for now.
+    // Let's just use -Xlint:all and -Xlint:-processing (to ignore annotation processing warnings if any)
+    options.compilerArgs << "-Xlint:-processing"
+    options.encoding = 'UTF-8'
+}
+
 // Configure test source sets for different test categories
 sourceSets {
     // Integration tests (fast, run in CI)
@@ -200,8 +206,8 @@ sourceSets {
         resources {
             srcDirs = ['src/performanceTest/resources']
         }
-        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath
-        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath
+        compileClasspath += sourceSets.main.output + configurations.testCompileClasspath + sourceSets.integrationTest.output
+        runtimeClasspath += sourceSets.main.output + configurations.testRuntimeClasspath + sourceSets.integrationTest.output
     }
     
     // Benchmark tests (very slow, exclude from CI)
@@ -218,6 +224,11 @@ sourceSets {
 }
 
 // Configure test task dependencies
+dependencies {
+    benchmarkTestImplementation 'org.openjdk.jmh:jmh-core:1.37'
+    benchmarkTestImplementation 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+    benchmarkTestAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.37'
+}
 task integrationTest(type: Test) {
     description = 'Run integration tests'
     group = 'verification'
@@ -920,8 +931,8 @@ checkstyle {
 spotbugs {
     toolVersion = '4.9.0'
     ignoreFailures = true  // Don't fail the build on SpotBugs findings
-    effort = 'max'
-    reportLevel = 'low'
+    effort = effort.class.enumConstants.find { it.name() == 'MAX' }
+    reportLevel = reportLevel.class.enumConstants.find { it.name() == 'LOW' }
     excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
     showStackTraces = true
     showProgress = true
@@ -993,3 +1004,8 @@ check {
 // Make dependency check optional to avoid blocking builds when NVD API is unavailable
 // check.dependsOn dependencyCheckAggregate
 
+
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << "-Xlint:all" << "-Xlint:-processing"
+}

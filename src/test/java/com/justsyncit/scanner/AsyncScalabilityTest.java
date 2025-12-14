@@ -32,7 +32,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Scalability test suite for async components.
@@ -57,8 +59,9 @@ public class AsyncScalabilityTest extends AsyncTestBase {
             // Create files with exponential size growth
             for (int i = 0; i < 15; i++) {
                 int fileSize = (int) Math.pow(2, i) * 1024; // 1KB to 16MB
-                if (fileSize > 16 * 1024 * 1024)
+                if (fileSize > 16 * 1024 * 1024) {
                     fileSize = 16 * 1024 * 1024; // Cap at 16MB
+                }
 
                 Path file = tempDir.resolve("scalability_test_" + i + ".dat");
                 AsyncTestUtils.createTestFile(tempDir, "scalability_test_" + i + ".dat", fileSize);
@@ -93,7 +96,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
     @DisplayName("Should scale buffer pool with increasing load")
     void shouldScaleBufferPoolWithIncreasingLoad() throws Exception {
         // Given
-        int[] loadLevels = { 10, 50, 100, 200, 500 };
+        int[] loadLevels = {10, 50, 100, 200, 500 };
         List<ScalabilityResult> results = new ArrayList<>();
 
         for (int loadLevel : loadLevels) {
@@ -122,8 +125,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
             }
 
             // Wait for all operations to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(30, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
 
             long duration = System.nanoTime() - startTime;
             double throughput = (double) successfulOps.get() / (duration / 1_000_000_000.0);
@@ -249,8 +251,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
             }
 
             // Wait for sample period operations
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(sampleIntervalSeconds + 5, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(sampleIntervalSeconds + 5), futures);
 
             long sampleDuration = System.nanoTime() - sampleStart;
             double sampleThroughput = (double) operationsInSample.get() / (sampleDuration / 1_000_000_000.0);
@@ -291,7 +292,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
     @DisplayName("Should scale with increasing concurrency")
     void shouldScaleWithIncreasingConcurrency() throws Exception {
         // Given
-        int[] concurrencyLevels = { 1, 2, 4, 8, 16, 32 };
+        int[] concurrencyLevels = {1, 2, 4, 8, 16, 32 };
         int operationsPerLevel = 50;
         List<ConcurrencyResult> results = new ArrayList<>();
 
@@ -340,16 +341,14 @@ public class AsyncScalabilityTest extends AsyncTestBase {
 
                 // Limit concurrency
                 if (futures.size() >= concurrency) {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                            .get(30, TimeUnit.SECONDS);
+                    AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
                     futures.clear();
                 }
             }
 
             // Wait for remaining operations
             if (!futures.isEmpty()) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(30, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
             }
 
             long duration = System.nanoTime() - startTime;
@@ -433,8 +432,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
         }
 
         // Wait for all attempts
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(20, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(20), futures);
 
         // Verify graceful handling
         int totalAttempts = successfulAcquisitions.get() + failedAcquisitions.get();

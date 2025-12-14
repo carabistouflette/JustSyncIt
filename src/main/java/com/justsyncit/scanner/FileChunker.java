@@ -19,21 +19,22 @@
 package com.justsyncit.scanner;
 
 import com.justsyncit.storage.ChunkStorage;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for chunking files into fixed-size pieces.
  * Extends ChunkStorage to maintain compatibility with existing storage system.
- * Follows Interface Segregation Principle by providing focused chunking operations.
+ * Follows Interface Segregation Principle by providing focused chunking
+ * operations.
  */
 public interface FileChunker extends ChunkStorage {
 
     /**
      * Chunks a file into fixed-size pieces.
      *
-     * @param file the file to chunk
+     * @param file    the file to chunk
      * @param options the chunking options
      * @return a CompletableFuture that completes with the chunking result
      * @throws IllegalArgumentException if file is null or invalid
@@ -86,15 +87,15 @@ public interface FileChunker extends ChunkStorage {
         /**
          * Creates a successful ChunkingResult.
          *
-         * @param file the file that was chunked
-         * @param chunkCount number of chunks created
-         * @param totalSize total file size in bytes
-         * @param sparseSize size of sparse regions in bytes
-         * @param fileHash hash of the entire file
+         * @param file        the file that was chunked
+         * @param chunkCount  number of chunks created
+         * @param totalSize   total file size in bytes
+         * @param sparseSize  size of sparse regions in bytes
+         * @param fileHash    hash of the entire file
          * @param chunkHashes list of chunk hashes in order
          */
         public ChunkingResult(Path file, int chunkCount, long totalSize, long sparseSize,
-                          String fileHash, java.util.List<String> chunkHashes) {
+                String fileHash, java.util.List<String> chunkHashes) {
             this.file = file;
             this.chunkCount = chunkCount;
             this.totalSize = totalSize;
@@ -107,13 +108,11 @@ public interface FileChunker extends ChunkStorage {
         /**
          * Creates a failed ChunkingResult.
          *
-         * @param file the file that failed to chunk
+         * @param file  the file that failed to chunk
          * @param error the exception that occurred
          * @deprecated Use {@link #createFailed(Path, Exception)} instead
          */
         @Deprecated
-        @SuppressWarnings("finalizer")
-        @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
         public ChunkingResult(Path file, Exception error) {
             this.file = file;
             this.chunkCount = 0;
@@ -127,7 +126,7 @@ public interface FileChunker extends ChunkStorage {
         /**
          * Creates a failed ChunkingResult.
          *
-         * @param file the file that failed to chunk
+         * @param file  the file that failed to chunk
          * @param error the exception that occurred
          * @return a new failed ChunkingResult
          */
@@ -204,15 +203,12 @@ public interface FileChunker extends ChunkStorage {
          * @param original the original exception
          * @return a copy of the exception
          */
-        private Exception createExceptionCopy(Exception original) {
+        private static Exception createExceptionCopy(Exception original) {
             try {
                 return (Exception) original.getClass()
                         .getConstructor(String.class)
                         .newInstance(original.getMessage());
-            } catch (NoSuchMethodException
-                    | InstantiationException
-                    | IllegalAccessException
-                    | java.lang.reflect.InvocationTargetException e) {
+            } catch (ReflectiveOperationException e) {
                 // Fallback to a generic exception if copying fails
                 return new RuntimeException(original.getMessage(), original.getCause());
             }

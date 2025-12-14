@@ -33,7 +33,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Performance test suite for async components.
@@ -149,14 +150,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
 
             // Control rate to avoid overwhelming the system
             if (futures.size() >= operationsPerSecond) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(1, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(1), futures);
                 futures.clear();
             }
         }
 
         // Wait for remaining operations
         if (!futures.isEmpty()) {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(5, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(5), futures);
         }
 
         long actualDuration = System.nanoTime() - startTime;
@@ -216,16 +217,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
 
             // Control concurrency
             if (futures.size() >= 20) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(5, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(5), futures);
                 futures.clear();
             }
         }
 
         // Wait for remaining operations
         if (!futures.isEmpty()) {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(10, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(10), futures);
         }
 
         long actualDuration = System.nanoTime() - startTime;
@@ -284,16 +283,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
                 futures.add(future);
 
                 if (futures.size() >= 100) {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                            .get(1, TimeUnit.SECONDS);
+                    AsyncTestUtils.waitForAll(Duration.ofSeconds(1), futures);
                     futures.clear();
                 }
             }
 
             // Wait for remaining operations
             if (!futures.isEmpty()) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(2, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(2), futures);
             }
 
             long sampleDuration = System.nanoTime() - sampleStart;
@@ -335,7 +332,7 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
     @DisplayName("Should scale with increasing concurrency")
     void shouldScaleWithIncreasingConcurrency() throws Exception {
         // Given
-        int[] concurrencyLevels = { 1, 2, 4, 8, 16 };
+        int[] concurrencyLevels = {1, 2, 4, 8, 16 };
         int operationsPerLevel = 100;
 
         for (int concurrency : concurrencyLevels) {
@@ -353,16 +350,14 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
 
                 // Limit concurrent operations
                 if (futures.size() >= concurrency) {
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                            .get(30, TimeUnit.SECONDS);
+                    AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
                     futures.clear();
                 }
             }
 
             // Wait for remaining operations
             if (!futures.isEmpty()) {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(30, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
             }
 
             long duration = System.nanoTime() - startTime;
@@ -429,8 +424,7 @@ public class AsyncPerformanceTestSuite extends AsyncTestBase {
                 futures.add(future);
             }
 
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(10, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(10), futures);
 
             timer.complete(operationsUnderPressure.get());
 

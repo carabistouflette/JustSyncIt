@@ -18,6 +18,7 @@
 
 package com.justsyncit.command;
 
+
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.storage.metadata.MetadataService;
@@ -35,6 +36,7 @@ import java.util.List;
  * Follows Single Responsibility Principle by handling only snapshot listing
  * operations.
  */
+
 public class SnapshotsListCommand implements Command {
 
     private final MetadataService metadataService;

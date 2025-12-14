@@ -43,10 +43,13 @@ import java.util.concurrent.CompletableFuture;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Performance benchmarks for backup and restore operations.
  * These tests measure performance characteristics and identify bottlenecks.
  */
+@SuppressFBWarnings("DM_GC")
 public class BackupRestorePerformanceTest {
 
     @TempDir
@@ -99,8 +102,7 @@ public class BackupRestorePerformanceTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir, backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         long endTime = System.currentTimeMillis();
@@ -146,8 +148,7 @@ public class BackupRestorePerformanceTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir, backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         long endTime = System.currentTimeMillis();
@@ -195,8 +196,7 @@ public class BackupRestorePerformanceTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir, backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         long endTime = System.currentTimeMillis();
@@ -241,8 +241,7 @@ public class BackupRestorePerformanceTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir, backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         assertTrue(backupResult.isSuccess());
@@ -258,8 +257,8 @@ public class BackupRestorePerformanceTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<RestoreService.RestoreResult> restoreFuture =
-                restoreService.restore(snapshotId, restoreDir, restoreOptions);
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(snapshotId, restoreDir,
+                restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
 
         long endTime = System.currentTimeMillis();
@@ -267,7 +266,8 @@ public class BackupRestorePerformanceTest {
 
         // Verify results and report performance
         assertTrue(restoreResult.isSuccess());
-        // For simplified implementation, we just check that at least 1 file was restored
+        // For simplified implementation, we just check that at least 1 file was
+        // restored
         assertTrue(restoreResult.getFilesRestored() >= 1, "At least one file should be restored");
 
         long totalBytes = restoreResult.getTotalBytesRestored();
@@ -310,8 +310,7 @@ public class BackupRestorePerformanceTest {
                 .verifyIntegrity(false) // Skip verification for memory test
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir, backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         // Measure memory after backup

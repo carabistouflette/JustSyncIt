@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.List;
 import java.util.ArrayList;
@@ -42,25 +41,25 @@ public class AsyncDirectoryScanningOptimizer {
 
     /** Configuration for optimization strategies. */
     private final OptimizationConfig config;
-    
+
     /** Thread pool manager for resource coordination. */
     private final ThreadPoolManager threadPoolManager;
-    
+
     /** Performance monitor for metrics collection. */
     private final PerformanceMonitor performanceMonitor;
-    
+
     /** Directory access pattern analyzer for prefetching. */
     private final DirectoryAccessPatternAnalyzer patternAnalyzer;
-    
+
     /** Memory optimization manager. */
     private final MemoryOptimizationManager memoryManager;
-    
+
     /** NUMA-aware scanning coordinator. */
     private final NumaAwareScanningCoordinator numaCoordinator;
-    
+
     /** Prefetching manager for directory prediction. */
     private final DirectoryPrefetchingManager prefetchingManager;
-    
+
     /** Statistics tracking. */
     private final OptimizationStats stats;
 
@@ -137,60 +136,93 @@ public class AsyncDirectoryScanningOptimizer {
         }
 
         // Getters
-        public boolean isPrefetchingEnabled() { return enablePrefetching; }
-        public boolean isPredictionEnabled() { return enablePrediction; }
-        public boolean isMemoryOptimizationEnabled() { return enableMemoryOptimization; }
-        public boolean isNumaAwarenessEnabled() { return enableNumaAwareness; }
-        public int getPrefetchDepth() { return prefetchDepth; }
-        public int getMaxPrefetchDirectories() { return maxPrefetchDirectories; }
-        public long getMemoryOptimizationThreshold() { return memoryOptimizationThreshold; }
-        public int getPredictionWindowSize() { return predictionWindowSize; }
-        public double getPredictionConfidenceThreshold() { return predictionConfidenceThreshold; }
-        public boolean isAdaptiveSizingEnabled() { return enableAdaptiveSizing; }
-        public int getAdaptiveSizingInterval() { return adaptiveSizingInterval; }
+        public boolean isPrefetchingEnabled() {
+            return enablePrefetching;
+        }
+
+        public boolean isPredictionEnabled() {
+            return enablePrediction;
+        }
+
+        public boolean isMemoryOptimizationEnabled() {
+            return enableMemoryOptimization;
+        }
+
+        public boolean isNumaAwarenessEnabled() {
+            return enableNumaAwareness;
+        }
+
+        public int getPrefetchDepth() {
+            return prefetchDepth;
+        }
+
+        public int getMaxPrefetchDirectories() {
+            return maxPrefetchDirectories;
+        }
+
+        public long getMemoryOptimizationThreshold() {
+            return memoryOptimizationThreshold;
+        }
+
+        public int getPredictionWindowSize() {
+            return predictionWindowSize;
+        }
+
+        public double getPredictionConfidenceThreshold() {
+            return predictionConfidenceThreshold;
+        }
+
+        public boolean isAdaptiveSizingEnabled() {
+            return enableAdaptiveSizing;
+        }
+
+        public int getAdaptiveSizingInterval() {
+            return adaptiveSizingInterval;
+        }
     }
 
     /**
      * Creates a new AsyncDirectoryScanningOptimizer with default configuration.
      *
-     * @param threadPoolManager thread pool manager for resource coordination
+     * @param threadPoolManager  thread pool manager for resource coordination
      * @param performanceMonitor performance monitor for metrics collection
      */
-    public AsyncDirectoryScanningOptimizer(ThreadPoolManager threadPoolManager, 
-                                        PerformanceMonitor performanceMonitor) {
+    public AsyncDirectoryScanningOptimizer(ThreadPoolManager threadPoolManager,
+            PerformanceMonitor performanceMonitor) {
         this(new OptimizationConfig(), threadPoolManager, performanceMonitor);
     }
 
     /**
      * Creates a new AsyncDirectoryScanningOptimizer with custom configuration.
      *
-     * @param config optimization configuration
-     * @param threadPoolManager thread pool manager for resource coordination
+     * @param config             optimization configuration
+     * @param threadPoolManager  thread pool manager for resource coordination
      * @param performanceMonitor performance monitor for metrics collection
      */
     public AsyncDirectoryScanningOptimizer(OptimizationConfig config,
-                                         ThreadPoolManager threadPoolManager,
-                                         PerformanceMonitor performanceMonitor) {
+            ThreadPoolManager threadPoolManager,
+            PerformanceMonitor performanceMonitor) {
         this.config = config;
         this.threadPoolManager = threadPoolManager;
         this.performanceMonitor = performanceMonitor;
         this.stats = new OptimizationStats();
-        
+
         // Initialize optimization components
         this.patternAnalyzer = new DirectoryAccessPatternAnalyzer(config);
         this.memoryManager = new MemoryOptimizationManager(config, performanceMonitor);
         this.numaCoordinator = new NumaAwareScanningCoordinator(config, threadPoolManager);
         this.prefetchingManager = new DirectoryPrefetchingManager(config, patternAnalyzer);
-        
-        logger.info("AsyncDirectoryScanningOptimizer initialized with config: prefetching={}, prediction={}, memoryOpt={}, numa={}",
-            config.isPrefetchingEnabled(), config.isPredictionEnabled(), 
-            config.isMemoryOptimizationEnabled(), config.isNumaAwarenessEnabled());
+
+        logger.info(
+                "AsyncDirectoryScanningOptimizer initialized with config: prefetching={}, prediction={}, memoryOpt={}, numa={}",
+                config.isPrefetchingEnabled(), config.isPredictionEnabled(),
+                config.isMemoryOptimizationEnabled(), config.isNumaAwarenessEnabled());
     }
 
     /**
      * Optimizes directory scanning performance for a given path.
      *
-     * @param directory directory to optimize scanning for
+     * @param directory   directory to optimize scanning for
      * @param scanOptions original scanning options
      * @return optimized scanning options
      */
@@ -198,34 +230,34 @@ public class AsyncDirectoryScanningOptimizer {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 logger.debug("Optimizing directory scanning for: {}", directory);
-                
+
                 AsyncScanOptions optimizedOptions = new AsyncScanOptions(scanOptions);
-                
+
                 // Apply prefetching optimization
                 if (config.isPrefetchingEnabled()) {
                     optimizedOptions = prefetchingManager.applyPrefetchingOptimization(directory, optimizedOptions);
                 }
-                
+
                 // Apply memory optimization
                 if (config.isMemoryOptimizationEnabled()) {
                     optimizedOptions = memoryManager.applyMemoryOptimization(directory, optimizedOptions);
                 }
-                
+
                 // Apply NUMA-aware optimization
                 if (config.isNumaAwarenessEnabled()) {
                     optimizedOptions = numaCoordinator.applyNumaOptimization(directory, optimizedOptions);
                 }
-                
+
                 // Apply adaptive sizing
                 if (config.isAdaptiveSizingEnabled()) {
                     optimizedOptions = applyAdaptiveSizing(directory, optimizedOptions);
                 }
-                
+
                 stats.optimizationRequests.incrementAndGet();
                 logger.debug("Directory scanning optimization completed for: {}", directory);
-                
+
                 return optimizedOptions;
-                
+
             } catch (Exception e) {
                 logger.error("Failed to optimize directory scanning for: {}", directory, e);
                 stats.optimizationErrors.incrementAndGet();
@@ -242,9 +274,9 @@ public class AsyncDirectoryScanningOptimizer {
             // Get current performance metrics from PerformanceMonitor
             double cpuUtilization = getCpuUtilization();
             long memoryUsage = performanceMonitor.getCurrentMemoryUsage();
-            
+
             AsyncScanOptions resultOptions = options;
-            
+
             // Calculate optimal thread count based on system load and scan performance
             int optimalThreads = calculateOptimalThreadCount(cpuUtilization);
             if (optimalThreads != resultOptions.getParallelism()) {
@@ -252,7 +284,7 @@ public class AsyncDirectoryScanningOptimizer {
                 stats.adaptiveSizingAdjustments.incrementAndGet();
                 logger.debug("Adjusted thread count to {} for directory: {}", optimalThreads, directory);
             }
-            
+
             // Calculate optimal buffer size based on memory pressure
             int optimalBufferSize = calculateOptimalBufferSize(memoryUsage);
             if (optimalBufferSize != resultOptions.getBatchSize()) {
@@ -260,9 +292,9 @@ public class AsyncDirectoryScanningOptimizer {
                 stats.adaptiveSizingAdjustments.incrementAndGet();
                 logger.debug("Adjusted batch size to {} for directory: {}", optimalBufferSize, directory);
             }
-            
+
             return resultOptions;
-            
+
         } catch (Exception e) {
             logger.warn("Failed to apply adaptive sizing for directory: {}", directory, e);
             return options;
@@ -274,7 +306,7 @@ public class AsyncDirectoryScanningOptimizer {
      */
     private int calculateOptimalThreadCount(double cpuUtilization) {
         int availableProcessors = Runtime.getRuntime().availableProcessors();
-        
+
         if (cpuUtilization > 0.8) {
             // High CPU usage - reduce threads
             return Math.max(1, availableProcessors / 2);
@@ -293,9 +325,9 @@ public class AsyncDirectoryScanningOptimizer {
     private int calculateOptimalBufferSize(long memoryUsage) {
         long totalMemory = Runtime.getRuntime().totalMemory();
         double memoryPressure = (double) memoryUsage / totalMemory;
-        
+
         int defaultBufferSize = 64; // Default batch size
-        
+
         if (memoryPressure > 0.8) {
             // High memory pressure - use smaller buffers
             return Math.max(10, defaultBufferSize / 2);
@@ -316,7 +348,7 @@ public class AsyncDirectoryScanningOptimizer {
         // In a real implementation, this would use proper OS-specific metrics
         double failureRate = performanceMonitor.getFailureRate();
         double avgAcquisitionTime = performanceMonitor.getAverageAcquisitionTime();
-        
+
         // Estimate CPU utilization based on performance metrics
         if (failureRate > 0.1 || avgAcquisitionTime > 1000000) { // > 1ms
             return 0.9; // High utilization
@@ -337,7 +369,7 @@ public class AsyncDirectoryScanningOptimizer {
         if (!config.isPredictionEnabled()) {
             return CompletableFuture.completedFuture(new ArrayList<>());
         }
-        
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 return patternAnalyzer.predictNextDirectories(currentDirectory, config.getPredictionWindowSize());
@@ -358,25 +390,25 @@ public class AsyncDirectoryScanningOptimizer {
         if (!config.isPrefetchingEnabled() || directories.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        
+
         return CompletableFuture.runAsync(() -> {
             try {
                 List<CompletableFuture<Void>> prefetchFutures = directories.stream()
-                    .limit(config.getMaxPrefetchDirectories())
-                    .map(directory -> prefetchingManager.prefetchDirectoryMetadata(directory))
-                    .collect(Collectors.toList());
-                
-                CompletableFuture.allOf(prefetchFutures.toArray(new CompletableFuture[0]))
-                    .thenRun(() -> {
-                        stats.prefetchedDirectories.addAndGet(directories.size());
-                        logger.debug("Prefetched metadata for {} directories", directories.size());
-                    })
-                    .exceptionally(throwable -> {
-                        logger.warn("Failed to prefetch directory metadata", throwable);
-                        stats.prefetchErrors.incrementAndGet();
-                        return null;
-                    });
-                    
+                        .limit(config.getMaxPrefetchDirectories())
+                        .map(directory -> prefetchingManager.prefetchDirectoryMetadata(directory))
+                        .collect(Collectors.toList());
+
+                CompletableFuture.allOf(prefetchFutures.toArray(new CompletableFuture<?>[0]))
+                        .thenRun(() -> {
+                            stats.prefetchedDirectories.addAndGet(directories.size());
+                            logger.debug("Prefetched metadata for {} directories", directories.size());
+                        })
+                        .exceptionally(throwable -> {
+                            logger.warn("Failed to prefetch directory metadata", throwable);
+                            stats.prefetchErrors.incrementAndGet();
+                            return null;
+                        });
+
             } catch (Exception e) {
                 logger.error("Failed to start directory prefetching", e);
                 stats.prefetchErrors.incrementAndGet();
@@ -393,7 +425,7 @@ public class AsyncDirectoryScanningOptimizer {
         if (!config.isMemoryOptimizationEnabled()) {
             return CompletableFuture.completedFuture(null);
         }
-        
+
         return CompletableFuture.runAsync(() -> {
             try {
                 memoryManager.optimizeMemoryUsage();
@@ -427,7 +459,8 @@ public class AsyncDirectoryScanningOptimizer {
         public final AtomicLong memoryOptimizations = new AtomicLong(0);
         public final AtomicLong memoryOptimizationErrors = new AtomicLong(0);
 
-        public OptimizationStats() {}
+        public OptimizationStats() {
+        }
 
         public OptimizationStats(OptimizationStats other) {
             this.optimizationRequests.set(other.optimizationRequests.get());
@@ -442,10 +475,10 @@ public class AsyncDirectoryScanningOptimizer {
         @Override
         public String toString() {
             return String.format(
-                "OptimizationStats{requests=%d, errors=%d, adaptiveAdjustments=%d, prefetched=%d, prefetchErrors=%d, memOpt=%d, memOptErrors=%d}",
-                optimizationRequests.get(), optimizationErrors.get(), adaptiveSizingAdjustments.get(),
-                prefetchedDirectories.get(), prefetchErrors.get(), memoryOptimizations.get(), memoryOptimizationErrors.get()
-            );
+                    "OptimizationStats{requests=%d, errors=%d, adaptiveAdjustments=%d, prefetched=%d, prefetchErrors=%d, memOpt=%d, memOptErrors=%d}",
+                    optimizationRequests.get(), optimizationErrors.get(), adaptiveSizingAdjustments.get(),
+                    prefetchedDirectories.get(), prefetchErrors.get(), memoryOptimizations.get(),
+                    memoryOptimizationErrors.get());
         }
     }
 
@@ -456,7 +489,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final OptimizationConfig config;
         private final Map<Path, AccessPattern> accessPatterns = new ConcurrentHashMap<>();
 
-        public DirectoryAccessPatternAnalyzer(OptimizationConfig config) {
+        DirectoryAccessPatternAnalyzer(OptimizationConfig config) {
             this.config = config;
         }
 
@@ -466,16 +499,16 @@ public class AsyncDirectoryScanningOptimizer {
             if (pattern == null) {
                 return new ArrayList<>();
             }
-            
+
             return pattern.getRecentAccesses()
-                .stream()
-                .limit(windowSize)
-                .collect(Collectors.toList());
+                    .stream()
+                    .limit(windowSize)
+                    .collect(Collectors.toList());
         }
 
         public void recordAccess(Path directory) {
             accessPatterns.computeIfAbsent(directory, k -> new AccessPattern())
-                .recordAccess();
+                    .recordAccess();
         }
 
         private static class AccessPattern {
@@ -503,7 +536,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final OptimizationConfig config;
         private final PerformanceMonitor performanceMonitor;
 
-        public MemoryOptimizationManager(OptimizationConfig config, PerformanceMonitor performanceMonitor) {
+        MemoryOptimizationManager(OptimizationConfig config, PerformanceMonitor performanceMonitor) {
             this.config = config;
             this.performanceMonitor = performanceMonitor;
         }
@@ -511,20 +544,18 @@ public class AsyncDirectoryScanningOptimizer {
         public AsyncScanOptions applyMemoryOptimization(Path directory, AsyncScanOptions options) {
             // Apply memory-specific optimizations based on current memory pressure
             long usedMemory = Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory();
-            
+
             if (usedMemory > config.getMemoryOptimizationThreshold()) {
                 // High memory usage - reduce buffer sizes and concurrent operations
                 return options.withBatchSize(Math.max(10, options.getBatchSize() / 2))
-                           .withParallelism(Math.max(1, options.getParallelism() / 2));
+                        .withParallelism(Math.max(1, options.getParallelism() / 2));
             }
-            
+
             return options;
         }
 
         public void optimizeMemoryUsage() {
-            // Trigger garbage collection and optimize memory usage
-            System.gc();
-            
+            // Memory optimization triggered
             // Additional memory optimization logic can be added here
             // such as clearing caches, reducing buffer pools, etc.
         }
@@ -537,7 +568,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final OptimizationConfig config;
         private final ThreadPoolManager threadPoolManager;
 
-        public NumaAwareScanningCoordinator(OptimizationConfig config, ThreadPoolManager threadPoolManager) {
+        NumaAwareScanningCoordinator(OptimizationConfig config, ThreadPoolManager threadPoolManager) {
             this.config = config;
             this.threadPoolManager = threadPoolManager;
         }
@@ -546,14 +577,14 @@ public class AsyncDirectoryScanningOptimizer {
             // NUMA-aware optimization logic
             // This would typically involve binding threads to specific NUMA nodes
             // and optimizing memory allocation for NUMA topology
-            
+
             // For now, we'll just ensure thread count is optimal for NUMA
             int availableProcessors = Runtime.getRuntime().availableProcessors();
             if (availableProcessors > 8) {
                 // Likely a multi-socket system - optimize for NUMA
                 return options.withParallelism(Math.min(options.getParallelism(), availableProcessors / 2));
             }
-            
+
             return options;
         }
     }
@@ -566,7 +597,7 @@ public class AsyncDirectoryScanningOptimizer {
         private final DirectoryAccessPatternAnalyzer patternAnalyzer;
         private final Map<Path, PrefetchCache> prefetchCache = new ConcurrentHashMap<>();
 
-        public DirectoryPrefetchingManager(OptimizationConfig config, DirectoryAccessPatternAnalyzer patternAnalyzer) {
+        DirectoryPrefetchingManager(OptimizationConfig config, DirectoryAccessPatternAnalyzer patternAnalyzer) {
             this.config = config;
             this.patternAnalyzer = patternAnalyzer;
         }
@@ -574,7 +605,7 @@ public class AsyncDirectoryScanningOptimizer {
         public AsyncScanOptions applyPrefetchingOptimization(Path directory, AsyncScanOptions options) {
             // Enable prefetching if supported
             return options.withPrefetchingEnabled(true)
-                       .withPrefetchDepth(config.getPrefetchDepth());
+                    .withPrefetchDepth(config.getPrefetchDepth());
         }
 
         public CompletableFuture<Void> prefetchDirectoryMetadata(Path directory) {
@@ -583,10 +614,10 @@ public class AsyncDirectoryScanningOptimizer {
                     // Simulate prefetching directory metadata
                     // In a real implementation, this would read directory contents
                     // and cache them for faster access
-                    
+
                     PrefetchCache cache = prefetchCache.computeIfAbsent(directory, k -> new PrefetchCache());
                     cache.updateLastPrefetch();
-                    
+
                     logger.debug("Prefetched metadata for directory: {}", directory);
                 } catch (Exception e) {
                     logger.warn("Failed to prefetch metadata for directory: {}", directory, e);

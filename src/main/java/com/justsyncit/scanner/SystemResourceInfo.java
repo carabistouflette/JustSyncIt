@@ -26,7 +26,7 @@ import java.lang.management.OperatingSystemMXBean;
  * Provides CPU, memory, and NUMA information.
  */
 public class SystemResourceInfo {
-    
+
     private final int availableProcessors;
     private final long totalMemory;
     private final long maxMemory;
@@ -35,7 +35,7 @@ public class SystemResourceInfo {
     private final String osArch;
     private final boolean isNumaAware;
     private final int numaNodes;
-    
+
     /**
      * Creates a new SystemResourceInfo.
      */
@@ -43,18 +43,18 @@ public class SystemResourceInfo {
         this.availableProcessors = Runtime.getRuntime().availableProcessors();
         this.totalMemory = Runtime.getRuntime().totalMemory();
         this.maxMemory = Runtime.getRuntime().maxMemory();
-        
+
         // Get OS information
         OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
         this.osName = osBean.getName();
         this.osVersion = osBean.getVersion();
         this.osArch = osBean.getArch();
-        
+
         // Detect NUMA support (simplified)
         this.isNumaAware = detectNumaSupport();
         this.numaNodes = isNumaAware ? detectNumaNodes() : 1;
     }
-    
+
     /**
      * Detects NUMA support (simplified detection).
      */
@@ -69,14 +69,15 @@ public class SystemResourceInfo {
                 return false;
             }
         }
-        
+
         // Check for NUMA in OS name
-        return osName != null && osName.toLowerCase().contains("linux");
+        return osName != null && osName.toLowerCase(java.util.Locale.ROOT).contains("linux");
     }
-    
+
     /**
      * Detects number of NUMA nodes (simplified).
      */
+
     private int detectNumaNodes() {
         try {
             // Try to read from system using a shell command
@@ -85,28 +86,55 @@ public class SystemResourceInfo {
             process.waitFor();
             // Simplified - just return processor count for now
             return availableProcessors;
+        } catch (java.io.IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            return availableProcessors;
         } catch (Exception e) {
             return availableProcessors;
         }
     }
-    
+
     // Getters
-    public int getAvailableProcessors() { return availableProcessors; }
-    public long getTotalMemory() { return totalMemory; }
-    public long getMaxMemory() { return maxMemory; }
-    public String getOsName() { return osName; }
-    public String getOsVersion() { return osVersion; }
-    public String getOsArch() { return osArch; }
-    public boolean isNumaAware() { return isNumaAware; }
-    public int getNumaNodes() { return numaNodes; }
-    
+    public int getAvailableProcessors() {
+        return availableProcessors;
+    }
+
+    public long getTotalMemory() {
+        return totalMemory;
+    }
+
+    public long getMaxMemory() {
+        return maxMemory;
+    }
+
+    public String getOsName() {
+        return osName;
+    }
+
+    public String getOsVersion() {
+        return osVersion;
+    }
+
+    public String getOsArch() {
+        return osArch;
+    }
+
+    public boolean isNumaAware() {
+        return isNumaAware;
+    }
+
+    public int getNumaNodes() {
+        return numaNodes;
+    }
+
     @Override
     public String toString() {
         return String.format(
-            "SystemResourceInfo{processors=%d, totalMemory=%dMB, maxMemory=%dMB, " +
-            "os=%s %s, arch=%s, numa=%b, numaNodes=%d}",
-            availableProcessors, totalMemory / 1024 / 1024, maxMemory / 1024 / 1024,
-            osName, osVersion, osArch, isNumaAware, numaNodes
-        );
+                "SystemResourceInfo{processors=%d, totalMemory=%dMB, maxMemory=%dMB, "
+                        + "os=%s %s, arch=%s, numa=%b, numaNodes=%d}",
+                availableProcessors, totalMemory / 1024 / 1024, maxMemory / 1024 / 1024,
+                osName, osVersion, osArch, isNumaAware, numaNodes);
     }
 }

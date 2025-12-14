@@ -1,7 +1,7 @@
 package com.justsyncit.scanner;
 
 import com.justsyncit.storage.ContentStore;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 import com.justsyncit.storage.metadata.ChunkMetadata;
 import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
@@ -62,14 +62,14 @@ public class FileProcessor {
 
     /**
      * Creates a new FileProcessor with specified dependencies.
-     * 
+     *
      * @deprecated Use
      *             {@link #create(FilesystemScanner, FileChunker, ContentStore, MetadataService)}
      *             instead.
      */
     @Deprecated
     @SuppressWarnings("EI_EXPOSE_REP2")
-    @SuppressFBWarnings("EI_EXPOSE_REP2")
+
     public FileProcessor(FilesystemScanner scanner, FileChunker chunker,
             ContentStore contentStore, MetadataService metadataService) {
         // No validation in constructor - use static factory method instead
@@ -300,7 +300,7 @@ public class FileProcessor {
         /** Chunking options to use. */
         private final FileChunker.ChunkingOptions options;
 
-        public ChunkingFileVisitor(FileChunker.ChunkingOptions options) {
+        ChunkingFileVisitor(FileChunker.ChunkingOptions options) {
             this.options = options;
         }
 
@@ -641,8 +641,10 @@ public class FileProcessor {
                 // Add timeout to prevent infinite hanging
                 // Use the filtered list to create the array for allOf()
                 // Ensure no null elements in array to prevent ForEachOps issues
-                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = validFutures.toArray(
-                        new CompletableFuture[validFutures.size()]);
+                @SuppressWarnings("unchecked")
+                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = (CompletableFuture<FileChunker.ChunkingResult>[]) validFutures
+                        .toArray(
+                                new CompletableFuture<?>[validFutures.size()]);
                 CompletableFuture.allOf(futuresArray)
                         .get(60, java.util.concurrent.TimeUnit.SECONDS); // Reduced timeout for test performance
             } catch (java.util.concurrent.TimeoutException e) {
@@ -715,7 +717,7 @@ public class FileProcessor {
 
         /**
          * Creates a new ProcessingResult.
-         * 
+         *
          * @deprecated Use {@link #create(ScanResult, int, int, int, long, long)}
          *             instead.
          */

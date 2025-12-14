@@ -21,6 +21,7 @@ package com.justsyncit.command;
 import com.justsyncit.hash.Blake3Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -35,6 +36,7 @@ import org.slf4j.LoggerFactory;
  * Follows Single Responsibility Principle by focusing only on file
  * verification.
  */
+
 public class VerifyCommand implements Command {
 
     /** Logger for verify command operations. */
@@ -172,8 +174,11 @@ public class VerifyCommand implements Command {
      * @return true if hashes are equal, false otherwise
      */
     private boolean constantTimeHashCompare(String expectedHash, String actualHash) {
-        if (expectedHash == null || actualHash == null) {
-            return expectedHash == actualHash;
+        if (expectedHash == null) {
+            return actualHash == null;
+        }
+        if (actualHash == null) {
+            return false;
         }
 
         if (expectedHash.length() != actualHash.length()) {
@@ -182,7 +187,8 @@ public class VerifyCommand implements Command {
 
         // Use MessageDigest.isEqual for constant-time comparison
         try {
-            return MessageDigest.isEqual(expectedHash.getBytes(), actualHash.getBytes());
+            return MessageDigest.isEqual(expectedHash.getBytes(StandardCharsets.UTF_8),
+                    actualHash.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             // Fallback to manual constant-time comparison
             int result = 0;

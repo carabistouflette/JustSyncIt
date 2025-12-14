@@ -22,21 +22,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.locks.StampedLock;
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.StampedLock;
 
 /**
- * High-performance optimized AsyncByteBufferPool with tiered sizing, lock-free operations,
+ * High-performance optimized AsyncByteBufferPool with tiered sizing, lock-free
+ * operations,
  * adaptive sizing, zero-copy support, and comprehensive monitoring.
- * 
+ *
  * Features:
  * - Tiered buffer pools with power-of-two sizing
  * - Lock-free buffer acquisition using atomic operations
@@ -55,37 +56,37 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
 
     // Power-of-two buffer sizes (1KB to 1MB)
     private static final int[] BUFFER_SIZES = {
-        1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576
+            1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576
     };
 
     // Pool configuration
     private final PoolConfiguration config;
-    
+
     // Tiered buffer pools for direct buffers
     private final Map<Integer, TieredBufferPool> directPools;
-    
+
     // Tiered buffer pools for heap buffers
     private final Map<Integer, TieredBufferPool> heapPools;
-    
+
     // Performance monitoring
     private final PerformanceMonitor performanceMonitor;
-    
+
     // Adaptive sizing controller
     private final AdaptiveSizingController adaptiveController;
-    
+
     // Pre-fetching manager
     private final BufferPrefetchManager prefetchManager;
-    
+
     // Memory pressure detector
     private final MemoryPressureDetector memoryPressureDetector;
-    
+
     // Backpressure controller
     private final BackpressureController backpressureController;
-    
+
     // Executor services
     private final ExecutorService managementExecutor;
     private final ExecutorService ioExecutor;
-    
+
     // Pool state
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final StampedLock shutdownLock = new StampedLock();
@@ -194,17 +195,49 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
         }
 
         // Getters
-        public int getMinBuffersPerTier() { return minBuffersPerTier; }
-        public int getMaxBuffersPerTier() { return maxBuffersPerTier; }
-        public long getMaxMemoryBytes() { return maxMemoryBytes; }
-        public boolean isDirectBuffersEnabled() { return enableDirectBuffers; }
-        public boolean isHeapBuffersEnabled() { return enableHeapBuffers; }
-        public boolean isPrefetchingEnabled() { return enablePrefetching; }
-        public boolean isAdaptiveSizingEnabled() { return enableAdaptiveSizing; }
-        public boolean isZeroCopyEnabled() { return enableZeroCopy; }
-        public int getPrefetchThreshold() { return prefetchThreshold; }
-        public double getMemoryPressureThreshold() { return memoryPressureThreshold; }
-        public int getBackpressureThreshold() { return backpressureThreshold; }
+        public int getMinBuffersPerTier() {
+            return minBuffersPerTier;
+        }
+
+        public int getMaxBuffersPerTier() {
+            return maxBuffersPerTier;
+        }
+
+        public long getMaxMemoryBytes() {
+            return maxMemoryBytes;
+        }
+
+        public boolean isDirectBuffersEnabled() {
+            return enableDirectBuffers;
+        }
+
+        public boolean isHeapBuffersEnabled() {
+            return enableHeapBuffers;
+        }
+
+        public boolean isPrefetchingEnabled() {
+            return enablePrefetching;
+        }
+
+        public boolean isAdaptiveSizingEnabled() {
+            return enableAdaptiveSizing;
+        }
+
+        public boolean isZeroCopyEnabled() {
+            return enableZeroCopy;
+        }
+
+        public int getPrefetchThreshold() {
+            return prefetchThreshold;
+        }
+
+        public double getMemoryPressureThreshold() {
+            return memoryPressureThreshold;
+        }
+
+        public int getBackpressureThreshold() {
+            return backpressureThreshold;
+        }
     }
 
     /**
@@ -228,21 +261,21 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
         this.config = config;
         this.directPools = new ConcurrentHashMap<>();
         this.heapPools = new ConcurrentHashMap<>();
-        
+
         // Initialize management components
         this.performanceMonitor = new PerformanceMonitor();
         this.adaptiveController = new AdaptiveSizingController(config, performanceMonitor);
         this.prefetchManager = new BufferPrefetchManager(config, performanceMonitor);
         this.memoryPressureDetector = new MemoryPressureDetector(config, performanceMonitor);
         this.backpressureController = new BackpressureController();
-        
+
         // Initialize executor services
         this.managementExecutor = Executors.newFixedThreadPool(2, r -> {
             Thread t = new Thread(r, "BufferPool-Manager");
             t.setDaemon(true);
             return t;
         });
-        
+
         this.ioExecutor = Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "BufferPool-IO");
             t.setDaemon(true);
@@ -251,10 +284,10 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
 
         // Initialize tiered pools
         initializeTieredPools();
-        
+
         // Start background services
         startBackgroundServices();
-        
+
         logger.info("OptimizedAsyncByteBufferPool initialized with config: {}", config);
     }
 
@@ -270,7 +303,7 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
                 heapPools.put(size, new TieredBufferPool(size, config, false, performanceMonitor));
             }
         }
-        
+
         logger.debug("Initialized {} tiered pools for direct and heap buffers", BUFFER_SIZES.length);
     }
 
@@ -279,16 +312,20 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
      */
     private void startBackgroundServices() {
         if (config.isAdaptiveSizingEnabled()) {
+            adaptiveController.start();
             managementExecutor.submit(adaptiveController);
         }
-        
+
         if (config.isPrefetchingEnabled()) {
             managementExecutor.submit(prefetchManager);
         }
-        
+
+        memoryPressureDetector.start();
         managementExecutor.submit(memoryPressureDetector);
+
+        performanceMonitor.start();
         managementExecutor.submit(performanceMonitor);
-        
+
         logger.debug("Started background services for buffer pool management");
     }
 
@@ -302,35 +339,35 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
         }
 
         performanceMonitor.recordAcquisitionRequest(size);
-        
+
         return CompletableFuture.completedFuture(null) // No permit acquisition needed
-            .thenCompose(permit -> {
-                int poolSize = roundToPowerOfTwo(size);
-                boolean preferDirect = shouldUseDirectBuffer(size);
-                
-                Map<Integer, TieredBufferPool> pools = preferDirect ? directPools : heapPools;
-                TieredBufferPool pool = pools.get(poolSize);
-                
-                if (pool == null) {
-                    // Fallback to allocation if no pool exists
-                    return CompletableFuture.completedFuture(allocateBuffer(size, preferDirect));
-                }
-                
-                return pool.acquireAsync()
-                    .thenApply(buffer -> {
-                        performanceMonitor.recordSuccessfulAcquisition(size);
-                        return buffer;
-                    })
-                    .exceptionally(throwable -> {
-                        performanceMonitor.recordFailedAcquisition(size);
-                        return allocateBuffer(size, preferDirect);
-                    });
-            })
-            .whenComplete((buffer, throwable) -> {
-                if (throwable != null) {
-                    // No permit release needed - just check backpressure
-                }
-            });
+                .thenCompose(permit -> {
+                    int poolSize = roundToPowerOfTwo(size);
+                    boolean preferDirect = shouldUseDirectBuffer(size);
+
+                    Map<Integer, TieredBufferPool> pools = preferDirect ? directPools : heapPools;
+                    TieredBufferPool pool = pools.get(poolSize);
+
+                    if (pool == null) {
+                        // Fallback to allocation if no pool exists
+                        return CompletableFuture.completedFuture(allocateBuffer(size, preferDirect));
+                    }
+
+                    return pool.acquireAsync()
+                            .thenApply(buffer -> {
+                                performanceMonitor.recordSuccessfulAcquisition(size);
+                                return buffer;
+                            })
+                            .exceptionally(throwable -> {
+                                performanceMonitor.recordFailedAcquisition(size);
+                                return allocateBuffer(size, preferDirect);
+                            });
+                })
+                .whenComplete((buffer, throwable) -> {
+                    if (throwable != null) {
+                        // No permit release needed - just check backpressure
+                    }
+                });
     }
 
     @Override
@@ -345,23 +382,23 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
         int capacity = buffer.capacity();
         int poolSize = roundToPowerOfTwo(capacity);
         boolean isDirect = buffer.isDirect();
-        
+
         performanceMonitor.recordRelease(capacity);
-        
+
         Map<Integer, TieredBufferPool> pools = isDirect ? directPools : heapPools;
         TieredBufferPool pool = pools.get(poolSize);
-        
+
         if (pool != null) {
             return pool.releaseAsync(buffer)
-                .thenRun(() -> {
-                    performanceMonitor.recordSuccessfulRelease(capacity);
-                    // No permit release needed - just check backpressure
-                })
-                .exceptionally(throwable -> {
-                    performanceMonitor.recordFailedRelease(capacity);
-                    // No permit release needed - just check backpressure
-                    return null;
-                });
+                    .thenRun(() -> {
+                        performanceMonitor.recordSuccessfulRelease(capacity);
+                        // No permit release needed - just check backpressure
+                    })
+                    .exceptionally(throwable -> {
+                        performanceMonitor.recordFailedRelease(capacity);
+                        // No permit release needed - just check backpressure
+                        return null;
+                    });
         } else {
             // Buffer not from pool, just release permit
             // No permit release needed
@@ -375,30 +412,30 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
         if (stamp == 0) {
             return CompletableFuture.failedFuture(new IllegalStateException("Shutdown in progress"));
         }
-        
+
         try {
             if (closed.getAndSet(true)) {
                 return CompletableFuture.completedFuture(null);
             }
 
             List<CompletableFuture<Void>> futures = new ArrayList<>();
-            
+
             // Clear all pools
             directPools.values().forEach(pool -> futures.add(pool.clearAsync()));
             heapPools.values().forEach(pool -> futures.add(pool.clearAsync()));
-            
+
             // Shutdown background services
             adaptiveController.shutdown();
             prefetchManager.shutdown();
             memoryPressureDetector.shutdown();
             performanceMonitor.shutdown();
-            
-            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .thenRun(() -> {
-                    managementExecutor.shutdown();
-                    ioExecutor.shutdown();
-                    logger.info("OptimizedAsyncByteBufferPool cleared and shutdown");
-                });
+
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                    .thenRun(() -> {
+                        managementExecutor.shutdown();
+                        ioExecutor.shutdown();
+                        logger.info("OptimizedAsyncByteBufferPool cleared and shutdown");
+                    });
         } finally {
             shutdownLock.unlockWrite(stamp);
         }
@@ -443,15 +480,15 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
             stats.append("Performance: ").append(performanceMonitor.getStats()).append("\n");
             stats.append("Memory Pressure: ").append(memoryPressureDetector.getCurrentPressure()).append("\n");
             stats.append("Backpressure: ").append(backpressureController.getSummary()).append("\n");
-            
+
             stats.append("Direct Pools:\n");
-            directPools.forEach((size, pool) -> 
-                stats.append("  ").append(size).append(": ").append(pool.getStats()).append("\n"));
-            
+            directPools.forEach(
+                    (size, pool) -> stats.append("  ").append(size).append(": ").append(pool.getStats()).append("\n"));
+
             stats.append("Heap Pools:\n");
-            heapPools.forEach((size, pool) -> 
-                stats.append("  ").append(size).append(": ").append(pool.getStats()).append("\n"));
-            
+            heapPools.forEach(
+                    (size, pool) -> stats.append("  ").append(size).append(": ").append(pool.getStats()).append("\n"));
+
             return stats.toString();
         }, managementExecutor);
     }
@@ -511,9 +548,13 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
      * Rounds size up to the nearest power of two.
      */
     private int roundToPowerOfTwo(int size) {
-        if (size <= 1024) return 1024;
-        if (size > 1048576) return 1048576; // Cap at 1MB
-        
+        if (size <= 1024) {
+            return 1024;
+        }
+        if (size > 1048576) {
+            return 1048576; // Cap at 1MB
+        }
+
         int power = 32 - Integer.numberOfLeadingZeros(size - 1);
         int rounded = 1 << power;
         return (size == rounded) ? size : rounded;
@@ -523,9 +564,13 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
      * Determines whether to use direct buffer based on size and configuration.
      */
     private boolean shouldUseDirectBuffer(int size) {
-        if (!config.isDirectBuffersEnabled()) return false;
-        if (!config.isHeapBuffersEnabled()) return true;
-        
+        if (!config.isDirectBuffersEnabled()) {
+            return false;
+        }
+        if (!config.isHeapBuffersEnabled()) {
+            return true;
+        }
+
         // Use direct buffers for larger sizes (>32KB) for better I/O performance
         return size > 32768;
     }

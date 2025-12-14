@@ -83,16 +83,16 @@ public final class AsyncTestRunner {
             }
 
             // Calculate class-level results
-            int passedCount = (int) methodResults.stream().mapToInt(r -> r.isPassed() ? 1 : 0).sum();
-            int failedCount = (int) methodResults.stream().mapToInt(r -> r.isFailed() ? 1 : 0).sum();
-            int skippedCount = (int) methodResults.stream().mapToInt(r -> r.isSkipped() ? 1 : 0).sum();
+            int passedCount = methodResults.stream().mapToInt(r -> r.isPassed() ? 1 : 0).sum();
+            int failedCount = methodResults.stream().mapToInt(r -> r.isFailed() ? 1 : 0).sum();
+            int skippedCount = methodResults.stream().mapToInt(r -> r.isSkipped() ? 1 : 0).sum();
 
             boolean classSuccess = failedCount == 0;
             Duration executionTime = Duration.between(startTime, Instant.now());
 
-            System.out.println("Completed test class: " + className + " - " +
-                    (classSuccess ? "PASSED" : "FAILED") +
-                    " (" + passedCount + " passed, " + failedCount + " failed, " + skippedCount + " skipped)");
+            System.out.println("Completed test class: " + className + " - "
+                    + (classSuccess ? "PASSED" : "FAILED")
+                    + " (" + passedCount + " passed, " + failedCount + " failed, " + skippedCount + " skipped)");
 
             return new AsyncTestSuite.ClassTestResult(
                     className, classSuccess, testMethods.size(),
@@ -173,10 +173,10 @@ public final class AsyncTestRunner {
      */
     private boolean isTestMethod(Method method) {
         // Simple heuristic: public methods starting with "test" or annotated with @Test
-        return (method.getName().startsWith("test") &&
-                java.lang.reflect.Modifier.isPublic(method.getModifiers()) &&
-                method.getParameterCount() == 0) ||
-                method.isAnnotationPresent(org.junit.jupiter.api.Test.class);
+        return (method.getName().startsWith("test")
+                && java.lang.reflect.Modifier.isPublic(method.getModifiers())
+                && method.getParameterCount() == 0)
+                || method.isAnnotationPresent(org.junit.jupiter.api.Test.class);
     }
 
     /**

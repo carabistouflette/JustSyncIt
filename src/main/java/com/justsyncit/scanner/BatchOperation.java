@@ -29,44 +29,51 @@ import java.util.concurrent.ConcurrentHashMap;
  * Provides comprehensive tracking of batch processing operations
  * with support for dependencies, priorities, and resource allocation.
  */
-public class BatchOperation {
+
+/**
+ * Represents a batch operation with metadata and dependencies.
+ * Provides comprehensive tracking of batch processing operations
+ * with support for dependencies, priorities, and resource allocation.
+ */
+
+public final class BatchOperation {
 
     /** Unique identifier for this batch operation. */
     private final String operationId;
-    
+
     /** Type of batch operation. */
     private final BatchOperationType operationType;
-    
+
     /** Files to be processed in this batch. */
     private final List<Path> files;
-    
+
     /** Priority level for this operation. */
     private final BatchPriority priority;
-    
+
     /** Timestamp when operation was created. */
     private final Instant createdTime;
-    
+
     /** Estimated resource requirements. */
     private final ResourceRequirements resourceRequirements;
-    
+
     /** Operation dependencies that must complete first. */
     private final Map<String, BatchOperation> dependencies;
-    
+
     /** Operation metadata. */
     private final Map<String, Object> metadata;
 
     /**
      * Creates a new BatchOperation.
      *
-     * @param operationId unique identifier for this operation
-     * @param operationType type of batch operation
-     * @param files files to be processed
-     * @param priority priority level for this operation
+     * @param operationId          unique identifier for this operation
+     * @param operationType        type of batch operation
+     * @param files                files to be processed
+     * @param priority             priority level for this operation
      * @param resourceRequirements estimated resource requirements
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
     public BatchOperation(String operationId, BatchOperationType operationType, List<Path> files,
-                     BatchPriority priority, ResourceRequirements resourceRequirements) {
+            BatchPriority priority, ResourceRequirements resourceRequirements) {
         if (operationId == null || operationId.trim().isEmpty()) {
             throw new IllegalArgumentException("Operation ID cannot be null or empty");
         }
@@ -160,8 +167,9 @@ public class BatchOperation {
      * Adds a dependency to this operation.
      *
      * @param dependencyId ID of the dependency operation
-     * @param dependency the dependency operation
-     * @throws IllegalArgumentException if dependencyId is null or empty, or dependency is null
+     * @param dependency   the dependency operation
+     * @throws IllegalArgumentException if dependencyId is null or empty, or
+     *                                  dependency is null
      */
     public void addDependency(String dependencyId, BatchOperation dependency) {
         if (dependencyId == null || dependencyId.trim().isEmpty()) {
@@ -204,7 +212,7 @@ public class BatchOperation {
     /**
      * Sets metadata for this operation.
      *
-     * @param key metadata key
+     * @param key   metadata key
      * @param value metadata value
      * @throws IllegalArgumentException if key is null or empty
      */
@@ -260,9 +268,8 @@ public class BatchOperation {
     public String toString() {
         return String.format(
                 "BatchOperation{id='%s', type=%s, files=%d, priority=%s, size=%dMB, dependencies=%d}",
-                operationId, operationType, files.size(), priority, 
-                getTotalFileSize() / (1024 * 1024), dependencies.size()
-        );
+                operationId, operationType, files.size(), priority,
+                getTotalFileSize() / (1024 * 1024), dependencies.size());
     }
 
     /**
@@ -277,10 +284,10 @@ public class BatchOperation {
         /**
          * Creates resource requirements.
          *
-         * @param memoryBytes memory required in bytes
-         * @param cpuCores CPU cores required
+         * @param memoryBytes     memory required in bytes
+         * @param cpuCores        CPU cores required
          * @param ioBandwidthMBps I/O bandwidth required in MB/s
-         * @param timeoutMs timeout in milliseconds
+         * @param timeoutMs       timeout in milliseconds
          */
         public ResourceRequirements(long memoryBytes, int cpuCores, int ioBandwidthMBps, long timeoutMs) {
             this.memoryBytes = memoryBytes;
@@ -293,8 +300,7 @@ public class BatchOperation {
         public String toString() {
             return String.format(
                     "ResourceRequirements{memory=%dMB, cpu=%d cores, io=%dMB/s, timeout=%dms}",
-                    memoryBytes / (1024 * 1024), cpuCores, ioBandwidthMBps, timeoutMs
-            );
+                    memoryBytes / (1024 * 1024), cpuCores, ioBandwidthMBps, timeoutMs);
         }
     }
 }

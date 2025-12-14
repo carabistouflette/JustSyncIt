@@ -39,8 +39,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of ConnectionManager with reconnection logic and exponential backoff.
- * Follows Single Responsibility Principle by focusing solely on connection management.
+ * Implementation of ConnectionManager with reconnection logic and exponential
+ * backoff.
+ * Follows Single Responsibility Principle by focusing solely on connection
+ * management.
  */
 public class ConnectionManagerImpl implements ConnectionManager {
 
@@ -149,12 +151,12 @@ public class ConnectionManagerImpl implements ConnectionManager {
                 closeFutures.add(connection.closeAsync());
             }
 
-            return CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture[0]))
-                .thenRun(() -> {
-                    connections.clear();
-                    messageHandlers.clear();
-                    logger.info("Connection manager stopped");
-                });
+            return CompletableFuture.allOf(closeFutures.toArray(new CompletableFuture<?>[0]))
+                    .thenRun(() -> {
+                        connections.clear();
+                        messageHandlers.clear();
+                        logger.info("Connection manager stopped");
+                    });
         } else {
             logger.warn("Connection manager already stopped");
             return CompletableFuture.completedFuture(null);
@@ -165,8 +167,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
     public CompletableFuture<Connection> connectToNode(InetSocketAddress address) {
         if (!running.get()) {
             return CompletableFuture.failedFuture(
-                new IllegalStateException("Connection manager is not running")
-            );
+                    new IllegalStateException("Connection manager is not running"));
         }
 
         Connection existingConnection = connections.get(address);
@@ -189,16 +190,15 @@ public class ConnectionManagerImpl implements ConnectionManager {
      * Schedules a reconnection attempt with exponential backoff.
      */
     private void scheduleReconnection(InetSocketAddress address,
-                                     CompletableFuture<Connection> connectionFuture,
-                                     int attempt) {
+            CompletableFuture<Connection> connectionFuture,
+            int attempt) {
         if (!running.get() || connectionFuture.isDone()) {
             return;
         }
 
         if (attempt >= MAX_RECONNECT_ATTEMPTS) {
             String errorMsg = String.format(
-                    "Failed to connect to %s after %d attempts", address, MAX_RECONNECT_ATTEMPTS
-            );
+                    "Failed to connect to %s after %d attempts", address, MAX_RECONNECT_ATTEMPTS);
             logger.error(errorMsg);
             connectionFuture.completeExceptionally(new IOException(errorMsg));
             notifyReconnectionFailed(address, MAX_RECONNECT_ATTEMPTS);
@@ -208,8 +208,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
         long delayMs = calculateReconnectDelay(attempt);
 
         logger.info(
-                "Scheduling reconnection attempt {} to {} in {}ms", attempt + 1, address, delayMs
-        );
+                "Scheduling reconnection attempt {} to {} in {}ms", attempt + 1, address, delayMs);
 
         notifyReconnectionStarted(address, attempt + 1);
 
@@ -231,8 +230,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
                 }
             } catch (Exception e) {
                 logger.warn(
-                        "Connection attempt {} to {} failed: {}", attempt + 1, address, e.getMessage()
-                );
+                        "Connection attempt {} to {} failed: {}", attempt + 1, address, e.getMessage());
                 notifyConnectionFailed(address, e);
 
                 // Schedule next attempt
@@ -264,8 +262,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
             // Verify the connection is actually established
             if (!tcpClient.isConnected(address)) {
                 throw new IOException(
-                    "TCP client reports connection not established to " + address
-                );
+                        "TCP client reports connection not established to " + address);
             }
 
             // Create a connection wrapper that delegates to the TCP client
@@ -321,7 +318,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
         Connection connection = connections.remove(address);
         if (connection != null) {
             return connection.closeAsync()
-                .thenRun(() -> notifyConnectionClosed(connection, "Disconnected by request"));
+                    .thenRun(() -> notifyConnectionClosed(connection, "Disconnected by request"));
         } else {
             return CompletableFuture.completedFuture(null);
         }
@@ -345,8 +342,7 @@ public class ConnectionManagerImpl implements ConnectionManager {
             return connection.sendMessage(message);
         } else {
             return CompletableFuture.failedFuture(
-                new IOException("Not connected to " + address)
-            );
+                    new IOException("Not connected to " + address));
         }
     }
 
@@ -379,15 +375,15 @@ public class ConnectionManagerImpl implements ConnectionManager {
     @Override
     public Connection[] getActiveConnections() {
         return connections.values().stream()
-            .filter(Connection::isActive)
-            .toArray(Connection[]::new);
+                .filter(Connection::isActive)
+                .toArray(Connection[]::new);
     }
 
     @Override
     public int getActiveConnectionCount() {
         return (int) connections.values().stream()
-            .filter(Connection::isActive)
-            .count();
+                .filter(Connection::isActive)
+                .count();
     }
 
     // Notification methods
@@ -421,7 +417,6 @@ public class ConnectionManagerImpl implements ConnectionManager {
             }
         }
     }
-
 
     private void notifyReconnectionStarted(InetSocketAddress address, int attempt) {
         for (ConnectionListener listener : listeners) {

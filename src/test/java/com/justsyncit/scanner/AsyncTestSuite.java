@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 public final class AsyncTestSuite {
 
     private static final List<Class<?>> UNIT_TEST_CLASSES = Arrays.asList(
-            AsyncByteBufferPoolTest.class,
+
             AsyncFileChunkerTest.class,
             AsyncChunkHandlerComprehensiveTest.class,
             AsyncByteBufferPoolComprehensiveTest.class,
@@ -189,8 +189,8 @@ public final class AsyncTestSuite {
             }
 
             // Wait for all test classes to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(configuration.getCategoryTimeout().toMillis(), TimeUnit.MILLISECONDS);
+            // Wait for all test classes to complete
+            AsyncTestUtils.waitForAll(configuration.getCategoryTimeout(), futures);
 
             // Collect results
             for (CompletableFuture<ClassTestResult> future : futures) {
@@ -217,8 +217,8 @@ public final class AsyncTestSuite {
         categoryResult.setEndTime(Instant.now());
         categoryResult.setDuration(Duration.between(startTime, categoryResult.getEndTime()));
 
-        System.out.println("Completed " + categoryName + " - " +
-                (categoryResult.isSuccess() ? "SUCCESS" : "FAILED"));
+        System.out.println("Completed " + categoryName + " - "
+                + (categoryResult.isSuccess() ? "SUCCESS" : "FAILED"));
 
         return categoryResult;
     }

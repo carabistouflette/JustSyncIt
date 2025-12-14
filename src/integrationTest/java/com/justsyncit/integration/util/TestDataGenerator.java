@@ -39,24 +39,24 @@ public class TestDataGenerator {
      */
     public static void createBasicDataset(Path baseDir) throws IOException {
         Files.createDirectories(baseDir);
-        
+
         // Small text files
         createTextFile(baseDir.resolve("small1.txt"), 1024, "Small text file 1");
         createTextFile(baseDir.resolve("small2.txt"), 2048, "Small text file 2");
-        
+
         // Medium files
         createBinaryFile(baseDir.resolve("medium1.dat"), 1024 * 100); // 100KB
         createTextFile(baseDir.resolve("medium2.txt"), 1024 * 50, "Medium text file 2"); // 50KB
-        
+
         // Large file
         createBinaryFile(baseDir.resolve("large.dat"), 1024 * 1024 * 5); // 5MB
-        
+
         // Subdirectory with files
         Path subDir = baseDir.resolve("subdir");
         Files.createDirectories(subDir);
         createTextFile(subDir.resolve("nested1.txt"), 4096, "Nested file 1");
         createBinaryFile(subDir.resolve("nested2.dat"), 8192);
-        
+
         // Deep directory structure
         Path deepDir = baseDir.resolve("level1").resolve("level2").resolve("level3");
         Files.createDirectories(deepDir);
@@ -71,25 +71,25 @@ public class TestDataGenerator {
      */
     public static void createDuplicateDataset(Path baseDir) throws IOException {
         Files.createDirectories(baseDir);
-        
+
         // Create duplicate content
         byte[] duplicateContent = generateRandomContent(10240); // 10KB
         String duplicateText = "This is duplicate content that appears in multiple files to test deduplication.";
-        
+
         // Multiple files with identical binary content
         Files.write(baseDir.resolve("duplicate1.dat"), duplicateContent);
         Files.write(baseDir.resolve("duplicate2.dat"), duplicateContent);
         Files.write(baseDir.resolve("duplicate3.dat"), duplicateContent);
-        
+
         // Multiple files with identical text content
         Files.write(baseDir.resolve("text_duplicate1.txt"), duplicateText.getBytes());
         Files.write(baseDir.resolve("text_duplicate2.txt"), duplicateText.getBytes());
         Files.write(baseDir.resolve("text_duplicate3.txt"), duplicateText.getBytes());
-        
+
         // Some unique files
         createBinaryFile(baseDir.resolve("unique1.dat"), 5120);
         createTextFile(baseDir.resolve("unique2.txt"), 2048, "Unique content");
-        
+
         // Subdirectory with duplicates
         Path subDir = baseDir.resolve("subdir");
         Files.createDirectories(subDir);
@@ -105,22 +105,22 @@ public class TestDataGenerator {
      */
     public static void createSpecialCharacterDataset(Path baseDir) throws IOException {
         Files.createDirectories(baseDir);
-        
+
         // Files with special characters in names
         createTextFile(baseDir.resolve("file with spaces.txt"), 1024, "File with spaces");
         createTextFile(baseDir.resolve("file-with-dashes.txt"), 1024, "File with dashes");
         createTextFile(baseDir.resolve("file_with_underscores.txt"), 1024, "File with underscores");
         createTextFile(baseDir.resolve("file.with.dots.txt"), 1024, "File with dots");
-        
+
         // Unicode characters
         createTextFile(baseDir.resolve("файл.txt"), 1024, "Cyrillic filename");
         createTextFile(baseDir.resolve("文件.txt"), 1024, "Chinese filename");
         createTextFile(baseDir.resolve("fichier_avec_éàç.txt"), 1024, "French accented filename");
-        
+
         // Special characters in content
         String specialContent = "Special characters: éàçüöäß 中文 русский العربية עברית हिन्दी";
         Files.write(baseDir.resolve("special_content.txt"), specialContent.getBytes("UTF-8"));
-        
+
         // Very long filename
         String longName = "a".repeat(200) + ".txt";
         createTextFile(baseDir.resolve(longName), 512, "Very long filename");
@@ -136,11 +136,11 @@ public class TestDataGenerator {
      */
     public static void createPerformanceDataset(Path baseDir, int fileCount, int maxFileSize) throws IOException {
         Files.createDirectories(baseDir);
-        
+
         for (int i = 0; i < fileCount; i++) {
             int fileSize = RANDOM.nextInt(maxFileSize) + 1024; // At least 1KB
             String fileName = String.format("perf_file_%03d.dat", i);
-            
+
             if (i % 3 == 0) {
                 createBinaryFile(baseDir.resolve(fileName), fileSize);
             } else {
@@ -157,12 +157,12 @@ public class TestDataGenerator {
      */
     public static void createEmptyDataset(Path baseDir) throws IOException {
         Files.createDirectories(baseDir);
-        
+
         // Create empty directories
         Files.createDirectories(baseDir.resolve("empty1"));
         Files.createDirectories(baseDir.resolve("empty2"));
         Files.createDirectories(baseDir.resolve("nested").resolve("empty"));
-        
+
         // Create a single empty file
         Files.createFile(baseDir.resolve("empty.txt"));
     }
@@ -175,10 +175,10 @@ public class TestDataGenerator {
      */
     public static void createPermissionDataset(Path baseDir) throws IOException {
         Files.createDirectories(baseDir);
-        
+
         // Regular files
         createTextFile(baseDir.resolve("regular.txt"), 1024, "Regular file");
-        
+
         // Note: In a real implementation, we would set different permissions
         // For cross-platform compatibility, we just create the files
         createTextFile(baseDir.resolve("readonly.txt"), 1024, "Read-only file simulation");
@@ -191,11 +191,11 @@ public class TestDataGenerator {
     private static void createTextFile(Path filePath, int size, String content) throws IOException {
         StringBuilder sb = new StringBuilder();
         sb.append(content);
-        
+
         while (sb.length() < size) {
             sb.append(" ").append(content);
         }
-        
+
         String fileContent = sb.substring(0, Math.min(size, sb.length()));
         Files.write(filePath, fileContent.getBytes());
     }

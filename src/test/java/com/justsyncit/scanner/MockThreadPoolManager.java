@@ -40,7 +40,7 @@ public class MockThreadPoolManager {
         this.shutdown = false;
         this.maxConcurrentOperations = 10;
         this.managedPools = new ArrayList<>();
-        
+
         // Create mock thread pools
         this.ioThreadPool = Executors.newFixedThreadPool(4);
         this.cpuThreadPool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors());
@@ -145,22 +145,18 @@ public class MockThreadPoolManager {
         }
 
         // Create mock stats
-        return new ThreadPoolStats(
-            "MockThreadPoolManager", // poolName
-            0, // corePoolSize
-            0, // maximumPoolSize
-            activeOperations.get(), // activeThreads
-            (int) totalTasksSubmitted.get(), // totalTasks
-            (int) totalTasksCompleted.get(), // completedTasks
-            0, // queueSize
-            totalTasksSubmitted.get(), // submittedTasks
-            totalTasksCompleted.get(), // completedSubmittedTasks
-            0, // currentQueueSize
-            100.0, // averageExecutionTime
-            10.0, // throughput
-            0.5, // utilizationRate
-            0.8 // efficiency
-        );
+        return new ThreadPoolStats.Builder()
+                .setPoolName("MockThreadPoolManager")
+                .setActiveThreads(activeOperations.get())
+                .setTotalTasks((int) totalTasksSubmitted.get())
+                .setCompletedTasks((int) totalTasksCompleted.get())
+                .setSubmittedTasks(totalTasksSubmitted.get())
+                .setCompletedSubmittedTasks(totalTasksCompleted.get())
+                .setAverageExecutionTime(100.0)
+                .setThroughput(10.0)
+                .setUtilizationRate(0.5)
+                .setEfficiency(0.8)
+                .build();
     }
 
     /**
@@ -198,7 +194,7 @@ public class MockThreadPoolManager {
      */
     public void shutdown() {
         shutdown = true;
-        
+
         try {
             ioThreadPool.shutdown();
             cpuThreadPool.shutdown();
@@ -206,7 +202,7 @@ public class MockThreadPoolManager {
             batchProcessingThreadPool.shutdown();
             watchServiceThreadPool.shutdown();
             managementThreadPool.shutdown();
-            
+
             // Wait for termination
             if (!ioThreadPool.awaitTermination(5, TimeUnit.SECONDS)) {
                 ioThreadPool.shutdownNow();
@@ -385,13 +381,13 @@ public class MockThreadPoolManager {
 
         public ThreadPoolStats.PoolSpecificStats getPoolStats() {
             return new ThreadPoolStats.PoolSpecificStats(
-                0, // resizeCount
-                System.currentTimeMillis(), // lastResizeTime
-                0, // consecutiveOptimizations
-                0.7, // currentEfficiency
-                0.8, // targetEfficiency
-                50.0, // averageLatency
-                100.0 // throughput
+                    0, // resizeCount
+                    System.currentTimeMillis(), // lastResizeTime
+                    0, // consecutiveOptimizations
+                    0.7, // currentEfficiency
+                    0.8, // targetEfficiency
+                    50.0, // averageLatency
+                    100.0 // throughput
             );
         }
     }

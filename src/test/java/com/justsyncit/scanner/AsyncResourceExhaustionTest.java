@@ -33,7 +33,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Resource exhaustion test suite for async components.
@@ -135,8 +137,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
         }
 
         // Wait for all operations to complete
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(30, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(30), futures);
 
         // Verify graceful handling
         int totalOps = successfulOps.get() + failedOps.get();
@@ -205,8 +206,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
             }
 
             // Wait for pressure operations
-            CompletableFuture.allOf(pressureFutures.toArray(new CompletableFuture[0]))
-                    .get(15, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(15), pressureFutures);
 
             // Release pressure
             for (java.nio.ByteBuffer buffer : heldBuffers) {
@@ -234,8 +234,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
             }
 
             // Wait for recovery operations
-            CompletableFuture.allOf(recoveryFutures.toArray(new CompletableFuture[0]))
-                    .get(10, TimeUnit.SECONDS);
+            AsyncTestUtils.waitForAll(Duration.ofSeconds(10), recoveryFutures);
 
             // Recovery should be better than pressure performance
             assertTrue(recoverySuccess.get() >= pressureSuccess.get(),
@@ -302,8 +301,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
         }
 
         // Wait for all operations
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .get(25, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(25), futures);
 
         // Then - System should handle thread pool exhaustion
         int totalOps = completedOps.get() + rejectedOps.get();
@@ -374,8 +372,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
         }
 
         // Wait for pressure operations
-        CompletableFuture.allOf(pressureFutures.toArray(new CompletableFuture[0]))
-                .get(20, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(20), pressureFutures);
 
         // Release some file descriptors
         for (int i = 0; i < heldFiles.size() / 2; i++) {
@@ -404,8 +401,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
         }
 
         // Wait for recovery operations
-        CompletableFuture.allOf(recoveryFutures.toArray(new CompletableFuture[0]))
-                .get(15, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(15), recoveryFutures);
 
         // Then - System should handle descriptor exhaustion
         assertTrue(successUnderPressure.get() >= 0, "Some operations may succeed under pressure");
@@ -476,8 +472,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
         }
 
         // Wait for all threads to complete
-        CompletableFuture.allOf(threadFutures.toArray(new CompletableFuture[0]))
-                .get(30, TimeUnit.SECONDS);
+        AsyncTestUtils.waitForAll(Duration.ofSeconds(30), threadFutures);
 
         // Then - System should handle extreme contention
         int totalOperations = totalSuccessful.get() + totalFailed.get() + timeouts.get();
@@ -547,7 +542,7 @@ public class AsyncResourceExhaustionTest extends AsyncTestBase {
                 futures.add(future);
             }
             try {
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(10, TimeUnit.SECONDS);
+                AsyncTestUtils.waitForAll(Duration.ofSeconds(10), futures);
             } catch (Exception e) {
                 // Expected under exhaustion
             }

@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
  * Command for hashing files.
  * Follows Single Responsibility Principle by focusing only on file hashing.
  */
+
 public class HashCommand implements Command {
 
     /** Logger for hash command operations. */

@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Benchmark for measuring data processing throughput.
@@ -92,7 +92,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkSmallDatasetThroughput() throws Exception {
         // Test with small dataset (1-100 MB)
-        int[] datasetSizes = { 1, 10, 50, 100 }; // MB
+        int[] datasetSizes = {1, 10, 50, 100 }; // MB
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Small Dataset Backup - " + sizeMB + "MB");
@@ -142,7 +142,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMediumDatasetThroughput() throws Exception {
         // Test with medium dataset (100 MB - 1 GB)
-        int[] datasetSizes = { 100, 250, 500, 1024 }; // MB
+        int[] datasetSizes = {100, 250, 500, 1024 }; // MB
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Medium Dataset Backup - " + sizeMB + "MB");
@@ -192,7 +192,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkLargeDatasetThroughput() throws Exception {
         // Test with large dataset (1-10 GB) - smaller sizes for testing
-        int[] datasetSizes = { 1024, 2048 }; // MB (1GB, 2GB for testing)
+        int[] datasetSizes = {1024, 2048 }; // MB (1GB, 2GB for testing)
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Large Dataset Backup - " + sizeMB + "MB");
@@ -242,14 +242,13 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkRestoreThroughput() throws Exception {
         // Test restore throughput with various dataset sizes
-        int[] datasetSizes = { 10, 100, 500 }; // MB
+        int[] datasetSizes = {10, 100, 500 }; // MB
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Restore Throughput - " + sizeMB + "MB");
 
             // Create and backup dataset first
             BenchmarkDataGenerator.createMixedDataset(sourceDir, sizeMB);
-            long totalSize = calculateTotalSize(sourceDir);
 
             BackupOptions backupOptions = new BackupOptions.Builder()
                     .verifyIntegrity(true)
@@ -302,7 +301,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkChunkSizeThroughputImpact() throws Exception {
         // Test impact of different chunk sizes on throughput
-        int[] chunkSizes = { 64 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024 }; // 64KB, 256KB, 1MB, 4MB
+        int[] chunkSizes = {64 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024 }; // 64KB, 256KB, 1MB, 4MB
         int datasetSize = 100; // MB
 
         for (int chunkSize : chunkSizes) {
@@ -351,7 +350,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkIntegrityVerificationThroughputImpact() throws Exception {
         // Test impact of integrity verification on throughput
-        boolean[] verificationOptions = { false, true };
+        boolean[] verificationOptions = {false, true };
         int datasetSize = 100; // MB
 
         for (boolean verifyIntegrity : verificationOptions) {
@@ -434,14 +433,18 @@ public class ThroughputBenchmark {
      * Gets a performance rating based on throughput.
      */
     private String getThroughputRating(double throughputMBps) {
-        if (throughputMBps >= 100)
+        if (throughputMBps >= 100) {
             return "Excellent (>100 MB/s)";
-        if (throughputMBps >= 50)
+        }
+        if (throughputMBps >= 50) {
             return "Good (50-100 MB/s)";
-        if (throughputMBps >= 25)
+        }
+        if (throughputMBps >= 25) {
             return "Fair (25-50 MB/s)";
-        if (throughputMBps >= 10)
+        }
+        if (throughputMBps >= 10) {
             return "Poor (10-25 MB/s)";
+        }
         return "Very Poor (<10 MB/s)";
     }
 
@@ -449,32 +452,41 @@ public class ThroughputBenchmark {
      * Calculates total size of files in a directory.
      */
     private long calculateTotalSize(Path directory) throws IOException {
-        return Files.walk(directory)
-                .filter(Files::isRegularFile)
-                .mapToLong(file -> {
-                    try {
-                        return Files.size(file);
-                    } catch (IOException e) {
-                        return 0;
-                    }
-                })
-                .sum();
+        try (java.util.stream.Stream<Path> stream = Files.walk(directory)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .mapToLong(file -> {
+                        try {
+                            return Files.size(file);
+                        } catch (IOException e) {
+                            return 0;
+                        }
+                    })
+                    .sum();
+        }
     }
 
     /**
-     * Cleans up a directory by removing all files.
+     * Cleans up a directory by removing all files and subdirectories.
      */
     private void cleanupDirectory(Path directory) throws IOException {
         if (Files.exists(directory)) {
-            Files.walk(directory)
-                    .filter(Files::isRegularFile)
-                    .forEach(file -> {
-                        try {
-                            Files.delete(file);
-                        } catch (IOException e) {
-                            // Ignore cleanup errors
-                        }
-                    });
+            Files.walkFileTree(directory, new java.nio.file.SimpleFileVisitor<Path>() {
+                @Override
+                public java.nio.file.FileVisitResult visitFile(Path file,
+                        java.nio.file.attribute.BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    if (!dir.equals(directory)) {
+                        Files.delete(dir);
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            });
         }
     }
 }

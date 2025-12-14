@@ -18,17 +18,20 @@
 
 package com.justsyncit.command;
 
+
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.Locale;
 
 /**
  * Command for starting a backup server.
  * Follows Single Responsibility Principle by handling only server start
  * operations.
  */
+
 public class ServerStartCommand implements Command {
 
     private static final int DEFAULT_PORT = 8080;
@@ -155,7 +158,7 @@ public class ServerStartCommand implements Command {
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
                             i++;
                         } catch (IllegalArgumentException e) {
                             throw new IllegalArgumentException(

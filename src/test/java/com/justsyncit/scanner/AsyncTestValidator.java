@@ -229,8 +229,8 @@ public final class AsyncTestValidator {
         // Check for proper test failure handling (no uncaught exceptions)
         for (AsyncTestSuite.TestCategoryResult category : result.getCategoryResults()) {
             for (AsyncTestSuite.ClassTestResult classResult : category.getClassResults()) {
-                if (classResult.getErrorMessage() != null &&
-                        classResult.getErrorMessage().contains("uncaught")) {
+                if (classResult.getErrorMessage() != null
+                        && classResult.getErrorMessage().contains("uncaught")) {
                     warnings.add("Uncaught exception detected in test: " + classResult.getClassName());
                 }
             }
@@ -248,8 +248,8 @@ public final class AsyncTestValidator {
 
         // Check if resource management tests are present
         boolean hasResourceTests = result.getCategoryResults().stream()
-                .anyMatch(category -> category.getCategoryName().contains("Resource") ||
-                        category.getCategoryName().contains("Leak"));
+                .anyMatch(category -> category.getCategoryName().contains("Resource")
+                        || category.getCategoryName().contains("Leak"));
 
         if (!hasResourceTests) {
             warnings.add("Missing resource management test category");
@@ -415,7 +415,7 @@ public final class AsyncTestValidator {
         private final String message;
         private final List<String> warnings;
 
-        public CoverageValidationResult(boolean valid, String message, List<String> warnings) {
+        CoverageValidationResult(boolean valid, String message, List<String> warnings) {
             this.valid = valid;
             this.message = message;
             this.warnings = new ArrayList<>(warnings);
@@ -441,7 +441,7 @@ public final class AsyncTestValidator {
         private final boolean valid;
         private final List<String> warnings;
 
-        public AsyncComponentCoverageResult(boolean valid, List<String> warnings) {
+        AsyncComponentCoverageResult(boolean valid, List<String> warnings) {
             this.valid = valid;
             this.warnings = new ArrayList<>(warnings);
         }
@@ -462,7 +462,7 @@ public final class AsyncTestValidator {
         private final boolean valid;
         private final List<String> warnings;
 
-        public PerformanceValidationResult(boolean valid, List<String> warnings) {
+        PerformanceValidationResult(boolean valid, List<String> warnings) {
             this.valid = valid;
             this.warnings = new ArrayList<>(warnings);
         }
@@ -483,7 +483,7 @@ public final class AsyncTestValidator {
         private final boolean valid;
         private final List<String> warnings;
 
-        public ErrorHandlingValidationResult(boolean valid, List<String> warnings) {
+        ErrorHandlingValidationResult(boolean valid, List<String> warnings) {
             this.valid = valid;
             this.warnings = new ArrayList<>(warnings);
         }
@@ -504,7 +504,7 @@ public final class AsyncTestValidator {
         private final boolean valid;
         private final List<String> warnings;
 
-        public ResourceManagementValidationResult(boolean valid, List<String> warnings) {
+        ResourceManagementValidationResult(boolean valid, List<String> warnings) {
             this.valid = valid;
             this.warnings = new ArrayList<>(warnings);
         }

@@ -21,7 +21,9 @@ package com.justsyncit.scanner;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.nio.file.Path;
 import java.time.Duration;
@@ -41,22 +43,22 @@ public abstract class AsyncTestBase {
     /** Temporary directory for test files. */
     @TempDir
     protected Path tempDir;
-    
+
     /** Default timeout for async operations. */
     protected static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
-    
+
     /** Short timeout for fast operations. */
     protected static final Duration SHORT_TIMEOUT = Duration.ofSeconds(5);
-    
+
     /** Long timeout for stress operations. */
     protected static final Duration LONG_TIMEOUT = Duration.ofMinutes(5);
-    
+
     /** Executor service for test operations. */
     protected ExecutorService testExecutor;
-    
+
     /** Reference to track last exception for debugging. */
     protected final AtomicReference<Throwable> lastException = new AtomicReference<>();
-    
+
     /** Flag to track if test executor should be isolated per test method. */
     protected boolean useIsolatedExecutor = true;
 
@@ -65,7 +67,7 @@ public abstract class AsyncTestBase {
         if (useIsolatedExecutor) {
             // Create isolated executor for each test method to avoid interference
             testExecutor = Executors.newFixedThreadPool(
-                Math.max(4, Runtime.getRuntime().availableProcessors() / 2));
+                    Math.max(4, Runtime.getRuntime().availableProcessors() / 2));
         } else {
             // Use shared executor for tests that need coordination
             testExecutor = Executors.newCachedThreadPool();
@@ -88,7 +90,7 @@ public abstract class AsyncTestBase {
                 testExecutor.shutdownNow();
             }
         }
-        
+
         // Log any captured exceptions for debugging
         Throwable exception = lastException.get();
         if (exception != null) {
@@ -101,8 +103,8 @@ public abstract class AsyncTestBase {
      * Executes a supplier within timeout and captures any exceptions.
      *
      * @param supplier the operation to execute
-     * @param timeout timeout duration
-     * @param <T> result type
+     * @param timeout  timeout duration
+     * @param <T>      result type
      * @return result of the operation
      * @throws RuntimeException if operation fails or times out
      */
@@ -123,7 +125,7 @@ public abstract class AsyncTestBase {
      * Executes a runnable within timeout and captures any exceptions.
      *
      * @param runnable the operation to execute
-     * @param timeout timeout duration
+     * @param timeout  timeout duration
      * @throws RuntimeException if operation fails or times out
      */
     protected void executeWithTimeout(Runnable runnable, Duration timeout) {
@@ -140,11 +142,12 @@ public abstract class AsyncTestBase {
     }
 
     /**
-     * Executes a CompletableFuture and applies timeout with enhanced error handling.
+     * Executes a CompletableFuture and applies timeout with enhanced error
+     * handling.
      *
-     * @param future the future to execute
+     * @param future  the future to execute
      * @param timeout timeout duration
-     * @param <T> result type
+     * @param <T>     result type
      * @return result of the future
      * @throws RuntimeException if operation fails or times out
      */
@@ -163,9 +166,9 @@ public abstract class AsyncTestBase {
     /**
      * Executes a CompletableFuture and expects it to complete successfully.
      *
-     * @param future the future to execute
+     * @param future  the future to execute
      * @param timeout timeout duration
-     * @param <T> result type
+     * @param <T>     result type
      * @return result of the future
      */
     protected <T> T expectSuccessfulFuture(CompletableFuture<T> future, Duration timeout) {
@@ -175,24 +178,25 @@ public abstract class AsyncTestBase {
     }
 
     /**
-     * Executes a CompletableFuture and expects it to fail with specific exception type.
+     * Executes a CompletableFuture and expects it to fail with specific exception
+     * type.
      *
-     * @param future the future to execute
-     * @param timeout timeout duration
+     * @param future                the future to execute
+     * @param timeout               timeout duration
      * @param expectedExceptionType expected exception type
-     * @param <T> result type
+     * @param <T>                   result type
      */
-    protected <T> void expectFailedFuture(CompletableFuture<T> future, Duration timeout, 
-                                           Class<? extends Throwable> expectedExceptionType) {
+    protected <T> void expectFailedFuture(CompletableFuture<T> future, Duration timeout,
+            Class<? extends Throwable> expectedExceptionType) {
         try {
             future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             fail("Future should have completed exceptionally");
         } catch (Exception e) {
             lastException.set(e);
             Throwable cause = e.getCause() != null ? e.getCause() : e;
-            assertTrue(expectedExceptionType.isInstance(cause), 
-                String.format("Expected %s but got %s", 
-                    expectedExceptionType.getSimpleName(), cause.getClass().getSimpleName()));
+            assertTrue(expectedExceptionType.isInstance(cause),
+                    String.format("Expected %s but got %s",
+                            expectedExceptionType.getSimpleName(), cause.getClass().getSimpleName()));
         }
     }
 
@@ -224,7 +228,7 @@ public abstract class AsyncTestBase {
     /**
      * Asserts that a future completes within the specified timeout.
      *
-     * @param future the future to check
+     * @param future  the future to check
      * @param timeout timeout duration
      * @param message assertion message
      */
@@ -240,7 +244,7 @@ public abstract class AsyncTestBase {
     /**
      * Asserts that a future fails within the specified timeout.
      *
-     * @param future the future to check
+     * @param future  the future to check
      * @param timeout timeout duration
      * @param message assertion message
      */
@@ -258,7 +262,7 @@ public abstract class AsyncTestBase {
      * Measures execution time of an operation.
      *
      * @param operation the operation to measure
-     * @param <T> result type
+     * @param <T>       result type
      * @return result and execution time
      */
     protected <T> TimedResult<T> measureTime(Supplier<T> operation) {
@@ -273,7 +277,7 @@ public abstract class AsyncTestBase {
      * Measures execution time of an async operation.
      *
      * @param operation the async operation to measure
-     * @param <T> result type
+     * @param <T>       result type
      * @return result and execution time
      */
     protected <T> TimedResult<T> measureAsyncTime(Supplier<CompletableFuture<T>> operation) {

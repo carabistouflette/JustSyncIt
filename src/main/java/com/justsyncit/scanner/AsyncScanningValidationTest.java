@@ -26,103 +26,100 @@ public class AsyncScanningValidationTest {
 
     public static void main(String[] args) {
         System.out.println("=== Async Directory Scanning Validation Test ===");
-        
+
         boolean allTestsPassed = true;
-        
+
         // Test 1: Core component creation
         try {
             ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
             System.out.println("✓ ThreadPoolManager created successfully");
-            
+
             AsyncByteBufferPool bufferPool = AsyncByteBufferPoolImpl.create(1024 * 1024, 4);
             System.out.println("✓ AsyncByteBufferPool created successfully");
-            
+
             AsyncFilesystemScanner scanner = new AsyncFilesystemScannerImpl(threadPoolManager, bufferPool);
             System.out.println("✓ AsyncFilesystemScanner created successfully");
-            
+
             // Cleanup
             scanner.closeAsync();
             bufferPool.clearAsync();
-            
+
         } catch (Exception e) {
             System.out.println("✗ Core component test failed: " + e.getMessage());
             allTestsPassed = false;
         }
-        
+
         // Test 2: Configuration classes
         try {
             AsyncScanOptions options = new AsyncScanOptions()
-                .withParallelism(4)
-                .withBatchSize(100)
-                .withWatchServiceEnabled(true);
+                    .withParallelism(4)
+                    .withBatchSize(100)
+                    .withWatchServiceEnabled(true);
             System.out.println("✓ AsyncScanOptions created successfully");
-            
+
             AsyncScannerConfiguration config = new AsyncScannerConfiguration();
             boolean isValid = config.validateConfiguration();
             System.out.println("✓ AsyncScannerConfiguration validation: " + isValid);
-            
+
         } catch (Exception e) {
             System.out.println("✗ Configuration test failed: " + e.getMessage());
             allTestsPassed = false;
         }
-        
+
         // Test 3: Event processing
         try {
             FileChangeEvent event = FileChangeEvent.createEntryCreate(
-                java.nio.file.Paths.get("test.txt"), "test-reg");
+                    java.nio.file.Paths.get("test.txt"), "test-reg");
             System.out.println("✓ FileChangeEvent created successfully: " + event.getEventType());
-            
-            AsyncFileEventProcessor.EventProcessorConfig eventConfig = 
-                new AsyncFileEventProcessor.EventProcessorConfig()
+
+            AsyncFileEventProcessor.EventProcessorConfig eventConfig = new AsyncFileEventProcessor.EventProcessorConfig()
                     .withThreadPoolSize(2)
                     .withBatchSize(10)
                     .withDebounceDelay(100);
             System.out.println("✓ EventProcessorConfig created successfully");
-            
+
         } catch (Exception e) {
             System.out.println("✗ Event processing test failed: " + e.getMessage());
             allTestsPassed = false;
         }
-        
+
         // Test 4: Statistics
         try {
             AsyncScannerStats stats = new AsyncScannerStats();
             System.out.println("✓ AsyncScannerStats created successfully");
-            
+
             WatchServiceRegistration registration = new WatchServiceRegistration(
-                java.nio.file.Paths.get("."),
-                java.util.Set.of("ENTRY_CREATE", "ENTRY_MODIFY"),
-                true,
-                new AsyncScanOptions()
-            );
+                    java.nio.file.Paths.get("."),
+                    java.util.Set.of("ENTRY_CREATE", "ENTRY_MODIFY"),
+                    true,
+                    new AsyncScanOptions());
             System.out.println("✓ WatchServiceRegistration created successfully");
-            
+
         } catch (Exception e) {
             System.out.println("✗ Statistics test failed: " + e.getMessage());
             allTestsPassed = false;
         }
-        
+
         // Test 5: Integration
         try {
-            AsyncScannerIntegration.IntegrationConfig integrationConfig = 
-                new AsyncScannerIntegration.IntegrationConfig()
+            AsyncScannerIntegration.IntegrationConfig integrationConfig = new AsyncScannerIntegration.IntegrationConfig()
                     .withMaxConcurrentScans(4)
                     .withChunkSize(64 * 1024)
                     .withBufferSize(1024 * 1024)
                     .withEventProcessing(true);
             System.out.println("✓ IntegrationConfig created successfully");
-            
+
             ThreadPoolManager threadPoolManager = ThreadPoolManager.getInstance();
             AsyncScannerIntegration integration = new AsyncScannerIntegration(integrationConfig, threadPoolManager);
             System.out.println("✓ AsyncScannerIntegration created successfully");
-            
+
             integration.shutdownAsync();
-            
+
         } catch (Exception e) {
             System.out.println("✗ Integration test failed: " + e.getMessage());
             allTestsPassed = false;
         }
-        
+
         // Final result
         System.out.println("\n=== Validation Results ===");
         if (allTestsPassed) {
@@ -144,7 +141,7 @@ public class AsyncScanningValidationTest {
         } else {
             System.out.println("✗ SOME TESTS FAILED - Check implementation");
         }
-        
+
         System.out.println("\n=== Async Directory Scanning Implementation Complete ===");
         System.exit(allTestsPassed ? 0 : 1);
     }

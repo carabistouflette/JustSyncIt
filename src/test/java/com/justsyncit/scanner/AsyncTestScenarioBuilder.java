@@ -417,9 +417,9 @@ public final class AsyncTestScenarioBuilder {
 
             try {
                 if (enableDetailedLogging) {
-                    System.out.println("Starting scenario execution with " +
-                            concurrentOperations.size() + " concurrent operations and " +
-                            sequentialSteps.size() + " sequential steps");
+                    System.out.println("Starting scenario execution with "
+                            + concurrentOperations.size() + " concurrent operations and "
+                            + sequentialSteps.size() + " sequential steps");
                 }
 
                 // Execute concurrent operations
@@ -484,8 +484,8 @@ public final class AsyncTestScenarioBuilder {
                         } catch (Exception e) {
                             operation.setError(e);
                             if (enableDetailedLogging) {
-                                System.err.println("Failed concurrent operation: " + operation.getName() +
-                                        " - " + e.getMessage());
+                                System.err.println("Failed concurrent operation: " + operation.getName()
+                                        + " - " + e.getMessage());
                             }
                         } finally {
                             operation.setExecutionTime(System.currentTimeMillis() - startTime);
@@ -495,8 +495,7 @@ public final class AsyncTestScenarioBuilder {
                 }
 
                 // Wait for all concurrent operations to complete
-                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                        .get(globalTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                AsyncTestUtils.waitForAll(globalTimeout, futures);
 
             } catch (Exception e) {
                 throw new RuntimeException("Concurrent operations execution failed", e);
@@ -530,8 +529,8 @@ public final class AsyncTestScenarioBuilder {
                 } catch (Exception e) {
                     step.setError(e);
                     if (enableDetailedLogging) {
-                        System.err.println("Failed sequential step: " + step.getName() +
-                                " - " + e.getMessage());
+                        System.err.println("Failed sequential step: " + step.getName()
+                                + " - " + e.getMessage());
                     }
                     throw new RuntimeException("Sequential step failed: " + step.getName(), e);
                 } finally {
@@ -551,10 +550,10 @@ public final class AsyncTestScenarioBuilder {
                 constraint.setSatisfied(actualDuration <= constraint.getMaxDuration().toMillis());
 
                 if (enableDetailedLogging) {
-                    System.out.println("Timing constraint '" + constraint.getName() + "': " +
-                            (constraint.isSatisfied() ? "SATISFIED" : "VIOLATED") +
-                            " (actual: " + actualDuration + "ms, max: " +
-                            constraint.getMaxDuration().toMillis() + "ms)");
+                    System.out.println("Timing constraint '" + constraint.getName() + "': "
+                            + (constraint.isSatisfied() ? "SATISFIED" : "VIOLATED")
+                            + " (actual: " + actualDuration + "ms, max: "
+                            + constraint.getMaxDuration().toMillis() + "ms)");
                 }
             }
 
@@ -569,9 +568,9 @@ public final class AsyncTestScenarioBuilder {
                     rule.setErrorMessage(validation.getMessage());
 
                     if (enableDetailedLogging) {
-                        System.out.println("Validation rule '" + rule.getName() + "': " +
-                                (rule.isSatisfied() ? "SATISFIED" : "VIOLATED") +
-                                (validation.getMessage() != null ? " - " + validation.getMessage() : ""));
+                        System.out.println("Validation rule '" + rule.getName() + "': "
+                                + (rule.isSatisfied() ? "SATISFIED" : "VIOLATED")
+                                + (validation.getMessage() != null ? " - " + validation.getMessage() : ""));
                     }
                 } catch (Exception e) {
                     rule.setSatisfied(false);

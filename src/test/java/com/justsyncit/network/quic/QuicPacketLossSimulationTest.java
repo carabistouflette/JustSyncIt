@@ -120,7 +120,7 @@ public class QuicPacketLossSimulationTest {
     }
 
     @ParameterizedTest
-    @ValueSource(doubles = {0.0, 0.05, 0.1, 0.15, 0.2})
+    @ValueSource(doubles = { 0.0, 0.05, 0.1, 0.15, 0.2 })
     @DisplayName("QUIC should maintain performance with varying packet loss rates")
     @Timeout(value = TIMEOUT_SECONDS, unit = TimeUnit.SECONDS)
     void testPacketLossTolerance(double packetLossRate)
@@ -186,12 +186,12 @@ public class QuicPacketLossSimulationTest {
         // Verify results
         assertTrue(successRate >= 0.8,
                 "Success rate should be at least 80% with " + (packetLossRate * 100)
-                + "% packet loss, was " + (successRate * 100) + "%");
+                        + "% packet loss, was " + (successRate * 100) + "%");
 
         // Log performance metrics
         System.out.printf("Packet Loss: %.1f%%, Success Rate: %.1f%%, "
-                        + "Avg Transfer Time: %.2fms, Throughput: %.2f msg/s%n",
-                        packetLossRate * 100, successRate * 100, averageTransferTime, throughput);
+                + "Avg Transfer Time: %.2fms, Throughput: %.2f msg/s%n",
+                packetLossRate * 100, successRate * 100, averageTransferTime, throughput);
 
         // Close connection
         connection.close().get(5, TimeUnit.SECONDS);
@@ -262,7 +262,7 @@ public class QuicPacketLossSimulationTest {
 
         // Log performance metrics
         System.out.printf("Large File Transfer with 10%% packet loss: %.2f MB in %d ms (%.2f MB/s)%n",
-                        LARGE_FILE_SIZE / (1024.0 * 1024.0), transferTime, throughput);
+                LARGE_FILE_SIZE / (1024.0 * 1024.0), transferTime, throughput);
 
         // Close connection
         stream.close().get(5, TimeUnit.SECONDS);
@@ -348,7 +348,7 @@ public class QuicPacketLossSimulationTest {
         // Create multiple concurrent streams
         int numStreams = 10;
         AtomicInteger successfulStreams = new AtomicInteger(0);
-        CompletableFuture<?>[] streamFutures = new CompletableFuture[numStreams];
+        CompletableFuture<?>[] streamFutures = new CompletableFuture<?>[numStreams];
 
         for (int i = 0; i < numStreams; i++) {
             final int streamId = i;
@@ -374,7 +374,7 @@ public class QuicPacketLossSimulationTest {
         double successRate = (double) successfulStreams.get() / numStreams;
         assertTrue(successRate >= 0.7,
                 "At least 70% of concurrent streams should succeed with 15% packet loss, was "
-                + successRate * 100 + "%");
+                        + successRate * 100 + "%");
 
         // Close connection
         connection.close().get(5, TimeUnit.SECONDS);

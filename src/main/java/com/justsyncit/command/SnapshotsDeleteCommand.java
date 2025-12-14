@@ -18,12 +18,14 @@
 
 package com.justsyncit.command;
 
+
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
@@ -33,6 +35,7 @@ import java.util.Scanner;
  * Follows Single Responsibility Principle by handling only snapshot deletion
  * operations.
  */
+
 public class SnapshotsDeleteCommand implements Command {
 
     private static final long KB = 1024;
@@ -232,9 +235,9 @@ public class SnapshotsDeleteCommand implements Command {
      * @return true if user confirms
      */
     private boolean confirmDeletion() {
-        try (Scanner scanner = new Scanner(System.in)) {
+        try (Scanner scanner = new Scanner(System.in, StandardCharsets.UTF_8.name())) {
             System.out.print("Are you sure you want to delete this snapshot? (y/N): ");
-            String response = scanner.nextLine().trim().toLowerCase();
+            String response = scanner.nextLine().trim().toLowerCase(java.util.Locale.ROOT);
             return response.equals("y") || response.equals("yes");
         }
     }

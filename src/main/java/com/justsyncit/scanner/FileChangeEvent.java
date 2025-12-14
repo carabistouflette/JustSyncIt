@@ -26,7 +26,8 @@ import java.util.Objects;
 
 /**
  * Represents a file system change event detected by WatchService.
- * Contains information about the type of change, affected file, and event metadata.
+ * Contains information about the type of change, affected file, and event
+ * metadata.
  */
 public class FileChangeEvent {
 
@@ -61,37 +62,37 @@ public class FileChangeEvent {
 
     /** Type of the event. */
     private final EventType eventType;
-    
+
     /** Path of the affected file or directory. */
     private final Path filePath;
-    
+
     /** Timestamp when the event was detected. */
     private final Instant eventTime;
-    
+
     /** Whether the affected path is a directory. */
     private final boolean isDirectory;
-    
+
     /** Size of the file (if applicable, -1 if unknown). */
     private final long fileSize;
-    
+
     /** Registration ID that detected this event. */
     private final String registrationId;
-    
+
     /** Additional event metadata. */
     private final Map<String, Object> metadata;
 
     /**
      * Creates a new FileChangeEvent.
      *
-     * @param eventType type of the event
-     * @param filePath path of the affected file or directory
-     * @param eventTime timestamp when the event was detected
-     * @param isDirectory whether the affected path is a directory
-     * @param fileSize size of the file (if applicable, -1 if unknown)
+     * @param eventType      type of the event
+     * @param filePath       path of the affected file or directory
+     * @param eventTime      timestamp when the event was detected
+     * @param isDirectory    whether the affected path is a directory
+     * @param fileSize       size of the file (if applicable, -1 if unknown)
      * @param registrationId registration ID that detected this event
      */
     public FileChangeEvent(EventType eventType, Path filePath, Instant eventTime,
-                       boolean isDirectory, long fileSize, String registrationId) {
+            boolean isDirectory, long fileSize, String registrationId) {
         this.eventType = Objects.requireNonNull(eventType, "Event type cannot be null");
         this.filePath = Objects.requireNonNull(filePath, "File path cannot be null");
         this.eventTime = Objects.requireNonNull(eventTime, "Event time cannot be null");
@@ -104,8 +105,8 @@ public class FileChangeEvent {
     /**
      * Creates a new FileChangeEvent with minimal information.
      *
-     * @param eventType type of the event
-     * @param filePath path of the affected file or directory
+     * @param eventType      type of the event
+     * @param filePath       path of the affected file or directory
      * @param registrationId registration ID that detected this event
      */
     public FileChangeEvent(EventType eventType, Path filePath, String registrationId) {
@@ -178,7 +179,7 @@ public class FileChangeEvent {
     /**
      * Adds metadata to this event.
      *
-     * @param key metadata key
+     * @param key   metadata key
      * @param value metadata value
      */
     public void addMetadata(String key, Object value) {
@@ -249,7 +250,8 @@ public class FileChangeEvent {
      * @return new event with combined metadata
      */
     public FileChangeEvent withMetadata(Map<String, Object> additionalMetadata) {
-        FileChangeEvent newEvent = new FileChangeEvent(eventType, filePath, eventTime, isDirectory, fileSize, registrationId);
+        FileChangeEvent newEvent = new FileChangeEvent(eventType, filePath, eventTime, isDirectory, fileSize,
+                registrationId);
         newEvent.metadata.putAll(this.metadata);
         newEvent.metadata.putAll(additionalMetadata);
         return newEvent;
@@ -263,23 +265,31 @@ public class FileChangeEvent {
     @Override
     public String toString() {
         return String.format(
-            "FileChangeEvent{type=%s, path=%s, time=%s, directory=%b, size=%d, registrationId='%s'}",
-            eventType, filePath, eventTime, isDirectory, fileSize, registrationId
-        );
+                "FileChangeEvent{type=%s, path=%s, time=%s, directory=%b, size=%d, registrationId='%s'}",
+                eventType, filePath, eventTime, isDirectory, fileSize, registrationId);
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null || getClass() != obj.getClass()) return false;
-        
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+
         FileChangeEvent that = (FileChangeEvent) obj;
-        return eventType == that.eventType &&
-               filePath.equals(that.filePath) &&
-               eventTime.equals(that.eventTime) &&
-               isDirectory == that.isDirectory &&
-               fileSize == that.fileSize &&
-               Objects.equals(registrationId, that.registrationId);
+        return eventType == that.eventType
+                &&
+                filePath.equals(that.filePath)
+                &&
+                eventTime.equals(that.eventTime)
+                &&
+                isDirectory == that.isDirectory
+                &&
+                fileSize == that.fileSize
+                &&
+                Objects.equals(registrationId, that.registrationId);
     }
 
     @Override
@@ -290,7 +300,7 @@ public class FileChangeEvent {
     /**
      * Creates a creation event.
      *
-     * @param filePath path of created file/directory
+     * @param filePath       path of created file/directory
      * @param registrationId registration ID
      * @return creation event
      */
@@ -301,7 +311,7 @@ public class FileChangeEvent {
     /**
      * Creates a modification event.
      *
-     * @param filePath path of modified file/directory
+     * @param filePath       path of modified file/directory
      * @param registrationId registration ID
      * @return modification event
      */
@@ -312,7 +322,7 @@ public class FileChangeEvent {
     /**
      * Creates a deletion event.
      *
-     * @param filePath path of deleted file/directory
+     * @param filePath       path of deleted file/directory
      * @param registrationId registration ID
      * @return deletion event
      */
@@ -323,7 +333,7 @@ public class FileChangeEvent {
     /**
      * Creates an overflow event.
      *
-     * @param filePath path where overflow occurred
+     * @param filePath       path where overflow occurred
      * @param registrationId registration ID
      * @return overflow event
      */

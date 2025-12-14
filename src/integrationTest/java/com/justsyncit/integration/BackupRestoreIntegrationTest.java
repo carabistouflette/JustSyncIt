@@ -1,43 +1,39 @@
 /*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
+    * JustSyncIt - Backup solution
+    * Copyright (C) 2023 JustSyncIt Team
+    *
+    * This program is free software: you can redistribute it and/or modify
+    * it under the terms of the GNU General Public License as published by
+    * the Free Software Foundation, either version 3 of the License, or
+    * (at your option) any later version.
+    *
+    * This program is distributed in the hope that it will be useful,
+    * but WITHOUT ANY WARRANTY; without even the implied warranty of
+    * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    * GNU General Public License for more details.
+    *
+    * You should have received a copy of the GNU General Public License
+    * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    */
 
 package com.justsyncit.integration;
 
-import com.justsyncit.ServiceFactory;
 import com.justsyncit.backup.BackupOptions;
 import com.justsyncit.backup.BackupService;
 import com.justsyncit.command.BackupCommand;
 import com.justsyncit.command.CommandContext;
 import com.justsyncit.command.RestoreCommand;
-import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 import com.justsyncit.restore.RestoreOptions;
 import com.justsyncit.restore.RestoreService;
-import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.ContentStoreStats;
-import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.MetadataStats;
 import com.justsyncit.integration.util.NetworkSimulationUtil;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.Timeout;
+import java.util.concurrent.TimeUnit;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,44 +46,21 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
- * End-to-end integration tests for backup and restore functionality.
- * Tests the complete workflow from backup to restore with verification.
- */
-public class BackupRestoreIntegrationTest {
+    * End-to-end integration tests for backup and restore functionality.
+    * Tests the complete workflow from backup to restore with verification.
+    */
+public class BackupRestoreIntegrationTest extends E2ETestBase {
 
-    @TempDir
-    Path tempDir;
-
-    @TempDir
-    Path storageDir;
-
-    private ServiceFactory serviceFactory;
-    private Blake3Service blake3Service;
-    private ContentStore contentStore;
-    private MetadataService metadataService;
-    private BackupService backupService;
-    private RestoreService restoreService;
-    private NetworkService networkService;
     private CommandContext commandContext;
 
     @BeforeEach
     void setUp() throws Exception {
-        serviceFactory = new ServiceFactory();
-        blake3Service = serviceFactory.createBlake3Service();
-        contentStore = serviceFactory.createSqliteContentStore(blake3Service);
-        metadataService = serviceFactory.createMetadataService(tempDir.resolve("test-metadata.db").toString());
-        backupService = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
-        restoreService = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
-        networkService = serviceFactory.createNetworkService();
+        super.setUp();
         commandContext = new CommandContext(blake3Service, networkService, metadataService, contentStore);
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        // Clean up any resources if needed
-    }
-
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testBackupAndRestoreSingleFile() throws Exception {
         // Create test file
         Path sourceDir = tempDir.resolve("source");
@@ -104,8 +77,8 @@ public class BackupRestoreIntegrationTest {
                 .build();
 
         // Perform backup
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir,
+                backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         // Verify backup result
@@ -127,8 +100,9 @@ public class BackupRestoreIntegrationTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<RestoreService.RestoreResult> restoreFuture =
-                restoreService.restore(snapshotId, restoreDir, restoreOptions);
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(snapshotId,
+                restoreDir,
+                restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
 
         // Verify restore result
@@ -146,6 +120,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 45, unit = TimeUnit.SECONDS)
     void testBackupAndRestoreMultipleFiles() throws Exception {
         // Create test directory with multiple files
         Path sourceDir = tempDir.resolve("source");
@@ -168,8 +143,8 @@ public class BackupRestoreIntegrationTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir,
+                backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         // Verify backup
@@ -185,8 +160,9 @@ public class BackupRestoreIntegrationTest {
                 .build();
 
         String snapshotId = backupResult.getSnapshotId();
-        CompletableFuture<RestoreService.RestoreResult> restoreFuture =
-                restoreService.restore(snapshotId, restoreDir, restoreOptions);
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(snapshotId,
+                restoreDir,
+                restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
 
         // Verify restore
@@ -208,6 +184,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testBackupCommandIntegration() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -227,6 +204,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testRestoreCommandIntegration() throws Exception {
         // Create test directory and file
         Path sourceDir = tempDir.resolve("source");
@@ -247,6 +225,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void testDeduplicationEffectiveness() throws Exception {
         // Create test directory with duplicate files
         Path sourceDir = tempDir.resolve("source");
@@ -267,8 +246,8 @@ public class BackupRestoreIntegrationTest {
                 .verifyIntegrity(true)
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir,
+                backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
 
         // Verify backup completed
@@ -276,39 +255,44 @@ public class BackupRestoreIntegrationTest {
         assertEquals(3, backupResult.getFilesProcessed());
 
         // In a real implementation, we would verify that deduplication occurred
-        // by checking that fewer chunks were created than expected for duplicate content
+        // by checking that fewer chunks were created than expected for duplicate
+        // content
         // For now, we just verify the backup completed successfully
         assertTrue(backupResult.getChunksCreated() > 0);
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testErrorHandlingForInvalidSource() throws Exception {
         // Try to backup non-existent directory
         Path nonExistentDir = tempDir.resolve("does-not-exist");
 
         BackupOptions backupOptions = new BackupOptions.Builder().build();
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(nonExistentDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(nonExistentDir,
+                backupOptions);
 
         // Should throw exception for non-existent source
         assertThrows(Exception.class, () -> backupFuture.get());
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testErrorHandlingForInvalidSnapshot() throws Exception {
         // Try to restore non-existent snapshot
         Path restoreDir = tempDir.resolve("restore");
         Files.createDirectories(restoreDir);
 
         RestoreOptions restoreOptions = new RestoreOptions.Builder().build();
-        CompletableFuture<RestoreService.RestoreResult> restoreFuture =
-                restoreService.restore("invalid-snapshot-id", restoreDir, restoreOptions);
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(
+                "invalid-snapshot-id",
+                restoreDir, restoreOptions);
 
         // Should throw exception for invalid snapshot
         assertThrows(Exception.class, () -> restoreFuture.get());
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testRemoteBackupOptions() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -321,22 +305,25 @@ public class BackupRestoreIntegrationTest {
 
         // Test remote backup options parsing
         String[] args = {
-            sourceDir.toString(),
-            "--remote",
-            "--server", "192.168.1.100:8080",
-            "--transport", "TCP"
+                sourceDir.toString(),
+                "--remote",
+                "--server", "192.168.1.100:8080",
+                "--transport", "TCP"
         };
 
-        // Execute backup command (will fail to connect but should parse options correctly)
+        // Execute backup command (will fail to connect but should parse options
+        // correctly)
         boolean result = backupCommand.execute(args, commandContext);
 
-        // The command should fail due to network connection, but options should be parsed correctly
+        // The command should fail due to network connection, but options should be
+        // parsed correctly
         // In a real test environment with a running server, this would succeed
         // For now, we just verify the command doesn't fail due to option parsing
         assertTrue(result || !result); // Result depends on network availability
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testRemoteRestoreOptions() throws Exception {
         // Create test directory and file
         Path sourceDir = tempDir.resolve("source");
@@ -349,8 +336,8 @@ public class BackupRestoreIntegrationTest {
                 .snapshotName("test-remote-restore")
                 .build();
 
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir,
+                backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
         String snapshotId = backupResult.getSnapshotId();
 
@@ -359,23 +346,26 @@ public class BackupRestoreIntegrationTest {
 
         // Test remote restore options parsing
         String[] args = {
-            snapshotId,
-            tempDir.resolve("restore").toString(),
-            "--remote",
-            "--server", "192.168.1.100:8080",
-            "--transport", "QUIC"
+                snapshotId,
+                tempDir.resolve("restore").toString(),
+                "--remote",
+                "--server", "192.168.1.100:8080",
+                "--transport", "QUIC"
         };
 
-        // Execute restore command (will fail to connect but should parse options correctly)
+        // Execute restore command (will fail to connect but should parse options
+        // correctly)
         boolean result = restoreCommand.execute(args, commandContext);
 
-        // The command should fail due to network connection, but options should be parsed correctly
+        // The command should fail due to network connection, but options should be
+        // parsed correctly
         // In a real test environment with a running server, this would succeed
         // For now, we just verify the command doesn't fail due to option parsing
         assertTrue(result || !result); // Result depends on network availability
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testNetworkOptionsValidation() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -388,8 +378,8 @@ public class BackupRestoreIntegrationTest {
 
         // Test missing server option with remote flag
         String[] argsWithoutServer = {
-            sourceDir.toString(),
-            "--remote"
+                sourceDir.toString(),
+                "--remote"
         };
 
         // Should fail due to missing server option
@@ -398,10 +388,10 @@ public class BackupRestoreIntegrationTest {
 
         // Test invalid transport type
         String[] argsWithInvalidTransport = {
-            sourceDir.toString(),
-            "--remote",
-            "--server", "192.168.1.100:8080",
-            "--transport", "INVALID"
+                sourceDir.toString(),
+                "--remote",
+                "--server", "192.168.1.100:8080",
+                "--transport", "INVALID"
         };
 
         // Should fail due to invalid transport type
@@ -410,9 +400,9 @@ public class BackupRestoreIntegrationTest {
 
         // Test invalid server format
         String[] argsWithInvalidServer = {
-            sourceDir.toString(),
-            "--remote",
-            "--server", "invalid-format"
+                sourceDir.toString(),
+                "--remote",
+                "--server", "invalid-format"
         };
 
         // Should fail due to invalid server format
@@ -421,6 +411,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testBackupOptionsWithNetworkSettings() throws Exception {
         // Test that BackupOptions correctly handles network settings
         BackupOptions options = new BackupOptions.Builder()
@@ -439,6 +430,7 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testRestoreOptionsWithNetworkSettings() throws Exception {
         // Test that RestoreOptions correctly handles network settings
         RestoreOptions options = new RestoreOptions.Builder()
@@ -457,44 +449,47 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testNetworkConnectivityValidation() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
         Files.createDirectories(sourceDir);
         Path testFile = sourceDir.resolve("test.txt");
         Files.write(testFile, "Test content for network connectivity".getBytes());
-        
+
         // Test network connectivity validation
         assertTrue(NetworkSimulationUtil.validateConnectivity("localhost", 8080),
                 "Should validate connectivity to localhost:8080");
-        
+
         // Test with invalid host
         assertTrue(!NetworkSimulationUtil.validateConnectivity("non-existent-host", 8080),
                 "Should fail connectivity validation for non-existent host");
-        
+
         // Test with invalid port
         assertTrue(!NetworkSimulationUtil.validateConnectivity("localhost", 99999),
                 "Should fail connectivity validation for invalid port");
     }
 
     @Test
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
     void testNetworkSimulation() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
         Files.createDirectories(sourceDir);
         Path testFile = sourceDir.resolve("test.txt");
         Files.write(testFile, "Test content for network simulation".getBytes());
-        
+
         // Create network simulator
         NetworkService simulatedNetwork = NetworkSimulationUtil.createPoorNetworkSimulator(networkService);
         assertNotNull(simulatedNetwork, "Network simulator should be created");
-        
+
         // Test that network simulation is working
         assertTrue(simulatedNetwork.getBytesSent() >= 0, "Should track bytes sent");
         assertTrue(simulatedNetwork.getBytesReceived() >= 0, "Should track bytes received");
     }
 
     @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     void testCrossProtocolBackupRestore() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -502,7 +497,7 @@ public class BackupRestoreIntegrationTest {
         Path testFile = sourceDir.resolve("test.txt");
         String testContent = "Test content for cross-protocol backup/restore";
         Files.write(testFile, testContent.getBytes());
-        
+
         // Test with both TCP and QUIC
         testWithBothTransports(transportType -> {
             try {
@@ -512,40 +507,42 @@ public class BackupRestoreIntegrationTest {
                         .description("Cross-protocol test with " + transportType)
                         .verifyIntegrity(true)
                         .build();
-                
-                CompletableFuture<BackupService.BackupResult> backupFuture =
-                        backupService.backup(sourceDir, backupOptions);
+
+                CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(
+                        sourceDir,
+                        backupOptions);
                 BackupService.BackupResult backupResult = backupFuture.get();
-                
+
                 assertTrue(backupResult.isSuccess(),
                         "Backup should succeed with " + transportType);
-                
+
                 // Perform restore
                 Path restoreDir = tempDir.resolve("restore-" + transportType.name());
                 Files.createDirectories(restoreDir);
-                
+
                 RestoreOptions restoreOptions = new RestoreOptions.Builder()
                         .overwriteExisting(true)
                         .verifyIntegrity(true)
                         .build();
-                
+
                 String snapshotId = backupResult.getSnapshotId();
-                CompletableFuture<RestoreService.RestoreResult> restoreFuture =
-                        restoreService.restore(snapshotId, restoreDir, restoreOptions);
+                CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(
+                        snapshotId,
+                        restoreDir, restoreOptions);
                 RestoreService.RestoreResult restoreResult = restoreFuture.get();
-                
+
                 assertTrue(restoreResult.isSuccess(),
                         "Restore should succeed with " + transportType);
-                
+
                 // Verify content
                 Path restoredFile = restoreDir.resolve("test.txt");
                 assertTrue(Files.exists(restoredFile),
                         "File should be restored with " + transportType);
-                
+
                 String restoredContent = Files.readString(restoredFile);
                 assertEquals(testContent, restoredContent,
                         "Content should match with " + transportType);
-                
+
             } catch (Exception e) {
                 fail("Cross-protocol test should succeed with " + transportType, e);
             }
@@ -553,57 +550,60 @@ public class BackupRestoreIntegrationTest {
     }
 
     @Test
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
     void testNetworkErrorHandling() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
         Files.createDirectories(sourceDir);
         Path testFile = sourceDir.resolve("test.txt");
         Files.write(testFile, "Test content for network error handling".getBytes());
-        
+
         // Test network error handling with simulation
-        NetworkService errorSimulatingNetwork = NetworkSimulationUtil.createPoorNetworkSimulator(networkService);
-        
+        NetworkService errorSimulatingNetwork = NetworkSimulationUtil
+                .createPoorNetworkSimulator(networkService);
+
         // Create backup command with error simulation
         BackupCommand backupCommand = serviceFactory.createBackupCommand(backupService, errorSimulatingNetwork);
-        
+
         // Test with invalid server address
         String[] argsWithInvalidServer = {
-            sourceDir.toString(),
-            "--remote",
-            "--server", "invalid-address-format",
-            "--transport", "TCP"
+                sourceDir.toString(),
+                "--remote",
+                "--server", "invalid-address-format",
+                "--transport", "TCP"
         };
-        
+
         boolean result = backupCommand.execute(argsWithInvalidServer, commandContext);
         assertTrue(!result, "Should fail with invalid server address");
-        
+
         // Test with invalid transport
         String[] argsWithInvalidTransport = {
-            sourceDir.toString(),
-            "--remote",
-            "--server", "192.168.1.100:8080",
-            "--transport", "INVALID"
+                sourceDir.toString(),
+                "--remote",
+                "--server", "192.168.1.100:8080",
+                "--transport", "INVALID"
         };
-        
+
         result = backupCommand.execute(argsWithInvalidTransport, commandContext);
         assertTrue(!result, "Should fail with invalid transport");
     }
 
     @Test
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
     void testConcurrentNetworkOperations() throws Exception {
         // Create test directories
         Path sourceDir1 = tempDir.resolve("source1");
         Path sourceDir2 = tempDir.resolve("source2");
         Files.createDirectories(sourceDir1);
         Files.createDirectories(sourceDir2);
-        
+
         Path testFile1 = sourceDir1.resolve("test1.txt");
         Path testFile2 = sourceDir2.resolve("test2.txt");
         String content1 = "Concurrent test content 1 - " + System.currentTimeMillis();
         String content2 = "Concurrent test content 2 - " + System.currentTimeMillis();
         Files.write(testFile1, content1.getBytes());
         Files.write(testFile2, content2.getBytes());
-        
+
         // Test concurrent backup operations
         CompletableFuture<BackupService.BackupResult> backupFuture1 = backupService.backup(
                 sourceDir1,
@@ -611,27 +611,27 @@ public class BackupRestoreIntegrationTest {
                         .snapshotName("concurrent-backup-1")
                         .verifyIntegrity(true)
                         .build());
-        
+
         CompletableFuture<BackupService.BackupResult> backupFuture2 = backupService.backup(
                 sourceDir2,
                 new BackupOptions.Builder()
                         .snapshotName("concurrent-backup-2")
                         .verifyIntegrity(true)
                         .build());
-        
+
         // Wait for both backups to complete
         BackupService.BackupResult backupResult1 = backupFuture1.get();
         BackupService.BackupResult backupResult2 = backupFuture2.get();
-        
+
         assertTrue(backupResult1.isSuccess(), "First concurrent backup should succeed");
         assertTrue(backupResult2.isSuccess(), "Second concurrent backup should succeed");
-        
+
         // Test concurrent restore operations
         Path restoreDir1 = tempDir.resolve("restore1");
         Path restoreDir2 = tempDir.resolve("restore2");
         Files.createDirectories(restoreDir1);
         Files.createDirectories(restoreDir2);
-        
+
         CompletableFuture<RestoreService.RestoreResult> restoreFuture1 = restoreService.restore(
                 backupResult1.getSnapshotId(),
                 restoreDir1,
@@ -639,7 +639,7 @@ public class BackupRestoreIntegrationTest {
                         .overwriteExisting(true)
                         .verifyIntegrity(true)
                         .build());
-        
+
         CompletableFuture<RestoreService.RestoreResult> restoreFuture2 = restoreService.restore(
                 backupResult2.getSnapshotId(),
                 restoreDir2,
@@ -647,109 +647,115 @@ public class BackupRestoreIntegrationTest {
                         .overwriteExisting(true)
                         .verifyIntegrity(true)
                         .build());
-        
+
         // Wait for both restores to complete
         RestoreService.RestoreResult restoreResult1 = restoreFuture1.get();
         RestoreService.RestoreResult restoreResult2 = restoreFuture2.get();
-        
+
         assertTrue(restoreResult1.isSuccess(), "First concurrent restore should succeed");
         assertTrue(restoreResult2.isSuccess(), "Second concurrent restore should succeed");
-        
+
         // Add a small delay to ensure file system operations complete
         Thread.sleep(100);
-        
+
         // Verify restored content with retries to handle potential file system delays
-        // Note: The restore service appears to be using generic filenames, so we'll check for any files
+        // Note: The restore service appears to be using generic filenames, so we'll
+        // check for any files
         Path restoredFile1 = restoreDir1.resolve("test.txt");
         Path restoredFile2 = restoreDir2.resolve("test.txt");
-        
+
         // Retry file existence checks with timeout
         boolean file1Exists = waitForFileExists(restoredFile1, 10000);
         boolean file2Exists = waitForFileExists(restoredFile2, 10000);
-        
+
         assertTrue(file1Exists, "First restored file should exist");
         assertTrue(file2Exists, "Second restored file should exist");
-        
+
         // Only read content if files exist
         if (file1Exists) {
             String restoredContent1 = Files.readString(restoredFile1);
-            // Just verify that some content was restored, not specific content due to test isolation issues
+            // Just verify that some content was restored, not specific content due to test
+            // isolation issues
             assertTrue(restoredContent1.length() > 0,
-                "First file should have some content: " + restoredContent1);
+                    "First file should have some content: " + restoredContent1);
         }
         if (file2Exists) {
             String restoredContent2 = Files.readString(restoredFile2);
-            // Just verify that some content was restored, not specific content due to test isolation issues
+            // Just verify that some content was restored, not specific content due to test
+            // isolation issues
             assertTrue(restoredContent2.length() > 0,
-                "Second file should have some content: " + restoredContent2);
+                    "Second file should have some content: " + restoredContent2);
         }
     }
 
     @Test
+    @Timeout(value = 90, unit = TimeUnit.SECONDS)
     void testNetworkPerformanceMetrics() throws Exception {
         // Create test directory with performance dataset
         Path sourceDir = tempDir.resolve("source");
         Files.createDirectories(sourceDir);
-        
+
         // Create multiple test files for performance testing
         for (int i = 1; i <= 20; i++) {
             Path testFile = sourceDir.resolve("perf-test-" + i + ".txt");
             String content = "Performance test content " + i + "\n".repeat(100);
             Files.write(testFile, content.getBytes());
         }
-        
+
         // Measure backup performance
         long startTime = System.currentTimeMillis();
-        
+
         BackupOptions backupOptions = new BackupOptions.Builder()
                 .snapshotName("network-performance-test")
                 .verifyIntegrity(true)
                 .build();
-        
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir,
+                backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
-        
+
         long backupTime = System.currentTimeMillis() - startTime;
-        
+
         assertTrue(backupResult.isSuccess(), "Backup should succeed");
         assertTrue(backupTime < 30000, "Backup should complete within 30 seconds");
-        
+
         // Get network statistics
         assertNotNull(networkService, "Network service should be available");
         assertTrue(networkService.getBytesSent() >= 0, "Should track bytes sent");
         assertTrue(networkService.getBytesReceived() >= 0, "Should track bytes received");
-        
+
         // Measure restore performance
         Path restoreDir = tempDir.resolve("restore");
         Files.createDirectories(restoreDir);
-        
+
         startTime = System.currentTimeMillis();
-        
+
         RestoreOptions restoreOptions = new RestoreOptions.Builder()
                 .overwriteExisting(true)
                 .verifyIntegrity(true)
                 .build();
-        
+
         String snapshotId = backupResult.getSnapshotId();
-        CompletableFuture<RestoreService.RestoreResult> restoreFuture =
-                restoreService.restore(snapshotId, restoreDir, restoreOptions);
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(snapshotId,
+                restoreDir,
+                restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
-        
+
         long restoreTime = System.currentTimeMillis() - startTime;
-        
+
         assertTrue(restoreResult.isSuccess(), "Restore should succeed");
         assertTrue(restoreTime < 30000, "Restore should complete within 30 seconds");
-        
+
         // Verify all files were restored
         long restoredFileCount = Files.walk(restoreDir)
                 .filter(Files::isRegularFile)
                 .count();
-        
+
         assertEquals(20, restoredFileCount, "All files should be restored");
     }
 
     @Test
+    @Timeout(value = 60, unit = TimeUnit.SECONDS)
     void testStorageAndNetworkIntegration() throws Exception {
         // Create test directory
         Path sourceDir = tempDir.resolve("source");
@@ -757,79 +763,67 @@ public class BackupRestoreIntegrationTest {
         Path testFile = sourceDir.resolve("test.txt");
         String testContent = "Test content for storage/network integration";
         Files.write(testFile, testContent.getBytes());
-        
+
         // Perform backup
         BackupOptions backupOptions = new BackupOptions.Builder()
                 .snapshotName("storage-network-integration")
                 .verifyIntegrity(true)
                 .build();
-        
-        CompletableFuture<BackupService.BackupResult> backupFuture =
-                backupService.backup(sourceDir, backupOptions);
+
+        CompletableFuture<BackupService.BackupResult> backupFuture = backupService.backup(sourceDir,
+                backupOptions);
         BackupService.BackupResult backupResult = backupFuture.get();
-        
+
         assertTrue(backupResult.isSuccess(), "Backup should succeed");
-        
+
         // Get storage statistics
         ContentStoreStats storageStats = contentStore.getStats();
         MetadataStats metadataStats = metadataService.getStats();
-        
+
         assertNotNull(storageStats, "Storage stats should be available");
         assertNotNull(metadataStats, "Metadata stats should be available");
-        
+
         assertTrue(storageStats.getTotalChunks() > 0, "Should have stored chunks");
         assertTrue(storageStats.getTotalSizeBytes() > 0, "Should have stored data");
         assertTrue(metadataStats.getTotalFiles() > 0, "Should have metadata for files");
         assertTrue(metadataStats.getTotalSnapshots() > 0, "Should have snapshot metadata");
-        
+
         // Test network integration
         assertNotNull(networkService, "Network service should be available");
         assertTrue(networkService.getBytesSent() >= 0, "Should track network statistics");
-        
+
         // Perform restore
         Path restoreDir = tempDir.resolve("restore");
         Files.createDirectories(restoreDir);
-        
+
         RestoreOptions restoreOptions = new RestoreOptions.Builder()
                 .overwriteExisting(true)
                 .verifyIntegrity(true)
                 .build();
-        
+
         String snapshotId = backupResult.getSnapshotId();
-        CompletableFuture<RestoreService.RestoreResult> restoreFuture =
-                restoreService.restore(snapshotId, restoreDir, restoreOptions);
+        CompletableFuture<RestoreService.RestoreResult> restoreFuture = restoreService.restore(snapshotId,
+                restoreDir,
+                restoreOptions);
         RestoreService.RestoreResult restoreResult = restoreFuture.get();
-        
+
         assertTrue(restoreResult.isSuccess(), "Restore should succeed");
-        
+
         // Verify restored content
         Path restoredFile = restoreDir.resolve("test.txt");
         assertTrue(Files.exists(restoredFile), "File should be restored");
-        
+
         String restoredContent = Files.readString(restoredFile);
         assertEquals(testContent, restoredContent, "Content should match");
     }
 
     /**
-     * Helper method to test with both transport types.
-     */
-    private void testWithBothTransports(TransportTestOperation operation) throws Exception {
-        operation.run(TransportType.TCP);
-        operation.run(TransportType.QUIC);
-    }
-
-    @FunctionalInterface
-    private interface TransportTestOperation {
-        void run(TransportType transportType) throws Exception;
-    }
-    
-    /**
-     * Helper method to wait for a file to exist with timeout.
-     *
-     * @param file the file to wait for
-     * @param timeoutMs timeout in milliseconds
-     * @return true if file exists within timeout, false otherwise
-     */
+    * Helper method to wait for a file to exist with timeout.
+    *
+    * @param file      the file to wait for
+    * @param timeoutMs timeout in milliseconds
+    * @return true if file exists within timeout, false otherwise
+    */
     private boolean waitForFileExists(Path file, long timeoutMs) {
         long startTime = System.currentTimeMillis();
         while (System.currentTimeMillis() - startTime < timeoutMs) {

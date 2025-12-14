@@ -35,11 +35,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CompletableFuture;
+import java.util.Locale;
 
 /**
  * Command for backing up directories.
  * Follows Single Responsibility Principle by handling only backup operations.
  */
+
 public class BackupCommand implements Command {
 
     private final BackupService backupService;
@@ -232,7 +234,7 @@ public class BackupCommand implements Command {
                 case "--transport":
                     if (i + 1 < args.length) {
                         try {
-                            TransportType transportType = TransportType.valueOf(args[i + 1].toUpperCase());
+                            TransportType transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
                             optionsBuilder.transportType(transportType);
                             i++;
                         } catch (IllegalArgumentException e) {

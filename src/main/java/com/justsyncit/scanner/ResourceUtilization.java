@@ -27,39 +27,39 @@ public class ResourceUtilization {
 
     /** CPU utilization percentage. */
     public final double cpuUtilizationPercent;
-    
+
     /** Memory utilization percentage. */
     public final double memoryUtilizationPercent;
-    
+
     /** I/O utilization percentage. */
     public final double ioUtilizationPercent;
-    
+
     /** Maximum concurrent operations. */
     public final int maxConcurrentOperations;
-    
+
     /** Peak memory usage in MB. */
     public final long peakMemoryUsageMB;
-    
+
     /** Total bytes read. */
     public final long totalBytesRead;
-    
+
     /** Total bytes written. */
     public final long totalBytesWritten;
 
     /**
      * Creates resource utilization information.
      *
-     * @param cpuUtilizationPercent CPU utilization percentage
+     * @param cpuUtilizationPercent    CPU utilization percentage
      * @param memoryUtilizationPercent memory utilization percentage
-     * @param ioUtilizationPercent I/O utilization percentage
-     * @param maxConcurrentOperations maximum concurrent operations
-     * @param peakMemoryUsageMB peak memory usage in MB
-     * @param totalBytesRead total bytes read
-     * @param totalBytesWritten total bytes written
+     * @param ioUtilizationPercent     I/O utilization percentage
+     * @param maxConcurrentOperations  maximum concurrent operations
+     * @param peakMemoryUsageMB        peak memory usage in MB
+     * @param totalBytesRead           total bytes read
+     * @param totalBytesWritten        total bytes written
      */
     public ResourceUtilization(double cpuUtilizationPercent, double memoryUtilizationPercent,
-                           double ioUtilizationPercent, int maxConcurrentOperations,
-                           long peakMemoryUsageMB, long totalBytesRead, long totalBytesWritten) {
+            double ioUtilizationPercent, int maxConcurrentOperations,
+            long peakMemoryUsageMB, long totalBytesRead, long totalBytesWritten) {
         this.cpuUtilizationPercent = cpuUtilizationPercent;
         this.memoryUtilizationPercent = memoryUtilizationPercent;
         this.ioUtilizationPercent = ioUtilizationPercent;
@@ -135,11 +135,10 @@ public class ResourceUtilization {
     @Override
     public String toString() {
         return String.format(
-                "ResourceUtilization{cpu=%.1f%%, memory=%.1f%%, io=%.1f%%, " +
-                "maxConcurrent=%d, peakMemory=%dMB, read=%dMB, written=%dMB}",
+                "ResourceUtilization{cpu=%.1f%%, memory=%.1f%%, io=%.1f%%, "
+                        + "maxConcurrent=%d, peakMemory=%dMB, read=%dMB, written=%dMB}",
                 cpuUtilizationPercent, memoryUtilizationPercent, ioUtilizationPercent,
                 maxConcurrentOperations, peakMemoryUsageMB,
-                totalBytesRead / (1024 * 1024), totalBytesWritten / (1024 * 1024)
-        );
+                totalBytesRead / (1024 * 1024), totalBytesWritten / (1024 * 1024));
     }
 }

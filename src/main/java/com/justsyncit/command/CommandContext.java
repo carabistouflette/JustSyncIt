@@ -27,6 +27,7 @@ import com.justsyncit.storage.ContentStore;
  * Context object that provides services to commands.
  * Follows Dependency Inversion Principle by providing abstractions to commands.
  */
+
 public class CommandContext {
 
     /** BLAKE3 service instance (required). */
@@ -144,6 +145,7 @@ public class CommandContext {
          * @param blake3Service the BLAKE3 service (required)
          * @throws IllegalArgumentException if blake3Service is null
          */
+
         public Builder(Blake3Service blake3Service) {
             if (blake3Service == null) {
                 throw new IllegalArgumentException("blake3Service cannot be null");
@@ -157,6 +159,7 @@ public class CommandContext {
          * @param networkService the network service
          * @return this builder
          */
+
         public Builder networkService(NetworkService networkService) {
             this.networkService = networkService;
             return this;

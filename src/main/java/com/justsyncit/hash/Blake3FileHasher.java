@@ -35,8 +35,10 @@ import java.util.function.Consumer;
  * Thread-safe file hashing implementation using BLAKE3 service.
  * Follows Single Responsibility Principle by focusing only on file operations.
  *
- * This implementation is thread-safe and can be safely used by multiple threads concurrently.
+ * This implementation is thread-safe and can be safely used by multiple threads
+ * concurrently.
  */
+
 public class Blake3FileHasher implements FileHasher {
 
     /** Logger for the file hasher. */
@@ -44,10 +46,10 @@ public class Blake3FileHasher implements FileHasher {
 
     /** Default buffer size for streaming operations (64KB). */
     private static final int DEFAULT_BUFFER_SIZE = 65536; // 64KB buffer for streaming
-    
+
     /** Threshold for small files that can be read entirely into memory. */
     private static final long SMALL_FILE_THRESHOLD = 1024 * 1024; // 1MB
-    
+
     /** Maximum file size to prevent resource exhaustion (100MB). */
     private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
@@ -59,15 +61,16 @@ public class Blake3FileHasher implements FileHasher {
 
     /** Buffer size for streaming operations. */
     private final int bufferSize;
-    
+
     /** Maximum allowed file size. */
     private final long maxFileSize;
-    
+
     /** Thread safety lock for concurrent operations. */
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
     /**
-     * Creates a new Blake3FileHasher with the provided dependencies and default settings.
+     * Creates a new Blake3FileHasher with the provided dependencies and default
+     * settings.
      *
      * @param streamHasher the stream hashing service, must not be null
      * @param bufferHasher the buffer hashing service, must not be null
@@ -78,38 +81,40 @@ public class Blake3FileHasher implements FileHasher {
     }
 
     /**
-     * Creates a new Blake3FileHasher with the provided dependencies and custom settings.
+     * Creates a new Blake3FileHasher with the provided dependencies and custom
+     * settings.
      *
      * @param streamHasher the stream hashing service, must not be null
      * @param bufferHasher the buffer hashing service, must not be null
-     * @param bufferSize the buffer size for streaming operations, must be positive
-     * @param maxFileSize the maximum allowed file size in bytes, must be positive
+     * @param bufferSize   the buffer size for streaming operations, must be
+     *                     positive
+     * @param maxFileSize  the maximum allowed file size in bytes, must be positive
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
     public Blake3FileHasher(StreamHasher streamHasher, BufferHasher bufferHasher,
-                           int bufferSize, long maxFileSize) {
+            int bufferSize, long maxFileSize) {
         this.streamHasher = Objects.requireNonNull(streamHasher, "Stream hasher cannot be null");
         this.bufferHasher = Objects.requireNonNull(bufferHasher, "Buffer hasher cannot be null");
-        
+
         if (bufferSize <= 0) {
             throw new IllegalArgumentException("Buffer size must be positive");
         }
         this.bufferSize = bufferSize;
-        
+
         if (maxFileSize <= 0) {
             throw new IllegalArgumentException("Max file size must be positive");
         }
         this.maxFileSize = maxFileSize;
-        
+
         logger.debug("Blake3FileHasher initialized with buffer size: {} bytes, max file size: {} bytes",
-                    bufferSize, maxFileSize);
+                bufferSize, maxFileSize);
     }
 
     @Override
     public String hashFile(Path filePath) throws IOException {
         // Validate input parameters
         validateFilePath(filePath);
-        
+
         // Acquire read lock for thread safety (allows concurrent reads)
         lock.readLock().lock();
         try {
@@ -124,22 +129,22 @@ public class Blake3FileHasher implements FileHasher {
      *
      * @param filePath the file path to validate
      * @throws IllegalArgumentException if the path is invalid
-     * @throws SecurityException if the path violates security constraints
+     * @throws SecurityException        if the path violates security constraints
      */
     private void validateFilePath(Path filePath) {
         if (filePath == null) {
             throw new IllegalArgumentException("File path cannot be null");
         }
-        
+
         // Normalize the path to prevent path traversal attacks
         Path normalizedPath = filePath.normalize();
-        
+
         // Check if the normalized path is different (potential traversal attempt)
         if (!normalizedPath.equals(filePath)) {
             logger.warn("Path normalization detected potential traversal attempt: {} -> {}",
-                       filePath, normalizedPath);
+                    filePath, normalizedPath);
         }
-        
+
         // Additional security check: ensure path doesn't contain ".." segments
         if (filePath.toString().contains("..")) {
             throw new SecurityException("Path traversal not allowed: " + filePath);
@@ -147,12 +152,13 @@ public class Blake3FileHasher implements FileHasher {
     }
 
     /**
-     * Performs the actual file hashing with proper error handling and resource management.
+     * Performs the actual file hashing with proper error handling and resource
+     * management.
      *
      * @param filePath the path to the file to hash
      * @return the hash as a hexadecimal string
-     * @throws IOException if an I/O error occurs
-     * @throws SecurityException if access to the file is denied
+     * @throws IOException              if an I/O error occurs
+     * @throws SecurityException        if access to the file is denied
      * @throws IllegalArgumentException if the file doesn't exist or is invalid
      */
     private String performHashing(Path filePath) throws IOException {
@@ -175,8 +181,8 @@ public class Blake3FileHasher implements FileHasher {
             }
 
             if (fileSize > maxFileSize) {
-                throw new IllegalArgumentException("File size exceeds maximum allowed size: " +
-                                              fileSize + " bytes (max: " + maxFileSize + " bytes)");
+                throw new IllegalArgumentException("File size exceeds maximum allowed size: "
+                        + fileSize + " bytes (max: " + maxFileSize + " bytes)");
             }
 
             logger.debug("Hashing file: {} ({} bytes)", filePath, fileSize);
@@ -189,7 +195,7 @@ public class Blake3FileHasher implements FileHasher {
             }
         } catch (Exception e) {
             logger.error("Failed to hash file: {}", filePath, e);
-            
+
             // Re-throw with proper exception type
             if (e instanceof IOException) {
                 throw (IOException) e;
@@ -214,7 +220,7 @@ public class Blake3FileHasher implements FileHasher {
      */
     private String hashSmallFile(Path filePath, long fileSize) throws HashingException {
         logger.trace("Using small file strategy for {} bytes", fileSize);
-        
+
         try {
             byte[] data = Files.readAllBytes(filePath);
             return bufferHasher.hashBuffer(data);
@@ -242,7 +248,7 @@ public class Blake3FileHasher implements FileHasher {
      */
     private String hashLargeFile(Path filePath, long fileSize) throws HashingException {
         logger.trace("Using streaming strategy for {} bytes with buffer size: {}", fileSize, bufferSize);
-        
+
         try (InputStream inputStream = Files.newInputStream(filePath)) {
             return streamHasher.hashStream(inputStream);
         } catch (IOException e) {

@@ -31,37 +31,37 @@ public class BatchProcessingStats {
 
     /** Total number of batches processed. */
     private final AtomicLong totalBatchesProcessed = new AtomicLong(0);
-    
+
     /** Total number of files processed across all batches. */
     private final AtomicLong totalFilesProcessed = new AtomicLong(0);
-    
+
     /** Total number of successful file operations. */
     private final AtomicLong successfulFileOperations = new AtomicLong(0);
-    
+
     /** Total number of failed file operations. */
     private final AtomicLong failedFileOperations = new AtomicLong(0);
-    
+
     /** Total bytes processed across all batches. */
     private final AtomicLong totalBytesProcessed = new AtomicLong(0);
-    
+
     /** Total processing time across all batches in milliseconds. */
     private final AtomicLong totalProcessingTimeMs = new AtomicLong(0);
-    
+
     /** Number of currently active batch operations. */
     private final AtomicInteger activeBatchOperations = new AtomicInteger(0);
-    
+
     /** Number of currently active file operations. */
     private final AtomicInteger activeFileOperations = new AtomicInteger(0);
-    
+
     /** Peak number of concurrent batch operations. */
     private final AtomicInteger peakConcurrentBatches = new AtomicInteger(0);
-    
+
     /** Peak number of concurrent file operations. */
     private final AtomicInteger peakConcurrentFileOps = new AtomicInteger(0);
-    
+
     /** Timestamp when statistics collection started. */
     private final Instant startTime;
-    
+
     /** Last time statistics were updated. */
     private volatile Instant lastUpdateTime;
 
@@ -87,8 +87,8 @@ public class BatchProcessingStats {
      * Records the completion of a batch operation.
      *
      * @param processingTimeMs time taken to process the batch
-     * @param filesProcessed number of files processed in the batch
-     * @param bytesProcessed total bytes processed in the batch
+     * @param filesProcessed   number of files processed in the batch
+     * @param bytesProcessed   total bytes processed in the batch
      */
     public void recordBatchCompletion(long processingTimeMs, int filesProcessed, long bytesProcessed) {
         activeBatchOperations.decrementAndGet();
@@ -101,7 +101,7 @@ public class BatchProcessingStats {
     /**
      * Records a successful file operation.
      *
-     * @param fileSize size of the file processed
+     * @param fileSize         size of the file processed
      * @param processingTimeMs time taken to process the file
      */
     public void recordSuccessfulFileOperation(long fileSize, long processingTimeMs) {
@@ -114,7 +114,7 @@ public class BatchProcessingStats {
     /**
      * Records a failed file operation.
      *
-     * @param fileSize size of the file that failed
+     * @param fileSize         size of the file that failed
      * @param processingTimeMs time taken before failure
      */
     public void recordFailedFileOperation(long fileSize, long processingTimeMs) {
@@ -309,9 +309,9 @@ public class BatchProcessingStats {
     @Override
     public String toString() {
         return String.format(
-                "BatchProcessingStats{batches=%d, files=%d, successful=%d, failed=%d, " +
-                "bytes=%dMB, time=%ds, avgBatchTime=%.1fms, avgFileTime=%.1fms, " +
-                "successRate=%.2f%%, throughput=%.2fMB/s, activeBatches=%d, activeFiles=%d}",
+                "BatchProcessingStats{batches=%d, files=%d, successful=%d, failed=%d, "
+                        + "bytes=%dMB, time=%ds, avgBatchTime=%.1fms, avgFileTime=%.1fms, "
+                        + "successRate=%.2f%%, throughput=%.2fMB/s, activeBatches=%d, activeFiles=%d}",
                 getTotalBatchesProcessed(), getTotalFilesProcessed(),
                 getSuccessfulFileOperations(), getFailedFileOperations(),
                 getTotalBytesProcessed() / (1024 * 1024),
@@ -320,8 +320,7 @@ public class BatchProcessingStats {
                 getAverageProcessingTimePerFileMs(),
                 getSuccessRate(),
                 getThroughputMBps(),
-                getActiveBatchOperations(), getActiveFileOperations()
-        );
+                getActiveBatchOperations(), getActiveFileOperations());
     }
 
     /**
@@ -329,22 +328,27 @@ public class BatchProcessingStats {
      *
      * @return immutable snapshot
      */
+    /**
+     * Creates a snapshot of current statistics.
+     *
+     * @return immutable snapshot
+     */
     public BatchProcessingStatsSnapshot createSnapshot() {
-        return new BatchProcessingStatsSnapshot(
-                getTotalBatchesProcessed(),
-                getTotalFilesProcessed(),
-                getSuccessfulFileOperations(),
-                getFailedFileOperations(),
-                getTotalBytesProcessed(),
-                getTotalProcessingTimeMs(),
-                getActiveBatchOperations(),
-                getActiveFileOperations(),
-                getPeakConcurrentBatches(),
-                getPeakConcurrentFileOps(),
-                getSuccessRate(),
-                getThroughputMBps(),
-                getUptimeMs()
-        );
+        return new BatchProcessingStatsSnapshot.Builder()
+                .setTotalBatchesProcessed(getTotalBatchesProcessed())
+                .setTotalFilesProcessed(getTotalFilesProcessed())
+                .setSuccessfulFileOperations(getSuccessfulFileOperations())
+                .setFailedFileOperations(getFailedFileOperations())
+                .setTotalBytesProcessed(getTotalBytesProcessed())
+                .setTotalProcessingTimeMs(getTotalProcessingTimeMs())
+                .setActiveBatchOperations(getActiveBatchOperations())
+                .setActiveFileOperations(getActiveFileOperations())
+                .setPeakConcurrentBatches(getPeakConcurrentBatches())
+                .setPeakConcurrentFileOps(getPeakConcurrentFileOps())
+                .setSuccessRate(getSuccessRate())
+                .setThroughputMBps(getThroughputMBps())
+                .setUptimeMs(getUptimeMs())
+                .build();
     }
 
     /**
@@ -365,35 +369,118 @@ public class BatchProcessingStats {
         public final double throughputMBps;
         public final long uptimeMs;
 
-        public BatchProcessingStatsSnapshot(long totalBatchesProcessed, long totalFilesProcessed,
-                                      long successfulFileOperations, long failedFileOperations,
-                                      long totalBytesProcessed, long totalProcessingTimeMs,
-                                      int activeBatchOperations, int activeFileOperations,
-                                      int peakConcurrentBatches, int peakConcurrentFileOps,
-                                      double successRate, double throughputMBps, long uptimeMs) {
-            this.totalBatchesProcessed = totalBatchesProcessed;
-            this.totalFilesProcessed = totalFilesProcessed;
-            this.successfulFileOperations = successfulFileOperations;
-            this.failedFileOperations = failedFileOperations;
-            this.totalBytesProcessed = totalBytesProcessed;
-            this.totalProcessingTimeMs = totalProcessingTimeMs;
-            this.activeBatchOperations = activeBatchOperations;
-            this.activeFileOperations = activeFileOperations;
-            this.peakConcurrentBatches = peakConcurrentBatches;
-            this.peakConcurrentFileOps = peakConcurrentFileOps;
-            this.successRate = successRate;
-            this.throughputMBps = throughputMBps;
-            this.uptimeMs = uptimeMs;
+        private BatchProcessingStatsSnapshot(Builder builder) {
+            this.totalBatchesProcessed = builder.totalBatchesProcessed;
+            this.totalFilesProcessed = builder.totalFilesProcessed;
+            this.successfulFileOperations = builder.successfulFileOperations;
+            this.failedFileOperations = builder.failedFileOperations;
+            this.totalBytesProcessed = builder.totalBytesProcessed;
+            this.totalProcessingTimeMs = builder.totalProcessingTimeMs;
+            this.activeBatchOperations = builder.activeBatchOperations;
+            this.activeFileOperations = builder.activeFileOperations;
+            this.peakConcurrentBatches = builder.peakConcurrentBatches;
+            this.peakConcurrentFileOps = builder.peakConcurrentFileOps;
+            this.successRate = builder.successRate;
+            this.throughputMBps = builder.throughputMBps;
+            this.uptimeMs = builder.uptimeMs;
+        }
+
+        public static class Builder {
+            private long totalBatchesProcessed;
+            private long totalFilesProcessed;
+            private long successfulFileOperations;
+            private long failedFileOperations;
+            private long totalBytesProcessed;
+            private long totalProcessingTimeMs;
+            private int activeBatchOperations;
+            private int activeFileOperations;
+            private int peakConcurrentBatches;
+            private int peakConcurrentFileOps;
+            private double successRate;
+            private double throughputMBps;
+            private long uptimeMs;
+
+            public Builder setTotalBatchesProcessed(long totalBatchesProcessed) {
+                this.totalBatchesProcessed = totalBatchesProcessed;
+                return this;
+            }
+
+            public Builder setTotalFilesProcessed(long totalFilesProcessed) {
+                this.totalFilesProcessed = totalFilesProcessed;
+                return this;
+            }
+
+            public Builder setSuccessfulFileOperations(long successfulFileOperations) {
+                this.successfulFileOperations = successfulFileOperations;
+                return this;
+            }
+
+            public Builder setFailedFileOperations(long failedFileOperations) {
+                this.failedFileOperations = failedFileOperations;
+                return this;
+            }
+
+            public Builder setTotalBytesProcessed(long totalBytesProcessed) {
+                this.totalBytesProcessed = totalBytesProcessed;
+                return this;
+            }
+
+            public Builder setTotalProcessingTimeMs(long totalProcessingTimeMs) {
+                this.totalProcessingTimeMs = totalProcessingTimeMs;
+                return this;
+            }
+
+            public Builder setActiveBatchOperations(int activeBatchOperations) {
+                this.activeBatchOperations = activeBatchOperations;
+                return this;
+            }
+
+            public Builder setActiveFileOperations(int activeFileOperations) {
+                this.activeFileOperations = activeFileOperations;
+                return this;
+            }
+
+            public Builder setPeakConcurrentBatches(int peakConcurrentBatches) {
+                this.peakConcurrentBatches = peakConcurrentBatches;
+                return this;
+            }
+
+            public Builder setPeakConcurrentFileOps(int peakConcurrentFileOps) {
+                this.peakConcurrentFileOps = peakConcurrentFileOps;
+                return this;
+            }
+
+            public Builder setSuccessRate(double successRate) {
+                this.successRate = successRate;
+                return this;
+            }
+
+            public Builder setThroughputMBps(double throughputMBps) {
+                this.throughputMBps = throughputMBps;
+                return this;
+            }
+
+            public Builder setUptimeMs(long uptimeMs) {
+                this.uptimeMs = uptimeMs;
+                return this;
+            }
+
+            public BatchProcessingStatsSnapshot build() {
+                return new BatchProcessingStatsSnapshot(this);
+            }
         }
 
         @Override
         public String toString() {
             return String.format(
-                        "BatchProcessingStatsSnapshot{batches=%d, files=%d, successRate=%.2f%%, " +
-                        "throughput=%.2fMB/s, uptime=%ds}",
-                        totalBatchesProcessed, totalFilesProcessed, successRate * 100,
-                        throughputMBps, uptimeMs / 1000
-            );
+                    "BatchProcessingStatsSnapshot{batches=%d, files=%d, successful=%d, failed=%d, "
+                            + "bytes=%d, time=%d, activeBatches=%d, activeFiles=%d, "
+                            + "peakBatches=%d, peakFiles=%d, successRate=%.2f%%, "
+                            + "throughput=%.2fMB/s, uptime=%ds}",
+                    totalBatchesProcessed, totalFilesProcessed, successfulFileOperations, failedFileOperations,
+                    totalBytesProcessed, totalProcessingTimeMs, activeBatchOperations, activeFileOperations,
+                    peakConcurrentBatches, peakConcurrentFileOps, successRate,
+                    throughputMBps, uptimeMs / 1000);
         }
     }
 }

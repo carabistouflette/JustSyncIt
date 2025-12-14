@@ -28,75 +28,180 @@ import java.util.concurrent.CompletableFuture;
  * Enhanced result of an asynchronous filesystem scanning operation.
  * Extends ScanResult with additional async-specific metadata and capabilities.
  */
+
+/**
+ * Enhanced result of an asynchronous filesystem scanning operation.
+ * Extends ScanResult with additional async-specific metadata and capabilities.
+ */
+
 public class AsyncScanResult extends ScanResult {
 
     /** Unique identifier for this scan operation. */
     private final String scanId;
-    
+
     /** Number of threads used for parallel scanning. */
     private final int threadCount;
-    
+
     /** Average throughput in files per second. */
     private final double throughput;
-    
+
     /** Peak memory usage during scanning. */
     private final long peakMemoryUsage;
-    
+
     /** Number of directories scanned. */
     private final long directoriesScanned;
-    
+
     /** Number of symbolic links encountered. */
     private final long symbolicLinksEncountered;
-    
+
     /** Number of sparse files detected. */
     private final long sparseFilesDetected;
-    
+
     /** Backpressure events encountered during scanning. */
     private final long backpressureEvents;
-    
+
     /** Cancellation status. */
     private final boolean wasCancelled;
-    
+
     /** Async-specific metadata. */
     private final Map<String, Object> asyncMetadata;
 
     /**
      * Creates a new AsyncScanResult.
      *
-     * @param scanId unique identifier for this scan
-     * @param rootDirectory the root directory that was scanned
-     * @param scannedFiles list of successfully scanned files
-     * @param errors list of errors that occurred
-     * @param startTime when the scan started
-     * @param endTime when the scan completed
-     * @param metadata additional scan metadata
-     * @param threadCount number of threads used
-     * @param throughput average throughput in files per second
-     * @param peakMemoryUsage peak memory usage in bytes
-     * @param directoriesScanned number of directories scanned
+     * @param scanId                   unique identifier for this scan
+     * @param rootDirectory            the root directory that was scanned
+     * @param scannedFiles             list of successfully scanned files
+     * @param errors                   list of errors that occurred
+     * @param startTime                when the scan started
+     * @param endTime                  when the scan completed
+     * @param metadata                 additional scan metadata
+     * @param threadCount              number of threads used
+     * @param throughput               average throughput in files per second
+     * @param peakMemoryUsage          peak memory usage in bytes
+     * @param directoriesScanned       number of directories scanned
      * @param symbolicLinksEncountered number of symbolic links encountered
-     * @param sparseFilesDetected number of sparse files detected
-     * @param backpressureEvents backpressure events encountered
-     * @param wasCancelled whether the scan was cancelled
-     * @param asyncMetadata async-specific metadata
+     * @param sparseFilesDetected      number of sparse files detected
+     * @param backpressureEvents       backpressure events encountered
+     * @param wasCancelled             whether the scan was cancelled
+     * @param asyncMetadata            async-specific metadata
      */
-    public AsyncScanResult(String scanId, Path rootDirectory, List<ScannedFile> scannedFiles,
-                         List<ScanError> errors, Instant startTime, Instant endTime,
-                         Map<String, Object> metadata, int threadCount, double throughput,
-                         long peakMemoryUsage, long directoriesScanned, long symbolicLinksEncountered,
-                         long sparseFilesDetected, long backpressureEvents, boolean wasCancelled,
-                         Map<String, Object> asyncMetadata) {
-        super(rootDirectory, scannedFiles, errors, startTime, endTime, metadata);
-        this.scanId = scanId;
-        this.threadCount = threadCount;
-        this.throughput = throughput;
-        this.peakMemoryUsage = peakMemoryUsage;
-        this.directoriesScanned = directoriesScanned;
-        this.symbolicLinksEncountered = symbolicLinksEncountered;
-        this.sparseFilesDetected = sparseFilesDetected;
-        this.backpressureEvents = backpressureEvents;
-        this.wasCancelled = wasCancelled;
-        this.asyncMetadata = asyncMetadata != null ? new java.util.HashMap<>(asyncMetadata) : null;
+    private AsyncScanResult(Builder builder) {
+        super(builder.rootDirectory, builder.scannedFiles, builder.errors,
+                builder.startTime, builder.endTime, builder.metadata);
+        this.scanId = builder.scanId;
+        this.threadCount = builder.threadCount;
+        this.throughput = builder.throughput;
+        this.peakMemoryUsage = builder.peakMemoryUsage;
+        this.directoriesScanned = builder.directoriesScanned;
+        this.symbolicLinksEncountered = builder.symbolicLinksEncountered;
+        this.sparseFilesDetected = builder.sparseFilesDetected;
+        this.backpressureEvents = builder.backpressureEvents;
+        this.wasCancelled = builder.wasCancelled;
+        this.asyncMetadata = builder.asyncMetadata != null ? new java.util.HashMap<>(builder.asyncMetadata) : null;
+    }
+
+    public static class Builder {
+        private String scanId;
+        private Path rootDirectory;
+        private List<ScannedFile> scannedFiles;
+        private List<ScanError> errors;
+        private Instant startTime;
+        private Instant endTime;
+        private Map<String, Object> metadata;
+        private int threadCount;
+        private double throughput;
+        private long peakMemoryUsage;
+        private long directoriesScanned;
+        private long symbolicLinksEncountered;
+        private long sparseFilesDetected;
+        private long backpressureEvents;
+        private boolean wasCancelled;
+        private Map<String, Object> asyncMetadata;
+
+        public Builder setScanId(String scanId) {
+            this.scanId = scanId;
+            return this;
+        }
+
+        public Builder setRootDirectory(Path rootDirectory) {
+            this.rootDirectory = rootDirectory;
+            return this;
+        }
+
+        public Builder setScannedFiles(List<ScannedFile> scannedFiles) {
+            this.scannedFiles = scannedFiles != null ? new java.util.ArrayList<>(scannedFiles) : null;
+            return this;
+        }
+
+        public Builder setErrors(List<ScanError> errors) {
+            this.errors = errors != null ? new java.util.ArrayList<>(errors) : null;
+            return this;
+        }
+
+        public Builder setStartTime(Instant startTime) {
+            this.startTime = startTime;
+            return this;
+        }
+
+        public Builder setEndTime(Instant endTime) {
+            this.endTime = endTime;
+            return this;
+        }
+
+        public Builder setMetadata(Map<String, Object> metadata) {
+            this.metadata = metadata != null ? new java.util.HashMap<>(metadata) : null;
+            return this;
+        }
+
+        public Builder setThreadCount(int threadCount) {
+            this.threadCount = threadCount;
+            return this;
+        }
+
+        public Builder setThroughput(double throughput) {
+            this.throughput = throughput;
+            return this;
+        }
+
+        public Builder setPeakMemoryUsage(long peakMemoryUsage) {
+            this.peakMemoryUsage = peakMemoryUsage;
+            return this;
+        }
+
+        public Builder setDirectoriesScanned(long directoriesScanned) {
+            this.directoriesScanned = directoriesScanned;
+            return this;
+        }
+
+        public Builder setSymbolicLinksEncountered(long symbolicLinksEncountered) {
+            this.symbolicLinksEncountered = symbolicLinksEncountered;
+            return this;
+        }
+
+        public Builder setSparseFilesDetected(long sparseFilesDetected) {
+            this.sparseFilesDetected = sparseFilesDetected;
+            return this;
+        }
+
+        public Builder setBackpressureEvents(long backpressureEvents) {
+            this.backpressureEvents = backpressureEvents;
+            return this;
+        }
+
+        public Builder setWasCancelled(boolean wasCancelled) {
+            this.wasCancelled = wasCancelled;
+            return this;
+        }
+
+        public Builder setAsyncMetadata(Map<String, Object> asyncMetadata) {
+            this.asyncMetadata = asyncMetadata != null ? new java.util.HashMap<>(asyncMetadata) : null;
+            return this;
+        }
+
+        public AsyncScanResult build() {
+            return new AsyncScanResult(this);
+        }
     }
 
     /**
@@ -197,7 +302,7 @@ public class AsyncScanResult extends ScanResult {
      */
     public CompletableFuture<String> exportAsync(String format) {
         return CompletableFuture.supplyAsync(() -> {
-            switch (format.toLowerCase()) {
+            switch (format.toLowerCase(java.util.Locale.ROOT)) {
                 case "json":
                     return toJson();
                 case "csv":
@@ -245,7 +350,10 @@ public class AsyncScanResult extends ScanResult {
      */
     private String toCsv() {
         StringBuilder csv = new StringBuilder();
-        csv.append("scanId,rootDirectory,startTime,endTime,durationMillis,scannedFileCount,errorCount,totalSize,threadCount,throughput,peakMemoryUsage,directoriesScanned,symbolicLinksEncountered,sparseFilesDetected,backpressureEvents,wasCancelled\n");
+        csv.append("scanId,rootDirectory,startTime,endTime,durationMillis,")
+                .append("scannedFileCount,errorCount,totalSize,threadCount,throughput,")
+                .append("peakMemoryUsage,directoriesScanned,symbolicLinksEncountered,")
+                .append("sparseFilesDetected,backpressureEvents,wasCancelled\n");
         csv.append(scanId).append(",");
         csv.append(getRootDirectory()).append(",");
         csv.append(getStartTime()).append(",");
@@ -286,7 +394,8 @@ public class AsyncScanResult extends ScanResult {
         xml.append("  <throughput>").append(throughput).append("</throughput>\n");
         xml.append("  <peakMemoryUsage>").append(peakMemoryUsage).append("</peakMemoryUsage>\n");
         xml.append("  <directoriesScanned>").append(directoriesScanned).append("</directoriesScanned>\n");
-        xml.append("  <symbolicLinksEncountered>").append(symbolicLinksEncountered).append("</symbolicLinksEncountered>\n");
+        xml.append("  <symbolicLinksEncountered>").append(symbolicLinksEncountered)
+                .append("</symbolicLinksEncountered>\n");
         xml.append("  <sparseFilesDetected>").append(sparseFilesDetected).append("</sparseFilesDetected>\n");
         xml.append("  <backpressureEvents>").append(backpressureEvents).append("</backpressureEvents>\n");
         xml.append("  <wasCancelled>").append(wasCancelled).append("</wasCancelled>\n");
@@ -297,13 +406,12 @@ public class AsyncScanResult extends ScanResult {
     @Override
     public String toString() {
         return String.format(
-            "AsyncScanResult{scanId='%s', rootDirectory=%s, scannedFiles=%d, errors=%d, " +
-            "duration=%dms, threadCount=%d, throughput=%.2f files/sec, peakMemory=%d bytes, " +
-            "directories=%d, symlinks=%d, sparseFiles=%d, backpressure=%d, cancelled=%b}",
-            scanId, getRootDirectory(), getScannedFileCount(), getErrorCount(), 
-            getDurationMillis(), threadCount, throughput, peakMemoryUsage,
-            directoriesScanned, symbolicLinksEncountered, sparseFilesDetected,
-            backpressureEvents, wasCancelled
-        );
+                "AsyncScanResult{scanId='%s', rootDirectory=%s, scannedFiles=%d, errors=%d, "
+                        + "duration=%dms, threadCount=%d, throughput=%.2f files/sec, peakMemory=%d bytes, "
+                        + "directories=%d, symlinks=%d, sparseFiles=%d, backpressure=%d, cancelled=%b}",
+                scanId, getRootDirectory(), getScannedFileCount(), getErrorCount(),
+                getDurationMillis(), threadCount, throughput, peakMemoryUsage,
+                directoriesScanned, symbolicLinksEncountered, sparseFilesDetected,
+                backpressureEvents, wasCancelled);
     }
 }

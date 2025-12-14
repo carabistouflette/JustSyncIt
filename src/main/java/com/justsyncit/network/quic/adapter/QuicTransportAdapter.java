@@ -36,11 +36,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Adapter that integrates QUIC transport with the existing network architecture.
- * Provides a bridge between the high-level network service and QUIC implementation,
+ * Adapter that integrates QUIC transport with the existing network
+ * architecture.
+ * Provides a bridge between the high-level network service and QUIC
+ * implementation,
  * enabling seamless switching between TCP and QUIC transports.
- * Follows Adapter pattern and implements QuicTransport interface for DIP compliance.
+ * Follows Adapter pattern and implements QuicTransport interface for DIP
+ * compliance.
  */
+@SuppressWarnings("this-escape")
 public class QuicTransportAdapter implements QuicTransport {
 
     /** Logger for QUIC transport adapter operations. */
@@ -100,14 +104,14 @@ public class QuicTransportAdapter implements QuicTransport {
                 @Override
                 public void onDisconnected(InetSocketAddress serverAddress, Throwable cause) {
                     logger.info("QUIC disconnected from: {} - {}", serverAddress,
-                               cause != null ? cause.getMessage() : "normal");
+                            cause != null ? cause.getMessage() : "normal");
                     notifyDisconnected(serverAddress, cause);
                 }
 
                 @Override
                 public void onMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message) {
                     logger.debug("QUIC received message from {}: {}",
-                                serverAddress, message.getMessageType());
+                            serverAddress, message.getMessageType());
                     notifyMessageReceived(serverAddress, message);
                 }
 
@@ -128,7 +132,7 @@ public class QuicTransportAdapter implements QuicTransport {
     public CompletableFuture<Void> start() {
         logger.info("Starting QUIC transport adapter");
         return quicClient.start()
-            .thenRun(() -> logger.info("QUIC transport adapter started"));
+                .thenRun(() -> logger.info("QUIC transport adapter started"));
     }
 
     /**
@@ -139,7 +143,7 @@ public class QuicTransportAdapter implements QuicTransport {
     public CompletableFuture<Void> stop() {
         logger.info("Stopping QUIC transport adapter");
         return quicClient.stop()
-            .thenRun(() -> logger.info("QUIC transport adapter stopped"));
+                .thenRun(() -> logger.info("QUIC transport adapter stopped"));
     }
 
     /**
@@ -167,48 +171,48 @@ public class QuicTransportAdapter implements QuicTransport {
     /**
      * Sends a message to a remote server using QUIC.
      *
-     * @param message the message to send
+     * @param message       the message to send
      * @param remoteAddress the server address
      * @return a CompletableFuture that completes when the message is sent
      */
     public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress) {
         logger.debug("Sending message {} to {} using QUIC",
-                    message.getMessageType(), remoteAddress);
+                message.getMessageType(), remoteAddress);
         return quicClient.sendMessage(message, remoteAddress);
     }
 
     /**
      * Sends a file to a remote server using QUIC with optimized streaming.
      *
-     * @param filePath the path to the file to send
+     * @param filePath      the path to the file to send
      * @param remoteAddress the server address
-     * @param fileData the file data to send
+     * @param fileData      the file data to send
      * @return a CompletableFuture that completes when the file is sent
      */
     public CompletableFuture<Void> sendFile(Path filePath, InetSocketAddress remoteAddress, byte[] fileData) {
         logger.info("Sending file {} to {} using QUIC, size: {} bytes",
-                   filePath.getFileName(), remoteAddress, fileData.length);
+                filePath.getFileName(), remoteAddress, fileData.length);
 
         // Connect first, then send file
         return quicClient.connect(remoteAddress)
-            .thenCompose(connection -> {
-                // Create a dedicated stream for file transfer
-                return connection.createStream(true)
-                    .thenCompose(stream -> {
-                        // Send file metadata first
-                        return sendFileMetadata(stream, filePath, fileData.length)
-                            .thenCompose(v -> {
-                                // Send file data in chunks
-                                return sendFileData(stream, fileData);
+                .thenCompose(connection -> {
+                    // Create a dedicated stream for file transfer
+                    return connection.createStream(true)
+                            .thenCompose(stream -> {
+                                // Send file metadata first
+                                return sendFileMetadata(stream, filePath, fileData.length)
+                                        .thenCompose(v -> {
+                                            // Send file data in chunks
+                                            return sendFileData(stream, fileData);
+                                        });
                             });
-                    });
-            });
+                });
     }
 
     /**
      * Sends file metadata over a QUIC stream.
      *
-     * @param stream the QUIC stream
+     * @param stream   the QUIC stream
      * @param filePath the file path
      * @param fileSize the file size
      * @return a CompletableFuture that completes when metadata is sent
@@ -221,7 +225,7 @@ public class QuicTransportAdapter implements QuicTransport {
         // In a real implementation, this would use FileTransferRequestMessage
 
         logger.debug("Sending file metadata for {} ({} bytes) on stream {}",
-                    filePath.getFileName(), fileSize, stream.getStreamId());
+                filePath.getFileName(), fileSize, stream.getStreamId());
 
         // Simulate sending metadata
         return CompletableFuture.completedFuture(null);
@@ -230,7 +234,7 @@ public class QuicTransportAdapter implements QuicTransport {
     /**
      * Sends file data over a QUIC stream in chunks.
      *
-     * @param stream the QUIC stream
+     * @param stream   the QUIC stream
      * @param fileData the file data
      * @return a CompletableFuture that completes when data is sent
      */
@@ -239,7 +243,7 @@ public class QuicTransportAdapter implements QuicTransport {
         final int totalChunks = (int) Math.ceil((double) fileData.length / CHUNK_SIZE);
 
         logger.debug("Sending file data in {} chunks of {} bytes each",
-                    totalChunks, CHUNK_SIZE);
+                totalChunks, CHUNK_SIZE);
 
         CompletableFuture<Void> allChunks = CompletableFuture.completedFuture(null);
 
@@ -275,7 +279,7 @@ public class QuicTransportAdapter implements QuicTransport {
     public CompletableFuture<QuicStream> createStream(InetSocketAddress remoteAddress, boolean bidirectional) {
         // Connect first, then create stream
         return quicClient.connect(remoteAddress)
-            .thenCompose(connection -> connection.createStream(bidirectional));
+                .thenCompose(connection -> connection.createStream(bidirectional));
     }
 
     /**
@@ -333,7 +337,8 @@ public class QuicTransportAdapter implements QuicTransport {
      */
     public QuicClient getQuicClient() {
         // Return a defensive copy to prevent external modification
-        // Since QuicClient doesn't have a copy constructor, we create a new instance with the same configuration
+        // Since QuicClient doesn't have a copy constructor, we create a new instance
+        // with the same configuration
         return createQuicClient(configuration);
     }
 
@@ -386,12 +391,11 @@ public class QuicTransportAdapter implements QuicTransport {
     public QuicTransportStatistics getStatistics() {
         // Collect statistics from QUIC client and connections
         return new QuicTransportStatistics(
-            quicClient.getActiveConnectionCount(),
-            getTotalBytesSent(),
-            getTotalBytesReceived(),
-            getTotalMessagesSent(),
-            getTotalMessagesReceived()
-        );
+                quicClient.getActiveConnectionCount(),
+                getTotalBytesSent(),
+                getTotalBytesReceived(),
+                getTotalMessagesSent(),
+                getTotalMessagesReceived());
     }
 
     /**
@@ -455,8 +459,8 @@ public class QuicTransportAdapter implements QuicTransport {
         private final long totalMessagesReceived;
 
         public QuicTransportStatistics(int activeConnections, long totalBytesSent,
-                                       long totalBytesReceived, long totalMessagesSent,
-                                       long totalMessagesReceived) {
+                long totalBytesReceived, long totalMessagesSent,
+                long totalMessagesReceived) {
             this.activeConnections = activeConnections;
             this.totalBytesSent = totalBytesSent;
             this.totalBytesReceived = totalBytesReceived;

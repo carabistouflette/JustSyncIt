@@ -18,6 +18,7 @@
 
 package com.justsyncit.command;
 
+
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 
@@ -26,6 +27,7 @@ import com.justsyncit.network.NetworkService;
  * Follows Single Responsibility Principle by handling only server status
  * operations.
  */
+
 public class ServerStatusCommand implements Command {
 
     private final NetworkService networkService;
@@ -233,8 +235,8 @@ public class ServerStatusCommand implements Command {
         System.out.println("Total Transfers Attempted: " + totalTransfers);
 
         if (service.isServerRunning()) {
-            System.out.println("Current Transfer Rate: " +
-                    formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+            System.out.println("Current Transfer Rate: "
+                    + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
         }
 
         System.out.println("Connection Capacity: " + service.getActiveConnectionCount() + " active");

@@ -25,35 +25,35 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 /**
- * Integration coordinator for async directory scanning with file chunking and buffer management.
- * Provides seamless coordination between AsyncFilesystemScanner, AsyncFileChunker, and AsyncByteBufferPool.
+ * Integration coordinator for async directory scanning with file chunking and
+ * buffer management.
+ * Provides seamless coordination between AsyncFilesystemScanner,
+ * AsyncFileChunker, and AsyncByteBufferPool.
  */
-public class AsyncScannerIntegration {
+
+final public class AsyncScannerIntegration {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncScannerIntegration.class);
 
     /** Async filesystem scanner for directory operations. */
     private final AsyncFilesystemScanner asyncScanner;
-    
+
     /** Async file chunker for processing large files. */
     private final AsyncFileChunker asyncFileChunker;
-    
+
     /** Async buffer pool for memory management. */
     private final AsyncByteBufferPool asyncBufferPool;
-    
+
     /** Thread pool manager for resource coordination. */
     private final ThreadPoolManager threadPoolManager;
-    
+
     /** Event processor for file change handling. */
     private final AsyncFileEventProcessor eventProcessor;
-    
+
     /** Integration state. */
     private volatile boolean initialized = false;
 
@@ -99,12 +99,29 @@ public class AsyncScannerIntegration {
         }
 
         // Getters
-        public int getMaxConcurrentScans() { return maxConcurrentScans; }
-        public int getChunkSize() { return chunkSize; }
-        public int getBufferSize() { return bufferSize; }
-        public long getDebounceDelayMs() { return debounceDelayMs; }
-        public int getEventBatchSize() { return eventBatchSize; }
-        public boolean isEventProcessingEnabled() { return enableEventProcessing; }
+        public int getMaxConcurrentScans() {
+            return maxConcurrentScans;
+        }
+
+        public int getChunkSize() {
+            return chunkSize;
+        }
+
+        public int getBufferSize() {
+            return bufferSize;
+        }
+
+        public long getDebounceDelayMs() {
+            return debounceDelayMs;
+        }
+
+        public int getEventBatchSize() {
+            return eventBatchSize;
+        }
+
+        public boolean isEventProcessingEnabled() {
+            return enableEventProcessing;
+        }
     }
 
     /**
@@ -119,20 +136,22 @@ public class AsyncScannerIntegration {
     /**
      * Creates a new AsyncScannerIntegration with custom configuration.
      *
-     * @param config integration configuration
+     * @param config            integration configuration
      * @param threadPoolManager thread pool manager for resource coordination
      */
     public AsyncScannerIntegration(IntegrationConfig config, ThreadPoolManager threadPoolManager) {
         this.threadPoolManager = Objects.requireNonNull(threadPoolManager);
-        
+
         // Initialize async buffer pool - use existing implementation
-        this.asyncBufferPool = AsyncByteBufferPoolImpl.create(config.getBufferSize(), Runtime.getRuntime().availableProcessors() * 2);
+        this.asyncBufferPool = AsyncByteBufferPoolImpl.create(config.getBufferSize(),
+                Runtime.getRuntime().availableProcessors() * 2);
 
         // Initialize async file chunker - use existing implementation
         try {
             ServiceFactory serviceFactory = new ServiceFactory();
             Blake3Service blake3Service = serviceFactory.createBlake3Service();
-            this.asyncFileChunker = AsyncFileChunkerImpl.create(blake3Service, asyncBufferPool, config.getChunkSize(), null);
+            this.asyncFileChunker = AsyncFileChunkerImpl.create(blake3Service, asyncBufferPool, config.getChunkSize(),
+                    null);
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize async file chunker", e);
         }
@@ -144,9 +163,9 @@ public class AsyncScannerIntegration {
 
         // Initialize event processor if enabled
         if (config.isEventProcessingEnabled()) {
-            AsyncFileEventProcessor.EventProcessorConfig eventConfig =
-                new AsyncFileEventProcessor.EventProcessorConfig()
-                    .withThreadPoolSize(threadPoolManager.getConfiguration().getPoolConfig(ThreadPoolManager.PoolType.IO).getMaximumPoolSize())
+            AsyncFileEventProcessor.EventProcessorConfig eventConfig = new AsyncFileEventProcessor.EventProcessorConfig()
+                    .withThreadPoolSize(threadPoolManager.getConfiguration()
+                            .getPoolConfig(ThreadPoolManager.PoolType.IO).getMaximumPoolSize())
                     .withBatchSize(config.getEventBatchSize())
                     .withDebounceDelay(config.getDebounceDelayMs());
 
@@ -155,9 +174,10 @@ public class AsyncScannerIntegration {
             this.eventProcessor = null;
         }
 
-        logger.info("AsyncScannerIntegration initialized with config: maxScans={}, chunkSize={}, bufferSize={}, eventProcessing={}",
-            config.getMaxConcurrentScans(), config.getChunkSize(), config.getBufferSize(), 
-            config.isEventProcessingEnabled());
+        logger.info(
+                "AsyncScannerIntegration initialized with config: maxScans={}, chunkSize={}, bufferSize={}, eventProcessing={}",
+                config.getMaxConcurrentScans(), config.getChunkSize(), config.getBufferSize(),
+                config.isEventProcessingEnabled());
     }
 
     /**
@@ -241,72 +261,72 @@ public class AsyncScannerIntegration {
      * Scans a directory and processes files with chunking.
      *
      * @param directory directory to scan
-     * @param options scanning options
+     * @param options   scanning options
      * @return a CompletableFuture that completes with scan results
      */
     public CompletableFuture<AsyncScanResult> scanAndChunkAsync(Path directory, ScanOptions options) {
         if (!initialized) {
             return CompletableFuture.failedFuture(
-                new IllegalStateException("AsyncScannerIntegration is not initialized"));
+                    new IllegalStateException("AsyncScannerIntegration is not initialized"));
         }
 
         logger.info("Starting scan with chunking for directory: {}", directory);
 
         return asyncScanner.scanDirectoryAsync(directory, options)
-            .thenCompose(scanResult -> {
-                logger.info("Scan completed, processing {} files with chunking", 
-                    scanResult.getScannedFileCount());
+                .thenCompose(scanResult -> {
+                    logger.info("Scan completed, processing {} files with chunking",
+                            scanResult.getScannedFileCount());
 
-                // Process each scanned file with chunking
-                java.util.List<CompletableFuture<Void>> chunkingFutures = new java.util.ArrayList<>();
+                    // Process each scanned file with chunking
+                    java.util.List<CompletableFuture<Void>> chunkingFutures = new java.util.ArrayList<>();
 
-                for (ScanResult.ScannedFile scannedFile : scanResult.getScannedFiles()) {
-                    if (scannedFile.getSize() > asyncFileChunker.getChunkSize()) {
-                        CompletableFuture<Void> chunkingFuture = asyncFileChunker.chunkFileAsync(
-                            scannedFile.getPath(),
-                            new FileChunker.ChunkingOptions()
-                                .withChunkSize(asyncFileChunker.getChunkSize())
-                        ).thenAccept(chunkingResult -> {
-                            logger.debug("File chunked: {} -> {} chunks", 
-                                scannedFile.getPath(), chunkingResult.getChunkCount());
-                        }).exceptionally(throwable -> {
-                            logger.error("Failed to chunk file: {}", scannedFile.getPath(), throwable);
-                            return null;
-                        });
-                        
-                        chunkingFutures.add(chunkingFuture);
+                    for (ScanResult.ScannedFile scannedFile : scanResult.getScannedFiles()) {
+                        if (scannedFile.getSize() > asyncFileChunker.getChunkSize()) {
+                            CompletableFuture<Void> chunkingFuture = asyncFileChunker.chunkFileAsync(
+                                    scannedFile.getPath(),
+                                    new FileChunker.ChunkingOptions()
+                                            .withChunkSize(asyncFileChunker.getChunkSize()))
+                                    .thenAccept(chunkingResult -> {
+                                        logger.debug("File chunked: {} -> {} chunks",
+                                                scannedFile.getPath(), chunkingResult.getChunkCount());
+                                    }).exceptionally(throwable -> {
+                                        logger.error("Failed to chunk file: {}", scannedFile.getPath(), throwable);
+                                        return null;
+                                    });
+
+                            chunkingFutures.add(chunkingFuture);
+                        }
                     }
-                }
 
-                // Wait for all chunking operations to complete
-                return CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture[0]))
-                    .thenApply(v -> {
-                        logger.info("All chunking operations completed for scan of: {}", directory);
-                        return scanResult;
-                    });
-            })
-            .exceptionally(throwable -> {
-                logger.error("Scan with chunking failed for directory: {}", directory, throwable);
-                throw new RuntimeException("Scan with chunking failed", throwable);
-            });
+                    // Wait for all chunking operations to complete
+                    return CompletableFuture.allOf(chunkingFutures.toArray(new CompletableFuture<?>[0]))
+                            .thenApply(v -> {
+                                logger.info("All chunking operations completed for scan of: {}", directory);
+                                return scanResult;
+                            });
+                })
+                .exceptionally(throwable -> {
+                    logger.error("Scan with chunking failed for directory: {}", directory, throwable);
+                    throw new RuntimeException("Scan with chunking failed", throwable);
+                });
     }
 
     /**
      * Starts directory monitoring with integrated event processing.
      *
      * @param directory directory to monitor
-     * @param options scanning options
+     * @param options   scanning options
      * @return a CompletableFuture that completes with registration
      */
     public CompletableFuture<WatchServiceRegistration> startMonitoringAsync(Path directory, ScanOptions options) {
         if (!initialized) {
             return CompletableFuture.failedFuture(
-                new IllegalStateException("AsyncScannerIntegration is not initialized"));
+                    new IllegalStateException("AsyncScannerIntegration is not initialized"));
         }
 
         if (eventProcessor == null) {
             return CompletableFuture.failedFuture(
-                new IllegalStateException("Event processing is not enabled"));
+                    new IllegalStateException("Event processing is not enabled"));
         }
 
         logger.info("Starting integrated monitoring for directory: {}", directory);
@@ -317,14 +337,14 @@ public class AsyncScannerIntegration {
         // Note: AsyncScanOptions may need additional methods for full conversion
 
         return asyncScanner.startDirectoryMonitoring(directory, asyncOptions, eventProcessor::processEventAsync)
-            .thenApply(registration -> {
-                logger.info("Integrated monitoring started for directory: {}", directory);
-                return registration;
-            })
-            .exceptionally(throwable -> {
-                logger.error("Failed to start integrated monitoring for directory: {}", directory, throwable);
-                throw new RuntimeException("Monitoring start failed", throwable);
-            });
+                .thenApply(registration -> {
+                    logger.info("Integrated monitoring started for directory: {}", directory);
+                    return registration;
+                })
+                .exceptionally(throwable -> {
+                    logger.error("Failed to start integrated monitoring for directory: {}", directory, throwable);
+                    throw new RuntimeException("Monitoring start failed", throwable);
+                });
     }
 
     /**
@@ -412,23 +432,24 @@ public class AsyncScannerIntegration {
             logger.debug("Handling integrated file change event: {}", event);
 
             // For file creation/modification events, trigger chunking if needed
-            if ((event.getEventType() == FileChangeEvent.EventType.ENTRY_CREATE ||
-                 event.getEventType() == FileChangeEvent.EventType.ENTRY_MODIFY) &&
-                !event.isDirectory() && event.getFileSize() > asyncFileChunker.getChunkSize()) {
+            if ((event.getEventType() == FileChangeEvent.EventType.ENTRY_CREATE
+                    || event.getEventType() == FileChangeEvent.EventType.ENTRY_MODIFY)
+                    &&
+                    !event.isDirectory() && event.getFileSize() > asyncFileChunker.getChunkSize()) {
 
                 logger.debug("Triggering chunking for changed file: {}", event.getFilePath());
 
                 asyncFileChunker.chunkFileAsync(event.getFilePath(),
-                    new FileChunker.ChunkingOptions()
-                        .withChunkSize(asyncFileChunker.getChunkSize()))
-                    .thenAccept(chunkingResult -> {
-                        logger.debug("Changed file chunked: {} -> {} chunks", 
-                            event.getFilePath(), chunkingResult.getChunkCount());
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Failed to chunk changed file: {}", event.getFilePath(), throwable);
-                        return null;
-                    });
+                        new FileChunker.ChunkingOptions()
+                                .withChunkSize(asyncFileChunker.getChunkSize()))
+                        .thenAccept(chunkingResult -> {
+                            logger.debug("Changed file chunked: {} -> {} chunks",
+                                    event.getFilePath(), chunkingResult.getChunkCount());
+                        })
+                        .exceptionally(throwable -> {
+                            logger.error("Failed to chunk changed file: {}", event.getFilePath(), throwable);
+                            return null;
+                        });
             }
 
         } catch (Exception e) {
@@ -448,17 +469,15 @@ public class AsyncScannerIntegration {
         @Override
         public String toString() {
             return String.format(
-                "IntegrationStats{scanner=%s, bufferPool=%s, chunker=%s, eventProcessor=%s}",
-                scannerStats, bufferPoolStats, chunkerStats, eventProcessorStats
-            );
+                    "IntegrationStats{scanner=%s, bufferPool=%s, chunker=%s, eventProcessor=%s}",
+                    scannerStats, bufferPoolStats, chunkerStats, eventProcessorStats);
         }
     }
 
     @Override
     public String toString() {
         return String.format(
-            "AsyncScannerIntegration{initialized=%b, scanner=%s, chunker=%s, bufferPool=%s, eventProcessor=%s}",
-            initialized, asyncScanner, asyncFileChunker, asyncBufferPool, eventProcessor
-        );
+                "AsyncScannerIntegration{initialized=%b, scanner=%s, chunker=%s, bufferPool=%s, eventProcessor=%s}",
+                initialized, asyncScanner, asyncFileChunker, asyncBufferPool, eventProcessor);
     }
 }

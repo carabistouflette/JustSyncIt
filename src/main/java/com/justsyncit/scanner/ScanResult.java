@@ -18,7 +18,6 @@
 
 package com.justsyncit.scanner;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
@@ -47,14 +46,14 @@ public class ScanResult {
      * Creates a new ScanResult.
      *
      * @param rootDirectory the root directory that was scanned
-     * @param scannedFiles list of successfully scanned files
-     * @param errors list of errors that occurred
-     * @param startTime when the scan started
-     * @param endTime when the scan completed
-     * @param metadata additional scan metadata
+     * @param scannedFiles  list of successfully scanned files
+     * @param errors        list of errors that occurred
+     * @param startTime     when the scan started
+     * @param endTime       when the scan completed
+     * @param metadata      additional scan metadata
      */
     public ScanResult(Path rootDirectory, List<ScannedFile> scannedFiles, List<ScanError> errors,
-                   Instant startTime, Instant endTime, Map<String, Object> metadata) {
+            Instant startTime, Instant endTime, Map<String, Object> metadata) {
         this.rootDirectory = rootDirectory;
         this.scannedFiles = scannedFiles != null ? new java.util.ArrayList<>(scannedFiles) : null;
         this.errors = errors != null ? new java.util.ArrayList<>(errors) : null;
@@ -175,15 +174,15 @@ public class ScanResult {
         /**
          * Creates a new ScannedFile.
          *
-         * @param path the file path
-         * @param size the file size
-         * @param lastModified the last modified time
+         * @param path           the file path
+         * @param size           the file size
+         * @param lastModified   the last modified time
          * @param isSymbolicLink whether the file is a symbolic link
-         * @param isSparse whether the file is sparse
-         * @param linkTarget the symbolic link target (if applicable)
+         * @param isSparse       whether the file is sparse
+         * @param linkTarget     the symbolic link target (if applicable)
          */
         public ScannedFile(Path path, long size, Instant lastModified, boolean isSymbolicLink,
-                        boolean isSparse, Path linkTarget) {
+                boolean isSparse, Path linkTarget) {
             this.path = path;
             this.size = size;
             this.lastModified = lastModified;
@@ -220,6 +219,9 @@ public class ScanResult {
     /**
      * Represents an error that occurred during scanning.
      */
+    /**
+     * Represents an error that occurred during scanning.
+     */
     public static class ScanError {
         /** Path where the error occurred. */
         private final Path path;
@@ -231,15 +233,11 @@ public class ScanResult {
         /**
          * Creates a new ScanError.
          *
-         * @param path the path where the error occurred
+         * @param path      the path where the error occurred
          * @param exception the exception that was thrown
-         * @param message a descriptive error message
+         * @param message   a descriptive error message
          */
-        @SuppressWarnings("finalizer")
-        @SuppressFBWarnings("CT_CONSTRUCTOR_THROW")
         public ScanError(Path path, Exception exception, String message) {
-            // No validation in constructor - use static factory method instead
-            // Note: createExceptionCopy() handles exceptions safely
             this.path = path;
             this.exception = exception != null ? createExceptionCopy(exception) : null;
             this.message = message;
@@ -259,15 +257,12 @@ public class ScanResult {
          * @param original the original exception
          * @return a copy of the exception
          */
-        private Exception createExceptionCopy(Exception original) {
+        private static Exception createExceptionCopy(Exception original) {
             try {
                 return (Exception) original.getClass()
                         .getConstructor(String.class)
                         .newInstance(original.getMessage());
-            } catch (NoSuchMethodException
-                    | InstantiationException
-                    | IllegalAccessException
-                    | java.lang.reflect.InvocationTargetException e) {
+            } catch (ReflectiveOperationException e) {
                 // Fallback to a generic exception if copying fails
                 return new RuntimeException(original.getMessage(), original.getCause());
             }

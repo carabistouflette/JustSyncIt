@@ -82,21 +82,23 @@ public class BackupOptions {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o)
+        if (this == o) {
             return true;
-        if (o == null || getClass() != o.getClass())
+        }
+        if (o == null || getClass() != o.getClass()) {
             return false;
+        }
         BackupOptions that = (BackupOptions) o;
-        return includeHiddenFiles == that.includeHiddenFiles &&
-                verifyIntegrity == that.verifyIntegrity &&
-                chunkSize == that.chunkSize &&
-                maxDepth == that.maxDepth &&
-                remoteBackup == that.remoteBackup &&
-                symlinkStrategy == that.symlinkStrategy &&
-                Objects.equals(snapshotName, that.snapshotName) &&
-                Objects.equals(description, that.description) &&
-                Objects.equals(remoteAddress, that.remoteAddress) &&
-                transportType == that.transportType;
+        return includeHiddenFiles == that.includeHiddenFiles
+                && verifyIntegrity == that.verifyIntegrity
+                && chunkSize == that.chunkSize
+                && maxDepth == that.maxDepth
+                && remoteBackup == that.remoteBackup
+                && symlinkStrategy == that.symlinkStrategy
+                && Objects.equals(snapshotName, that.snapshotName)
+                && Objects.equals(description, that.description)
+                && Objects.equals(remoteAddress, that.remoteAddress)
+                && transportType == that.transportType;
     }
 
     @Override
@@ -107,18 +109,18 @@ public class BackupOptions {
 
     @Override
     public String toString() {
-        return "BackupOptions{" +
-                "symlinkStrategy=" + symlinkStrategy +
-                ", includeHiddenFiles=" + includeHiddenFiles +
-                ", verifyIntegrity=" + verifyIntegrity +
-                ", chunkSize=" + chunkSize +
-                ", maxDepth=" + maxDepth +
-                ", snapshotName='" + snapshotName + '\'' +
-                ", description='" + description + '\'' +
-                ", remoteBackup=" + remoteBackup +
-                ", remoteAddress=" + remoteAddress +
-                ", transportType=" + transportType +
-                '}';
+        return "BackupOptions{"
+                + "symlinkStrategy=" + symlinkStrategy
+                + ", includeHiddenFiles=" + includeHiddenFiles
+                + ", verifyIntegrity=" + verifyIntegrity
+                + ", chunkSize=" + chunkSize
+                + ", maxDepth=" + maxDepth
+                + ", snapshotName='" + snapshotName + '\''
+                + ", description='" + description + '\''
+                + ", remoteBackup=" + remoteBackup
+                + ", remoteAddress=" + remoteAddress
+                + ", transportType=" + transportType
+                + '}';
     }
 
     public static class Builder {

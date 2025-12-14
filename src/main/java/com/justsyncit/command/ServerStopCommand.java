@@ -18,6 +18,7 @@
 
 package com.justsyncit.command;
 
+
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 
@@ -26,6 +27,7 @@ import com.justsyncit.network.NetworkService;
  * Follows Single Responsibility Principle by handling only server stop
  * operations.
  */
+
 public class ServerStopCommand implements Command {
 
     private static final long KB = 1024;

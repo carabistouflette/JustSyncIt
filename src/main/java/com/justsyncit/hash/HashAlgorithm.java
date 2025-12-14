@@ -173,12 +173,12 @@ public interface HashAlgorithm extends Closeable {
         if (expectedHash == null) {
             throw new IllegalArgumentException("Expected hash cannot be null");
         }
-        
+
         byte[] computedHash = digest();
         if (computedHash.length != expectedHash.length) {
             return false;
         }
-        
+
         // Constant-time comparison to prevent timing attacks
         int result = 0;
         for (int i = 0; i < computedHash.length; i++) {
@@ -229,7 +229,7 @@ public interface HashAlgorithm extends Closeable {
         if (buffer == null) {
             throw new IllegalArgumentException("Buffer cannot be null");
         }
-        
+
         if (buffer.hasArray()) {
             // Direct array access for better performance
             update(buffer.array(), buffer.arrayOffset() + buffer.position(), buffer.remaining());

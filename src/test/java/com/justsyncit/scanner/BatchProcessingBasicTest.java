@@ -29,7 +29,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Basic tests for batch processing components.
@@ -119,13 +122,13 @@ public class BatchProcessingBasicTest {
     void shouldValidateBatchPriorityEnum() {
         // Then
         assertEquals(5, BatchPriority.values().length);
-        
+
         // Test priority comparisons
         assertTrue(BatchPriority.CRITICAL.isHigherThan(BatchPriority.HIGH));
         assertTrue(BatchPriority.HIGH.isHigherThan(BatchPriority.NORMAL));
         assertTrue(BatchPriority.NORMAL.isHigherThan(BatchPriority.LOW));
         assertTrue(BatchPriority.LOW.isHigherThan(BatchPriority.BACKGROUND));
-        
+
         assertFalse(BatchPriority.NORMAL.isHigherThan(BatchPriority.HIGH));
         assertFalse(BatchPriority.LOW.isHigherThan(BatchPriority.NORMAL));
     }
@@ -136,7 +139,7 @@ public class BatchProcessingBasicTest {
     void shouldValidateBatchStrategyEnum() {
         // Then
         assertEquals(7, BatchStrategy.values().length);
-        
+
         // Test all strategies exist
         assertNotNull(BatchStrategy.SIZE_BASED);
         assertNotNull(BatchStrategy.LOCATION_BASED);
@@ -153,7 +156,7 @@ public class BatchProcessingBasicTest {
     void shouldValidateBatchOperationTypeEnum() {
         // Then
         assertEquals(10, BatchOperationType.values().length);
-        
+
         // Test all operation types exist
         assertNotNull(BatchOperationType.CHUNKING);
         assertNotNull(BatchOperationType.HASHING);
@@ -174,14 +177,13 @@ public class BatchProcessingBasicTest {
         // Given
         List<Path> files = Arrays.asList(
                 Paths.get("test1.txt"),
-                Paths.get("test2.txt")
-        );
+                Paths.get("test2.txt"));
 
         BatchOperation.ResourceRequirements requirements = new BatchOperation.ResourceRequirements(
                 1024 * 1024, // 1MB memory
-                1,            // 1 CPU core
-                10,           // 10MB/s I/O
-                30000         // 30s timeout
+                1, // 1 CPU core
+                10, // 10MB/s I/O
+                30000 // 30s timeout
         );
 
         // When
@@ -190,8 +192,7 @@ public class BatchProcessingBasicTest {
                 BatchOperationType.CHUNKING,
                 files,
                 BatchPriority.HIGH,
-                requirements
-        );
+                requirements);
 
         // Then
         assertNotNull(operation);
@@ -222,8 +223,7 @@ public class BatchProcessingBasicTest {
                 1024L,
                 null,
                 null,
-                null
-        );
+                null);
 
         // Then
         assertNotNull(result);
@@ -244,15 +244,15 @@ public class BatchProcessingBasicTest {
         // When
         BatchPerformanceMetrics metrics = new BatchPerformanceMetrics(
                 100.0, // throughput MB/s
-                50.0,  // avg processing time per file
+                50.0, // avg processing time per file
                 1000.0, // avg processing time per batch
-                512.0,  // peak memory MB
-                256.0,  // avg memory MB
-                75.0,   // CPU utilization %
-                10.0,   // I/O wait %
-                90.0,   // cache hit rate %
-                85.0,   // efficiency %
-                75.0    // resource utilization score
+                512.0, // peak memory MB
+                256.0, // avg memory MB
+                75.0, // CPU utilization %
+                10.0, // I/O wait %
+                90.0, // cache hit rate %
+                85.0, // efficiency %
+                75.0 // resource utilization score
         );
 
         // Then
@@ -277,13 +277,13 @@ public class BatchProcessingBasicTest {
     void shouldCreateResourceUtilizationSuccessfully() {
         // When
         ResourceUtilization utilization = new ResourceUtilization(
-                80.0,   // CPU utilization %
-                60.0,   // memory utilization %
-                90.0,   // I/O utilization %
-                5,        // max concurrent operations
-                1024L,    // peak memory usage MB
+                80.0, // CPU utilization %
+                60.0, // memory utilization %
+                90.0, // I/O utilization %
+                5, // max concurrent operations
+                1024L, // peak memory usage MB
                 1000000L, // total bytes read
-                5000000L  // total bytes written
+                5000000L // total bytes written
         );
 
         // Then

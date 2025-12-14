@@ -39,10 +39,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 /**
  * Comprehensive benchmark suite that runs all performance tests
  * and generates detailed reports.
  */
+@SuppressFBWarnings("DM_GC")
 public class ComprehensiveBenchmarkSuite {
 
     @TempDir
@@ -53,13 +56,11 @@ public class ComprehensiveBenchmarkSuite {
 
     private List<PerformanceMetrics> allMetrics;
     private ExecutorService executorService;
-    private BenchmarkDataGenerator dataGenerator;
 
     @BeforeEach
     void setUp() {
         allMetrics = new ArrayList<>();
         executorService = Executors.newFixedThreadPool(4);
-        // BenchmarkDataGenerator uses static methods, no instance needed
     }
 
     @AfterEach
@@ -140,7 +141,7 @@ public class ComprehensiveBenchmarkSuite {
         // Linear scalability test
         PerformanceMetrics linearScalabilityMetrics = runBenchmark("Linear Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int size : new int[] { 100, 200, 400, 800 }) {
+            for (int size : new int[] {100, 200, 400, 800}) {
                 Path dataset = tempDir.resolve("dataset-" + size);
                 BenchmarkDataGenerator.createMixedDataset(dataset, size);
                 datasets.add(dataset);
@@ -152,7 +153,7 @@ public class ComprehensiveBenchmarkSuite {
         // File count scalability
         PerformanceMetrics fileCountMetrics = runBenchmark("File Count Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int fileCount : new int[] { 100, 500, 1000, 2000 }) {
+            for (int fileCount : new int[] {100, 500, 1000, 2000}) {
                 Path dataset = tempDir.resolve("files-" + fileCount);
                 BenchmarkDataGenerator.createSmallFilesDataset(dataset, 100); // 100MB with many files
                 datasets.add(dataset);
@@ -164,7 +165,7 @@ public class ComprehensiveBenchmarkSuite {
         // Directory depth scalability
         PerformanceMetrics dirDepthMetrics = runBenchmark("Directory Depth Scalability", () -> {
             List<Path> datasets = new ArrayList<>();
-            for (int depth : new int[] { 5, 10, 15, 20 }) {
+            for (int depth : new int[] {5, 10, 15, 20}) {
                 Path dataset = tempDir.resolve("depth-" + depth);
                 BenchmarkDataGenerator.createDeepDirectoryDataset(dataset, depth, 10, 10240);
                 datasets.add(dataset);
@@ -243,8 +244,8 @@ public class ComprehensiveBenchmarkSuite {
             BenchmarkDataGenerator.createMixedDataset(baseData, 200);
             BenchmarkDataGenerator.DatasetInfo incrementalData = BenchmarkDataGenerator
                     .createIncrementalDataset(baseData, 200);
-            BenchmarkDataGenerator.modifyIncrementalDataset(incrementalData, 0.2, 0.1, 0.05); // 20% modify, 10% add, 5%
-                                                                                              // delete
+            BenchmarkDataGenerator.modifyIncrementalDataset(incrementalData, 0.2, 0.1, 0.05);
+            // 20% modify, 10% add, 5% delete
             return simulateIncrementalBackup(baseData, incrementalData);
         });
         allMetrics.add(incrementalDeduplicationMetrics);
@@ -304,7 +305,7 @@ public class ComprehensiveBenchmarkSuite {
             }
 
             // Wait for all operations to complete
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
             return tempDir.resolve("mixed-concurrency-result");
         });
@@ -341,7 +342,8 @@ public class ComprehensiveBenchmarkSuite {
             metrics.recordMetric("duration_ms", durationMs);
 
             if (datasetSize > 0 && durationMs > 0) {
-                double throughputMBps = (datasetSize / (1024.0 * 1024.0)) / (durationMs / 1000.0);
+                // double throughputMBps = (datasetSize / (1024.0 * 1024.0)) / (durationMs /
+                // 1000.0);
                 metrics.recordThroughput(datasetSize, durationMs);
             }
 
@@ -373,13 +375,16 @@ public class ComprehensiveBenchmarkSuite {
 
     private Path simulateBackupOperation(Path source) throws Exception {
         // Simulate backup operation with realistic timing
-        long fileSize = Files.walk(source).mapToLong(p -> {
-            try {
-                return Files.size(p);
-            } catch (IOException e) {
-                return 0;
-            }
-        }).sum();
+        long fileSize;
+        try (java.util.stream.Stream<Path> stream = Files.walk(source)) {
+            fileSize = stream.mapToLong(p -> {
+                try {
+                    return Files.size(p);
+                } catch (IOException e) {
+                    return 0;
+                }
+            }).sum();
+        }
 
         // Simulate processing time based on file size
         long processingTime = Math.max(100, fileSize / (10 * 1024 * 1024)); // ~10MB/s processing
@@ -420,7 +425,7 @@ public class ComprehensiveBenchmarkSuite {
                 }, executorService))
                 .collect(java.util.stream.Collectors.toList());
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
         return tempDir.resolve("concurrent-backups-result");
     }
@@ -439,7 +444,7 @@ public class ComprehensiveBenchmarkSuite {
             }, executorService));
         }
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
         return tempDir.resolve("concurrent-restores-result");
     }
@@ -487,7 +492,7 @@ public class ComprehensiveBenchmarkSuite {
                 }, executorService))
                 .collect(java.util.stream.Collectors.toList());
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0])).join();
 
         return tempDir.resolve("concurrent-network-result");
     }
@@ -521,16 +526,16 @@ public class ComprehensiveBenchmarkSuite {
         Files.createDirectories(result);
 
         Files.writeString(result.resolve("incremental-info.txt"),
-                "Base backup: " + baseBackup.toString() + "\n" +
-                        "Incremental changes processed successfully");
+                "Base backup: " + baseBackup.toString() + "\n"
+                        + "Incremental changes processed successfully");
 
         return result;
     }
 
     private double calculateDeduplicationRatio(Path data) {
         // Simple heuristic based on file naming patterns
-        try {
-            return Files.walk(data)
+        try (java.util.stream.Stream<Path> stream = Files.walk(data)) {
+            return stream
                     .filter(Files::isRegularFile)
                     .mapToInt(p -> {
                         String fileName = p.getFileName().toString();
@@ -549,16 +554,18 @@ public class ComprehensiveBenchmarkSuite {
             if (Files.isRegularFile(path)) {
                 return Files.size(path);
             } else if (Files.isDirectory(path)) {
-                return Files.walk(path)
-                        .filter(Files::isRegularFile)
-                        .mapToLong(p -> {
-                            try {
-                                return Files.size(p);
-                            } catch (IOException e) {
-                                return 0;
-                            }
-                        })
-                        .sum();
+                try (java.util.stream.Stream<Path> stream = Files.walk(path)) {
+                    return stream
+                            .filter(Files::isRegularFile)
+                            .mapToLong(p -> {
+                                try {
+                                    return Files.size(p);
+                                } catch (IOException e) {
+                                    return 0;
+                                }
+                            })
+                            .sum();
+                }
             }
         } catch (IOException e) {
             return 0;
@@ -658,7 +665,7 @@ public class ComprehensiveBenchmarkSuite {
             }
         }
 
-        System.out.println(String.format("\nOverall: %d/%d targets met (%.1f%%)",
+        System.out.println(String.format("%nOverall: %d/%d targets met (%.1f%%)",
                 targetsMet, totalTargets, (double) targetsMet / totalTargets * 100.0));
 
         if (targetsMet == totalTargets) {
@@ -669,7 +676,7 @@ public class ComprehensiveBenchmarkSuite {
     }
 
     @FunctionalInterface
-    private interface BenchmarkOperation {
+    interface BenchmarkOperation {
         Path execute() throws Exception;
     }
 }

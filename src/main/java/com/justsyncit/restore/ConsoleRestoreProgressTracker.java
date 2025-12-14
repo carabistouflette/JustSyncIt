@@ -26,6 +26,7 @@ import java.io.PrintStream;
  * Provides progress updates to the console during restore operations.
  * Follows Single Responsibility Principle by focusing only on console output.
  */
+
 public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
 
     private final PrintStream out;
@@ -40,7 +41,8 @@ public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
     }
 
     /**
-     * Creates a new ConsoleRestoreProgressTracker that writes to the specified PrintStream.
+     * Creates a new ConsoleRestoreProgressTracker that writes to the specified
+     * PrintStream.
      *
      * @param out the PrintStream to write progress updates to
      */
@@ -64,7 +66,7 @@ public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
 
     @Override
     public void updateProgress(long filesProcessed, long totalFiles, long bytesProcessed,
-                              long totalBytes, String currentFile) {
+            long totalBytes, String currentFile) {
         long now = System.currentTimeMillis();
 
         // Update progress every 500ms to avoid console spam
@@ -80,7 +82,8 @@ public class ConsoleRestoreProgressTracker implements RestoreProgressTracker {
 
         // Calculate estimated time remaining
         long elapsed = now - startTime;
-        long eta = filesProcessed > 0 ? (long) ((elapsed / (double) filesProcessed) * (totalFiles - filesProcessed)) : 0;
+        long eta = filesProcessed > 0 ? (long) ((elapsed / (double) filesProcessed) * (totalFiles - filesProcessed))
+                : 0;
 
         // Build progress bar
         int barWidth = 40;

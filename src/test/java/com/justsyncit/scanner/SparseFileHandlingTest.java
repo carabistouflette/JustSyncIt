@@ -90,7 +90,7 @@ class SparseFileHandlingTest {
             com.justsyncit.ServiceException {
         ServiceFactory serviceFactory = new ServiceFactory();
         com.justsyncit.hash.Blake3Service blake3Service = serviceFactory.createBlake3Service();
-        FileChunker chunker = new FixedSizeFileChunker(blake3Service);
+        FileChunker chunker = FixedSizeFileChunker.create(blake3Service);
 
         // Create a sparse file
         Path sparseFile = createSparseFileWithHoles("chunk_sparse_test.dat", 2 * 1024 * 1024); // 2MB
@@ -142,7 +142,8 @@ class SparseFileHandlingTest {
     }
 
     /**
-     * Creates a sparse file with holes by seeking and writing at specific positions.
+     * Creates a sparse file with holes by seeking and writing at specific
+     * positions.
      */
     private Path createSparseFileWithHoles(String fileName, int logicalSize) throws IOException {
         Path file = tempDir.resolve(fileName);

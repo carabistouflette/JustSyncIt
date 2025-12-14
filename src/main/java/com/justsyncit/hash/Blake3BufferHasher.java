@@ -30,6 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * This implementation ensures thread safety through synchronization and provides
  * additional validation and error handling.
  */
+
 public class Blake3BufferHasher implements BufferHasher {
 
     /** Logger for the buffer hasher. */
@@ -108,7 +109,7 @@ public class Blake3BufferHasher implements BufferHasher {
         try {
             // Reset algorithm to ensure clean state
             hashAlgorithm.reset();
-            
+
             // Update with data
             if (length == data.length && offset == 0) {
                 // Full array optimization
@@ -117,11 +118,11 @@ public class Blake3BufferHasher implements BufferHasher {
                 // Partial array hashing
                 hashAlgorithm.update(data, offset, length);
             }
-            
+
             // Generate hash
             byte[] hash = hashAlgorithm.digest();
             String result = HEX_FORMAT.formatHex(hash);
-            
+
             logger.trace("Generated hash: {}", result);
             return result;
         } catch (IllegalStateException e) {
