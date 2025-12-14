@@ -47,7 +47,7 @@ public abstract class ManagedThreadPool {
 
     private static final Logger logger = LoggerFactory.getLogger(ManagedThreadPool.class);
 
-    protected final ThreadPoolConfiguration.PoolConfig poolConfig;
+    protected volatile ThreadPoolConfiguration.PoolConfig poolConfig;
     protected final SystemResourceInfo systemInfo;
     protected final ThreadPoolMonitor monitor;
     protected final ThreadPoolManager.PoolType poolType;
@@ -217,6 +217,8 @@ public abstract class ManagedThreadPool {
         if (executor == null || executor.isShutdown()) {
             return;
         }
+
+        this.poolConfig = newConfig;
 
         executor.setCorePoolSize(newConfig.getCorePoolSize());
         executor.setMaximumPoolSize(newConfig.getMaximumPoolSize());

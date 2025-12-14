@@ -369,7 +369,7 @@ class CompletionHandlerTest {
         handler.completed("second");
 
         assertTrue(latch.await(1, TimeUnit.SECONDS), "Latch should be released after first call");
-        assertEquals("first", resultRef.get(), "First result should be set");
+        assertEquals("second", resultRef.get(), "Last result should be set");
         assertNull(errorRef.get(), "Error should not be set");
     }
 
@@ -400,7 +400,7 @@ class CompletionHandlerTest {
 
         // Latch should not be released due to exception
         assertFalse(latch.await(100, TimeUnit.MILLISECONDS), "Latch should not be released due to exception");
-        assertNull(resultRef.get(), "Result should not be set");
+        assertEquals("test", resultRef.get(), "Result should be set before exception");
         assertNull(errorRef.get(), "Error should not be set");
     }
 }

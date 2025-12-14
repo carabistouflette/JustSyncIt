@@ -28,6 +28,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,8 +59,14 @@ public class ThreadPoolManager {
     private final Map<PoolType, ManagedThreadPool> threadPools;
 
     // Configuration and monitoring
-    private final ThreadPoolConfiguration config;
+    private volatile ThreadPoolConfiguration config;
     private final ThreadPoolMonitor monitor;
+    // ... (rest of fields)
+
+    // ...
+
+    // ...
+
     private final ResourceCoordinator resourceCoordinator;
     private final PerformanceOptimizer performanceOptimizer;
 
@@ -229,6 +236,9 @@ public class ThreadPoolManager {
      * Gets the appropriate thread pool for the given type.
      */
     public ExecutorService getThreadPool(PoolType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Pool type cannot be null");
+        }
         ensureInitialized();
         ManagedThreadPool pool = threadPools.get(type);
         if (pool == null) {
@@ -283,6 +293,10 @@ public class ThreadPoolManager {
      * Submits a task to the appropriate thread pool.
      */
     public <T> CompletableFuture<T> submitTask(PoolType type, Callable<T> task) {
+        if (task == null) {
+            throw new IllegalArgumentException("Task cannot be null");
+        }
+
         try {
             return CompletableFuture.supplyAsync(() -> {
                 try {
@@ -415,15 +429,8 @@ public class ThreadPoolManager {
         if (!initialized.get()) {
             throw new IllegalStateException("ThreadPoolManager is not initialized");
         }
-        // Allow tests to continue even if previously shutdown
-        // Reinitialize if needed
         if (shutdown.get()) {
-            synchronized (this) {
-                if (shutdown.get()) {
-                    // Reset shutdown state for testing
-                    shutdown.set(false);
-                }
-            }
+            throw new IllegalStateException("ThreadPoolManager is shutdown");
         }
     }
 
@@ -437,16 +444,25 @@ public class ThreadPoolManager {
 
         logger.info("Shutting down ThreadPoolManager");
 
+        // Use a dedicated executor for shutdown tasks to avoid starving the common pool
+        ExecutorService shutdownExecutor = Executors.newCachedThreadPool();
+
         try {
+            // Unregister shutdown hook if possible (to avoid leaks in tests)
+            // Note: We don't have the thread reference stored, but we can prevent logic
+            // from running twice
+            // via the atomic boolean.
+
             // Shutdown management services first
             // PerformanceOptimizer doesn't have shutdown method - it's auto-cleanup
             resourceCoordinator.shutdown();
             monitor.shutdown();
 
-            // Shutdown all thread pools
+            // Shutdown all thread pools in parallel
             List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();
             for (ManagedThreadPool pool : threadPools.values()) {
-                shutdownFutures.add(pool.shutdownAsync());
+                // Run shutdown in the dedicated executor
+                shutdownFutures.add(CompletableFuture.runAsync(pool::shutdown, shutdownExecutor));
             }
 
             // Wait for all pools to shutdown
@@ -457,6 +473,12 @@ public class ThreadPoolManager {
 
         } catch (Exception e) {
             logger.error("Error during ThreadPoolManager shutdown", e);
+        } finally {
+            // Shutdown the dedicated executor
+            shutdownExecutor.shutdown();
+
+            // Reset the singleton instance to allow re-initialization in tests
+            instance.compareAndSet(this, null);
         }
     }
 
@@ -476,7 +498,7 @@ public class ThreadPoolManager {
         logger.info("Updating ThreadPoolManager configuration");
 
         // Update configuration
-        config.updateFrom(newConfig);
+        this.config = newConfig;
 
         // Apply changes to all thread pools
         for (Map.Entry<PoolType, ManagedThreadPool> entry : threadPools.entrySet()) {
