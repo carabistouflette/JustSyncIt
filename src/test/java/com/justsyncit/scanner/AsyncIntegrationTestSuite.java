@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -43,6 +44,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Follows TDD principles by testing complete async scenarios.
  */
 @DisplayName("Async Integration Test Suite")
+@Tag("slow")
 public class AsyncIntegrationTestSuite extends AsyncTestBase {
 
     private AsyncByteBufferPool bufferPool;

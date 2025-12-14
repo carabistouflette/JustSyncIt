@@ -21,6 +21,7 @@ package com.justsyncit.scanner;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.DisplayName;
 
@@ -42,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Follows TDD principles by testing scalability requirements.
  */
 @DisplayName("Async Scalability Test Suite")
+@Tag("slow")
 public class AsyncScalabilityTest extends AsyncTestBase {
 
     private AsyncByteBufferPool bufferPool;
@@ -96,7 +98,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
     @DisplayName("Should scale buffer pool with increasing load")
     void shouldScaleBufferPoolWithIncreasingLoad() throws Exception {
         // Given
-        int[] loadLevels = {10, 50, 100, 200, 500 };
+        int[] loadLevels = { 10, 50, 100, 200, 500 };
         List<ScalabilityResult> results = new ArrayList<>();
 
         for (int loadLevel : loadLevels) {
@@ -292,7 +294,7 @@ public class AsyncScalabilityTest extends AsyncTestBase {
     @DisplayName("Should scale with increasing concurrency")
     void shouldScaleWithIncreasingConcurrency() throws Exception {
         // Given
-        int[] concurrencyLevels = {1, 2, 4, 8, 16, 32 };
+        int[] concurrencyLevels = { 1, 2, 4, 8, 16, 32 };
         int operationsPerLevel = 50;
         List<ConcurrencyResult> results = new ArrayList<>();
 

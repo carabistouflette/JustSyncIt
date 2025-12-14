@@ -23,6 +23,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -59,6 +60,7 @@ import static org.mockito.Mockito.when;
  * performance characteristics, and concurrent access patterns.
  */
 @DisplayName("AsyncChunkHandler Comprehensive Tests")
+@Tag("slow")
 class AsyncChunkHandlerComprehensiveTest extends AsyncTestBase {
 
     @TempDir
