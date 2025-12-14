@@ -30,7 +30,6 @@ import com.justsyncit.network.compression.CompressionService;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -83,6 +82,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
     /** Configuration: Compression level. */
     private int compressionLevel = 3;
 
+    /** Pipeline manager. */
+    private final com.justsyncit.network.transfer.pipeline.PipelineManager pipelineManager;
+
     /**
      * Creates a new file transfer manager.
      */
@@ -95,6 +97,126 @@ public class FileTransferManagerImpl implements FileTransferManager {
         // decompression
         this.decompressionExecutor = java.util.concurrent.Executors.newFixedThreadPool(
                 Runtime.getRuntime().availableProcessors());
+
+        // Initialize pipeline manager
+        this.pipelineManager = new com.justsyncit.network.transfer.pipeline.PipelineManager();
+    }
+
+    /**
+     * Executes a file transfer using the NetworkService.
+     */
+    private CompletableFuture<FileTransferResult> simulateFileTransfer(String transferId, Path filePath,
+            InetSocketAddress remoteAddress,
+            ContentStore contentStore, long startTime) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                long fileSize = Files.size(filePath);
+                FileTransferStatus status = activeTransfers.get(transferId);
+
+                if (status == null) {
+                    throw new IOException("Transfer not found: " + transferId);
+                }
+
+                status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
+                String compressionType = status.getCompressionType();
+                boolean useCompression = !"NONE".equals(compressionType) && compressionService != null;
+
+                // --- NEW PIPELINE EXECUTION ---
+
+                // Create stages
+                java.util.concurrent.ExecutorService pipelineExecutor = pipelineManager.getExecutor();
+
+                com.justsyncit.network.transfer.pipeline.ReadStage readStage = new com.justsyncit.network.transfer.pipeline.ReadStage(
+                        pipelineExecutor);
+
+                com.justsyncit.network.transfer.pipeline.HashStage hashStage = new com.justsyncit.network.transfer.pipeline.HashStage(
+                        pipelineExecutor);
+
+                com.justsyncit.network.transfer.pipeline.CompressStage compressStage = new com.justsyncit.network.transfer.pipeline.CompressStage(
+                        pipelineExecutor, compressionService, useCompression);
+
+                com.justsyncit.network.transfer.pipeline.SendStage sendStage = new com.justsyncit.network.transfer.pipeline.SendStage(
+                        pipelineExecutor, networkService, remoteAddress);
+
+                com.justsyncit.network.transfer.pipeline.TransferPipeline pipeline = new com.justsyncit.network.transfer.pipeline.TransferPipeline(
+                        readStage, hashStage, compressStage, sendStage);
+
+                long offset = 0;
+                long remaining = fileSize;
+                List<CompletableFuture<Void>> chunkFutures = new ArrayList<>();
+
+                while (remaining > 0) {
+                    if (!running.get() || status.isCancelled()) {
+                        break;
+                    }
+
+                    long chunkSize = Math.min(DEFAULT_CHUNK_SIZE, remaining);
+
+                    // Create task
+                    com.justsyncit.network.transfer.pipeline.ChunkTask task = new com.justsyncit.network.transfer.pipeline.ChunkTask(
+                            transferId, filePath, offset, (int) chunkSize, fileSize);
+
+                    // Submit to pipeline (this will handle backpressure automatically)
+                    CompletableFuture<Void> f = pipeline.submit(task);
+                    chunkFutures.add(f);
+
+                    // Update stats (optimistic updates, although real updates happen in stages,
+                    // for the status object we update here to keep UI "moving" as we submit)
+                    // Note: Ideally stages should callback to update status, but for minimal
+                    // changes we keep this.
+                    status.addBytesTransferred(chunkSize);
+                    notifyTransferProgress(filePath, remoteAddress, status.getBytesTransferred(), fileSize);
+
+                    offset += chunkSize;
+                    remaining -= chunkSize;
+                }
+
+                // Wait for all pipeline tasks to finish
+                pipeline.waitForCompletion().join(); // This joins on internal pipeline futures
+
+                // --- END PIPELINE EXECUTION ---
+
+                long endTime = System.currentTimeMillis();
+                FileTransferResult result;
+
+                if (status.isCancelled()) {
+                    result = FileTransferResult.failure(transferId, filePath, remoteAddress,
+                            "Transfer cancelled", status.getBytesTransferred(),
+                            startTime, endTime);
+                } else {
+                    result = FileTransferResult.success(transferId, filePath, remoteAddress,
+                            fileSize, fileSize, startTime, endTime);
+                    status.setState(FileTransferStatus.TransferState.COMPLETED);
+
+                    try {
+                        networkService.sendMessage(
+                                new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, PLACEHOLDER_HASH),
+                                remoteAddress);
+                    } catch (Exception e) {
+                        logger.warn("Failed to send transfer complete message", e);
+                    }
+                }
+
+                activeTransfers.remove(transferId);
+                notifyTransferCompleted(filePath, remoteAddress, result.isSuccess(), result.getErrorMessage());
+
+                return result;
+
+            } catch (Exception e) {
+                long endTime = System.currentTimeMillis();
+                FileTransferStatus status = activeTransfers.get(transferId);
+                long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
+                FileTransferResult result = FileTransferResult.failure(
+                        transferId, filePath, remoteAddress, e.getMessage(),
+                        bytesTransferred, startTime, endTime);
+
+                activeTransfers.remove(transferId);
+                notifyTransferCompleted(filePath, remoteAddress, false, e.getMessage());
+                notifyError(e, "File transfer execution");
+
+                return result;
+            }
+        });
     }
 
     /**
@@ -221,130 +343,6 @@ public class FileTransferManagerImpl implements FileTransferManager {
     /**
      * Executes a file transfer using the NetworkService.
      */
-    private CompletableFuture<FileTransferResult> simulateFileTransfer(String transferId, Path filePath,
-            InetSocketAddress remoteAddress,
-            ContentStore contentStore, long startTime) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                long fileSize = Files.size(filePath);
-                FileTransferStatus status = activeTransfers.get(transferId);
-
-                if (status == null) {
-                    throw new IOException("Transfer not found: " + transferId);
-                }
-
-                status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
-                String compressionType = status.getCompressionType();
-                boolean useCompression = !"NONE".equals(compressionType) && compressionService != null;
-
-                long offset = 0;
-                long remaining = fileSize;
-
-                // Open file channel for reading if using compression (manual chunking)
-                // If not using compression, we might use sendFilePart (zero-copy)
-
-                try (java.nio.channels.FileChannel fileChannel = useCompression
-                        ? java.nio.channels.FileChannel.open(filePath)
-                        : null) {
-
-                    ByteBuffer buffer = useCompression ? ByteBuffer.allocate(DEFAULT_CHUNK_SIZE) : null;
-
-                    while (remaining > 0) {
-                        if (!running.get() || status.isCancelled()) {
-                            break;
-                        }
-
-                        long chunkSize = Math.min(DEFAULT_CHUNK_SIZE, remaining);
-
-                        try {
-                            if (useCompression) {
-                                // Manual read and compress
-                                if (fileChannel == null || buffer == null) {
-                                    throw new IllegalStateException("Compression enabled but resources are null");
-                                }
-
-                                buffer.clear();
-                                buffer.limit((int) chunkSize);
-                                while (buffer.hasRemaining()) {
-                                    fileChannel.read(buffer);
-                                }
-                                buffer.flip();
-
-                                byte[] rawData = new byte[buffer.remaining()];
-                                buffer.get(rawData);
-
-                                byte[] compressedData = compressionService.compress(rawData);
-
-                                // Send chunk data message
-                                // We use valid hash of raw data for verification, but send compressed data
-                                String chunkHash = computeChecksum(rawData);
-
-                                // Use consistent file path/ID. Using file name to match request.
-                                String identifier = filePath.getFileName().toString();
-
-                                ChunkDataMessage chunkMsg = new ChunkDataMessage(identifier, offset,
-                                        compressedData.length, fileSize, chunkHash, compressedData);
-
-                                networkService.sendMessage(chunkMsg, remoteAddress).join();
-
-                            } else {
-                                // Zero-copy transfer
-                                networkService.sendFilePart(filePath, offset, chunkSize, remoteAddress).join();
-                            }
-                        } catch (Exception e) {
-                            throw new IOException("Failed to send file part", e);
-                        }
-
-                        status.addBytesTransferred(chunkSize);
-                        notifyTransferProgress(filePath, remoteAddress, status.getBytesTransferred(), fileSize);
-
-                        offset += chunkSize;
-                        remaining -= chunkSize;
-                    }
-                }
-
-                long endTime = System.currentTimeMillis();
-                FileTransferResult result;
-
-                if (status.isCancelled()) {
-                    result = FileTransferResult.failure(transferId, filePath, remoteAddress,
-                            "Transfer cancelled", status.getBytesTransferred(),
-                            startTime, endTime);
-                } else {
-                    result = FileTransferResult.success(transferId, filePath, remoteAddress,
-                            fileSize, fileSize, startTime, endTime);
-                    status.setState(FileTransferStatus.TransferState.COMPLETED);
-
-                    try {
-                        networkService.sendMessage(
-                                new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, PLACEHOLDER_HASH),
-                                remoteAddress);
-                    } catch (Exception e) {
-                        logger.warn("Failed to send transfer complete message", e);
-                    }
-                }
-
-                activeTransfers.remove(transferId);
-                notifyTransferCompleted(filePath, remoteAddress, result.isSuccess(), result.getErrorMessage());
-
-                return result;
-
-            } catch (Exception e) {
-                long endTime = System.currentTimeMillis();
-                FileTransferStatus status = activeTransfers.get(transferId);
-                long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
-                FileTransferResult result = FileTransferResult.failure(
-                        transferId, filePath, remoteAddress, e.getMessage(),
-                        bytesTransferred, startTime, endTime);
-
-                activeTransfers.remove(transferId);
-                notifyTransferCompleted(filePath, remoteAddress, false, e.getMessage());
-                notifyError(e, "File transfer execution");
-
-                return result;
-            }
-        });
-    }
 
     @Override
     public CompletableFuture<Void> handleFileTransferRequest(ProtocolMessage request,
