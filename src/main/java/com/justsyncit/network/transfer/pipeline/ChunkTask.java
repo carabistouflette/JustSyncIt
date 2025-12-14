@@ -17,6 +17,10 @@ public class ChunkTask {
     private byte[] processedData; // Compressed or otherwise transformed
     private String checksum;
 
+    // Encryption metadata
+    private boolean encrypted;
+    private String keyAlias;
+
     public ChunkTask(String transferId, Path filePath, long offset, int length, long totalFileSize) {
         this.transferId = transferId;
         this.filePath = filePath;
@@ -67,5 +71,21 @@ public class ChunkTask {
 
     public void setChecksum(String checksum) {
         this.checksum = checksum;
+    }
+
+    public boolean isEncrypted() {
+        return encrypted;
+    }
+
+    public void setEncrypted(boolean encrypted) {
+        this.encrypted = encrypted;
+    }
+
+    public String getKeyAlias() {
+        return keyAlias;
+    }
+
+    public void setKeyAlias(String keyAlias) {
+        this.keyAlias = keyAlias;
     }
 }
