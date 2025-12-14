@@ -74,6 +74,14 @@ public class FileTransferManagerImpl implements FileTransferManager {
     private com.justsyncit.network.NetworkService networkService;
     /** The compression service. */
     private CompressionService compressionService;
+    /** Executor for parallel decompression tasks. */
+    private final java.util.concurrent.ExecutorService decompressionExecutor;
+
+    /** Configuration: Compression enabled. */
+    private boolean compressionEnabled = true;
+
+    /** Configuration: Compression level. */
+    private int compressionLevel = 3;
 
     /**
      * Creates a new file transfer manager.
@@ -83,6 +91,28 @@ public class FileTransferManagerImpl implements FileTransferManager {
         this.listeners = new CopyOnWriteArrayList<>();
         this.running = new AtomicBoolean(false);
         this.transferIdCounter = new AtomicLong(0);
+        // Use a fixed thread pool based on available processors for parallel
+        // decompression
+        this.decompressionExecutor = java.util.concurrent.Executors.newFixedThreadPool(
+                Runtime.getRuntime().availableProcessors());
+    }
+
+    /**
+     * Sets whether compression is enabled.
+     * 
+     * @param enabled true to enable compression, false otherwise
+     */
+    public void setCompressionEnabled(boolean enabled) {
+        this.compressionEnabled = enabled;
+    }
+
+    /**
+     * Sets the compression level.
+     * 
+     * @param level the compression level (1-22)
+     */
+    public void setCompressionLevel(int level) {
+        this.compressionLevel = level;
     }
 
     @Override
@@ -117,6 +147,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 cancelFutures.add(cancelTransfer(transferId));
             }
 
+            // Shutdown executor
+            decompressionExecutor.shutdown();
+
             return CompletableFuture.allOf(cancelFutures.toArray(new CompletableFuture<?>[0]))
                     .thenRun(() -> {
                         activeTransfers.clear();
@@ -146,7 +179,13 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         try {
             long fileSize = Files.size(filePath);
-            String compressionType = (compressionService != null) ? compressionService.getAlgorithmName() : "NONE";
+
+            // Determine compression type based on config and service availability
+            String compressionType = "NONE";
+            if (compressionEnabled && compressionService != null) {
+                compressionType = compressionService.getAlgorithmName();
+                compressionService.setLevel(compressionLevel);
+            }
 
             FileTransferStatus status = FileTransferStatus.pending(transferId, filePath, remoteAddress, fileSize,
                     compressionType);
@@ -367,20 +406,23 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
 
-        // Verify chunk checksum can only be done on raw data if that's what sender
-        // signed.
-        // My implementation signs RAW data.
+        // Submit decompression task to executor
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                byte[] dataToStore = chunkDataBytes;
 
-        try {
-            byte[] dataToStore = chunkDataBytes;
+                // Decompress if needed
+                if ("ZSTD".equals(status.getCompressionType()) && compressionService != null) {
+                    dataToStore = compressionService.decompress(chunkDataBytes);
+                } else if ("ZSTD".equals(status.getCompressionType()) && compressionService == null) {
+                    throw new IOException("Received ZSTD compressed data but no compression service configured");
+                }
 
-            // Decompress if needed
-            if ("ZSTD".equals(status.getCompressionType()) && compressionService != null) {
-                dataToStore = compressionService.decompress(chunkDataBytes);
-            } else if ("ZSTD".equals(status.getCompressionType()) && compressionService == null) {
-                throw new IOException("Received ZSTD compressed data but no compression service configured");
+                return dataToStore;
+            } catch (IOException e) {
+                throw new java.util.concurrent.CompletionException(e);
             }
-
+        }, decompressionExecutor).thenCompose(dataToStore -> {
             // Verify checksum (on raw data)
             String actualChecksum = computeChecksum(dataToStore);
             if (!checksum.equals(actualChecksum)) {
@@ -389,7 +431,11 @@ public class FileTransferManagerImpl implements FileTransferManager {
             }
 
             // Store chunk in content store
-            contentStore.storeChunk(dataToStore);
+            try {
+                contentStore.storeChunk(dataToStore);
+            } catch (IOException e) {
+                return CompletableFuture.failedFuture(e);
+            }
 
             // Update progress - we use UNCOMPRESSED size for progress to match file size
             status.addBytesTransferred(dataToStore.length);
@@ -402,17 +448,17 @@ public class FileTransferManagerImpl implements FileTransferManager {
             logger.debug("Sending chunk acknowledgment for offset {}", chunkOffset);
 
             // This would delegate to NetworkService to send the acknowledgment
-            return CompletableFuture.completedFuture(null);
-
-        } catch (Exception e) {
+            return CompletableFuture.<Void>completedFuture(null);
+        }).exceptionallyCompose(e -> {
             logger.error("Error processing chunk {} for transfer {}", chunkOffset, filePath, e);
 
             // Send negative acknowledgment
             logger.debug("Sending negative chunk acknowledgment for offset {}: {}", chunkOffset, e.getMessage());
 
             // This would delegate to NetworkService to send the acknowledgment
-            return CompletableFuture.failedFuture(e);
-        }
+            // We return a completed null future to indicate handled exception
+            return CompletableFuture.<Void>completedFuture(null);
+        });
     }
 
     @Override
