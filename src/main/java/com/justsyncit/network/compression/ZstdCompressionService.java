@@ -24,7 +24,7 @@ public class ZstdCompressionService implements CompressionService {
 
     private static final Logger logger = LoggerFactory.getLogger(ZstdCompressionService.class);
 
-    private final int compressionLevel;
+    private int compressionLevel;
 
     /**
      * Creates a new ZstdCompressionService with default compression level.
@@ -41,6 +41,11 @@ public class ZstdCompressionService implements CompressionService {
      */
     public ZstdCompressionService(int compressionLevel) {
         this.compressionLevel = compressionLevel;
+    }
+
+    @Override
+    public void setLevel(int level) {
+        this.compressionLevel = level;
     }
 
     @Override
@@ -84,6 +89,52 @@ public class ZstdCompressionService implements CompressionService {
                 throw (IOException) e;
             }
             throw new IOException("Zstd decompression failed", e);
+        }
+    }
+
+    @Override
+    public byte[] compress(byte[] data, byte[] dictionary) throws IOException {
+        try {
+            long maxDstSize = Zstd.compressBound(data.length);
+            if (maxDstSize > Integer.MAX_VALUE) {
+                throw new IOException("Max compressed size exceeds Java array limit");
+            }
+            byte[] dst = new byte[(int) maxDstSize];
+            long size = Zstd.compress(dst, data, dictionary, compressionLevel);
+            if (Zstd.isError(size)) {
+                throw new IOException("Zstd compression failed: " + Zstd.getErrorName(size));
+            }
+            return java.util.Arrays.copyOf(dst, (int) size);
+        } catch (Exception e) {
+            logger.error("Failed to compress data with dictionary", e);
+            throw new IOException("Zstd dictionary compression failed", e);
+        }
+    }
+
+    @Override
+    public byte[] decompress(byte[] compressedData, byte[] dictionary) throws IOException {
+        try {
+            long originalSize = Zstd.getFrameContentSize(compressedData);
+            if (originalSize == -1 || originalSize == -2) {
+                // Try to estimate or just fail if unknown
+                throw new IOException("Unknown content size in Zstd frame");
+            }
+            if (originalSize > Integer.MAX_VALUE) {
+                throw new IOException("Decompressed size (" + originalSize + ") exceeds Java array limit");
+            }
+
+            int size = (int) originalSize;
+            byte[] dst = new byte[size];
+
+            long decompressedSize = Zstd.decompress(dst, compressedData, dictionary);
+            if (Zstd.isError(decompressedSize)) {
+                throw new IOException("Zstd decompression failed: " + Zstd.getErrorName(decompressedSize));
+            }
+
+            return dst;
+        } catch (Exception e) {
+            logger.error("Failed to decompress data with dictionary", e);
+            throw new IOException("Zstd dictionary decompression failed", e);
         }
     }
 

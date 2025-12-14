@@ -51,6 +51,37 @@ public interface CompressionService {
     }
 
     /**
+     * Compresses the given data using a dictionary.
+     * 
+     * @param data       the data to compress
+     * @param dictionary the dictionary to use
+     * @return the compressed data
+     * @throws IOException
+     */
+    default byte[] compress(byte[] data, byte[] dictionary) throws IOException {
+        return compress(data); // Default fallback if not supported
+    }
+
+    /**
+     * Decompresses the given data using a dictionary.
+     * 
+     * @param compressedData the compressed data
+     * @param dictionary     the dictionary to use
+     * @return the decompressed data
+     * @throws IOException
+     */
+    default byte[] decompress(byte[] compressedData, byte[] dictionary) throws IOException {
+        return decompress(compressedData); // Default fallback if not supported
+    }
+
+    /**
+     * Sets the compression level.
+     * 
+     * @param level the compression level (1-22)
+     */
+    void setLevel(int level);
+
+    /**
      * Gets the compression algorithm name.
      * 
      * @return the algorithm name (e.g. "ZSTD")
