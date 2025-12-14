@@ -119,6 +119,34 @@ public interface NetworkService extends com.justsyncit.storage.ClosableResource 
             ContentStore contentStore, TransportType transportType) throws IOException;
 
     /**
+     * Sends a specific part of a file to a remote node using zero-copy transfer.
+     *
+     * @param filePath      the path to the file
+     * @param offset        the offset in the file to start sending from
+     * @param length        the number of bytes to send
+     * @param remoteAddress the address of the remote node
+     * @return a CompletableFuture that completes when the transfer is initiated
+     * @throws IOException if an I/O error occurs
+     */
+    CompletableFuture<Void> sendFilePart(Path filePath, long offset, long length, InetSocketAddress remoteAddress)
+            throws IOException;
+
+    /**
+     * Sends a specific part of a file to a remote node using zero-copy transfer
+     * with specified transport.
+     *
+     * @param filePath      the path to the file
+     * @param offset        the offset in the file to start sending from
+     * @param length        the number of bytes to send
+     * @param remoteAddress the address of the remote node
+     * @param transportType the transport type to use
+     * @return a CompletableFuture that completes when the transfer is initiated
+     * @throws IOException if an I/O error occurs
+     */
+    CompletableFuture<Void> sendFilePart(Path filePath, long offset, long length, InetSocketAddress remoteAddress,
+            TransportType transportType) throws IOException;
+
+    /**
      * Sends a protocol message to a remote node using the default transport.
      *
      * @param message       the message to send

@@ -61,7 +61,7 @@ public class TcpClientConnectionWrapper implements Connection {
      * Creates a new TCP client connection wrapper.
      *
      * @param remoteAddress remote address
-     * @param tcpClient TCP client
+     * @param tcpClient     TCP client
      * @return a new TcpClientConnectionWrapper instance
      * @throws IllegalArgumentException if remoteAddress or tcpClient is null
      */
@@ -80,7 +80,7 @@ public class TcpClientConnectionWrapper implements Connection {
      * Private constructor to enforce use of factory method.
      *
      * @param remoteAddress remote address (must not be null)
-     * @param tcpClient TCP client (must not be null)
+     * @param tcpClient     TCP client (must not be null)
      */
     private TcpClientConnectionWrapper(InetSocketAddress remoteAddress, TcpClient tcpClient) {
         this.remoteAddress = remoteAddress;
@@ -151,6 +151,25 @@ public class TcpClientConnectionWrapper implements Connection {
         bytesSent.addAndGet(message.getTotalSize());
 
         return tcpClient.sendMessage(message, remoteAddress);
+    }
+
+    @Override
+    public CompletableFuture<Void> send(java.nio.ByteBuffer buffer) {
+        if (!isActive()) {
+            return CompletableFuture.failedFuture(new IOException("Connection is closed"));
+        }
+        updateLastActivityTime();
+        return tcpClient.send(buffer, remoteAddress);
+    }
+
+    @Override
+    public CompletableFuture<Void> sendFileRegion(java.nio.channels.FileChannel fileChannel, long position,
+            long count) {
+        if (!isActive()) {
+            return CompletableFuture.failedFuture(new IOException("Connection is closed"));
+        }
+        updateLastActivityTime();
+        return tcpClient.sendFileRegion(fileChannel, position, count, remoteAddress);
     }
 
     @Override
