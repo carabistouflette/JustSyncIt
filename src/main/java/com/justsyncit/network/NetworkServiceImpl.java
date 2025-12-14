@@ -34,6 +34,7 @@ import com.justsyncit.network.quic.QuicStream;
 import com.justsyncit.network.quic.QuicConfiguration;
 import com.justsyncit.network.quic.QuicTransport;
 import com.justsyncit.storage.ContentStore;
+import com.justsyncit.hash.Blake3Service;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -71,6 +72,8 @@ public class NetworkServiceImpl implements NetworkService {
     private final ConnectionManager connectionManager;
     /** The file transfer manager. */
     private final FileTransferManager fileTransferManager;
+    /** The BLAKE3 service for checksums. */
+    private final Blake3Service blake3Service;
     /** Network statistics implementation. */
     private final NetworkStatisticsImpl statistics;
     /** List of network event listeners. */
@@ -82,8 +85,6 @@ public class NetworkServiceImpl implements NetworkService {
     private final QuicTransport quicTransport;
     /** QUIC server component. */
     private final QuicServer quicServer;
-    /** QUIC configuration. */
-    private final QuicConfiguration quicConfiguration;
     /** Default transport type for new connections. */
     private volatile TransportType defaultTransportType;
     /** Map of connection addresses to their transport types. */
@@ -96,10 +97,11 @@ public class NetworkServiceImpl implements NetworkService {
      * @param tcpClient           the TCP client component
      * @param connectionManager   the connection manager
      * @param fileTransferManager the file transfer manager
+     * @param blake3Service       the BLAKE3 service
      */
-    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient,
-            ConnectionManager connectionManager, FileTransferManager fileTransferManager) {
-        this(tcpServer, tcpClient, connectionManager, fileTransferManager,
+    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient, ConnectionManager connectionManager,
+            FileTransferManager fileTransferManager, Blake3Service blake3Service) {
+        this(tcpServer, tcpClient, connectionManager, fileTransferManager, blake3Service,
                 QuicConfiguration.defaultConfiguration(), TransportType.TCP);
     }
 
@@ -110,13 +112,14 @@ public class NetworkServiceImpl implements NetworkService {
      * @param tcpClient            the TCP client component
      * @param connectionManager    the connection manager
      * @param fileTransferManager  the file transfer manager
+     * @param blake3Service        the BLAKE3 service
      * @param quicConfiguration    the QUIC configuration
      * @param defaultTransportType the default transport type for new connections
      */
-    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient,
-            ConnectionManager connectionManager, FileTransferManager fileTransferManager,
-            QuicConfiguration quicConfiguration, TransportType defaultTransportType) {
-        this(tcpServer, tcpClient, fileTransferManager, connectionManager,
+    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient, ConnectionManager connectionManager,
+            FileTransferManager fileTransferManager, Blake3Service blake3Service, QuicConfiguration quicConfiguration,
+            TransportType defaultTransportType) {
+        this(tcpServer, tcpClient, fileTransferManager, connectionManager, blake3Service,
                 new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType);
     }
 
@@ -128,26 +131,23 @@ public class NetworkServiceImpl implements NetworkService {
      * @param tcpClient            the TCP client component
      * @param fileTransferManager  the file transfer manager
      * @param connectionManager    the connection manager
+     * @param blake3Service        the BLAKE3 service
      * @param quicTransport        the QUIC transport implementation
      * @param quicConfiguration    the QUIC configuration
      * @param defaultTransportType the default transport type for new connections
      */
     @SuppressWarnings("this-escape")
-    public NetworkServiceImpl(
-            TcpServer tcpServer,
-            TcpClient tcpClient,
-            FileTransferManager fileTransferManager,
-            ConnectionManager connectionManager,
-            QuicTransport quicTransport,
-            QuicConfiguration quicConfiguration,
-            TransportType defaultTransportType) {
+    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient, FileTransferManager fileTransferManager,
+            ConnectionManager connectionManager, Blake3Service blake3Service, QuicTransport quicTransport,
+            QuicConfiguration quicConfiguration, TransportType defaultTransportType) {
         this.tcpServer = Objects.requireNonNull(tcpServer, "tcpServer cannot be null");
         this.tcpClient = Objects.requireNonNull(tcpClient, "tcpClient cannot be null");
         this.fileTransferManager = Objects.requireNonNull(fileTransferManager, "fileTransferManager cannot be null");
         this.fileTransferManager.setNetworkService(this);
         this.connectionManager = Objects.requireNonNull(connectionManager, "connectionManager cannot be null");
+        this.blake3Service = Objects.requireNonNull(blake3Service, "blake3Service cannot be null");
         this.quicTransport = Objects.requireNonNull(quicTransport, "quicTransport cannot be null");
-        this.quicConfiguration = Objects.requireNonNull(quicConfiguration, "quicConfiguration cannot be null");
+        Objects.requireNonNull(quicConfiguration, "quicConfiguration cannot be null");
         this.defaultTransportType = Objects.requireNonNull(defaultTransportType, "defaultTransportType cannot be null");
         this.statistics = new NetworkStatisticsImpl();
         this.listeners = new CopyOnWriteArrayList<>();
@@ -343,14 +343,14 @@ public class NetworkServiceImpl implements NetworkService {
             }
 
             @Override
-            public void onTransferProgress(Path filePath, InetSocketAddress remoteAddress,
-                    long bytesTransferred, long totalBytes) {
+            public void onTransferProgress(Path filePath, InetSocketAddress remoteAddress, long bytesTransferred,
+                    long totalBytes) {
                 notifyFileTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes);
             }
 
             @Override
-            public void onTransferCompleted(Path filePath, InetSocketAddress remoteAddress,
-                    boolean success, String error) {
+            public void onTransferCompleted(Path filePath, InetSocketAddress remoteAddress, boolean success,
+                    String error) {
                 if (success) {
                     statistics.incrementCompletedTransfers();
                 } else {
@@ -378,24 +378,19 @@ public class NetworkServiceImpl implements NetworkService {
             throws IOException, ServiceException {
         if (running.compareAndSet(false, true)) {
             statistics.start();
-            return CompletableFuture.allOf(
-                    fileTransferManager.start(),
-                    connectionManager.start())
-                    .thenCompose(v -> {
-                        try {
-                            if (transportType == TransportType.QUIC) {
-                                return quicTransport.start()
-                                        .thenCompose(v2 -> quicServer.start(port));
-                            } else {
-                                return tcpServer.start(port);
-                            }
-                        } catch (IOException e) {
-                            return CompletableFuture.failedFuture(e);
-                        } catch (ServiceException e) {
-                            return CompletableFuture.failedFuture(e);
-                        }
-                    })
-                    .thenRun(() -> logger.info("Network service started on port {} using {}", port, transportType))
+            return CompletableFuture.allOf(fileTransferManager.start(), connectionManager.start()).thenCompose(v -> {
+                try {
+                    if (transportType == TransportType.QUIC) {
+                        return quicTransport.start().thenCompose(v2 -> quicServer.start(port));
+                    } else {
+                        return tcpServer.start(port);
+                    }
+                } catch (IOException e) {
+                    return CompletableFuture.failedFuture(e);
+                } catch (ServiceException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }).thenRun(() -> logger.info("Network service started on port {} using {}", port, transportType))
                     .exceptionally(throwable -> {
                         running.set(false);
                         logger.error("Failed to start network service on port {} using {}", port, transportType,
@@ -410,16 +405,12 @@ public class NetworkServiceImpl implements NetworkService {
     @Override
     public CompletableFuture<Void> stopServer() {
         if (running.compareAndSet(true, false)) {
-            return CompletableFuture.allOf(
-                    tcpServer.stop(),
-                    quicServer.stop(),
-                    quicTransport.stop(),
-                    connectionManager.stop())
+            return CompletableFuture
+                    .allOf(tcpServer.stop(), quicServer.stop(), quicTransport.stop(), connectionManager.stop())
                     .thenRun(() -> {
                         statistics.stop();
                         logger.info("Network service stopped");
-                    })
-                    .exceptionally(throwable -> {
+                    }).exceptionally(throwable -> {
                         logger.error("Failed to stop network service", throwable);
                         return null;
                     });
@@ -437,28 +428,24 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<Void> connectToNode(InetSocketAddress address, TransportType transportType)
             throws IOException {
         if (transportType == TransportType.QUIC) {
-            return quicTransport.connect(address)
-                    .thenAccept(connection -> {
-                        logger.debug("Connected to node via QUIC: {}", address);
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Failed to connect to node via QUIC: {}", address, throwable);
-                        return null;
-                    });
+            return quicTransport.connect(address).thenAccept(connection -> {
+                logger.debug("Connected to node via QUIC: {}", address);
+            }).exceptionally(throwable -> {
+                logger.error("Failed to connect to node via QUIC: {}", address, throwable);
+                return null;
+            });
         } else {
             CompletableFuture<Connection> connectionFuture = connectionManager.connectToNode(address);
             CompletableFuture<Void> result = new CompletableFuture<>();
 
-            connectionFuture
-                    .thenAccept(connection -> {
-                        logger.debug("Connected to node via TCP: {}", address);
-                        result.complete(null);
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Failed to connect to node via TCP: {}", address, throwable);
-                        result.completeExceptionally(throwable);
-                        return null;
-                    });
+            connectionFuture.thenAccept(connection -> {
+                logger.debug("Connected to node via TCP: {}", address);
+                result.complete(null);
+            }).exceptionally(throwable -> {
+                logger.error("Failed to connect to node via TCP: {}", address, throwable);
+                result.completeExceptionally(throwable);
+                return null;
+            });
 
             return result;
         }
@@ -496,56 +483,61 @@ public class NetworkServiceImpl implements NetworkService {
         if (transportType == TransportType.QUIC) {
             // For QUIC, we need to read the file data and send it via the QUIC transport
             byte[] fileData = Files.readAllBytes(filePath);
-            return quicTransport.sendFile(filePath, remoteAddress, fileData)
-                    .thenCompose(v -> {
-                        // Update statistics with bytes sent for file transfer
-                        try {
-                            long fileSize = Files.size(filePath);
-                            statistics.incrementBytesSent(fileSize);
-                            statistics.incrementMessagesSent(); // Count file transfer as a message
-                        } catch (IOException e) {
-                            logger.warn("Could not update bytes sent statistics for file transfer", e);
-                        }
-                        logger.debug("File sent via QUIC: {} to {}", filePath, remoteAddress);
-                        long now = System.currentTimeMillis();
-                        return CompletableFuture.completedFuture(FileTransferResult.success(
-                                "unknown", filePath, remoteAddress, fileData.length, fileData.length, now, now));
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Failed to send file via QUIC: {} to {}", filePath, remoteAddress, throwable);
-                        long now = System.currentTimeMillis();
-                        return FileTransferResult.failure(
-                                "unknown", filePath, remoteAddress, throwable.getMessage(), 0, now, now);
-                    });
+            return quicTransport.sendFile(filePath, remoteAddress, fileData).thenCompose(v -> {
+                // Update statistics with bytes sent for file transfer
+                try {
+                    long fileSize = Files.size(filePath);
+                    statistics.incrementBytesSent(fileSize);
+                    statistics.incrementMessagesSent(); // Count
+                                                        // file
+                                                        // transfer
+                                                        // as
+                                                        // a
+                                                        // message
+                } catch (IOException e) {
+                    logger.warn("Could not update bytes sent statistics for file transfer", e);
+                }
+                logger.debug("File sent via QUIC: {} to {}", filePath, remoteAddress);
+                long now = System.currentTimeMillis();
+                return CompletableFuture.completedFuture(FileTransferResult.success("unknown", filePath, remoteAddress,
+                        fileData.length, fileData.length, now, now));
+            }).exceptionally(throwable -> {
+                logger.error("Failed to send file via QUIC: {} to {}", filePath, remoteAddress, throwable);
+                long now = System.currentTimeMillis();
+                return FileTransferResult.failure("unknown", filePath, remoteAddress, throwable.getMessage(), 0, now,
+                        now);
+            });
         } else {
-            return fileTransferManager.sendFile(filePath, remoteAddress, contentStore)
-                    .thenApply(result -> {
-                        // Update statistics with bytes sent for file transfer
-                        if (result.isSuccess()) {
-                            try {
-                                long fileSize = Files.size(filePath);
-                                statistics.incrementBytesSent(fileSize);
-                                statistics.incrementMessagesSent(); // Count file transfer as a message
-                            } catch (IOException e) {
-                                logger.warn("Could not update bytes sent statistics for file transfer", e);
-                            }
-                        }
-                        logger.debug("File sent via TCP: {} to {}", filePath, remoteAddress);
-                        return result;
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Failed to send file via TCP: {} to {}", filePath, remoteAddress, throwable);
-                        long now = System.currentTimeMillis();
-                        return FileTransferResult.failure(
-                                "unknown", filePath, remoteAddress, throwable.getMessage(), 0, now, now);
-                    });
+            return fileTransferManager.sendFile(filePath, remoteAddress, contentStore).thenApply(result -> {
+                // Update statistics with bytes sent for file transfer
+                if (result.isSuccess()) {
+                    try {
+                        long fileSize = Files.size(filePath);
+                        statistics.incrementBytesSent(fileSize);
+                        statistics.incrementMessagesSent(); // Count
+                                                            // file
+                                                            // transfer
+                                                            // as
+                                                            // a
+                                                            // message
+                    } catch (IOException e) {
+                        logger.warn("Could not update bytes sent statistics for file transfer", e);
+                    }
+                }
+                logger.debug("File sent via TCP: {} to {}", filePath, remoteAddress);
+                return result;
+            }).exceptionally(throwable -> {
+                logger.error("Failed to send file via TCP: {} to {}", filePath, remoteAddress, throwable);
+                long now = System.currentTimeMillis();
+                return FileTransferResult.failure("unknown", filePath, remoteAddress, throwable.getMessage(), 0, now,
+                        now);
+            });
         }
     }
 
     @Override
     public CompletableFuture<Void> sendFilePart(Path filePath, long offset, long length,
-            InetSocketAddress remoteAddress)
-            throws IOException {
+            InetSocketAddress remoteAddress) throws IOException {
         return sendFilePart(filePath, offset, length, remoteAddress, defaultTransportType);
     }
 
@@ -559,12 +551,13 @@ public class NetworkServiceImpl implements NetworkService {
                 try {
                     try (java.nio.channels.FileChannel fc = java.nio.channels.FileChannel.open(filePath,
                             java.nio.file.StandardOpenOption.READ)) {
-                        ByteBuffer buffer = ByteBuffer.allocate((int) Math.min(length, 1024 * 1024)); // Limit buffer
+                        ByteBuffer buffer = ByteBuffer.allocate((int) Math.min(length, 1024 * 1024)); // Limit
+                                                                                                      // buffer
                                                                                                       // size
                         fc.read(buffer, offset);
                         buffer.flip();
                         long fileSize = Files.size(filePath);
-                        ProtocolMessage partMessage = new com.justsyncit.network.protocol.ChunkDataMessage(
+                        com.justsyncit.network.protocol.ProtocolMessage partMessage = new com.justsyncit.network.protocol.ChunkDataMessage(
                                 filePath.toString(), offset, buffer.remaining(), fileSize, "hash-placeholder",
                                 buffer.array());
                         sendMessage(partMessage, remoteAddress, transportType);
@@ -576,78 +569,147 @@ public class NetworkServiceImpl implements NetworkService {
             });
         } else {
             // TCP zero-copy
-
             Connection connection = getConnection(remoteAddress);
             if (connection == null) {
                 return CompletableFuture.failedFuture(new IOException("Not connected to " + remoteAddress));
             }
+            // Generate a unique message ID for this transfer
+            int messageId = java.util.concurrent.ThreadLocalRandom.current().nextInt();
+            return sendFilePartInternal(connection, filePath, offset, length, messageId);
+        }
+    }
 
-            // 1. Create a message with empty data but correct CHUNK SIZE to generate
-            // metadata
-            long fileSize = Files.size(filePath);
-            com.justsyncit.network.protocol.ChunkDataMessage metaMsg = new com.justsyncit.network.protocol.ChunkDataMessage(
-                    filePath.toString(), offset, (int) length, fileSize, "hash-placeholder", new byte[0]);
+    /**
+     * Sends a file part using zero-copy transfer and memory-mapped checksumming.
+     */
+    private CompletableFuture<Void> sendFilePartInternal(Connection connection, Path filePath, long offset, long length,
+            int messageId) {
+        // Open the file channel - we need it to stay open for the transfer
+        java.nio.channels.FileChannel fileChannel;
+        try {
+            fileChannel = java.nio.channels.FileChannel.open(filePath, java.nio.file.StandardOpenOption.READ);
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
+        }
 
-            // 2. Serialize to get the frame structure (Header + Payload)
-            ByteBuffer metaBuffer = metaMsg.serialize();
+        try {
+            // 1. Calculate checksum using Memory-Mapped I/O
+            // This allows us to hash the file content without copying it into a heap array
+            // filling the integrity gap in zero-copy transfers.
+            String hash;
+            java.nio.MappedByteBuffer mappedBuffer = null;
+            try {
+                mappedBuffer = fileChannel.map(java.nio.channels.FileChannel.MapMode.READ_ONLY, offset, length);
+                // Use the injected BLAKE3 service to calculate the hash of the mapped buffer
+                hash = blake3Service.hashBuffer(mappedBuffer);
+            } catch (IOException e) {
+                logger.error("Failed to map file for checksumming: {}", filePath, e);
+                // Fallback or fail? Fail for integrity.
+                try {
+                    fileChannel.close();
+                } catch (IOException ignored) {
+                }
+                return CompletableFuture.failedFuture(e);
+            } finally {
+                // Should optimally unmap here, but Java doesn't provide a clean API for it.
+                // The buffer will be cleaned up by GC.
+                // In a high-throughput system, we might want to use unsafe invokeCleaner.
+                // For now, we rely on the OS managing virtual memory pages.
+            }
 
-            // 3. Patch the buffer to reflect the actual file region size
-            // Structure: [Header (HeaderLength)][Payload (MsgType + ... + DataLength +
-            // Data)]
-            // We need to:
-            // a. Update ProtocolHeader's payload length
-            // Note: ChunkDataMessage constructor was called with correct length, so the
-            // serialized
-            // payload already contains the correct 'chunkSize' field. We only need to tell
-            // the
-            // header that the payload will be larger (extended by the file region).
+            // 2. Prepare the ChunkDataMessage
+            // We create the message with empty data because we will send the data using
+            // sendFileRegion.
+            // We provide the ACTUAL hash we just calculated.
+            long totalSize = Files.size(filePath);
+            com.justsyncit.network.protocol.ChunkDataMessage templateMsg = new com.justsyncit.network.protocol.ChunkDataMessage(
+                    filePath.toString(),
+                    offset,
+                    (int) length,
+                    totalSize,
+                    hash,
+                    new byte[0] // Empty data for the template
+            );
 
-            // Parse existing header to verify/update
-            ByteBuffer headerView = metaBuffer.duplicate();
-            headerView.limit(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
+            // 3. Serialize Header and adjust Payload Length
+            java.nio.ByteBuffer headerBuf = templateMsg.serialize();
+
+            // The header currently claims payload size corresponds to byte[0] (plus
+            // overhead).
+            // We need to patch the header to claim the payload size includes the file
+            // region.
+            // ProtocolHeader structure: Magic(4) + Version(2) + Type(2) + Flags(4) +
+            // Length(4) + ID(4)
+            // Length is at offset 12.
+
+            // It's safer to deserialize, modify, and re-serialize to avoid offset magic
+            // numbers assumptions
+            headerBuf.flip(); // Prepare for reading
             com.justsyncit.network.protocol.ProtocolHeader header = com.justsyncit.network.protocol.ProtocolHeader
-                    .deserialize(headerView);
+                    .deserialize(headerBuf);
 
-            int newPayloadLength = header.getPayloadLength() + (int) length; // Add file region length
+            // Calculate new payload length: Original Metadata Overhead + File Region Length
+            // The template message payload size is just the metadata (strings, longs)
+            // because data is empty.
+            int metadataSize = templateMsg.getPayloadSize() - 0; // -0 for empty data
+            // The payload length in header should be Metadata + Data
+            int newPayloadLength = metadataSize + (int) length;
 
-            // Re-serialize header with new length
-            // Using full constructor to preserve all fields while updating payload length
             com.justsyncit.network.protocol.ProtocolHeader newHeader = new com.justsyncit.network.protocol.ProtocolHeader(
                     header.getMagic(),
                     header.getVersion(),
                     header.getMessageType(),
                     header.getFlags(),
                     newPayloadLength,
-                    header.getMessageId());
+                    messageId // Ensure we keep the correct message ID
+            );
 
-            ByteBuffer newHeaderBuf = newHeader.serialize();
+            // Re-serialize the corrected header
+            java.nio.ByteBuffer newHeaderBuf = newHeader.serialize();
 
-            // Overwrite header in metaBuffer
-            metaBuffer.position(0);
-            metaBuffer.put(newHeaderBuf);
+            // We need to combine the new header with the metadata body (minus the empty
+            // data bytes).
+            // ProtocolHeader.serialize() gives us JUST the header (20 bytes).
+            // We need the rest of the serialized template message (the body fields),
+            // excluding the empty data array at the end.
 
-            metaBuffer.position(0);
+            // Reset original buffer to read the body
+            headerBuf.position(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
+            int bodySize = headerBuf.remaining(); // This is just metadata + 0-byte data
+
+            // Allocate a buffer for Header + Body
+            java.nio.ByteBuffer finalMetaBuffer = java.nio.ByteBuffer
+                    .allocate(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE + bodySize);
+            finalMetaBuffer.put(newHeaderBuf); // Put new header
+            finalMetaBuffer.put(headerBuf); // Put original body
+            finalMetaBuffer.flip();
 
             // 4. Send Header+Metadata, then FileRegion
-            java.nio.channels.FileChannel fileChannel = java.nio.channels.FileChannel.open(filePath,
-                    java.nio.file.StandardOpenOption.READ);
-
-            return connection.send(metaBuffer)
+            return connection.send(finalMetaBuffer)
                     .thenCompose(v -> connection.sendFileRegion(fileChannel, offset, length))
                     .whenComplete((v, ex) -> {
-                        // Close channel?
-                        // With zero-copy, the operation might be physically pending even after future
-                        // completes?
-                        // Ideally, we should close it after we are SURE it's sent.
-                        // But sendFileRegion completion implies it's written to socket?
-                        // Yes, our implementation of TransferOperation finishes when socket writes are
-                        // done.
+                        // Close the file channel when the transfer is complete (or failed)
                         try {
                             fileChannel.close();
                         } catch (IOException e) {
-                            logger.warn("Failed to close file channel", e);
+                            logger.warn("Failed to close file channel for {}", filePath, e);
+                        }
+
+                        if (ex != null) {
+                            logger.error("Failed to send file part: {}", filePath, ex);
+                        } else {
+                            logger.debug("Sent file part: {} offset={} length={} hash={}", filePath, offset, length,
+                                    hash);
                         }
                     });
+
+        } catch (Exception e) {
+            try {
+                fileChannel.close();
+            } catch (IOException closeEx) {
+                // ignore
+            }
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -675,16 +737,14 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress,
             TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
-            return quicTransport.sendMessage(message, remoteAddress)
-                    .thenRun(() -> {
-                        statistics.incrementBytesSent(message.getTotalSize());
-                        logger.trace("Message sent via QUIC to {}: {}", remoteAddress, message.getMessageType());
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Failed to send message via QUIC to {}: {}",
-                                remoteAddress, message.getMessageType(), throwable);
-                        return null;
-                    });
+            return quicTransport.sendMessage(message, remoteAddress).thenRun(() -> {
+                statistics.incrementBytesSent(message.getTotalSize());
+                logger.trace("Message sent via QUIC to {}: {}", remoteAddress, message.getMessageType());
+            }).exceptionally(throwable -> {
+                logger.error("Failed to send message via QUIC to {}: {}", remoteAddress, message.getMessageType(),
+                        throwable);
+                return null;
+            });
         } else {
             Connection connection = getConnection(remoteAddress);
             if (connection == null) {
@@ -695,8 +755,8 @@ public class NetworkServiceImpl implements NetworkService {
                 statistics.incrementBytesSent(message.getTotalSize());
                 logger.trace("Message sent via TCP to {}: {}", remoteAddress, message.getMessageType());
             }).exceptionally(throwable -> {
-                logger.error("Failed to send message via TCP to {}: {}",
-                        remoteAddress, message.getMessageType(), throwable);
+                logger.error("Failed to send message via TCP to {}: {}", remoteAddress, message.getMessageType(),
+                        throwable);
                 return null;
             });
         }
@@ -840,8 +900,8 @@ public class NetworkServiceImpl implements NetworkService {
         }
     }
 
-    private void notifyFileTransferProgress(Path filePath, InetSocketAddress remoteAddress,
-            long bytesTransferred, long totalBytes) {
+    private void notifyFileTransferProgress(Path filePath, InetSocketAddress remoteAddress, long bytesTransferred,
+            long totalBytes) {
         for (NetworkEventListener listener : listeners) {
             try {
                 listener.onFileTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes);
@@ -851,8 +911,8 @@ public class NetworkServiceImpl implements NetworkService {
         }
     }
 
-    private void notifyFileTransferCompleted(Path filePath, InetSocketAddress remoteAddress,
-            boolean success, String error) {
+    private void notifyFileTransferCompleted(Path filePath, InetSocketAddress remoteAddress, boolean success,
+            String error) {
         for (NetworkEventListener listener : listeners) {
             try {
                 listener.onFileTransferCompleted(filePath, remoteAddress, success, error);
@@ -969,7 +1029,9 @@ public class NetworkServiceImpl implements NetworkService {
                 return 0.0;
             }
             long totalBytes = totalBytesSent.get() + totalBytesReceived.get();
-            return (double) totalBytes / (uptime / 1000.0); // bytes per second
+            return (double) totalBytes / (uptime / 1000.0); // bytes
+                                                            // per
+                                                            // second
         }
 
         @Override

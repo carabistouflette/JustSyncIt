@@ -56,8 +56,6 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
     /** Default chunk size for file transfers. */
     private static final int DEFAULT_CHUNK_SIZE = 64 * 1024; // 64KB chunks
-    /** Maximum number of concurrent chunks. */
-    private static final int MAX_CONCURRENT_CHUNKS = 10;
 
     /** Active file transfers. */
     private final Map<String, FileTransferStatus> activeTransfers;
@@ -282,21 +280,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         // Check if we can accept the transfer
         boolean accept = true;
-        String reason = null;
-
         // Check available space (simplified)
-        try {
-            // For now, we'll assume sufficient space
-            // In a real implementation, this would check actual available space
-            // long freeSpace = filePath.getParent().toFile().getFreeSpace();
-            // if (freeSpace < fileSize) {
-            // accept = false;
-            // reason = "Insufficient disk space";
-            // }
-        } catch (Exception e) {
-            accept = false;
-            reason = "Cannot check disk space";
-        }
+        // For now, we'll assume sufficient space
+        // In a real implementation, this would check actual available space
 
         // Create and send response
         if (accept) {
