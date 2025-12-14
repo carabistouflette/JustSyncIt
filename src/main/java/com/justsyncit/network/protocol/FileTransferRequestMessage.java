@@ -6,14 +6,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
 package com.justsyncit.network.protocol;
@@ -38,30 +30,48 @@ public class FileTransferRequestMessage extends AbstractProtocolMessage {
     private final String blake3Hash;
     /** The preferred chunk size for transfer. */
     private final int chunkSize;
+    /** The content of the file. */
+    private final String compressionType;
 
     /**
      * Creates a new file transfer request message.
      *
-     * @param filePath the file path
-     * @param fileSize the file size in bytes
+     * @param filePath     the file path
+     * @param fileSize     the file size in bytes
      * @param lastModified the last modified timestamp (epoch milliseconds)
-     * @param blake3Hash the BLAKE3 hash of the file
-     * @param chunkSize the preferred chunk size for transfer
+     * @param blake3Hash   the BLAKE3 hash of the file
+     * @param chunkSize    the preferred chunk size for transfer
      */
     public FileTransferRequestMessage(String filePath, long fileSize, long lastModified,
-                               String blake3Hash, int chunkSize) {
+            String blake3Hash, int chunkSize) {
+        this(filePath, fileSize, lastModified, blake3Hash, chunkSize, "NONE");
+    }
+
+    /**
+     * Creates a new file transfer request message with compression.
+     *
+     * @param filePath        the file path
+     * @param fileSize        the file size in bytes
+     * @param lastModified    the last modified timestamp (epoch milliseconds)
+     * @param blake3Hash      the BLAKE3 hash of the file
+     * @param chunkSize       the preferred chunk size for transfer
+     * @param compressionType the compression type (e.g. "ZSTD", "NONE")
+     */
+    public FileTransferRequestMessage(String filePath, long fileSize, long lastModified,
+            String blake3Hash, int chunkSize, String compressionType) {
         super(MessageType.FILE_TRANSFER_REQUEST, ProtocolConstants.Flags.ACK_REQUIRED);
         this.filePath = Objects.requireNonNull(filePath, "filePath cannot be null");
         this.fileSize = fileSize;
         this.lastModified = lastModified;
         this.blake3Hash = Objects.requireNonNull(blake3Hash, "blake3Hash cannot be null");
         this.chunkSize = chunkSize;
+        this.compressionType = Objects.requireNonNull(compressionType, "compressionType cannot be null");
     }
 
     /**
      * Creates a file transfer request message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized file transfer request message
      */
@@ -74,27 +84,40 @@ public class FileTransferRequestMessage extends AbstractProtocolMessage {
         String blake3Hash = readString(buffer);
         int chunkSize = buffer.getInt();
 
-        return new FileTransferRequestMessage(filePath, fileSize, lastModified, blake3Hash, chunkSize, messageId);
+        // Handle backward compatibility or new field
+        String compressionType = "NONE";
+        if (buffer.hasRemaining()) {
+            try {
+                compressionType = readString(buffer);
+            } catch (Exception e) {
+                // Could not read compression type, assume NONE or end of buffer
+            }
+        }
+
+        return new FileTransferRequestMessage(filePath, fileSize, lastModified, blake3Hash, chunkSize, compressionType,
+                messageId);
     }
 
     /**
      * Creates a file transfer request message with specified message ID.
      *
-     * @param filePath the file path
-     * @param fileSize the file size in bytes
-     * @param lastModified the last modified timestamp (epoch milliseconds)
-     * @param blake3Hash the BLAKE3 hash of the file
-     * @param chunkSize the preferred chunk size for transfer
-     * @param messageId the message ID
+     * @param filePath        the file path
+     * @param fileSize        the file size in bytes
+     * @param lastModified    the last modified timestamp (epoch milliseconds)
+     * @param blake3Hash      the BLAKE3 hash of the file
+     * @param chunkSize       the preferred chunk size for transfer
+     * @param compressionType the compression type
+     * @param messageId       the message ID
      */
     private FileTransferRequestMessage(String filePath, long fileSize, long lastModified,
-                               String blake3Hash, int chunkSize, int messageId) {
+            String blake3Hash, int chunkSize, String compressionType, int messageId) {
         super(MessageType.FILE_TRANSFER_REQUEST, ProtocolConstants.Flags.ACK_REQUIRED, messageId);
         this.filePath = filePath;
         this.fileSize = fileSize;
         this.lastModified = lastModified;
         this.blake3Hash = blake3Hash;
         this.chunkSize = chunkSize;
+        this.compressionType = compressionType;
     }
 
     /**
@@ -151,6 +174,15 @@ public class FileTransferRequestMessage extends AbstractProtocolMessage {
         return chunkSize;
     }
 
+    /**
+     * Gets the compression type.
+     * 
+     * @return the compression type
+     */
+    public String getCompressionType() {
+        return compressionType;
+    }
+
     @Override
     public ByteBuffer serializePayload() {
         int payloadSize = getPayloadSize();
@@ -161,6 +193,7 @@ public class FileTransferRequestMessage extends AbstractProtocolMessage {
         buffer.putLong(lastModified);
         writeString(buffer, blake3Hash);
         buffer.putInt(chunkSize);
+        writeString(buffer, compressionType);
 
         buffer.flip();
         return buffer;
@@ -168,8 +201,8 @@ public class FileTransferRequestMessage extends AbstractProtocolMessage {
 
     @Override
     public int getPayloadSize() {
-        return calculateStringSize(filePath) + 8 + 8 + calculateStringSize(blake3Hash) + 4;
-        // filePath + fileSize(8) + lastModified(8) + blake3Hash + chunkSize(4)
+        return calculateStringSize(filePath) + 8 + 8 + calculateStringSize(blake3Hash) + 4
+                + calculateStringSize(compressionType);
     }
 
     @Override
@@ -182,7 +215,8 @@ public class FileTransferRequestMessage extends AbstractProtocolMessage {
                 && lastModified >= 0
                 && blake3Hash.length() == 64 // BLAKE3 hash is 64 hex characters
                 && chunkSize > 0
-                && chunkSize <= ProtocolConstants.MAX_CHUNK_SIZE;
+                && chunkSize <= ProtocolConstants.MAX_CHUNK_SIZE
+                && compressionType != null;
     }
 
     @Override
@@ -202,18 +236,19 @@ public class FileTransferRequestMessage extends AbstractProtocolMessage {
                 && lastModified == that.lastModified
                 && chunkSize == that.chunkSize
                 && filePath.equals(that.filePath)
-                && blake3Hash.equals(that.blake3Hash);
+                && blake3Hash.equals(that.blake3Hash)
+                && compressionType.equals(that.compressionType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), filePath, fileSize, lastModified, blake3Hash, chunkSize);
+        return Objects.hash(super.hashCode(), filePath, fileSize, lastModified, blake3Hash, chunkSize, compressionType);
     }
 
     @Override
     public String toString() {
         return String.format("FileTransferRequestMessage{path='%s', size=%d, lastModified=%d, hash='%s', "
-                           + "chunkSize=%d, %s}",
-                           filePath, fileSize, lastModified, blake3Hash, chunkSize, super.toString());
+                + "chunkSize=%d, compression='%s', %s}",
+                filePath, fileSize, lastModified, blake3Hash, chunkSize, compressionType, super.toString());
     }
 }

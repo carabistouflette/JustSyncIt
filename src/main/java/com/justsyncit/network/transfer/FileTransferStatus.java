@@ -78,18 +78,35 @@ public class FileTransferStatus {
     private volatile String errorMessage;
     /** The timestamp of the last update. */
     private volatile long lastUpdateTime;
+    /** The compression type used for this transfer. */
+    private final String compressionType;
 
     /**
      * Creates a new file transfer status.
      *
-     * @param transferId the transfer ID
-     * @param filePath the file path
+     * @param transferId    the transfer ID
+     * @param filePath      the file path
      * @param remoteAddress the remote address
-     * @param fileSize the file size
-     * @param state the initial state
+     * @param fileSize      the file size
+     * @param state         the initial state
      */
     public FileTransferStatus(String transferId, Path filePath, InetSocketAddress remoteAddress,
-                              long fileSize, TransferState state) {
+            long fileSize, TransferState state) {
+        this(transferId, filePath, remoteAddress, fileSize, state, "NONE");
+    }
+
+    /**
+     * Creates a new file transfer status with compression type.
+     *
+     * @param transferId      the transfer ID
+     * @param filePath        the file path
+     * @param remoteAddress   the remote address
+     * @param fileSize        the file size
+     * @param state           the initial state
+     * @param compressionType the compression type
+     */
+    public FileTransferStatus(String transferId, Path filePath, InetSocketAddress remoteAddress,
+            long fileSize, TransferState state, String compressionType) {
         this.transferId = Objects.requireNonNull(transferId, "transferId cannot be null");
         this.filePath = Objects.requireNonNull(filePath, "filePath cannot be null");
         this.remoteAddress = Objects.requireNonNull(remoteAddress, "remoteAddress cannot be null");
@@ -98,20 +115,37 @@ public class FileTransferStatus {
         this.startTime = System.currentTimeMillis();
         this.state = Objects.requireNonNull(state, "state cannot be null");
         this.lastUpdateTime = startTime;
+        this.compressionType = Objects.requireNonNull(compressionType, "compressionType cannot be null");
     }
 
     /**
      * Creates a new file transfer status in PENDING state.
      *
-     * @param transferId the transfer ID
-     * @param filePath the file path
+     * @param transferId    the transfer ID
+     * @param filePath      the file path
      * @param remoteAddress the remote address
-     * @param fileSize the file size
+     * @param fileSize      the file size
      * @return a new file transfer status
      */
     public static FileTransferStatus pending(String transferId, Path filePath,
-                                           InetSocketAddress remoteAddress, long fileSize) {
-        return new FileTransferStatus(transferId, filePath, remoteAddress, fileSize, TransferState.PENDING);
+            InetSocketAddress remoteAddress, long fileSize) {
+        return new FileTransferStatus(transferId, filePath, remoteAddress, fileSize, TransferState.PENDING, "NONE");
+    }
+
+    /**
+     * Creates a new file transfer status in PENDING state with compression.
+     *
+     * @param transferId      the transfer ID
+     * @param filePath        the file path
+     * @param remoteAddress   the remote address
+     * @param fileSize        the file size
+     * @param compressionType the compression type
+     * @return a new file transfer status
+     */
+    public static FileTransferStatus pending(String transferId, Path filePath,
+            InetSocketAddress remoteAddress, long fileSize, String compressionType) {
+        return new FileTransferStatus(transferId, filePath, remoteAddress, fileSize, TransferState.PENDING,
+                compressionType);
     }
 
     /**
@@ -139,6 +173,15 @@ public class FileTransferStatus {
      */
     public InetSocketAddress getRemoteAddress() {
         return remoteAddress;
+    }
+
+    /**
+     * Gets the compression type.
+     * 
+     * @return the compression type
+     */
+    public String getCompressionType() {
+        return compressionType;
     }
 
     /**
@@ -300,9 +343,9 @@ public class FileTransferStatus {
     @Override
     public String toString() {
         return String.format("FileTransferStatus{transferId='%s', filePath=%s, remoteAddress=%s, "
-                               + "fileSize=%d, bytesTransferred=%d, progress=%.2f%%, state=%s, "
-                               + "elapsedTime=%dms, rate=%.2f bytes/s}",
-                               transferId, filePath, remoteAddress, fileSize, getBytesTransferred(),
-                               getProgressPercentage(), state, getElapsedTime(), getCurrentTransferRate());
+                + "fileSize=%d, bytesTransferred=%d, progress=%.2f%%, state=%s, "
+                + "elapsedTime=%dms, rate=%.2f bytes/s}",
+                transferId, filePath, remoteAddress, fileSize, getBytesTransferred(),
+                getProgressPercentage(), state, getElapsedTime(), getCurrentTransferRate());
     }
 }
