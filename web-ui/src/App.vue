@@ -13,10 +13,10 @@ onMounted(() => {
 
 <template>
   <div class="app-container">
-    <AppHeader :connected="isConnected" />
+    <AppHeader v-if="!$route.path.includes('/login')" :connected="isConnected" />
     <div class="app-main">
-      <AppSidebar />
-      <main class="app-content">
+      <AppSidebar v-if="!$route.path.includes('/login')" />
+      <main :class="['app-content', { 'fullscreen': $route.path.includes('/login') }]">
         <router-view />
       </main>
     </div>
@@ -40,6 +40,10 @@ onMounted(() => {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
+}
+
+.app-content.fullscreen {
+  padding: 0;
 }
 
 @media (max-width: 768px) {
