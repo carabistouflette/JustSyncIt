@@ -2,6 +2,7 @@ package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Timeout;
 
 import java.nio.ByteBuffer;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * Uses isolated pool pattern to prevent state bleeding between tests.
  */
 @DisplayName("Async Error Handling Tests")
+@Tag("slow")
 class AsyncErrorHandlingTest extends AsyncTestBase {
 
     @Test

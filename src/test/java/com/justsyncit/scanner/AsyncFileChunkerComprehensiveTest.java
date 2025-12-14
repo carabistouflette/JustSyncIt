@@ -22,6 +22,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
@@ -60,6 +61,7 @@ import static org.junit.jupiter.api.Assertions.fail;
  * performance characteristics, and concurrent access patterns.
  */
 @DisplayName("AsyncFileChunker Comprehensive Tests")
+@Tag("slow")
 class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
     @TempDir
@@ -439,7 +441,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
         @ParameterizedTest
         @Timeout(15)
-        @ValueSource(ints = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
+        @ValueSource(ints = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
         @DisplayName("Should handle various file sizes")
         void shouldHandleVariousFileSizes(int fileSize) throws Exception {
             // Given
@@ -462,7 +464,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
         @ParameterizedTest
         @Timeout(15)
-        @ValueSource(ints = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
+        @ValueSource(ints = { 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536 })
         @DisplayName("Should handle various chunk sizes")
         void shouldHandleVariousChunkSizes(int chunkSize) throws Exception {
             // Given
@@ -1216,7 +1218,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 break;
             case REPEATING:
                 data = new byte[size];
-                byte[] dataPattern = {0x42, 0x43, 0x44, 0x45 };
+                byte[] dataPattern = { 0x42, 0x43, 0x44, 0x45 };
                 for (int i = 0; i < size; i++) {
                     data[i] = dataPattern[i % dataPattern.length];
                 }
