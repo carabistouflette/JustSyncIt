@@ -45,6 +45,9 @@ public final class FileBrowserController {
     private static final Logger LOGGER = Logger.getLogger(FileBrowserController.class.getName());
     private static final int MAX_RESULTS = 1000;
 
+    private static final java.util.Set<String> FORBIDDEN_NAMES = java.util.Set.of(
+            ".ssh", ".aws", ".gnupg", ".kube", ".netrc", "credentials");
+
     public FileBrowserController() {
         // No dependencies needed
     }
@@ -199,8 +202,17 @@ public final class FileBrowserController {
         String pathStr = path.toString();
 
         // Block only truly sensitive virtual filesystems
-        if (pathStr.startsWith("/proc") || pathStr.startsWith("/sys") || pathStr.startsWith("/dev")) {
+        if (pathStr.startsWith("/proc") || pathStr.startsWith("/sys") || pathStr.startsWith("/dev")
+                || pathStr.startsWith("/run")) {
             return false;
+        }
+
+        // Block sensitive directories
+        for (Path part : path) {
+            if (FORBIDDEN_NAMES.contains(part.toString())) {
+                LOGGER.warning("Access denied to sensitive path: " + path);
+                return false;
+            }
         }
 
         // Allow root and all other paths for browsing

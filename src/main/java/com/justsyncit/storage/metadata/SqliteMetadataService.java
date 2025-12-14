@@ -34,8 +34,10 @@ import java.util.Optional;
 
 /**
  * SQLite implementation of MetadataService.
- * Provides metadata management for snapshots, files, and chunks using SQLite database.
- * Follows Single Responsibility Principle by focusing only on metadata operations.
+ * Provides metadata management for snapshots, files, and chunks using SQLite
+ * database.
+ * Follows Single Responsibility Principle by focusing only on metadata
+ * operations.
  */
 public final class SqliteMetadataService implements MetadataService {
 
@@ -53,11 +55,11 @@ public final class SqliteMetadataService implements MetadataService {
      * Creates a new SqliteMetadataService.
      *
      * @param connectionManager database connection manager
-     * @param schemaMigrator schema migrator
+     * @param schemaMigrator    schema migrator
      * @throws IllegalArgumentException if any parameter is null
      */
     public SqliteMetadataService(DatabaseConnectionManager connectionManager,
-                      SchemaMigrator schemaMigrator) throws IOException {
+            SchemaMigrator schemaMigrator) throws IOException {
         if (connectionManager == null) {
             throw new IllegalArgumentException("Connection manager cannot be null");
         }
@@ -74,7 +76,8 @@ public final class SqliteMetadataService implements MetadataService {
             // Enable foreign keys and performance optimizations for this connection
             try (var stmt = connection.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
-                // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
+                // Use DELETE journal mode instead of WAL to avoid connection isolation issues
+                // in tests
                 stmt.execute("PRAGMA journal_mode=DELETE");
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
@@ -116,7 +119,8 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Snapshot name cannot be null or empty");
         }
 
-        // Use the provided name as the ID for consistency with FileProcessor expectations
+        // Use the provided name as the ID for consistency with FileProcessor
+        // expectations
         String id = name;
         Instant now = Instant.now();
 
@@ -139,6 +143,34 @@ public final class SqliteMetadataService implements MetadataService {
 
         } catch (SQLException e) {
             throw new IOException("Failed to create snapshot", e);
+        }
+    }
+
+    @Override
+    public void updateSnapshot(Snapshot snapshot) throws IOException {
+        validateNotClosed();
+        if (snapshot == null) {
+            throw new IllegalArgumentException("Snapshot cannot be null");
+        }
+
+        String sql = "UPDATE snapshots SET total_files = ?, total_size = ? WHERE id = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setLong(1, snapshot.getTotalFiles());
+            stmt.setLong(2, snapshot.getTotalSize());
+            stmt.setString(3, snapshot.getId());
+
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                logger.debug("Updated snapshot stats: {}", snapshot);
+            } else {
+                logger.warn("Snapshot not found for update: {}", snapshot.getId());
+            }
+
+        } catch (SQLException e) {
+            throw new IOException("Failed to update snapshot", e);
         }
     }
 

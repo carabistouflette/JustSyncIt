@@ -10,13 +10,16 @@ const searchQuery = ref('')
 const searchResults = ref([])
 const showHidden = ref(false)
 
+const parentPath = ref(null)
+
 async function browse(path = '/') {
   loading.value = true
   error.value = null
   try {
     const response = await filesApi.browse(path, showHidden.value)
     files.value = response.data.entries || []
-    currentPath.value = path
+    currentPath.value = response.data.path || path
+    parentPath.value = response.data.parent
     searchResults.value = []
     searchQuery.value = ''
   } catch (e) {
@@ -44,9 +47,9 @@ async function search() {
 }
 
 function navigateUp() {
-  const parts = currentPath.value.split('/').filter(Boolean)
-  parts.pop()
-  browse('/' + parts.join('/') || '/')
+  if (parentPath.value) {
+    browse(parentPath.value)
+  }
 }
 
   function handleClick(entry) {
