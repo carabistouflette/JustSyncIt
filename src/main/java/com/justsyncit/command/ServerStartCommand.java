@@ -18,7 +18,6 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
@@ -34,10 +33,13 @@ import java.util.Locale;
 
 public class ServerStartCommand implements Command {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ServerStartCommand.class);
+
     private static final int DEFAULT_PORT = 8080;
     private static final int MIN_PORT = 1;
     private static final int MAX_PORT = 65535;
-    private static final int STARTUP_WAIT_MS = 1000;
+    private static final int STARTUP_TIMEOUT_MS = 5000;
+    private static final int STARTUP_POLL_INTERVAL_MS = 100;
     private static final int STATUS_UPDATE_INTERVAL_MS = 1000;
 
     private final NetworkService networkService;
@@ -108,6 +110,7 @@ public class ServerStartCommand implements Command {
                     localService = serviceFactory.createNetworkService();
                     service = localService;
                 } catch (Exception e) {
+                    logger.error("Failed to initialize network service", e);
                     System.err.println("Error: Failed to initialize network service: " + e.getMessage());
                     return false;
                 }
@@ -116,6 +119,7 @@ public class ServerStartCommand implements Command {
             return startServer(service, options);
 
         } catch (Exception e) {
+            logger.error("Failed to start server", e);
             System.err.println("Error: Failed to start server: " + e.getMessage());
             return false;
         } finally {
@@ -218,11 +222,20 @@ public class ServerStartCommand implements Command {
         // Setup completion handler
         setupCompletionHandler(service, startFuture, options);
 
-        // Wait for server to start
-        Thread.sleep(STARTUP_WAIT_MS);
+        // Wait for server to start with polling
+        long deadline = System.currentTimeMillis() + STARTUP_TIMEOUT_MS;
+        while (System.currentTimeMillis() < deadline) {
+            if (service.isServerRunning()) {
+                break;
+            }
+            if (startFuture.isCompletedExceptionally()) {
+                break; // Handled by completion handler or future.get check if we were doing that
+            }
+            Thread.sleep(STARTUP_POLL_INTERVAL_MS);
+        }
 
         if (!service.isServerRunning()) {
-            System.err.println("Server failed to start");
+            System.err.println("Server failed to start (timeout or error)");
             return false;
         }
 
@@ -259,6 +272,7 @@ public class ServerStartCommand implements Command {
             StartOptions options) {
         startFuture.whenComplete((result, throwable) -> {
             if (throwable != null) {
+                logger.error("Failed to start server", throwable);
                 System.err.println("Failed to start server: " + throwable.getMessage());
             } else if (options.verbose) {
                 System.out.println("Server started successfully!");
@@ -283,6 +297,7 @@ public class ServerStartCommand implements Command {
                 service.stopServer().get();
                 System.out.println("Server stopped.");
             } catch (Exception e) {
+                logger.error("Error stopping server", e);
                 System.err.println("Error stopping server: " + e.getMessage());
             }
         }));
@@ -357,6 +372,7 @@ public class ServerStartCommand implements Command {
             try {
                 resource.close();
             } catch (Exception e) {
+                logger.warn("Failed to close resource", e);
                 System.err.println("Warning: Failed to close resource: " + e.getMessage());
             }
         }

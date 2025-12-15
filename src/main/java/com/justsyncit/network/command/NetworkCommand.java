@@ -36,7 +36,8 @@ import com.justsyncit.storage.ContentStore;
 
 /**
  * Command for managing network operations.
- * Follows Single Responsibility Principle by handling only network-related commands.
+ * Follows Single Responsibility Principle by handling only network-related
+ * commands.
  */
 public class NetworkCommand implements Command {
 
@@ -52,7 +53,7 @@ public class NetworkCommand implements Command {
      * Creates a new network command.
      *
      * @param networkService the network service
-     * @param contentStore the content store
+     * @param contentStore   the content store
      */
     private NetworkCommand(NetworkService networkService, ContentStore contentStore) {
         // Store references to services - these are injected dependencies
@@ -64,7 +65,7 @@ public class NetworkCommand implements Command {
      * Creates a new network command with validation.
      *
      * @param networkService the network service
-     * @param contentStore the content store
+     * @param contentStore   the content store
      * @return a new NetworkCommand instance
      * @throws IllegalArgumentException if any parameter is null
      */
@@ -142,6 +143,7 @@ public class NetworkCommand implements Command {
             networkService.startServer(port)
                     .thenRun(() -> System.out.println("Network server started on port " + port))
                     .exceptionally(e -> {
+                        logger.error("Failed to start network server", e);
                         System.out.println("Failed to start network server: " + e.getMessage());
                         return null;
                     })
@@ -161,6 +163,7 @@ public class NetworkCommand implements Command {
             networkService.stopServer()
                     .thenRun(() -> System.out.println("Network server stopped"))
                     .exceptionally(e -> {
+                        logger.error("Failed to stop network server", e);
                         System.out.println("Failed to stop network server: " + e.getMessage());
                         return null;
                     })
@@ -192,6 +195,7 @@ public class NetworkCommand implements Command {
             networkService.connectToNode(address)
                     .thenRun(() -> System.out.println("Connected to " + address))
                     .exceptionally(e -> {
+                        logger.error("Failed to connect to " + address, e);
                         System.out.println("Failed to connect to " + address + ": " + e.getMessage());
                         return null;
                     })
@@ -226,6 +230,7 @@ public class NetworkCommand implements Command {
             networkService.disconnectFromNode(address)
                     .thenRun(() -> System.out.println("Disconnected from " + address))
                     .exceptionally(e -> {
+                        logger.error("Failed to disconnect from " + address, e);
                         System.out.println("Failed to disconnect from " + address + ": " + e.getMessage());
                         return null;
                     })
@@ -266,6 +271,7 @@ public class NetworkCommand implements Command {
             Instant start = Instant.now();
             FileTransferResult result = networkService.sendFile(filePath, remoteAddress, contentStore)
                     .exceptionally(e -> {
+                        logger.error("File transfer failed", e);
                         System.out.println("File transfer failed: " + e.getMessage());
                         return null;
                     })

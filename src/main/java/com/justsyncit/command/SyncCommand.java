@@ -38,6 +38,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.Locale;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Command for synchronizing local directory with remote server.
  * Follows Single Responsibility Principle by handling only synchronization
@@ -45,6 +48,8 @@ import java.util.Locale;
  */
 
 public class SyncCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(SyncCommand.class);
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
@@ -139,6 +144,7 @@ public class SyncCommand implements Command {
             return success;
 
         } catch (Exception e) {
+            logger.error("Synchronization failed", e);
             System.err.println("Error: Synchronization failed: " + e.getMessage());
             if (e.getCause() != null) {
                 System.err.println("Cause: " + e.getCause().getMessage());
@@ -208,6 +214,7 @@ public class SyncCommand implements Command {
             return true;
 
         } catch (Exception e) {
+            logger.error("Synchronization logic failed", e);
             System.err.println("Error: Synchronization logic failed: " + e.getMessage());
             return false;
         }
@@ -424,6 +431,7 @@ public class SyncCommand implements Command {
                 try {
                     netService.close();
                 } catch (Exception e) {
+                    logger.warn("Failed to close network service", e);
                     System.err.println("Warning: Failed to close network service: " + e.getMessage());
                 }
             }
@@ -431,6 +439,7 @@ public class SyncCommand implements Command {
                 try {
                     metadataService.close();
                 } catch (Exception e) {
+                    logger.warn("Failed to close metadata service", e);
                     System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
                 }
             }
@@ -438,6 +447,7 @@ public class SyncCommand implements Command {
                 try {
                     contentStore.close();
                 } catch (Exception e) {
+                    logger.warn("Failed to close content store", e);
                     System.err.println("Warning: Failed to close content store: " + e.getMessage());
                 }
             }
@@ -456,6 +466,7 @@ public class SyncCommand implements Command {
             bs = serviceFactory.createBlake3Service();
             cs = serviceFactory.createSqliteContentStore(bs);
         } catch (Exception e) {
+            logger.error("Failed to initialize services", e);
             System.err.println("Error: Failed to initialize services: " + e.getMessage());
             // Cleanup partilly initialized services
             if (ns != null && networkService == null) {

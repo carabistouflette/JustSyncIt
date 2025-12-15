@@ -175,7 +175,7 @@ public class BatchScheduler {
                     0, DEFAULT_SCHEDULING_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
             // Start resource monitoring
-            resourceMonitor.start();
+            resourceMonitor.start(schedulingExecutor);
 
             logger.info("Batch scheduler started successfully");
         }
@@ -698,21 +698,23 @@ public class BatchScheduler {
      * Resource monitor for adaptive scheduling.
      */
     private static class ResourceMonitor {
-        private final AtomicBoolean monitoring = new AtomicBoolean(false);
         private final AtomicReference<ResourceUtilization> currentUtilization = new AtomicReference<>(
                 new ResourceUtilization(0.0, 0.0, 0.0, 0, 0L, 0L, 0L));
+        private volatile java.util.concurrent.ScheduledFuture<?> monitorTask;
 
-        public void start() {
-            if (monitoring.compareAndSet(false, true)) {
-                // Start resource monitoring thread
-                Thread monitorThread = new Thread(this::monitorResources, "BatchResourceMonitor");
-                monitorThread.setDaemon(true);
-                monitorThread.start();
+        public void start(ScheduledExecutorService executor) {
+            if (monitorTask == null || monitorTask.isCancelled()) {
+                // Schedule resource monitoring
+                monitorTask = executor.scheduleAtFixedRate(this::monitorResources,
+                        0, 1, TimeUnit.SECONDS);
             }
         }
 
         public void stop() {
-            monitoring.set(false);
+            if (monitorTask != null) {
+                monitorTask.cancel(false);
+                monitorTask = null;
+            }
         }
 
         public ResourceUtilization getCurrentUtilization() {
@@ -720,33 +722,26 @@ public class BatchScheduler {
         }
 
         private void monitorResources() {
-            while (monitoring.get()) {
-                try {
-                    // Collect resource utilization metrics
-                    Runtime runtime = Runtime.getRuntime();
-                    long maxMemory = runtime.maxMemory();
-                    long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-                    double memoryUtilization = (double) usedMemory / maxMemory * 100.0;
+            try {
+                // Collect resource utilization metrics
+                Runtime runtime = Runtime.getRuntime();
+                long maxMemory = runtime.maxMemory();
+                long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+                double memoryUtilization = (double) usedMemory / maxMemory * 100.0;
 
-                    // Estimate CPU utilization (simplified)
-                    // Create a simple resource utilization object for monitoring
-                    double cpuUtilization = Math.min(90.0, 50.0); // Simplified estimate
-                    double ioUtilization = Math.min(95.0, 60.0); // Simplified estimate
+                // Estimate CPU utilization (simplified)
+                // Create a simple resource utilization object for monitoring
+                double cpuUtilization = Math.min(90.0, 50.0); // Simplified estimate
+                double ioUtilization = Math.min(95.0, 60.0); // Simplified estimate
 
-                    ResourceUtilization utilization = new ResourceUtilization(
-                            cpuUtilization, memoryUtilization, ioUtilization,
-                            1, usedMemory / (1024 * 1024), 0L, 0L);
+                ResourceUtilization utilization = new ResourceUtilization(
+                        cpuUtilization, memoryUtilization, ioUtilization,
+                        1, usedMemory / (1024 * 1024), 0L, 0L);
 
-                    currentUtilization.set(utilization);
+                currentUtilization.set(utilization);
 
-                    Thread.sleep(1000); // Update every second
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    logger.error("Error monitoring resources", e);
-                }
+            } catch (Exception e) {
+                logger.error("Error monitoring resources", e);
             }
         }
     }
