@@ -27,7 +27,10 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Phaser;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -53,6 +56,8 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
     private final ExecutorService executorService;
     /** Semaphore for controlling concurrent processing. */
     private Semaphore processingSemaphore;
+    /** Phaser for tracking active chunk processing tasks. */
+    private final Phaser phaser;
     /** Whether the handler has been closed. */
     private volatile boolean closed;
 
@@ -95,6 +100,8 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
         this.processingChunks = new AtomicInteger(0);
         this.executorService = Executors.newFixedThreadPool(maxConcurrentChunks);
         this.processingSemaphore = new Semaphore(maxConcurrentChunks);
+        // Register the main thread/handler itself as a party
+        this.phaser = new Phaser(1);
         this.closed = false;
     }
 
@@ -108,6 +115,9 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
             return CompletableFuture.failedFuture(new IllegalStateException("Chunk handler has been closed"));
         }
 
+        // Register this chunk task
+        phaser.register();
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 processingSemaphore.acquire();
@@ -118,10 +128,18 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
                 } finally {
                     processingSemaphore.release();
                     processingChunks.decrementAndGet();
+                    // Deregister when done
+                    phaser.arriveAndDeregister();
                 }
             } catch (InterruptedException e) {
+                // Ensure we deregister even on interrupt before start
+                phaser.arriveAndDeregister();
                 Thread.currentThread().interrupt();
                 throw new RuntimeException("Interrupted while processing chunk " + chunkIndex, e);
+            } catch (Exception e) {
+                // Ensure we deregister on any other exception
+                phaser.arriveAndDeregister();
+                throw e;
             }
         }, executorService);
     }
@@ -338,12 +356,19 @@ public class AsyncFileChunkHandler implements AsyncChunkHandler {
             executorService.shutdown();
 
             try {
-                // Wait for all currently processing chunks to complete
-                while (processingChunks.get() > 0) {
-                    Thread.sleep(10); // Small delay to avoid busy waiting
+                // Arrive and deregister the main thread/handler
+                phaser.arriveAndDeregister();
+
+                // Wait for all registered parties (chunk tasks) to arrive (complete)
+                // Use a reasonable timeout (e.g., 5 minute) to avoid blocking forever
+                try {
+                    phaser.awaitAdvanceInterruptibly(phaser.getPhase(), 5, TimeUnit.MINUTES);
+                } catch (TimeoutException e) {
+                    logger.warn("Timed out waiting for chunk processing to complete during close");
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                logger.warn("Interrupted while waiting for chunk processing to complete");
             }
 
             logger.info("Closed AsyncFileChunkHandler");

@@ -107,6 +107,7 @@ final public class RestoreService {
             RestoreProgressTracker tracker) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                long startTime = System.currentTimeMillis();
                 logger.info("Starting restore of snapshot: {} to directory: {}", snapshotId, targetDirectory);
 
                 // Validate inputs
@@ -145,10 +146,22 @@ final public class RestoreService {
                 // Complete restore
                 effectiveTracker.completeRestore(result);
 
-                logger.info("Restore completed successfully. Files: {}, Size: {} bytes",
-                        result.getFilesRestored(), result.getTotalBytesRestored());
+                long endTime = System.currentTimeMillis();
+                long duration = endTime - startTime;
 
-                return result;
+                // Create final result with actual duration
+                RestoreResult finalResult = RestoreResult.create(
+                        result.getFilesRestored(),
+                        result.getFilesSkipped(),
+                        result.getFilesWithErrors(),
+                        result.getTotalBytesRestored(),
+                        result.isIntegrityVerified(),
+                        duration);
+
+                logger.info("Restore completed successfully in {} ms. Files: {}, Size: {} bytes",
+                        duration, finalResult.getFilesRestored(), finalResult.getTotalBytesRestored());
+
+                return finalResult;
 
             } catch (RestoreException e) {
                 logger.error("Restore failed", e);
@@ -438,7 +451,8 @@ final public class RestoreService {
                 filesSkipped,
                 filesWithErrors,
                 totalBytesRestored,
-                integrityVerified);
+                integrityVerified,
+                0); // Temporary duration, updated in restore() method
     }
 
     /**
@@ -632,16 +646,20 @@ final public class RestoreService {
         /** Whether integrity was verified. */
         private final boolean integrityVerified;
 
+        /** Duration of restore operation in milliseconds. */
+        private final long duration;
+
         /**
          * Creates a new RestoreResult.
          */
         private RestoreResult(int filesRestored, int filesSkipped, int filesWithErrors,
-                long totalBytesRestored, boolean integrityVerified) {
+                long totalBytesRestored, boolean integrityVerified, long duration) {
             this.filesRestored = filesRestored;
             this.filesSkipped = filesSkipped;
             this.filesWithErrors = filesWithErrors;
             this.totalBytesRestored = totalBytesRestored;
             this.integrityVerified = integrityVerified;
+            this.duration = duration;
         }
 
         /**
@@ -652,12 +670,13 @@ final public class RestoreService {
          * @param filesWithErrors    number of files with errors
          * @param totalBytesRestored total bytes restored
          * @param integrityVerified  whether integrity was verified
+         * @param duration           duration in milliseconds
          * @return a new RestoreResult instance
          */
         public static RestoreResult create(int filesRestored, int filesSkipped, int filesWithErrors,
-                long totalBytesRestored, boolean integrityVerified) {
+                long totalBytesRestored, boolean integrityVerified, long duration) {
             return new RestoreResult(filesRestored, filesSkipped, filesWithErrors,
-                    totalBytesRestored, integrityVerified);
+                    totalBytesRestored, integrityVerified, duration);
         }
 
         public int getFilesRestored() {
@@ -685,7 +704,7 @@ final public class RestoreService {
         }
 
         public long getDuration() {
-            return 0; // FIXME: Implement duration tracking
+            return duration;
         }
     }
 }

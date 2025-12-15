@@ -22,6 +22,8 @@ import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.backup.BackupOptions;
 import com.justsyncit.backup.BackupService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
@@ -43,6 +45,8 @@ import java.util.Locale;
  */
 
 public class BackupCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(BackupCommand.class);
 
     private final BackupService backupService;
     private final ServiceFactory serviceFactory;
@@ -150,6 +154,7 @@ public class BackupCommand implements Command {
             return performBackup(service, netService, sourcePath, options);
 
         } catch (Exception e) {
+            logger.error("Backup execution failed", e);
             System.err.println("\nBackup failed: " + e.getMessage());
             if (e.getCause() != null) {
                 System.err.println("Cause: " + e.getCause().getMessage());

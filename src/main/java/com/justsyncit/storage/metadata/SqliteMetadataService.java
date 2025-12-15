@@ -81,6 +81,7 @@ public final class SqliteMetadataService implements MetadataService {
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");
                 stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
+                stmt.execute("PRAGMA busy_timeout=5000"); // 5s timeout for lock acquisition
                 stmt.execute("PRAGMA optimize");
             }
 
@@ -661,8 +662,21 @@ public final class SqliteMetadataService implements MetadataService {
 
             if (totalFiles > 0) {
                 avgChunksPerFile = (double) totalChunks / totalFiles;
-                // FIXME: Calculate actual deduplication ratio when we have more data
-                deduplicationRatio = 1.0;
+
+                // Calculate total logical size of all files
+                long totalLogicalSize = 0;
+                try (Statement stmt = connection.createStatement();
+                        ResultSet rs = stmt.executeQuery(
+                                "SELECT SUM(size) FROM files")) {
+                    if (rs.next()) {
+                        totalLogicalSize = rs.getLong(1);
+                    }
+                }
+
+                // Calculate deduplication ratio: Logical Size / Physical Storage Size
+                if (totalChunkSize > 0) {
+                    deduplicationRatio = (double) totalLogicalSize / totalChunkSize;
+                }
             }
 
             MetadataStats stats = new MetadataStats(
