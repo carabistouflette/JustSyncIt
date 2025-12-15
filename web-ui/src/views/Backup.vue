@@ -16,6 +16,12 @@ const showFileBrowser = ref(false)
 const error = ref(null)
 let pollInterval = null
 
+function formatFilePath(path) {
+  if (!path) return ''
+  const parts = path.split('/')
+  return parts.length > 3 ? '.../' + parts.slice(-2).join('/') : path
+}
+
 async function browseDirectory(path = '') {
   try {
     const response = await filesApi.browse(path, true)
@@ -110,29 +116,62 @@ onUnmounted(() => {
     <h1 class="page-title">Backup</h1>
     
     <!-- Backup in Progress -->
-    <div v-if="backupStore.isRunning" class="backup-running card">
-      <div class="running-header">
-        <h2>Backup in Progress</h2>
-        <span class="badge badge-warning">Running</span>
+    <!-- Backup in Progress -->
+    <div v-if="backupStore.isRunning">
+      <div class="backup-running card">
+          <div class="running-header">
+            <h2>
+               <span class="pulse-dot"></span>
+               Backup in Progress
+            </h2>
+            <span class="badge badge-warning">Running</span>
+          </div>
+          
+          <div class="progress-section">
+            <div class="progress-info">
+              <span class="percentage">{{ backupStore.progressPercent }}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-bar-fill" :style="{ width: backupStore.progressPercent + '%' }"></div>
+            </div>
+            <div class="progress-info" style="margin-top: 0.5rem; display: flex; flex-direction: column; align-items: flex-start;">
+                 <span class="activity-status" style="font-weight: 600; font-size: 0.9em; margin-bottom: 0.25rem;">{{ backupStore.currentActivity || 'Preparing backup...' }}</span>
+                 <span class="current-file" style="font-size: 0.85em; opacity: 0.8;" v-if="backupStore.currentFile">{{ formatFilePath(backupStore.currentFile) }}</span>
+            </div>
+            <div class="progress-stats">
+              <span>{{ backupStore.filesProcessed }} files processed</span>
+              <span>{{ formatBytes(backupStore.bytesProcessed) }}</span>
+            </div>
+          </div>
+          
+          <button class="btn btn-danger" @click="backupStore.cancelBackup">
+            Stop Backup
+          </button>
       </div>
-      
-      <div class="progress-section">
-        <div class="progress-info">
-          <span class="current-file">{{ backupStore.currentFile || 'Processing...' }}</span>
-          <span class="progress-percent">{{ backupStore.progressPercent }}%</span>
+
+       <!-- Activity Log -->
+      <div class="card log-card">
+        <div class="log-header">
+           <h3>Live Activity</h3>
+           <div class="log-actions">
+             <span class="log-count">{{ backupStore.logs.length }} events</span>
+           </div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-bar-fill" :style="{ width: backupStore.progressPercent + '%' }"></div>
-        </div>
-        <div class="progress-stats">
-          <span>{{ backupStore.filesProcessed }} files processed</span>
-          <span>{{ formatBytes(backupStore.bytesProcessed) }}</span>
+        <div class="log-container">
+          <div v-if="backupStore.logs.length === 0" class="log-entry">
+               <span class="log-time">--:--:--</span>
+               <span class="log-message" style="opacity: 0.5">Waiting for events...</span>
+          </div>
+          <div v-for="(log, index) in backupStore.logs" :key="index" class="log-entry" :class="log.level.toLowerCase()">
+            <span class="log-time">{{ new Date(log.timestamp).toLocaleTimeString() }}</span>
+            <span class="log-level">{{ log.level }}</span>
+            <span class="log-message">
+              {{ log.message }}
+              <span v-if="log.file" class="log-file">{{ formatFilePath(log.file) }}</span>
+            </span>
+          </div>
         </div>
       </div>
-      
-      <button class="btn btn-danger" @click="backupStore.cancelBackup">
-        Cancel Backup
-      </button>
     </div>
     
     <!-- Backup Form -->
@@ -479,6 +518,106 @@ function formatBytes(bytes) {
   color: var(--accent-primary);
 }
 
+/* Pulse Animation */
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+  box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+  animation: pulse-orange 2s infinite;
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+@keyframes pulse-orange {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+/* Activity Log Styles */
+.log-card {
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.log-header h3 {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.log-count {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.log-container {
+  overflow-y: auto;
+  flex: 1;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  border: 1px solid var(--border-color);
+  max-height: 300px;
+}
+
+.log-entry {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-time {
+  color: var(--text-muted);
+  font-size: 0.8em;
+  white-space: nowrap;
+}
+
+.log-level {
+  font-weight: 700;
+  font-size: 0.8em;
+  min-width: 45px;
+}
+
+.log-entry.info .log-level { color: var(--accent-primary); }
+.log-entry.warn .log-level { color: var(--warning); }
+.log-entry.error .log-level { color: var(--error); }
+
+.log-message {
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.log-entry.warn .log-message { color: var(--text-primary); }
+.log-entry.error .log-message { color: #fca5a5; }
+
+.log-file {
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 0.5rem;
+}
+
+/* Modal and other styles remain... */
 .modal-actions {
   display: flex;
   justify-content: flex-end;

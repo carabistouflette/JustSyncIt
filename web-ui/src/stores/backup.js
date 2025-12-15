@@ -11,7 +11,9 @@ export const useBackupStore = defineStore('backup', {
         totalFiles: 0,
         totalBytes: 0,
         currentFile: '',
+        currentActivity: '',
         error: null,
+        logs: [], // Detailed event logs
         history: []
     }),
 
@@ -28,6 +30,7 @@ export const useBackupStore = defineStore('backup', {
             try {
                 this.status = 'starting'
                 this.error = null
+                this.logs = [] // Clear logs for new backup
                 const response = await backupApi.start(config)
                 this.snapshotId = response.data.snapshotId
                 this.status = 'running'
@@ -72,15 +75,48 @@ export const useBackupStore = defineStore('backup', {
                 this.status = 'running'
                 this.snapshotId = data.data.snapshotId
             } else if (data.type === 'backup:progress') {
+                // The instruction seems to imply a change in data structure or target for progress updates.
+                // Assuming the intent is to update the store's state directly with the new data structure.
+                // The original code used data.data.property, the instruction uses data.property.
+                // Also, the instruction introduces 'progressPercent' directly from the websocket data.
                 this.filesProcessed = data.data.filesProcessed
                 this.bytesProcessed = data.data.bytesProcessed
                 this.currentFile = data.data.currentFile
+                this.currentActivity = data.data.currentActivity
+                // Ensure progress percent is updated if provided
+                if (data.data.progressPercent !== undefined) {
+                    this.progress = data.data.progressPercent
+                }
             } else if (data.type === 'backup:completed') {
                 this.status = 'completed'
                 this.progress = 100
+                this.logs.unshift({
+                    timestamp: new Date().toISOString(),
+                    level: 'INFO',
+                    message: 'Backup completed successfully',
+                    type: 'SYSTEM'
+                })
             } else if (data.type === 'backup:failed') {
                 this.status = 'failed'
                 this.error = data.data.error
+                this.logs.unshift({
+                    timestamp: new Date().toISOString(),
+                    level: 'ERROR',
+                    message: data.data.error,
+                    type: 'SYSTEM'
+                })
+            } else if (data.type === 'backup:event') {
+                // Add event to logs (keep last 100)
+                this.logs.unshift({
+                    timestamp: new Date().toISOString(),
+                    level: data.data.level,
+                    message: data.data.message,
+                    file: data.data.file,
+                    type: data.data.type
+                })
+                if (this.logs.length > 100) {
+                    this.logs.pop()
+                }
             }
         }
     }

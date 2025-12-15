@@ -52,10 +52,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+
 import { authApi } from '../services/api'
 
-const router = useRouter()
 const username = ref('')
 const password = ref('')
 const loading = ref(false)
@@ -71,7 +70,8 @@ const handleLogin = async () => {
     const token = response.data.token
     if (token) {
       localStorage.setItem('auth_token', token)
-      router.push('/')
+      // Force full reload to ensure clean state (WebSocket, API interceptors, Stores)
+      window.location.href = '/'
     } else {
       error.value = 'Login failed: No token received'
     }

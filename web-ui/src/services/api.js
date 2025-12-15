@@ -43,6 +43,7 @@ export const snapshotApi = {
     get: (id) => api.get(`/snapshots/${id}`),
     getFiles: (id, path = '', limit = 100) =>
         api.get(`/snapshots/${id}/files?path=${path}&limit=${limit}`),
+    getStats: (id) => api.get(`/snapshots/${id}/stats`),
     delete: (id) => api.delete(`/snapshots/${id}`),
     verify: (id) => api.post(`/snapshots/${id}/verify`)
 }
@@ -65,6 +66,19 @@ export const configApi = {
     update: (data) => api.put('/config', data),
     getBackupSources: () => api.get('/config/backup-sources'),
     addBackupSource: (path) => api.post('/config/backup-sources', { path })
+}
+
+export const schedulerApi = {
+    list: () => api.get('/schedules'),
+    create: (data) => api.post('/schedules', data),
+    delete: (id) => api.delete(`/schedules/${id}`)
+}
+
+export const usersApi = {
+    list: () => api.get('/users'),
+    create: (data) => api.post('/users', data),
+    update: (id, data) => api.put(`/users/${id}`, data),
+    delete: (id) => api.delete(`/users/${id}`)
 }
 
 export const authApi = {
