@@ -50,8 +50,8 @@ public class Blake3FileHasher implements FileHasher {
     /** Threshold for small files that can be read entirely into memory. */
     private static final long SMALL_FILE_THRESHOLD = 1024 * 1024; // 1MB
 
-    /** Maximum file size to prevent resource exhaustion (100MB). */
-    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    /** Maximum file size to prevent resource exhaustion (1TB). */
+    private static final long MAX_FILE_SIZE = 1099511627776L; // 1TB
 
     /** Stream hasher instance. */
     private final StreamHasher streamHasher;

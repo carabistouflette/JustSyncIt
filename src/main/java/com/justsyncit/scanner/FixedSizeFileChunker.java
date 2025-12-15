@@ -256,7 +256,7 @@ public class FixedSizeFileChunker implements FileChunker {
         }
         if (!Files.exists(file)) {
             return CompletableFuture.failedFuture(
-                    new IllegalArgumentException("File does not exist: " + file));
+                    new java.nio.file.NoSuchFileException(file.toString()));
         }
         if (!Files.isRegularFile(file)) {
             return CompletableFuture.failedFuture(
@@ -541,11 +541,13 @@ public class FixedSizeFileChunker implements FileChunker {
     /**
      * Processes all chunks asynchronously using true async I/O.
      */
+    /**
+     * Processes all chunks asynchronously using true async I/O.
+     */
     private CompletableFuture<Void> processAllChunksAsync(AsynchronousFileChannel channel, Path file, int chunkSize,
             long fileSize, int chunkCount, List<String> chunkHashes, ChunkingOptions options) {
         @SuppressWarnings("unchecked")
-        CompletableFuture<Void>[] chunkFutures = (CompletableFuture<Void>[]) new CompletableFuture<?>[chunkCount];
-        AtomicInteger completedChunks = new AtomicInteger(0);
+        CompletableFuture<String>[] chunkFutures = (CompletableFuture<String>[]) new CompletableFuture<?>[chunkCount];
 
         // Submit all chunk processing tasks
         for (int i = 0; i < chunkCount; i++) {
@@ -553,21 +555,27 @@ public class FixedSizeFileChunker implements FileChunker {
             final long offset = (long) i * chunkSize;
             final int length = (int) Math.min(chunkSize, fileSize - offset);
 
-            chunkFutures[i] = processChunkAsync(channel, offset, length, chunkIndex, file, chunkHashes, options)
-                    .thenAccept(hash -> {
-                        // Hash adding is handled inside processChunkAsync now
-                        completedChunks.incrementAndGet();
-                    })
-                    .exceptionally(throwable -> {
-                        logger.error("Error processing chunk at offset {} length {}", offset, length, throwable);
-                        return null; // Return null for exceptionally case
-                    });
+            chunkFutures[i] = processChunkAsync(channel, offset, length, chunkIndex, file, chunkHashes, options);
         }
 
         // Wait for all chunks to complete without blocking
         return CompletableFuture.allOf(chunkFutures)
                 .thenApply(v -> {
                     logger.debug("Completed processing {} chunks for file {}", chunkCount, file);
+                    // Collect results in order
+                    for (int i = 0; i < chunkCount; i++) {
+                        try {
+                            // Since allOf completed, get() will be immediate
+                            String hash = chunkFutures[i].join();
+                            chunkHashes.add(hash);
+                        } catch (Exception e) {
+                            // Should be handled by exceptionally/exceptionallyCompleted in individual
+                            // futures
+                            // but if we get here, something is wrong.
+                            logger.error("Failed to retrieve hash for chunk {}", i, e);
+                            throw new java.util.concurrent.CompletionException(e);
+                        }
+                    }
                     return null;
                 });
     }
@@ -628,8 +636,11 @@ public class FixedSizeFileChunker implements FileChunker {
                                         contentStore.storeChunk(chunkData);
                                         logger.debug("Stored chunk {} ({} bytes)", hash, chunkData.length);
                                     } catch (IOException e) {
-                                        logger.warn("Failed to store chunk {}: {}", hash, e.getMessage());
-                                        // Don't fail the operation - the hash is still valid
+                                        operationSemaphore.release();
+                                        activeOperations.decrementAndGet();
+                                        resultFuture.completeExceptionally(
+                                                new IOException("Failed to store chunk: " + hash, e));
+                                        return;
                                     }
                                 }
 
@@ -644,16 +655,19 @@ public class FixedSizeFileChunker implements FileChunker {
                                 // To maintain consistency with the original logic of adding to the shared list,
                                 // and given that `processAllChunksAsync` now just waits for futures,
                                 // this is the place to add the hash to the shared list.
-                                synchronized (chunkHashes) {
-                                    // Note: This adds hashes in the order they complete, not necessarily chunkIndex
-                                    // order.
-                                    // If order is critical for `ChunkingResult`, `processAllChunksAsync` would need
-                                    // to
-                                    // collect results into an array by index, or `processChunkAsync` would need to
-                                    // take an indexed array to fill.
-                                    // For now, following the pattern of adding to the list.
-                                    chunkHashes.add(hash);
-                                }
+                                // Add hash to the list. The original `processAllChunksAsync` used `synchronized
+                                // (chunkHashes)`.
+                                // To maintain consistency with the original logic of adding to the shared list,
+                                // and given that `processAllChunksAsync` now just waits for futures,
+                                // this is the place to add the hash to the shared list.
+                                // synchronized (chunkHashes) {
+                                // // Note: This adds hashes in the order they complete, not necessarily
+                                // chunkIndex
+                                // // order.
+                                // chunkHashes.add(hash);
+                                // }
+                                // FIX: WE DO NOT ADD TO LIST HERE ANYMORE to prevent ordering bugs.
+                                // The caller (processAllChunksAsync) will aggregate results in order.
 
                                 operationSemaphore.release();
                                 activeOperations.decrementAndGet();
@@ -737,17 +751,12 @@ public class FixedSizeFileChunker implements FileChunker {
 
             // Store chunk if content store is available
             if (contentStore != null) {
-                try {
-                    logger.trace("Storing chunk in content store");
-                    // Just try to store the chunk - content store should handle deduplication
-                    // This avoids the extra existsChunk check which can cause database contention
-                    contentStore.storeChunk(chunkData);
-                    logger.trace("Store complete");
-                    logger.debug("Stored chunk {} ({} bytes)", hash, chunkData.length);
-                } catch (IOException e) {
-                    logger.warn("Failed to store chunk {}: {}", hash, e.getMessage());
-                    // Don't fail the operation - the hash is still valid
-                }
+                logger.trace("Storing chunk in content store");
+                // Just try to store the chunk - content store should handle deduplication
+                // This avoids the extra existsChunk check which can cause database contention
+                contentStore.storeChunk(chunkData);
+                logger.trace("Store complete");
+                logger.debug("Stored chunk {} ({} bytes)", hash, chunkData.length);
             }
 
             return hash;
@@ -758,6 +767,8 @@ public class FixedSizeFileChunker implements FileChunker {
             throw new java.util.concurrent.CompletionException("Failed to read chunk", e.getCause());
         } catch (com.justsyncit.hash.HashingException e) {
             throw new java.util.concurrent.CompletionException("Failed to hash chunk", e);
+        } catch (IOException e) {
+            throw new java.util.concurrent.CompletionException("Failed to store chunk", e);
         } catch (RuntimeException e) {
             logger.error("Error processing chunk at offset {} length {}", offset, length, e);
             throw new java.util.concurrent.CompletionException("Failed to process chunk", e);
