@@ -151,7 +151,6 @@ public final class WebStartCommand implements Command {
         } catch (Exception e) {
             LOGGER.severe("Failed to start web server: " + e.getMessage());
             System.err.println("Error: Failed to start web server: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }

@@ -508,4 +508,45 @@ public class ThreadPoolManager {
 
         logger.info("ThreadPoolManager configuration updated successfully");
     }
+
+    /**
+     * Checks if the thread pool manager has been shut down.
+     */
+    public boolean isShutdown() {
+        return shutdown.get();
+    }
+
+    /**
+     * Checks if all thread pools have terminated.
+     */
+    public boolean isTerminated() {
+        if (!shutdown.get()) {
+            return false;
+        }
+        for (ManagedThreadPool pool : threadPools.values()) {
+            if (!pool.getExecutor().isTerminated()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Blocks until all tasks have completed execution after a shutdown request.
+     */
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        long nanos = unit.toNanos(timeout);
+        long deadline = System.nanoTime() + nanos;
+
+        for (ManagedThreadPool pool : threadPools.values()) {
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) {
+                return false;
+            }
+            if (!pool.getExecutor().awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
