@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import ThemeToggle from './ThemeToggle.vue'
 
 defineProps({
   connected: Boolean
@@ -45,8 +46,8 @@ onUnmounted(() => {
         </div>
         <span class="logo-text">JustSyncIt</span>
       </div>
-
       <div class="header-right">
+        <ThemeToggle />
         <div class="connection-status" :class="{ online: connected }">
           <div class="status-dot"></div>
           <span>{{ connected ? 'Connected' : 'Disconnected' }}</span>

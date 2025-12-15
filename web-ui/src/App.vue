@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import { useWebSocket } from './composables/useWebSocket'
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
+import ToastContainer from './components/ToastContainer.vue'
 
 const { connect, isConnected } = useWebSocket()
 
@@ -13,11 +14,16 @@ onMounted(() => {
 
 <template>
   <div class="app-container">
+    <ToastContainer />
     <AppHeader v-if="!$route.path.includes('/login')" :connected="isConnected" />
     <div class="app-main">
       <AppSidebar v-if="!$route.path.includes('/login')" />
       <main :class="['app-content', { 'fullscreen': $route.path.includes('/login') }]">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <Transition name="page" mode="out-in">
+            <component :is="Component" />
+          </Transition>
+        </router-view>
       </main>
     </div>
   </div>
@@ -50,5 +56,17 @@ onMounted(() => {
   .app-main {
     flex-direction: column;
   }
+}
+
+/* Page Transitions */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.page-enter-from,
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>
