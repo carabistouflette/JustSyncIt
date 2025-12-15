@@ -14,11 +14,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -118,7 +118,7 @@ public class NioFilesystemScanner implements FilesystemScanner {
         /** Counter for processed files. */
         private final AtomicLong filesProcessed;
         /** Set of visited paths to detect cycles. */
-        private final Set<Path> visitedPaths = ConcurrentHashMap.newKeySet();
+        private final Set<Path> visitedPaths = new HashSet<>();
 
         NioFileVisitor(ScanOptions options, List<ScanResult.ScannedFile> scannedFiles,
                 List<ScanResult.ScanError> errors, AtomicLong filesProcessed) {

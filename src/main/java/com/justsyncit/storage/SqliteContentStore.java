@@ -116,19 +116,17 @@ public final class SqliteContentStore extends AbstractContentStore {
 
         // Record chunk metadata
         // Use a transaction to ensure atomicity
-        Transaction transaction = null;
+        // Check if metadata already exists to avoid unnecessary upserts
         try {
-            // Check if metadata already exists to avoid unnecessary upserts
-            try {
-                if (metadataService.getChunkMetadata(hash).isPresent()) {
-                    logger.debug("Chunk metadata already exists for: {}", hash);
-                    return hash;
-                }
-            } catch (IOException e) {
-                logger.warn("Failed to check existing chunk metadata: {}", e.getMessage());
+            if (metadataService.getChunkMetadata(hash).isPresent()) {
+                logger.debug("Chunk metadata already exists for: {}", hash);
+                return hash;
             }
+        } catch (IOException e) {
+            logger.warn("Failed to check existing chunk metadata: {}", e.getMessage());
+        }
 
-            transaction = metadataService.beginTransaction();
+        try (Transaction transaction = metadataService.beginTransaction()) {
             ChunkMetadata chunkMetadata = new ChunkMetadata(
                     hash,
                     data.length,
@@ -139,34 +137,9 @@ public final class SqliteContentStore extends AbstractContentStore {
             transaction.commit();
 
             logger.debug("Recorded chunk metadata for: {}", hash);
-        } catch (IOException e) {
-            if (transaction != null) {
-                try {
-                    transaction.rollback();
-                } catch (Exception rollbackEx) {
-                    logger.warn("Failed to rollback transaction for chunk {}: {}", hash, rollbackEx.getMessage());
-                }
-            }
+        } catch (IOException | RuntimeException e) {
             logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
             // Don't fail the operation if metadata recording fails
-        } catch (RuntimeException e) {
-            if (transaction != null) {
-                try {
-                    transaction.rollback();
-                } catch (Exception rollbackEx) {
-                    logger.warn("Failed to rollback transaction for chunk {}: {}", hash, rollbackEx.getMessage());
-                }
-            }
-            logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
-            // Don't fail the operation if metadata recording fails
-        } finally {
-            if (transaction != null) {
-                try {
-                    transaction.close();
-                } catch (Exception closeEx) {
-                    logger.warn("Failed to close transaction for chunk {}: {}", hash, closeEx.getMessage());
-                }
-            }
         }
 
         return hash;

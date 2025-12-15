@@ -392,13 +392,16 @@ public class AsyncWatchServiceManager {
                 // Process queued events
                 processQueuedEvents();
 
-                // Small delay to prevent busy waiting
-                Thread.sleep(10);
+                // If no active registrations, wait a bit to avoid busy loop
+                if (activeRegistrations.isEmpty()) {
+                    try {
+                        Thread.sleep(100);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
 
-            } catch (InterruptedException e) {
-                logger.info("Event processing loop interrupted");
-                Thread.currentThread().interrupt();
-                break;
             } catch (Exception e) {
                 logger.error("Error in event processing loop", e);
                 stats.incrementWatchServiceErrors();
