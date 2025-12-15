@@ -251,11 +251,8 @@ public class FileProcessor {
                         logger.debug("Snapshot created and committed: {}", currentSnapshotId);
 
                         // Wait a moment to ensure the snapshot is visible to all connections
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                        }
+                        // Wait a moment to ensure the snapshot is visible to all connections
+                        // Removed artificial delay - transaction commit should ensure visibility
                     } catch (IOException e) {
                         if (snapshotTransaction != null) {
                             try {
@@ -443,7 +440,11 @@ public class FileProcessor {
 
         @Override
         public FileVisitResult visitFailed(Path file, IOException exc) throws IOException {
-            logger.warn("Failed to visit file: {}", file, exc);
+            if (exc instanceof java.nio.file.AccessDeniedException) {
+                logger.warn("Access denied to file: {} (skipping)", file);
+            } else {
+                logger.warn("Failed to visit file: {}", file, exc);
+            }
             skippedFiles.incrementAndGet();
             return FileVisitResult.CONTINUE;
         }
@@ -549,6 +550,20 @@ public class FileProcessor {
                                 }
                                 skippedFiles.incrementAndGet(); // Count as skipped
                                 return FileChunker.ChunkingResult.createFailed(file, (java.io.IOException) cause);
+                            }
+
+                            if (throwable instanceof java.nio.file.NoSuchFileException
+                                    || throwable instanceof java.io.FileNotFoundException
+                                    || (cause instanceof java.nio.file.NoSuchFileException)
+                                    || (cause instanceof java.io.FileNotFoundException)) {
+                                if (eventListener != null) {
+                                    eventListener.onEvent("SCAN_ERROR", "WARN", "File vanished during scan",
+                                            file.toString());
+                                } else {
+                                    logger.warn("File vanished during scan: {}", file);
+                                }
+                                skippedFiles.incrementAndGet(); // Count as skipped
+                                return FileChunker.ChunkingResult.createFailed(file, new IOException("File vanished"));
                             }
 
                             if (eventListener != null) {
@@ -839,6 +854,11 @@ public class FileProcessor {
                                 maxRetries, result.getFile());
                         throw lastException;
                     }
+                } else if (e.getMessage() != null && e.getMessage().contains("Snapshot does not exist")) {
+                    // Critical error: Snapshot is gone, we must abort immediately
+                    logger.error("Snapshot missing during processing: {}. Aborting FileProcessor.", result.getFile());
+                    stop(); // Stop the processor
+                    throw new IOException("Snapshot missing, aborting processing", e);
                 } else {
                     // Not a foreign key constraint, don't retry
                     throw e;
@@ -1144,6 +1164,19 @@ public class FileProcessor {
                         FileProcessor.this.processChunkingResult(result);
                     }
                 }
+
+                // Briefly show completion specific to this batch size before loop continues or
+                // waits
+                // But don't overwrite if we are immediately grabbing next batch
+                // Only if queue is empty might we want to indicate idle?
+
+                // briefly show completion specific to this batch size before loop continues or
+                // waits
+                setCurrentActivity("Persisted batch of " + validResults.size() + " (Done)");
+                if (progressListener != null) {
+                    progressListener.accept(FileProcessor.this);
+                }
+
             } catch (Exception e) {
                 logger.error("Unexpected error in batch processing", e);
             }

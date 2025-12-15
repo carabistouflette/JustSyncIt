@@ -42,7 +42,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Unit tests for FileProcessor.
- * Note: This test suite is Linux-only due to platform-specific file system behavior.
+ * Note: This test suite is Linux-only due to platform-specific file system
+ * behavior.
  */
 class FileProcessorTest {
     /** Temporary directory for tests. */
@@ -112,9 +113,9 @@ class FileProcessorTest {
             assertTrue(scanResult.getScannedFiles().stream()
                     .anyMatch(f -> f.getPath().endsWith("file1.txt"))
                     || scanResult.getScannedFiles().stream()
-                    .anyMatch(f -> f.getPath().endsWith("file2.txt"))
+                            .anyMatch(f -> f.getPath().endsWith("file2.txt"))
                     || scanResult.getScannedFiles().stream()
-                    .anyMatch(f -> f.getPath().endsWith("file3.txt")));
+                            .anyMatch(f -> f.getPath().endsWith("file3.txt")));
         }
     }
 
@@ -269,26 +270,47 @@ class FileProcessorTest {
 
     @Test
     void testIsRunning() throws IOException, ExecutionException, InterruptedException {
-        assertFalse(processor.isRunning());
+        // Setup mock chunker logic to block to ensure isRunning property can be
+        // verified
+        java.util.concurrent.CountDownLatch startLatch = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch completionLatch = new java.util.concurrent.CountDownLatch(1);
+
+        FileChunker mockChunker = org.mockito.Mockito.mock(FileChunker.class);
+        org.mockito.Mockito.when(mockChunker.getChunkSize()).thenReturn(1024);
+        org.mockito.Mockito
+                .when(mockChunker.chunkFile(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> CompletableFuture.supplyAsync(() -> {
+                    startLatch.countDown();
+                    try {
+                        completionLatch.await();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                    return new FileChunker.ChunkingResult(
+                            (Path) invocation.getArgument(0), 1, 100, 0, "hash", java.util.Collections.emptyList());
+                }));
+
+        FileProcessor testProcessor = FileProcessor.create(new NioFilesystemScanner(), mockChunker, contentStore,
+                metadataService);
 
         Path testDir = tempDir.resolve("running");
         Files.createDirectories(testDir);
         Files.write(testDir.resolve("test.txt"), "test".getBytes(StandardCharsets.UTF_8));
-        ScanOptions options = new ScanOptions();
-        CompletableFuture<FileProcessor.ProcessingResult> future = processor.processDirectory(testDir, options);
 
-        // Give a moment for processing to start, then check if running
-        try {
-            Thread.sleep(100); // Allow async processing to start
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        ScanOptions options = new ScanOptions();
+        CompletableFuture<FileProcessor.ProcessingResult> future = testProcessor.processDirectory(testDir, options);
+
+        // Wait for processing to reach chunking (which implies isRunning is set)
+        startLatch.await();
 
         // Should be running during processing
-        assertTrue(processor.isRunning());
+        assertTrue(testProcessor.isRunning());
+
+        // Allow completion
+        completionLatch.countDown();
         future.get();
 
         // Should not be running after completion
-        assertFalse(processor.isRunning());
+        assertFalse(testProcessor.isRunning());
     }
 }

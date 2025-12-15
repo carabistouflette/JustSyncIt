@@ -23,7 +23,8 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * NIO-based filesystem scanner implementation.
- * Provides recursive directory walking with filtering, symlink handling, and sparse file detection.
+ * Provides recursive directory walking with filtering, symlink handling, and
+ * sparse file detection.
  */
 public class NioFilesystemScanner implements FilesystemScanner {
     /** Logger for the filesystem scanner. */
@@ -187,7 +188,8 @@ public class NioFilesystemScanner implements FilesystemScanner {
             }
             try {
                 // Handle hidden files first - this should be checked before pattern matching
-                // to ensure hidden files are properly filtered out when includeHiddenFiles is false
+                // to ensure hidden files are properly filtered out when includeHiddenFiles is
+                // false
                 boolean isHidden = Files.isHidden(file);
                 if (!options.isIncludeHiddenFiles() && isHidden) {
                     logger.debug("Skipping hidden file: {}", file);
@@ -258,8 +260,7 @@ public class NioFilesystemScanner implements FilesystemScanner {
                 boolean isSparse = detectSparseFile(file, attrs);
                 // Create scanned file record
                 ScanResult.ScannedFile scannedFile = new ScanResult.ScannedFile(
-                        file, fileSize, attrs.lastModifiedTime().toInstant(), isSymlink, isSparse, linkTarget
-                );
+                        file, fileSize, attrs.lastModifiedTime().toInstant(), isSymlink, isSparse, linkTarget);
                 scannedFiles.add(scannedFile);
 
                 // Call custom file visitor if set
@@ -295,7 +296,11 @@ public class NioFilesystemScanner implements FilesystemScanner {
 
         @Override
         public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
-            logger.warn("Failed to visit file: {}", file, exc);
+            if (exc instanceof java.nio.file.AccessDeniedException) {
+                logger.warn("Access denied to file: {} (skipping)", file);
+            } else {
+                logger.warn("Failed to visit file: {}", file, exc);
+            }
             errors.add(new ScanResult.ScanError(file, exc, exc.getMessage()));
             if (progressListener != null) {
                 progressListener.onScanError(file, exc);
@@ -320,10 +325,10 @@ public class NioFilesystemScanner implements FilesystemScanner {
 
         /**
          * Checks if path matches include pattern.
-     *
-     * @param path the path to check
+         *
+         * @param path the path to check
          * @return true if matches include pattern
-     */
+         */
         private boolean matchesIncludePattern(Path path) {
             if (options.getIncludePattern() == null) {
                 return true;
@@ -357,7 +362,7 @@ public class NioFilesystemScanner implements FilesystemScanner {
         /**
          * Detects if file is sparse.
          *
-         * @param file the file to check
+         * @param file  the file to check
          * @param attrs file attributes
          * @return true if file is sparse
          */
@@ -412,7 +417,8 @@ public class NioFilesystemScanner implements FilesystemScanner {
             // This helps with tests on filesystems that don't support sparse files
             Path fileNamePath = file.getFileName();
             String fileName = fileNamePath != null
-                    ? fileNamePath.toString().toLowerCase(java.util.Locale.ROOT) : "";
+                    ? fileNamePath.toString().toLowerCase(java.util.Locale.ROOT)
+                    : "";
             if (fileName.contains("sparse")) {
                 logger.debug("File contains 'sparse' in name, treating as sparse for test compatibility: {}", file);
                 return true;
