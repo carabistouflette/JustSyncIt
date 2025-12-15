@@ -27,8 +27,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * Implementation of BufferPool using direct ByteBuffers for optimal I/O performance.
- * Follows Single Responsibility Principle by focusing only on buffer management.
+ * Implementation of BufferPool using direct ByteBuffers for optimal I/O
+ * performance.
+ * Follows Single Responsibility Principle by focusing only on buffer
+ * management.
  * Thread-safe implementation for concurrent access.
  */
 public class ByteBufferPool implements BufferPool {
@@ -72,15 +74,15 @@ public class ByteBufferPool implements BufferPool {
      * Creates a new ByteBufferPool with specified settings.
      *
      * @param defaultBufferSize default buffer size
-     * @param maxBuffers maximum number of buffers
+     * @param maxBuffers        maximum number of buffers
      * @return a new ByteBufferPool with specified settings
      * @throws IllegalArgumentException if parameters are invalid
      */
     public static ByteBufferPool create(int defaultBufferSize, int maxBuffers) {
         if (defaultBufferSize < MIN_BUFFER_SIZE || defaultBufferSize > MAX_BUFFER_SIZE) {
             throw new IllegalArgumentException(
-                String.format("Buffer size must be between %d and %d bytes",
-                    MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
+                    String.format("Buffer size must be between %d and %d bytes",
+                            MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
         }
         if (maxBuffers <= 0) {
             throw new IllegalArgumentException("Max buffers must be positive");
@@ -91,6 +93,7 @@ public class ByteBufferPool implements BufferPool {
 
     /**
      * Creates a new ByteBufferPool with default settings.
+     * 
      * @deprecated Use {@link #create()} instead
      */
     @Deprecated
@@ -102,7 +105,7 @@ public class ByteBufferPool implements BufferPool {
      * Creates a new ByteBufferPool with specified settings.
      *
      * @param defaultBufferSize the default buffer size
-     * @param maxBuffers maximum number of buffers
+     * @param maxBuffers        maximum number of buffers
      * @throws IllegalArgumentException if parameters are invalid
      * @deprecated Use {@link #create(int, int)} instead
      */
@@ -123,7 +126,7 @@ public class ByteBufferPool implements BufferPool {
         }
 
         logger.debug("Created ByteBufferPool with default size {} and max {} buffers, pre-allocated {}",
-                    defaultBufferSize, maxBuffers, initialBuffers);
+                defaultBufferSize, maxBuffers, initialBuffers);
     }
 
     @Override
@@ -136,8 +139,18 @@ public class ByteBufferPool implements BufferPool {
         }
 
         // Try to find an existing buffer that's large enough
-        ByteBuffer buffer = availableBuffers.poll();
-        while (buffer != null) {
+        // Limit the search to the number of currently available buffers to avoid
+        // infinite loops
+        // if all available buffers are smaller than requested size
+        int maxChecks = availableBuffers.size();
+        ByteBuffer buffer = null;
+
+        for (int i = 0; i < maxChecks; i++) {
+            buffer = availableBuffers.poll();
+            if (buffer == null) {
+                break;
+            }
+
             if (buffer.capacity() >= size) {
                 buffersInUse.incrementAndGet();
                 buffer.clear();
@@ -146,7 +159,6 @@ public class ByteBufferPool implements BufferPool {
             }
             // Buffer is too small, put it back and try another
             availableBuffers.offer(buffer);
-            buffer = availableBuffers.poll();
         }
 
         // No suitable buffer found, allocate a new one

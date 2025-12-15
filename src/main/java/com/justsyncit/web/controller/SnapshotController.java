@@ -28,6 +28,7 @@ import com.justsyncit.web.dto.SnapshotResponse;
 import io.javalin.http.Context;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -210,6 +211,44 @@ public final class SnapshotController {
                     "snapshotId", snapshotId));
         } catch (Exception e) {
             LOGGER.severe("Failed to start verification: " + e.getMessage());
+            ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
+        }
+    }
+
+    /**
+     * GET /api/snapshots/{id}/stats - Get snapshot statistics.
+     */
+    public void getSnapshotStats(Context ctx) {
+        try {
+            String snapshotId = ctx.pathParam("id");
+            MetadataService metadataService = context.getMetadataService();
+
+            if (metadataService == null) {
+                ctx.status(404).json(ApiError.notFound("Snapshot not found: " + snapshotId, ctx.path()));
+                return;
+            }
+
+            List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId);
+            Map<String, Long> extensionCounts = new HashMap<>();
+            long totalSize = 0;
+
+            for (FileMetadata file : files) {
+                String path = file.getPath();
+                int lastDot = path.lastIndexOf('.');
+                String ext = (lastDot > 0 && lastDot < path.length() - 1) ? path.substring(lastDot + 1).toLowerCase()
+                        : "other";
+                extensionCounts.put(ext, extensionCounts.getOrDefault(ext, 0L) + 1);
+                totalSize += file.getSize();
+            }
+
+            ctx.json(Map.of(
+                    "snapshotId", snapshotId,
+                    "fileTypes", extensionCounts,
+                    "totalSize", totalSize,
+                    "fileCount", files.size()));
+
+        } catch (Exception e) {
+            LOGGER.severe("Failed to get snapshot stats: " + e.getMessage());
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }

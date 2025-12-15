@@ -32,7 +32,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * SQLite implementation of DatabaseConnectionManager.
  * Provides connection pooling and thread-safe access to SQLite database.
- * Follows Single Responsibility Principle by focusing only on connection management.
+ * Follows Single Responsibility Principle by focusing only on connection
+ * management.
  */
 public final class SqliteConnectionManager implements DatabaseConnectionManager {
 
@@ -57,7 +58,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
     /**
      * Creates a new SqliteConnectionManager.
      *
-     * @param databasePath path to the SQLite database file
+     * @param databasePath   path to the SQLite database file
      * @param maxConnections maximum number of connections in the pool
      * @throws IllegalArgumentException if parameters are invalid
      */
@@ -88,8 +89,12 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
             testConn = DriverManager.getConnection(jdbcUrl);
             try (var stmt = testConn.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
-                // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
-                stmt.execute("PRAGMA journal_mode=DELETE");
+                if (isInMemory) {
+                    stmt.execute("PRAGMA journal_mode=DELETE");
+                } else {
+                    stmt.execute("PRAGMA journal_mode=WAL");
+                    stmt.execute("PRAGMA busy_timeout=30000");
+                }
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");
@@ -132,8 +137,14 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
         // Enable foreign keys and performance optimizations for new connections
         try (var stmt = newConn.createStatement()) {
             stmt.execute("PRAGMA foreign_keys=ON");
-            // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
-            stmt.execute("PRAGMA journal_mode=DELETE");
+            if (isInMemory) {
+                // Use DELETE journal mode for in-memory/tests to avoid isolation issues
+                stmt.execute("PRAGMA journal_mode=DELETE");
+            } else {
+                // Use WAL journal mode for production for better concurrency
+                stmt.execute("PRAGMA journal_mode=WAL");
+                stmt.execute("PRAGMA busy_timeout=30000"); // 30 seconds timeout
+            }
             stmt.execute("PRAGMA synchronous=NORMAL");
             stmt.execute("PRAGMA cache_size=10000");
             stmt.execute("PRAGMA temp_store=MEMORY");
@@ -278,7 +289,8 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
 
     /**
      * Gets or creates the shared memory connection for in-memory databases.
-     * This method is synchronized to ensure thread-safe access to the static connection.
+     * This method is synchronized to ensure thread-safe access to the static
+     * connection.
      *
      * @param jdbcUrl the JDBC URL for the connection
      * @return a connection to the shared in-memory database
@@ -290,7 +302,7 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
             // Configure the shared connection with performance optimizations
             try (var stmt = staticSharedMemoryConnection.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
-                // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
+                // Use DELETE journal mode for in-memory/tests
                 stmt.execute("PRAGMA journal_mode=DELETE");
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");

@@ -110,6 +110,10 @@ public final class WebStartCommand implements Command {
                     metadataService,
                     context.getBlake3Service());
 
+            com.justsyncit.scheduler.SchedulerService schedulerService = serviceFactory
+                    .createSchedulerService(backupService);
+            schedulerService.start();
+
             // Create WebServerContext using Builder pattern
             WebServerContext webContext = WebServerContext.builder()
                     .withMetadataService(metadataService)
@@ -117,6 +121,7 @@ public final class WebStartCommand implements Command {
                     .withBlake3Service(context.getBlake3Service())
                     .withBackupService(backupService)
                     .withRestoreService(restoreService)
+                    .withSchedulerService(schedulerService)
                     .build();
             runningServer = new WebServer(port, webContext);
             runningServer.start();
@@ -133,6 +138,9 @@ public final class WebStartCommand implements Command {
                 System.out.println("\nShutting down web server...");
                 if (runningServer != null) {
                     runningServer.stop();
+                }
+                if (schedulerService != null) {
+                    schedulerService.stop();
                 }
             }));
 

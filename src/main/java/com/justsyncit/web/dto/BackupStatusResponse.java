@@ -31,6 +31,7 @@ public final class BackupStatusResponse {
     private long totalBytes;
     private double progressPercent;
     private String currentFile;
+    private String currentActivity;
     private String error;
     private long startTime;
     private long elapsedMs;
@@ -147,6 +148,14 @@ public final class BackupStatusResponse {
 
     public void setCurrentFile(String currentFile) {
         this.currentFile = currentFile;
+    }
+
+    public String getCurrentActivity() {
+        return currentActivity;
+    }
+
+    public void setCurrentActivity(String currentActivity) {
+        this.currentActivity = currentActivity;
     }
 
     public String getError() {

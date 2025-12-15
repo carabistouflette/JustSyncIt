@@ -523,4 +523,15 @@ public class ServiceFactory {
             throw new ServiceException("Failed to create thread pool manager", e);
         }
     }
+
+    /**
+     * Creates a scheduler service.
+     *
+     * @param backupService the backup service
+     * @return configured scheduler service
+     */
+    public com.justsyncit.scheduler.SchedulerService createSchedulerService(
+            com.justsyncit.backup.BackupService backupService) {
+        return new com.justsyncit.scheduler.SchedulerService(backupService);
+    }
 }

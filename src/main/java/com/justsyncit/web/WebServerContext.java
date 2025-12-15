@@ -36,13 +36,27 @@ public final class WebServerContext {
     private final MetadataService metadataService;
     private final Blake3Service blake3Service;
 
+    private final com.justsyncit.scheduler.SchedulerService schedulerService;
+
     private WebServerContext(Builder builder) {
         this.backupService = builder.backupService;
         this.restoreService = builder.restoreService;
         this.contentStore = builder.contentStore;
         this.metadataService = builder.metadataService;
         this.blake3Service = builder.blake3Service;
+        this.schedulerService = builder.schedulerService;
     }
+
+    /**
+     * Returns the scheduler service.
+     *
+     * @return the scheduler service
+     */
+    public com.justsyncit.scheduler.SchedulerService getSchedulerService() {
+        return schedulerService;
+    }
+
+    // ... existing getters ...
 
     /**
      * Returns the backup service.
@@ -107,6 +121,7 @@ public final class WebServerContext {
         private ContentStore contentStore;
         private MetadataService metadataService;
         private Blake3Service blake3Service;
+        private com.justsyncit.scheduler.SchedulerService schedulerService;
 
         private Builder() {
         }
@@ -163,6 +178,17 @@ public final class WebServerContext {
          */
         public Builder withBlake3Service(Blake3Service blake3Service) {
             this.blake3Service = blake3Service;
+            return this;
+        }
+
+        /**
+         * Sets the scheduler service.
+         *
+         * @param schedulerService the scheduler service
+         * @return this builder
+         */
+        public Builder withSchedulerService(com.justsyncit.scheduler.SchedulerService schedulerService) {
+            this.schedulerService = schedulerService;
             return this;
         }
 

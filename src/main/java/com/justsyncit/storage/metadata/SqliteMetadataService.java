@@ -76,9 +76,7 @@ public final class SqliteMetadataService implements MetadataService {
             // Enable foreign keys and performance optimizations for this connection
             try (var stmt = connection.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
-                // Use DELETE journal mode instead of WAL to avoid connection isolation issues
-                // in tests
-                stmt.execute("PRAGMA journal_mode=DELETE");
+                // Note: Journal mode and timeouts are handled by ConnectionManager
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");

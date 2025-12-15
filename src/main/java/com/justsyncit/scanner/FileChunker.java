@@ -247,6 +247,10 @@ public interface FileChunker extends ChunkStorage {
         private boolean detectSparseFiles = DEFAULT_DETECT_SPARSE;
         /** Maximum number of concurrent chunks. */
         private int maxConcurrentChunks = 4;
+        /** Progress callback. */
+        private ChunkProgressCallback progressCallback;
+        /** Status callback. */
+        private ChunkStatusCallback statusCallback;
 
         /**
          * Creates a new ChunkingOptions with defaults.
@@ -265,6 +269,8 @@ public interface FileChunker extends ChunkStorage {
             this.bufferCount = other.bufferCount;
             this.detectSparseFiles = other.detectSparseFiles;
             this.maxConcurrentChunks = other.maxConcurrentChunks;
+            this.progressCallback = other.progressCallback;
+            this.statusCallback = other.statusCallback;
         }
 
         // Getters and setters
@@ -322,5 +328,49 @@ public interface FileChunker extends ChunkStorage {
             this.maxConcurrentChunks = maxConcurrentChunks;
             return this;
         }
+
+        public ChunkProgressCallback getProgressCallback() {
+            return progressCallback;
+        }
+
+        public ChunkingOptions withProgressCallback(ChunkProgressCallback progressCallback) {
+            this.progressCallback = progressCallback;
+            return this;
+        }
+
+        public ChunkStatusCallback getStatusCallback() {
+            return statusCallback;
+        }
+
+        public ChunkingOptions withStatusCallback(ChunkStatusCallback statusCallback) {
+            this.statusCallback = statusCallback;
+            return this;
+        }
+    }
+
+    /**
+     * Callback for chunking progress.
+     */
+    @FunctionalInterface
+    interface ChunkProgressCallback {
+        /**
+         * Called when bytes are processed.
+         *
+         * @param bytesProcessed number of bytes processed in this step
+         */
+        void onProgress(long bytesProcessed);
+    }
+
+    /**
+     * Callback for chunking status updates.
+     */
+    @FunctionalInterface
+    interface ChunkStatusCallback {
+        /**
+         * Called when the status changes.
+         *
+         * @param status the new status description
+         */
+        void onStatus(String status);
     }
 }

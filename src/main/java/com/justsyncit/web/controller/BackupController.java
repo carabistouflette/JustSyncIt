@@ -35,7 +35,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
@@ -113,17 +112,46 @@ public final class BackupController {
                     newState.setStatus("running");
                     webServer.broadcast("backup:started", Map.of("snapshotId", newState.getSnapshotId()));
 
+                    // Use atomic long for thread-safe timestamp
+                    java.util.concurrent.atomic.AtomicLong lastBroadcast = new java.util.concurrent.atomic.AtomicLong(
+                            0);
+
+                    // Set up event listener for detailed logs
+                    backupService.setEventListener((type, level, message, file) -> {
+                        webServer.broadcast("backup:event", Map.of(
+                                "snapshotId", newState.getSnapshotId(),
+                                "type", type,
+                                "level", level,
+                                "message", message,
+                                "file", file != null ? file : ""));
+                    });
+
                     // Use the overload with progress listener
                     BackupService.BackupResult result = backupService.backup(sourcePath, finalOptions, processor -> {
                         // Update state with live progress from processor
                         newState.setFilesProcessed(processor.getProcessedFilesCount());
                         newState.setBytesProcessed(processor.getProcessedBytesCount());
-                        newState.setTotalFiles(processor.getProcessedFilesCount() + processor.getSkippedFilesCount()); // Approximation
+                        newState.setTotalFiles(processor.getDetectedFilesCount());
                         newState.setTotalBytes(processor.getTotalBytesCount());
-                        // We could also broadcast periodic updates here if needed, but polling handles
-                        // the UI
-                    }).get();
+                        newState.setCurrentFile(processor.getCurrentFile()); // Update current file in state
+                        newState.setCurrentActivity(processor.getCurrentActivity()); // Update current activity in state
 
+                        // Broadcast progress update (throttled to max 10/sec)
+                        long now = System.currentTimeMillis();
+                        if (now - lastBroadcast.get() > 100) {
+                            lastBroadcast.set(now);
+                            double progressPercent = processor.getProcessingPercentage();
+                            webServer.broadcast("backup:progress", Map.of(
+                                    "snapshotId", newState.getSnapshotId(),
+                                    "filesProcessed", processor.getProcessedFilesCount(),
+                                    "bytesProcessed", processor.getProcessedBytesCount(),
+                                    "currentFile", processor.getCurrentFile() != null ? processor.getCurrentFile() : "",
+                                    "currentActivity",
+                                    processor.getCurrentActivity() != null ? processor.getCurrentActivity() : "", // Added
+                                                                                                                  // currentActivity
+                                    "progressPercent", progressPercent));
+                        }
+                    }).get();
                     if (result.isSuccess()) {
                         newState.setStatus("completed");
                         newState.setFilesProcessed(result.getFilesProcessed());
@@ -180,6 +208,7 @@ public final class BackupController {
             response.setTotalFiles(state.getTotalFiles());
             response.setTotalBytes(state.getTotalBytes());
             response.setCurrentFile(state.getCurrentFile());
+            response.setCurrentActivity(state.getCurrentActivity());
             response.setError(state.getError());
             response.setStartTime(state.getStartTime());
             response.setElapsedMs(System.currentTimeMillis() - state.getStartTime());
@@ -227,6 +256,7 @@ public final class BackupController {
         private volatile int totalFiles;
         private volatile long totalBytes;
         private volatile String currentFile;
+        private volatile String currentActivity;
         private volatile String error;
 
         BackupState(String snapshotId) {
@@ -289,6 +319,18 @@ public final class BackupController {
 
         String getCurrentFile() {
             return currentFile;
+        }
+
+        void setCurrentFile(String currentFile) {
+            this.currentFile = currentFile;
+        }
+
+        String getCurrentActivity() {
+            return currentActivity;
+        }
+
+        void setCurrentActivity(String currentActivity) {
+            this.currentActivity = currentActivity;
         }
 
         String getError() {

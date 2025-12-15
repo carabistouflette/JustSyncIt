@@ -43,6 +43,7 @@ public class BackupService {
     private final MetadataService metadataService;
     private final FilesystemScanner scanner;
     private final FileChunker chunker;
+    private volatile FileProcessor.EventListener eventListener;
 
     /**
      * Creates a new backup service.
@@ -58,6 +59,10 @@ public class BackupService {
         this.metadataService = metadataService;
         this.scanner = scanner;
         this.chunker = chunker;
+    }
+
+    public void setEventListener(FileProcessor.EventListener eventListener) {
+        this.eventListener = eventListener;
     }
 
     /**
@@ -185,6 +190,10 @@ public class BackupService {
 
                 if (progressListener != null) {
                     processor.setProgressListener(progressListener);
+                }
+
+                if (eventListener != null) {
+                    processor.setEventListener(eventListener);
                 }
 
                 // Process directory

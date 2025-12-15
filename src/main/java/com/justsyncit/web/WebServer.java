@@ -247,6 +247,8 @@ public final class WebServer {
         RestoreController restoreController = new RestoreController(context, this);
         FileBrowserController fileBrowserController = new FileBrowserController();
         ConfigController configController = new ConfigController(context);
+        com.justsyncit.web.controller.SchedulerController schedulerController = new com.justsyncit.web.controller.SchedulerController(
+                context);
         // UserController is already initialized in start()
 
         // Backup endpoints
@@ -255,10 +257,16 @@ public final class WebServer {
         app.get("/api/backup/history", backupController::getHistory);
         app.post("/api/backup/cancel", backupController::cancelBackup);
 
+        // Schedule endpoints
+        app.get("/api/schedules", schedulerController::listSchedules);
+        app.post("/api/schedules", schedulerController::createSchedule);
+        app.delete("/api/schedules/{id}", schedulerController::deleteSchedule);
+
         // Snapshot endpoints
         app.get("/api/snapshots", snapshotController::listSnapshots);
         app.get("/api/snapshots/{id}", snapshotController::getSnapshot);
         app.get("/api/snapshots/{id}/files", snapshotController::getSnapshotFiles);
+        app.get("/api/snapshots/{id}/stats", snapshotController::getSnapshotStats);
         app.delete("/api/snapshots/{id}", snapshotController::deleteSnapshot);
         app.post("/api/snapshots/{id}/verify", snapshotController::verifySnapshot);
 
