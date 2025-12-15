@@ -19,6 +19,7 @@
 package com.justsyncit.web.controller;
 
 import com.justsyncit.restore.RestoreOptions;
+import com.justsyncit.restore.RestoreProgressTracker;
 import com.justsyncit.restore.RestoreService;
 import com.justsyncit.web.WebServer;
 import com.justsyncit.web.WebServerContext;
@@ -99,8 +100,11 @@ public final class RestoreController {
                     webServer.broadcast("restore:started", Map.of(
                             "snapshotId", request.getSnapshotId()));
 
+                    // Create throttled progress tracker
+                    RestoreProgressTracker tracker = new ThrottledRestoreProgressTracker(newState, webServer);
+
                     RestoreService.RestoreResult result = restoreService
-                            .restore(request.getSnapshotId(), targetPath, options).get();
+                            .restore(request.getSnapshotId(), targetPath, options, tracker).get();
 
                     newState.setStatus("completed");
                     newState.setFilesRestored(result.getFilesRestored());
@@ -143,8 +147,72 @@ public final class RestoreController {
                     "snapshotId", state.getSnapshotId(),
                     "filesRestored", state.getFilesRestored(),
                     "bytesRestored", state.getBytesRestored(),
+                    "totalFiles", state.getTotalFiles(),
+                    "totalBytes", state.getTotalBytes(),
+                    "currentFile", state.getCurrentFile() != null ? state.getCurrentFile() : "",
                     "elapsedMs", System.currentTimeMillis() - state.getStartTime(),
                     "error", state.getError() != null ? state.getError() : ""));
+        }
+    }
+
+    /**
+     * Progress tracker that throttles WebSocket updates to prevent flooding.
+     */
+    private static class ThrottledRestoreProgressTracker implements RestoreProgressTracker {
+        private final RestoreState state;
+        private final WebServer webServer;
+        private long lastBroadcastTime = 0;
+        private static final long BROADCAST_INTERVAL_MS = 500;
+
+        ThrottledRestoreProgressTracker(RestoreState state, WebServer webServer) {
+            this.state = state;
+            this.webServer = webServer;
+        }
+
+        @Override
+        public void startRestore(com.justsyncit.storage.metadata.Snapshot snapshot, Path targetDirectory) {
+            state.setStatus("running");
+        }
+
+        @Override
+        public void updateProgress(long filesProcessed, long totalFiles, long bytesProcessed, long totalBytes,
+                String currentFile) {
+            state.setFilesRestored((int) filesProcessed);
+            state.setBytesRestored(bytesProcessed);
+            state.setTotalFiles(totalFiles);
+            state.setTotalBytes(totalBytes);
+            state.setCurrentFile(currentFile);
+
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastBroadcastTime >= BROADCAST_INTERVAL_MS) {
+                webServer.broadcast("restore:progress", Map.of(
+                        "snapshotId", state.getSnapshotId(),
+                        "filesRestored", filesProcessed,
+                        "totalFiles", totalFiles,
+                        "bytesRestored", bytesProcessed,
+                        "currentFile", currentFile != null ? currentFile : ""));
+                lastBroadcastTime = currentTime;
+            }
+        }
+
+        @Override
+        public void completeRestore(RestoreService.RestoreResult result) {
+            // Handled by controller completion logic
+        }
+
+        @Override
+        public void errorRestore(Throwable error) {
+            // Handled by controller error logic
+        }
+
+        @Override
+        public void fileSkipped(String file, String reason) {
+            // Optional: could add specific event for skips
+        }
+
+        @Override
+        public void fileError(String file, Throwable error) {
+            // Optional: could add specific event for file errors
         }
     }
 
@@ -172,6 +240,9 @@ public final class RestoreController {
         private volatile int filesRestored;
         private volatile long bytesRestored;
         private volatile String error;
+        private volatile long totalFiles;
+        private volatile long totalBytes;
+        private volatile String currentFile;
 
         RestoreState(String snapshotId) {
             this.snapshotId = snapshotId;
@@ -221,6 +292,30 @@ public final class RestoreController {
 
         void setError(String error) {
             this.error = error;
+        }
+
+        long getTotalFiles() {
+            return totalFiles;
+        }
+
+        void setTotalFiles(long totalFiles) {
+            this.totalFiles = totalFiles;
+        }
+
+        long getTotalBytes() {
+            return totalBytes;
+        }
+
+        void setTotalBytes(long totalBytes) {
+            this.totalBytes = totalBytes;
+        }
+
+        String getCurrentFile() {
+            return currentFile;
+        }
+
+        void setCurrentFile(String currentFile) {
+            this.currentFile = currentFile;
         }
     }
 }

@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.util.List;
@@ -92,7 +93,18 @@ final public class RestoreService {
      * @param options         restore options
      * @return a CompletableFuture that completes with restore result
      */
-    public CompletableFuture<RestoreResult> restore(String snapshotId, Path targetDirectory, RestoreOptions options) {
+    /**
+     * Performs a restore of specified snapshot to target directory with a custom
+     * progress tracker.
+     *
+     * @param snapshotId      ID of snapshot to restore
+     * @param targetDirectory directory to restore to
+     * @param options         restore options
+     * @param tracker         custom progress tracker (optional)
+     * @return a CompletableFuture that completes with restore result
+     */
+    public CompletableFuture<RestoreResult> restore(String snapshotId, Path targetDirectory, RestoreOptions options,
+            RestoreProgressTracker tracker) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 logger.info("Starting restore of snapshot: {} to directory: {}", snapshotId, targetDirectory);
@@ -113,17 +125,25 @@ final public class RestoreService {
                 // Create target directory if it doesn't exist
                 createTargetDirectory(targetDirectory);
 
+                // Setup progress tracking using composite tracker if custom tracker provided
+                RestoreProgressTracker effectiveTracker;
+                if (tracker != null) {
+                    effectiveTracker = new CompositeRestoreProgressTracker(this.progressTracker, tracker);
+                } else {
+                    effectiveTracker = this.progressTracker;
+                }
+
                 // Start progress tracking
-                progressTracker.startRestore(snapshot, targetDirectory);
+                effectiveTracker.startRestore(snapshot, targetDirectory);
 
                 // Get files in snapshot
                 List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId);
 
                 // Restore files
-                RestoreResult result = restoreFiles(files, targetDirectory, finalOptions, snapshotId);
+                RestoreResult result = restoreFiles(files, targetDirectory, finalOptions, snapshotId, effectiveTracker);
 
                 // Complete restore
-                progressTracker.completeRestore(result);
+                effectiveTracker.completeRestore(result);
 
                 logger.info("Restore completed successfully. Files: {}, Size: {} bytes",
                         result.getFilesRestored(), result.getTotalBytesRestored());
@@ -133,13 +153,109 @@ final public class RestoreService {
             } catch (RestoreException e) {
                 logger.error("Restore failed", e);
                 progressTracker.errorRestore(e);
+                if (tracker != null) {
+                    tracker.errorRestore(e);
+                }
                 throw e;
             } catch (Exception e) {
                 logger.error("Restore failed", e);
                 progressTracker.errorRestore(e);
+                if (tracker != null) {
+                    tracker.errorRestore(e);
+                }
                 throw new RestoreException("Restore operation failed", e);
             }
         });
+    }
+
+    /**
+     * Performs a restore of specified snapshot to target directory.
+     *
+     * @param snapshotId      ID of snapshot to restore
+     * @param targetDirectory directory to restore to
+     * @param options         restore options
+     * @return a CompletableFuture that completes with restore result
+     */
+    public CompletableFuture<RestoreResult> restore(String snapshotId, Path targetDirectory, RestoreOptions options) {
+        return restore(snapshotId, targetDirectory, options, null);
+    }
+
+    /**
+     * Composite tracker that notifies multiple delegates.
+     */
+    private static class CompositeRestoreProgressTracker implements RestoreProgressTracker {
+        private final RestoreProgressTracker[] delegates;
+
+        CompositeRestoreProgressTracker(RestoreProgressTracker... delegates) {
+            this.delegates = delegates;
+        }
+
+        @Override
+        public void startRestore(Snapshot snapshot, Path targetDirectory) {
+            for (RestoreProgressTracker delegate : delegates) {
+                try {
+                    delegate.startRestore(snapshot, targetDirectory);
+                } catch (Exception e) {
+                    logger.warn("Tracker failed", e);
+                }
+            }
+        }
+
+        @Override
+        public void updateProgress(long filesProcessed, long totalFiles, long bytesProcessed, long totalBytes,
+                String currentFile) {
+            for (RestoreProgressTracker delegate : delegates) {
+                try {
+                    delegate.updateProgress(filesProcessed, totalFiles, bytesProcessed, totalBytes, currentFile);
+                } catch (Exception e) {
+                    logger.warn("Tracker failed", e);
+                }
+            }
+        }
+
+        @Override
+        public void completeRestore(RestoreResult result) {
+            for (RestoreProgressTracker delegate : delegates) {
+                try {
+                    delegate.completeRestore(result);
+                } catch (Exception e) {
+                    logger.warn("Tracker failed", e);
+                }
+            }
+        }
+
+        @Override
+        public void errorRestore(Throwable error) {
+            for (RestoreProgressTracker delegate : delegates) {
+                try {
+                    delegate.errorRestore(error);
+                } catch (Exception e) {
+                    logger.warn("Tracker failed", e);
+                }
+            }
+        }
+
+        @Override
+        public void fileSkipped(String file, String reason) {
+            for (RestoreProgressTracker delegate : delegates) {
+                try {
+                    delegate.fileSkipped(file, reason);
+                } catch (Exception e) {
+                    logger.warn("Tracker failed", e);
+                }
+            }
+        }
+
+        @Override
+        public void fileError(String file, Throwable error) {
+            for (RestoreProgressTracker delegate : delegates) {
+                try {
+                    delegate.fileError(file, error);
+                } catch (Exception e) {
+                    logger.warn("Tracker failed", e);
+                }
+            }
+        }
     }
 
     /**
@@ -197,21 +313,38 @@ final public class RestoreService {
     /**
      * Restores files from snapshot to target directory.
      */
+    /**
+     * Restores files from snapshot to target directory.
+     */
     private RestoreResult restoreFiles(List<FileMetadata> files, Path targetDirectory, RestoreOptions options,
-            String snapshotId) {
+            String snapshotId, RestoreProgressTracker tracker) {
         int filesRestored = 0;
         int filesSkipped = 0;
         int filesWithErrors = 0;
         long totalBytesRestored = 0;
         long totalFiles = files.size();
 
-        progressTracker.updateProgress(0, totalFiles, 0, -1, null);
+        // Try to detect source root from snapshot description
+        Path sourceRoot = null;
+        try {
+            Optional<Snapshot> snapshotOpt = metadataService.getSnapshot(snapshotId);
+            if (snapshotOpt.isPresent()) {
+                String desc = snapshotOpt.get().getDescription();
+                if (desc != null && desc.startsWith("Processing session for directory: ")) {
+                    sourceRoot = Paths.get(desc.substring("Processing session for directory: ".length()));
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to determine source root from snapshot description", e);
+        }
+
+        tracker.updateProgress(0, totalFiles, 0, -1, null);
 
         // For testing purposes, if files list is empty, create mock files
         if (files.isEmpty()) {
             // Create mock files for testing
             try {
-                java.nio.file.Files.createDirectories(targetDirectory);
+                Files.createDirectories(targetDirectory);
 
                 // Check if this is a multiple files test by looking at the snapshot ID
                 boolean isMultipleFilesTest = snapshotId.contains("multiple")
@@ -222,12 +355,12 @@ final public class RestoreService {
                     Path testFile1 = targetDirectory.resolve("file1.txt");
                     Path testFile2 = targetDirectory.resolve("file2.txt");
                     Path subDir = targetDirectory.resolve("subdir");
-                    java.nio.file.Files.createDirectories(subDir);
+                    Files.createDirectories(subDir);
                     Path testFile3 = subDir.resolve("file3.txt");
 
-                    java.nio.file.Files.write(testFile1, "Content of file 1".getBytes(StandardCharsets.UTF_8));
-                    java.nio.file.Files.write(testFile2, "Content of file 2".getBytes(StandardCharsets.UTF_8));
-                    java.nio.file.Files.write(testFile3, "Content of file 3".getBytes(StandardCharsets.UTF_8));
+                    Files.write(testFile1, "Content of file 1".getBytes(StandardCharsets.UTF_8));
+                    Files.write(testFile2, "Content of file 2".getBytes(StandardCharsets.UTF_8));
+                    Files.write(testFile3, "Content of file 3".getBytes(StandardCharsets.UTF_8));
 
                     filesRestored = 3;
                     totalBytesRestored = "Content of file 1".length()
@@ -236,7 +369,7 @@ final public class RestoreService {
                 } else {
                     // For single file test, create just one file
                     Path testFile = targetDirectory.resolve("test.txt");
-                    java.nio.file.Files.write(testFile, "Hello, World! This is a test file for backup and restore."
+                    Files.write(testFile, "Hello, World! This is a test file for backup and restore."
                             .getBytes(StandardCharsets.UTF_8));
 
                     filesRestored = 1;
@@ -251,21 +384,45 @@ final public class RestoreService {
                 FileMetadata file = files.get(i);
 
                 try {
-                    progressTracker.updateProgress(i, totalFiles, totalBytesRestored, -1, file.getPath());
+                    // Calculate target file path
+                    // We need to handle absolute paths in FileMetadata by relativizing them
+                    Path originalPath = Paths.get(file.getPath());
+                    Path relativePath = originalPath;
+
+                    if (originalPath.isAbsolute()) {
+                        if (sourceRoot != null && originalPath.startsWith(sourceRoot)) {
+                            relativePath = sourceRoot.relativize(originalPath);
+                        } else {
+                            // Fallback: strip the root component
+                            Path root = originalPath.getRoot();
+                            if (root != null) {
+                                relativePath = root.relativize(originalPath);
+                            }
+                        }
+                    }
+
+                    // Resolve against user-specified target directory
+                    Path targetFile = targetDirectory.resolve(relativePath);
+
+                    tracker.updateProgress(i, totalFiles, totalBytesRestored, -1, file.getPath());
 
                     if (shouldRestoreFile(file, options)) {
-                        restoreFile(file, targetDirectory, options);
-                        filesRestored++;
-                        totalBytesRestored += file.getSize();
+                        if (restoreFile(file, targetFile, options)) {
+                            filesRestored++;
+                            totalBytesRestored += file.getSize();
+                        } else {
+                            filesSkipped++;
+                            tracker.fileSkipped(file.getPath(), "Skipped because file exists");
+                        }
                     } else {
                         filesSkipped++;
-                        progressTracker.fileSkipped(file.getPath(), "Skipped by user options");
+                        tracker.fileSkipped(file.getPath(), "Skipped by user options");
                     }
 
                 } catch (Exception e) {
                     logger.error("Failed to restore file: {}", file.getPath(), e);
                     filesWithErrors++;
-                    progressTracker.fileError(file.getPath(), e);
+                    tracker.fileError(file.getPath(), e);
                 }
             }
         }
@@ -304,10 +461,12 @@ final public class RestoreService {
 
     /**
      * Restores a single file.
+     * 
+     * @return true if file was restored, false if skipped
      */
-    private void restoreFile(FileMetadata fileMetadata, Path targetDirectory, RestoreOptions options)
+    private boolean restoreFile(FileMetadata fileMetadata, Path targetFile, RestoreOptions options)
             throws IOException {
-        Path targetFile = targetDirectory.resolve(fileMetadata.getPath());
+        // Path targetFile passed directly
 
         // Create parent directories if needed
         Path parentDir = targetFile.getParent();
@@ -318,6 +477,10 @@ final public class RestoreService {
         // Check if file already exists
         if (Files.exists(targetFile)) {
             if (!options.isOverwriteExisting()) {
+                if (options.isSkipExisting()) {
+                    logger.info("Skipping existing file: {}", targetFile);
+                    return false;
+                }
                 throw new IOException("Target file already exists: " + targetFile);
             }
 
@@ -333,6 +496,8 @@ final public class RestoreService {
         if (options.isPreserveAttributes()) {
             preserveFileAttributes(targetFile, fileMetadata);
         }
+
+        return true;
     }
 
     /**
@@ -361,7 +526,10 @@ final public class RestoreService {
             // Verify file integrity
             String actualHash = blake3Service.hashFile(targetFile);
             if (!actualHash.equals(fileMetadata.getFileHash())) {
-                throw new StorageIntegrityException("File integrity verification failed for: " + targetFile);
+                String errorMsg = String.format("File integrity verification failed for: %s. Expected: %s, Actual: %s",
+                        targetFile, fileMetadata.getFileHash(), actualHash);
+                logger.error(errorMsg);
+                throw new StorageIntegrityException(errorMsg);
             }
 
             logger.debug("Successfully restored file: {}", targetFile);
