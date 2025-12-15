@@ -144,17 +144,17 @@ public class NetworkCommand implements Command {
                     .thenRun(() -> System.out.println("Network server started on port " + port))
                     .exceptionally(e -> {
                         logger.error("Failed to start network server", e);
-                        System.out.println("Failed to start network server: " + e.getMessage());
+                        System.err.println("Failed to start network server: " + e.getMessage());
                         return null;
                     })
                     .join();
             return true;
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number: " + args[1]);
+            System.err.println("Invalid port number: " + args[1]);
             return false;
         } catch (Exception e) {
             logger.error("Failed to start network server", e);
-            System.out.println("Failed to start network server: " + e.getMessage());
+            System.err.println("Failed to start network server: " + e.getMessage());
             return false;
         }
     }
@@ -165,14 +165,14 @@ public class NetworkCommand implements Command {
                     .thenRun(() -> System.out.println("Network server stopped"))
                     .exceptionally(e -> {
                         logger.error("Failed to stop network server", e);
-                        System.out.println("Failed to stop network server: " + e.getMessage());
+                        System.err.println("Failed to stop network server: " + e.getMessage());
                         return null;
                     })
                     .join();
             return true;
         } catch (Exception e) {
             logger.error("Failed to stop network server", e);
-            System.out.println("Failed to stop network server: " + e.getMessage());
+            System.err.println("Failed to stop network server: " + e.getMessage());
             return false;
         }
     }
@@ -198,17 +198,17 @@ public class NetworkCommand implements Command {
                     .thenRun(() -> System.out.println("Connected to " + address))
                     .exceptionally(e -> {
                         logger.error("Failed to connect to " + address, e);
-                        System.out.println("Failed to connect to " + address + ": " + e.getMessage());
+                        System.err.println("Failed to connect to " + address + ": " + e.getMessage());
                         return null;
                     })
                     .join();
             return true;
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number in address: " + args[1]);
+            System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
             logger.error("Failed to connect", e);
-            System.out.println("Failed to connect: " + e.getMessage());
+            System.err.println("Failed to connect: " + e.getMessage());
             return false;
         }
     }
@@ -234,17 +234,17 @@ public class NetworkCommand implements Command {
                     .thenRun(() -> System.out.println("Disconnected from " + address))
                     .exceptionally(e -> {
                         logger.error("Failed to disconnect from " + address, e);
-                        System.out.println("Failed to disconnect from " + address + ": " + e.getMessage());
+                        System.err.println("Failed to disconnect from " + address + ": " + e.getMessage());
                         return null;
                     })
                     .join();
             return true;
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number in address: " + args[1]);
+            System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
             logger.error("Failed to disconnect", e);
-            System.out.println("Failed to disconnect: " + e.getMessage());
+            System.err.println("Failed to disconnect: " + e.getMessage());
             return false;
         }
     }
@@ -276,7 +276,7 @@ public class NetworkCommand implements Command {
             FileTransferResult result = networkService.sendFile(filePath, remoteAddress, contentStore)
                     .exceptionally(e -> {
                         logger.error("File transfer failed", e);
-                        System.out.println("File transfer failed: " + e.getMessage());
+                        System.err.println("File transfer failed: " + e.getMessage());
                         return null;
                     })
                     .join();
@@ -288,15 +288,15 @@ public class NetworkCommand implements Command {
                         result.getBytesTransferred(), duration.toMillis() / 1000.0, rateKBps);
                 return true;
             } else {
-                System.out.println("File transfer failed");
+                System.err.println("File transfer failed");
                 return false;
             }
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number in address: " + args[2]);
+            System.err.println("Invalid port number in address: " + args[2]);
             return false;
         } catch (Exception e) {
             logger.error("Failed to send file", e);
-            System.out.println("Failed to send file: " + e.getMessage());
+            System.err.println("Failed to send file: " + e.getMessage());
             return false;
         }
     }
@@ -314,7 +314,7 @@ public class NetworkCommand implements Command {
             return true;
         } catch (Exception e) {
             logger.error("Failed to get network status", e);
-            System.out.println("Failed to get network status: " + e.getMessage());
+            System.err.println("Failed to get network status: " + e.getMessage());
             return false;
         }
     }

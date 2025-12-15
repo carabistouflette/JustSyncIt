@@ -334,6 +334,7 @@ public final class SqliteMetadataService implements MetadataService {
                         + "VALUES (?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement stmt = connection.prepareStatement(fileSql)) {
+                    int batchCount = 0;
                     for (FileMetadata file : files) {
                         stmt.setString(1, file.getId());
                         stmt.setString(2, file.getSnapshotId());
@@ -342,9 +343,17 @@ public final class SqliteMetadataService implements MetadataService {
                         stmt.setLong(5, file.getModifiedTime().toEpochMilli());
                         stmt.setString(6, file.getFileHash());
                         stmt.addBatch();
+                        batchCount++;
                         insertedIds.add(file.getId());
+
+                        if (batchCount >= 500) {
+                            stmt.executeBatch();
+                            batchCount = 0;
+                        }
                     }
-                    stmt.executeBatch();
+                    if (batchCount > 0) {
+                        stmt.executeBatch();
+                    }
                 }
 
                 // 4. Insert file_chunks mappings
@@ -352,6 +361,7 @@ public final class SqliteMetadataService implements MetadataService {
                         + "VALUES (?, ?, ?, ?)";
 
                 try (PreparedStatement stmt = connection.prepareStatement(chunkSql)) {
+                    int batchCount = 0;
                     for (FileMetadata file : files) {
                         List<String> chunkHashes = file.getChunkHashes();
                         if (chunkHashes != null) {
@@ -362,10 +372,18 @@ public final class SqliteMetadataService implements MetadataService {
                                 stmt.setInt(3, i);
                                 stmt.setInt(4, 65536); // Default estimation
                                 stmt.addBatch();
+                                batchCount++;
+
+                                if (batchCount >= 500) {
+                                    stmt.executeBatch();
+                                    batchCount = 0;
+                                }
                             }
                         }
                     }
-                    stmt.executeBatch();
+                    if (batchCount > 0) {
+                        stmt.executeBatch();
+                    }
                 }
 
                 connection.commit();
@@ -712,6 +730,7 @@ public final class SqliteMetadataService implements MetadataService {
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             List<String> chunkHashes = file.getChunkHashes();
+            int batchCount = 0;
             for (int i = 0; i < chunkHashes.size(); i++) {
                 String chunkHash = chunkHashes.get(i);
 
@@ -722,8 +741,16 @@ public final class SqliteMetadataService implements MetadataService {
                 // The actual size will be updated when the chunk is accessed
                 stmt.setInt(4, 65536); // Default chunk size
                 stmt.addBatch();
+                batchCount++;
+
+                if (batchCount >= 500) {
+                    stmt.executeBatch();
+                    batchCount = 0;
+                }
             }
-            stmt.executeBatch();
+            if (batchCount > 0) {
+                stmt.executeBatch();
+            }
         }
     }
 
@@ -738,6 +765,7 @@ public final class SqliteMetadataService implements MetadataService {
 
         try (PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
             long now = System.currentTimeMillis();
+            int batchCount = 0;
 
             for (String chunkHash : chunkHashes) {
                 insertStmt.setString(1, chunkHash);
@@ -746,8 +774,16 @@ public final class SqliteMetadataService implements MetadataService {
                 insertStmt.setLong(4, 1); // reference_count
                 insertStmt.setLong(5, now); // last_accessed
                 insertStmt.addBatch();
+                batchCount++;
+
+                if (batchCount >= 500) {
+                    insertStmt.executeBatch();
+                    batchCount = 0;
+                }
             }
-            insertStmt.executeBatch();
+            if (batchCount > 0) {
+                insertStmt.executeBatch();
+            }
         }
     }
 

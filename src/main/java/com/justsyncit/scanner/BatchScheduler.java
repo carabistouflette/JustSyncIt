@@ -388,12 +388,17 @@ public class BatchScheduler {
         List<Path> adaptedFiles = applyAdaptiveSizing(operation.getFiles(), operation.getOptions());
 
         // Execute the batch
-        CompletableFuture<BatchResult> future = asyncBatchProcessor.processBatch(
-                adaptedFiles, operation.getOptions(), operation.getPriority());
+        try {
+            CompletableFuture<BatchResult> future = asyncBatchProcessor.processBatch(
+                    adaptedFiles, operation.getOptions(), operation.getPriority());
 
-        future.whenComplete((result, throwable) -> {
-            handleBatchCompletion(operation, result, throwable);
-        });
+            future.whenComplete((result, throwable) -> {
+                handleBatchCompletion(operation, result, throwable);
+            });
+        } catch (Exception e) {
+            logger.error("Synchronous error submitting batch operation", e);
+            handleBatchCompletion(operation, null, e);
+        }
     }
 
     /**
