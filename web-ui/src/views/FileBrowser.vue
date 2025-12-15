@@ -1,7 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { filesApi } from '../services/api'
+import { useToast } from '../composables/useToast'
 
+const toast = useToast()
 const currentPath = ref('/')
 const files = ref([])
 const loading = ref(false)
@@ -12,9 +14,17 @@ const showHidden = ref(false)
 
 const parentPath = ref(null)
 
+// Sorting
+const sortBy = ref('name') // name, size, modifiedAt
+const sortDesc = ref(false)
+
+// Selection
+const selectedFiles = ref(new Set())
+
 async function browse(path = '/') {
   loading.value = true
   error.value = null
+  selectedFiles.value.clear()
   try {
     const response = await filesApi.browse(path, showHidden.value)
     files.value = response.data.entries || []
@@ -52,11 +62,29 @@ function navigateUp() {
   }
 }
 
-  function handleClick(entry) {
-    if (entry.directory) {
-      browse(entry.path)
-    }
+function handleClick(entry) {
+  if (entry.directory) {
+    browse(entry.path)
+  } else {
+    toggleSelection(entry)
   }
+}
+
+function toggleSelection(entry) {
+  if (selectedFiles.value.has(entry.path)) {
+    selectedFiles.value.delete(entry.path)
+  } else {
+    selectedFiles.value.add(entry.path)
+  }
+}
+
+function selectAll() {
+  if (selectedFiles.value.size === processedFiles.value.length) {
+    selectedFiles.value.clear()
+  } else {
+    processedFiles.value.forEach(f => selectedFiles.value.add(f.path))
+  }
+}
 
 function formatSize(bytes) {
   if (!bytes) return '-'
@@ -69,6 +97,53 @@ function formatSize(bytes) {
 function formatDate(timestamp) {
   if (!timestamp) return '-'
   return new Date(timestamp).toLocaleString()
+}
+
+function toggleSort(field) {
+  if (sortBy.value === field) {
+    sortDesc.value = !sortDesc.value
+  } else {
+    sortBy.value = field
+    sortDesc.value = false
+  }
+}
+
+const processedFiles = computed(() => {
+  let result = [...files.value]
+  
+  // Sorting
+  result.sort((a, b) => {
+    // Directories usually first
+    if (a.directory !== b.directory) {
+      return a.directory ? -1 : 1
+    }
+    
+    let aVal = a[sortBy.value]
+    let bVal = b[sortBy.value]
+    
+    // Case insensitive string sort
+    if (typeof aVal === 'string') {
+      aVal = aVal.toLowerCase()
+      bVal = bVal.toLowerCase()
+    }
+    
+    if (aVal < bVal) return sortDesc.value ? 1 : -1
+    if (aVal > bVal) return sortDesc.value ? -1 : 1
+    return 0
+  })
+
+  // Client-side filtering if search is empty but user types something? 
+  // For now search is explicit backend search. 
+  // We can add a "Filter" box separate from Search if needed, but keeping it simple.
+  
+  return result
+})
+
+function copySelectedPaths() {
+  const paths = Array.from(selectedFiles.value).join('\n')
+  navigator.clipboard.writeText(paths)
+  toast.success(`Copied ${selectedFiles.value.size} paths to clipboard`)
+  selectedFiles.value.clear()
 }
 
 // Initial load
@@ -99,7 +174,7 @@ browse('/')
         <input 
           v-model="searchQuery" 
           @keyup.enter="search"
-          placeholder="Search files..."
+          placeholder="Deep search..."
         >
         <button class="btn btn-secondary" @click="search">Search</button>
       </div>
@@ -108,6 +183,15 @@ browse('/')
         <input type="checkbox" v-model="showHidden" @change="browse(currentPath)">
         <span>Show hidden</span>
       </label>
+    </div>
+    
+    <!-- Bulk Actions -->
+    <div v-if="selectedFiles.size > 0" class="bulk-actions card">
+      <span>{{ selectedFiles.size }} selected</span>
+      <div class="actions">
+        <button class="btn btn-sm btn-secondary" @click="copySelectedPaths">Copy Paths</button>
+        <button class="btn btn-sm btn-secondary" @click="selectedFiles.clear()">Clear Selection</button>
+      </div>
     </div>
     
     <!-- Error -->
@@ -121,9 +205,25 @@ browse('/')
     <!-- File List -->
     <div v-else class="file-list card">
       <div class="file-header">
-        <span class="col-name">Name</span>
-        <span class="col-size">Size</span>
-        <span class="col-date">Modified</span>
+        <span class="col-check">
+          <input type="checkbox" 
+            :checked="processedFiles.length > 0 && selectedFiles.size === processedFiles.length"
+            :indeterminate="selectedFiles.size > 0 && selectedFiles.size < processedFiles.length"
+            @change="selectAll"
+          >
+        </span>
+        <span class="col-name sortable" @click="toggleSort('name')">
+           Name 
+           <span v-if="sortBy === 'name'" class="sort-icon">{{ sortDesc ? '↓' : '↑' }}</span>
+        </span>
+        <span class="col-size sortable" @click="toggleSort('size')">
+           Size
+           <span v-if="sortBy === 'size'" class="sort-icon">{{ sortDesc ? '↓' : '↑' }}</span>
+        </span>
+        <span class="col-date sortable" @click="toggleSort('modifiedAt')">
+           Modified
+           <span v-if="sortBy === 'modifiedAt'" class="sort-icon">{{ sortDesc ? '↓' : '↑' }}</span>
+        </span>
       </div>
       
       <!-- Search Results -->
@@ -133,8 +233,12 @@ browse('/')
           v-for="file in searchResults" 
           :key="file.path" 
           class="file-row"
-          @click="handleClick(file)"
+          :class="{ selected: selectedFiles.has(file.path) }"
+          @click.stop="handleClick(file)"
         >
+          <span class="col-check" @click.stop="">
+             <input type="checkbox" :checked="selectedFiles.has(file.path)" @change="toggleSelection(file)">
+          </span>
           <span class="col-name">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path v-if="file.directory" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
@@ -150,12 +254,15 @@ browse('/')
       <!-- Directory Contents -->
       <template v-else>
         <div 
-          v-for="file in files" 
+          v-for="file in processedFiles" 
           :key="file.path" 
           class="file-row"
-          :class="{ directory: file.directory }"
-          @click="handleClick(file)"
+          :class="{ directory: file.directory, selected: selectedFiles.has(file.path) }"
+          @click.stop="handleClick(file)"
         >
+          <span class="col-check" @click.stop="">
+             <input type="checkbox" :checked="selectedFiles.has(file.path)" @change="toggleSelection(file)">
+          </span>
           <span class="col-name">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path v-if="file.directory" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
@@ -167,7 +274,7 @@ browse('/')
           <span class="col-date">{{ formatDate(file.modifiedAt) }}</span>
         </div>
         
-        <div v-if="files.length === 0" class="empty-dir">
+        <div v-if="processedFiles.length === 0" class="empty-dir">
           <p>This directory is empty</p>
         </div>
       </template>
@@ -236,6 +343,16 @@ browse('/')
   accent-color: var(--accent-primary);
 }
 
+.bulk-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(99, 102, 241, 0.1);
+  border-left: 4px solid var(--accent-primary);
+}
+
 .error-message {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid var(--error);
@@ -257,13 +374,25 @@ browse('/')
 
 .file-header {
   display: grid;
-  grid-template-columns: 1fr 100px 150px;
+  grid-template-columns: 40px 1fr 100px 150px;
   gap: 1rem;
   padding: 0.75rem 1rem;
   background: var(--bg-tertiary);
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.sortable:hover {
+  color: var(--text-primary);
+}
+.sort-icon {
+  margin-left: 0.25rem;
+  font-size: 0.8rem;
 }
 
 .search-label {
@@ -275,7 +404,7 @@ browse('/')
 
 .file-row {
   display: grid;
-  grid-template-columns: 1fr 100px 150px;
+  grid-template-columns: 40px 1fr 100px 150px;
   gap: 1rem;
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border-color);
@@ -291,8 +420,18 @@ browse('/')
   background: var(--bg-tertiary);
 }
 
-.file-row.directory {
+.file-row.selected {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.file-row.directory .col-name {
   color: var(--accent-primary);
+}
+
+.col-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .col-name {
@@ -319,16 +458,11 @@ browse('/')
 @media (max-width: 768px) {
   .file-header,
   .file-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 40px 1fr;
   }
   
   .col-size,
   .col-date {
-    display: none;
-  }
-  
-  .file-header .col-size,
-  .file-header .col-date {
     display: none;
   }
 }
