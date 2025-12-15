@@ -23,6 +23,8 @@ import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.util.Optional;
@@ -38,6 +40,8 @@ import java.util.Locale;
  */
 
 public class TransferCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(TransferCommand.class);
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
@@ -97,12 +101,12 @@ public class TransferCommand implements Command {
             try {
                 snapshotOpt = services.metadataService.getSnapshot(options.snapshotId);
             } catch (Exception e) {
-                System.err.println("Error: Failed to retrieve snapshot: " + e.getMessage());
+                logger.error("Failed to retrieve snapshot: {}", e.getMessage());
                 return false;
             }
 
             if (snapshotOpt.isEmpty()) {
-                System.err.println("Error: Snapshot not found: " + options.snapshotId);
+                logger.error("Snapshot not found: {}", options.snapshotId);
                 return false;
             }
 
@@ -114,7 +118,7 @@ public class TransferCommand implements Command {
 
             // Connect to remote server
             if (options.verbose) {
-                System.out.println("Connecting to remote server...");
+                logger.info("Connecting to remote server...");
             }
 
             CompletableFuture<Void> connectFuture = services.netService.connectToNode(options.serverAddress,
@@ -122,13 +126,12 @@ public class TransferCommand implements Command {
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
-                System.err.println("Error: Connection timeout after 30 seconds");
+                logger.error("Connection timeout after 30 seconds");
                 return false;
             }
 
             if (options.verbose) {
-                System.out.println("Connected to server successfully.");
-                System.out.println("Starting transfer...");
+                logger.info("Connected to server successfully. Starting transfer...");
             }
 
             boolean success = performTransfer(snapshot, options);
@@ -137,11 +140,11 @@ public class TransferCommand implements Command {
             try {
                 services.netService.disconnectFromNode(options.serverAddress).get(10, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
-                System.err.println("Warning: Disconnect timeout after 10 seconds");
+                logger.warn("Disconnect timeout after 10 seconds");
             }
 
             if (options.verbose) {
-                System.out.println("Disconnected from remote server.");
+                logger.info("Disconnected from remote server.");
                 if (success) {
                     printTransferSummary(snapshot, options);
                 }
@@ -152,9 +155,9 @@ public class TransferCommand implements Command {
             return success;
 
         } catch (Exception e) {
-            System.err.println("Error: Transfer failed: " + e.getMessage());
+            logger.error("Transfer failed: {}", e.getMessage());
             if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
+                logger.error("Cause: {}", e.getCause().getMessage());
             }
             return false;
         }
@@ -216,7 +219,7 @@ public class TransferCommand implements Command {
             return true;
 
         } catch (Exception e) {
-            System.err.println("Error: Transfer logic failed: " + e.getMessage());
+            logger.error("Transfer logic failed: {}", e.getMessage());
             return false;
         }
     }
@@ -278,8 +281,7 @@ public class TransferCommand implements Command {
                 opts.helpRequested = true;
                 return opts;
             }
-            System.err.println("Error: Missing required arguments");
-            System.err.println("Usage: " + getUsage());
+            logger.error("Missing required arguments. Usage: {}", getUsage());
             System.err.println("Use 'help transfer' for more information");
             return null;
         }
@@ -300,12 +302,12 @@ public class TransferCommand implements Command {
                         }
                         String host = parts[0];
                         if (host == null || host.trim().isEmpty()) {
-                            System.err.println("Error: Hostname cannot be empty");
+                            logger.error("Hostname cannot be empty");
                             return null;
                         }
                         int port = Integer.parseInt(parts[1]);
                         if (port < 1 || port > 65535) {
-                            System.err.println("Error: Port must be between 1 and 65535");
+                            logger.error("Port must be between 1 and 65535");
                             return null;
                         }
                         options.serverAddress = new InetSocketAddress(host, port);
@@ -314,11 +316,11 @@ public class TransferCommand implements Command {
                         // However, we re-iterate for other options below or just skip properly.
                         // Actually, let's just parse fully here.
                     } catch (NumberFormatException e) {
-                        System.err.println("Error: Invalid port number: " + args[i + 1]);
+                        logger.error("Invalid port number: {}", args[i + 1]);
                         return null;
                     }
                 } else {
-                    System.err.println("Error: --to requires a server address (host:port)");
+                    logger.error("--to requires a server address (host:port)");
                     return null;
                 }
                 break;
@@ -326,7 +328,7 @@ public class TransferCommand implements Command {
         }
 
         if (!foundTo || options.serverAddress == null) {
-            System.err.println("Error: --to option is required");
+            logger.error("--to option is required");
             return null;
         }
 
@@ -346,12 +348,11 @@ public class TransferCommand implements Command {
                             options.transportType = TransportType.valueOf(args[i + 1].toUpperCase(Locale.ROOT));
                             i++;
                         } catch (IllegalArgumentException e) {
-                            System.err.println(
-                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
+                            logger.error("Invalid transport type: {}. Valid types: TCP, QUIC", args[i + 1]);
                             return null;
                         }
                     } else {
-                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
+                        logger.error("--transport requires a value (TCP|QUIC)");
                         return null;
                     }
                     break;
@@ -373,7 +374,7 @@ public class TransferCommand implements Command {
                     return options;
                 default:
                     if (arg.startsWith("--")) {
-                        System.err.println("Error: Unknown option: " + arg);
+                        logger.error("Unknown option: {}", arg);
                         return null;
                     }
                     break;
@@ -397,14 +398,14 @@ public class TransferCommand implements Command {
                 try {
                     netService.close();
                 } catch (Exception e) {
-                    System.err.println("Warning: Failed to close network service: " + e.getMessage());
+                    logger.warn("Failed to close network service: {}", e.getMessage());
                 }
             }
             if (metadataService != null) {
                 try {
                     metadataService.close();
                 } catch (Exception e) {
-                    System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
+                    logger.warn("Failed to close metadata service: {}", e.getMessage());
                 }
             }
         }
@@ -418,7 +419,7 @@ public class TransferCommand implements Command {
             ns = networkService != null ? networkService : serviceFactory.createNetworkService();
             ms = serviceFactory.createMetadataService();
         } catch (Exception e) {
-            System.err.println("Error: Failed to initialize services: " + e.getMessage());
+            logger.error("Failed to initialize services: {}", e.getMessage());
             if (ns != null && networkService == null) {
                 try {
                     ns.close();

@@ -96,6 +96,12 @@ public class AsyncWatchServiceManager {
     /** Event handlers by registration ID. */
     private final Map<String, Consumer<FileChangeEvent>> eventHandlers;
 
+    /** Lock for synchronization. */
+    private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
+
+    /** Condition for tracking active registrations. */
+    private final java.util.concurrent.locks.Condition hasRegistrations = lock.newCondition();
+
     /**
      * Creates a new AsyncWatchServiceManager.
      *
@@ -171,6 +177,14 @@ public class AsyncWatchServiceManager {
                 eventQueue.clear();
                 eventHandlers.clear();
 
+                // Signal any waiting threads
+                lock.lock();
+                try {
+                    hasRegistrations.signalAll();
+                } finally {
+                    lock.unlock();
+                }
+
                 logger.info("AsyncWatchServiceManager stopped successfully");
 
             } catch (Exception e) {
@@ -229,6 +243,14 @@ public class AsyncWatchServiceManager {
                 // Update statistics
                 stats.incrementWatchRegistrations();
                 stats.incrementActiveWatchRegistrations();
+
+                // Signal that we have registrations
+                lock.lock();
+                try {
+                    hasRegistrations.signalAll();
+                } finally {
+                    lock.unlock();
+                }
 
                 logger.info("Started monitoring directory: {} with registration: {}",
                         absoluteDir, registration.getRegistrationId());
@@ -392,13 +414,19 @@ public class AsyncWatchServiceManager {
                 // Process queued events
                 processQueuedEvents();
 
-                // If no active registrations, wait a bit to avoid busy loop
+                // If no active registrations, wait for notification
                 if (activeRegistrations.isEmpty()) {
+                    lock.lock();
                     try {
-                        Thread.sleep(100);
+                        // Double check while holding lock
+                        while (running.get() && activeRegistrations.isEmpty()) {
+                            hasRegistrations.await(1000, TimeUnit.MILLISECONDS); // Wait with timeout just in case
+                        }
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         break;
+                    } finally {
+                        lock.unlock();
                     }
                 }
 

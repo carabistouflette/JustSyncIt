@@ -92,6 +92,12 @@ public class BatchScheduler {
     /** Resource monitor for adaptive scheduling. */
     private final ResourceMonitor resourceMonitor;
 
+    /** Lock for waiting on operations to complete. */
+    private final java.util.concurrent.locks.ReentrantLock shutdownLock = new java.util.concurrent.locks.ReentrantLock();
+
+    /** Condition for waiting on operations to complete. */
+    private final java.util.concurrent.locks.Condition allOperationsCompleted = shutdownLock.newCondition();
+
     /**
      * Creates a new BatchScheduler with default configuration.
      *
@@ -186,13 +192,19 @@ public class BatchScheduler {
             resourceMonitor.stop();
 
             // Wait for active operations to complete
-            while (!activeOperations.isEmpty()) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
+            // Wait for active operations to complete
+            shutdownLock.lock();
+            try {
+                while (!activeOperations.isEmpty()) {
+                    try {
+                        allOperationsCompleted.await(100, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
+            } finally {
+                shutdownLock.unlock();
             }
 
             logger.info("Batch scheduler stopped successfully");
@@ -407,6 +419,16 @@ public class BatchScheduler {
 
             // Remove from active operations
             activeOperations.remove(operation.getOperationId());
+
+            // Signal if empty
+            if (activeOperations.isEmpty()) {
+                shutdownLock.lock();
+                try {
+                    allOperationsCompleted.signalAll();
+                } finally {
+                    shutdownLock.unlock();
+                }
+            }
 
             // Release semaphore permit
             concurrentBatchSemaphore.release();
