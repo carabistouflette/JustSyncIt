@@ -742,7 +742,7 @@ public class FileProcessor {
      */
     private boolean verifyChunkExists(String chunkHash) {
         boolean chunkExists = false;
-        int maxRetries = 15; // Increased retries for better reliability
+        int maxRetries = 5; // Reduced from 15 to 5 to fail faster
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 if (contentStore.existsChunk(chunkHash)) {
@@ -754,10 +754,10 @@ public class FileProcessor {
                             chunkHash, attempt, maxRetries);
                     try {
                         // Use exponential backoff for better reliability
-                        // 200ms, 400ms, 800ms, 1600ms, 3200ms, 6400ms, etc.
-                        long delayMs = 200L * (1L << (attempt - 1));
-                        // Cap at 5 seconds to avoid excessive delays
-                        delayMs = Math.min(delayMs, 5000L);
+                        // 100ms, 200ms, 400ms, 800ms
+                        long delayMs = 100L * (1L << (attempt - 1));
+                        // Cap at 500ms to avoid excessive delays
+                        delayMs = Math.min(delayMs, 500L);
                         Thread.sleep(delayMs);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -769,8 +769,8 @@ public class FileProcessor {
                         chunkHash, attempt, maxRetries, e);
                 if (attempt < maxRetries) {
                     try {
-                        long delayMs = 200L * (1L << (attempt - 1));
-                        delayMs = Math.min(delayMs, 5000L);
+                        long delayMs = 100L * (1L << (attempt - 1));
+                        delayMs = Math.min(delayMs, 500L);
                         Thread.sleep(delayMs);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -798,7 +798,7 @@ public class FileProcessor {
      */
     private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
             FileChunker.ChunkingResult result) throws IOException {
-        int maxRetries = 12; // Increased retries for better reliability
+        int maxRetries = 5; // Reduced from 12 to 5 to fail faster
         IOException lastException = null;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -837,9 +837,8 @@ public class FileProcessor {
                                 || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
                                 || e.getMessage().contains("Not all chunk metadata is visible"))) {
                     if (attempt < maxRetries) {
-                        // Increased backoff: 400ms, 800ms, 1200ms, 1600ms, 2000ms, 2400ms,
-                        // 2800ms, 3200ms, 3600ms, 4000ms, 4400ms, 4800ms
-                        long delayMs = 400L * attempt;
+                        // Adjusted backoff: 200ms, 400ms, 600ms, 800ms
+                        long delayMs = 200L * attempt;
                         logger.warn(
                                 "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
                                 result.getFile(), attempt, delayMs);
