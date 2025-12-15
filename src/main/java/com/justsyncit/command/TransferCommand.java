@@ -174,15 +174,6 @@ public class TransferCommand implements Command {
             // Simulate transfer progress
             while (bytesTransferred < totalBytes) {
                 long chunkSize = Math.min(64 * 1024, totalBytes - bytesTransferred);
-
-                // Simulate chunk transfer
-                try {
-                    Thread.sleep(100); // Simulate network delay
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    System.err.println("Error: Transfer interrupted");
-                    return false;
-                }
                 bytesTransferred += chunkSize;
                 chunksTransferred++;
 
@@ -213,13 +204,9 @@ public class TransferCommand implements Command {
 
                 // In a real implementation, we would verify the transfer with the remote server
                 // For now, we'll simulate verification
-                try {
-                    Thread.sleep(1000); // Simulate verification time
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    System.err.println("Error: Verification interrupted");
-                    return false;
-                }
+                // In a real implementation, we would verify the transfer with the remote server
+                // For now, we'll simulate verification
+                // Removed artificial delay
 
                 if (options.verbose) {
                     System.out.println("Transfer verification completed successfully.");

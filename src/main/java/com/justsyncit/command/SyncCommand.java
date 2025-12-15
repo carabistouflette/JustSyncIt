@@ -503,9 +503,6 @@ public class SyncCommand implements Command {
         while (transferred < bytes) {
             long currentChunk = Math.min(chunkSize, bytes - transferred);
             transferred += currentChunk;
-
-            // Simulate network delay
-            Thread.sleep(50);
         }
     }
 
