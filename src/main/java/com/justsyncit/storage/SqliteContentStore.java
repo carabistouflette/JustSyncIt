@@ -131,9 +131,14 @@ public final class SqliteContentStore extends AbstractContentStore {
             transaction.commit();
 
             logger.debug("Recorded chunk metadata for: {}", hash);
-        } catch (IOException | RuntimeException e) {
-            logger.warn("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
-            // Don't fail the operation if metadata recording fails
+        } catch (IOException e) {
+            logger.error("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
+            // Fail the operation to ensure consistency
+            // If we can't record metadata, we shouldn't claim success
+            throw new IOException("Failed to record chunk metadata for " + hash, e);
+        } catch (RuntimeException e) {
+            logger.error("Failed to record chunk metadata for {}: {}", hash, e.getMessage());
+            throw new IOException("Unexpected error recording chunk metadata", e);
         }
 
         return hash;

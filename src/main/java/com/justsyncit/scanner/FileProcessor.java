@@ -52,6 +52,7 @@ public class FileProcessor {
     private static final long INITIAL_BACKOFF_MS = 100L;
     private static final long CHUNKING_TIMEOUT_HOURS = 24L;
     private static final int BATCH_SIZE = 200;
+    private static final long PERSISTENCE_SHUTDOWN_TIMEOUT_MS = 30000L;
 
     /** ExecutorService for processing tasks. */
     private volatile ExecutorService executorService;
@@ -311,7 +312,7 @@ public class FileProcessor {
                 // Signal persistence worker to shut down and wait for it
                 worker.shutdown();
                 try {
-                    persistenceThread.join(30000); // Wait up to 30s for persistence to finish
+                    persistenceThread.join(PERSISTENCE_SHUTDOWN_TIMEOUT_MS);
                 } catch (InterruptedException e) {
                     logger.warn("Interrupted while waiting for persistence worker to finish", e);
                     Thread.currentThread().interrupt();
