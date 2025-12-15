@@ -237,10 +237,9 @@ public class ServerStartCommand implements Command {
             System.err.println("Server failed to start: Timed out after " + STARTUP_TIMEOUT_MS + "ms");
             return false;
         } catch (java.util.concurrent.ExecutionException e) {
-            // The completion handler will also log this, but we need to return false here
-            // We can let the user know via stderr as well if needed, though completion
-            // handler usually does it.
-            // Relying on service.isServerRunning check below is safest.
+            logger.error("Server start execution failed", e);
+            System.err.println("Error: Server start failed: " + e.getCause().getMessage());
+            return false;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             System.err.println("Server start interrupted");

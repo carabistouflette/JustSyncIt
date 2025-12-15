@@ -101,7 +101,7 @@ public class TransferCommand implements Command {
             try {
                 snapshotOpt = services.metadataService.getSnapshot(options.snapshotId);
             } catch (Exception e) {
-                logger.error("Failed to retrieve snapshot: {}", e.getMessage());
+                logger.error("Failed to retrieve snapshot", e);
                 return false;
             }
 
@@ -155,10 +155,7 @@ public class TransferCommand implements Command {
             return success;
 
         } catch (Exception e) {
-            logger.error("Transfer failed: {}", e.getMessage());
-            if (e.getCause() != null) {
-                logger.error("Cause: {}", e.getCause().getMessage());
-            }
+            logger.error("Transfer failed", e);
             return false;
         }
     }
@@ -219,7 +216,7 @@ public class TransferCommand implements Command {
             return true;
 
         } catch (Exception e) {
-            logger.error("Transfer logic failed: {}", e.getMessage());
+            logger.error("Transfer logic failed", e);
             return false;
         }
     }

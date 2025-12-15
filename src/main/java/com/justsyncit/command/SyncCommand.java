@@ -123,7 +123,7 @@ public class SyncCommand implements Command {
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
-                logger.error("Connection timeout after 30 seconds");
+                logger.error("Connection timeout after 30 seconds", e);
                 System.err.println("Error: Connection timeout after 30 seconds");
                 return false;
             }
@@ -139,7 +139,7 @@ public class SyncCommand implements Command {
             try {
                 services.netService.disconnectFromNode(options.serverAddress).get(10, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
-                logger.warn("Disconnect timeout after 10 seconds");
+                logger.warn("Disconnect timeout after 10 seconds", e);
                 System.err.println("Warning: Disconnect timeout after 10 seconds");
             }
 

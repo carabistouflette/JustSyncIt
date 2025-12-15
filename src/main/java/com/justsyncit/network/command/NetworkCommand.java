@@ -153,6 +153,7 @@ public class NetworkCommand implements Command {
             System.out.println("Invalid port number: " + args[1]);
             return false;
         } catch (Exception e) {
+            logger.error("Failed to start network server", e);
             System.out.println("Failed to start network server: " + e.getMessage());
             return false;
         }
@@ -170,6 +171,7 @@ public class NetworkCommand implements Command {
                     .join();
             return true;
         } catch (Exception e) {
+            logger.error("Failed to stop network server", e);
             System.out.println("Failed to stop network server: " + e.getMessage());
             return false;
         }
@@ -205,6 +207,7 @@ public class NetworkCommand implements Command {
             System.out.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
+            logger.error("Failed to connect", e);
             System.out.println("Failed to connect: " + e.getMessage());
             return false;
         }
@@ -240,6 +243,7 @@ public class NetworkCommand implements Command {
             System.out.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
+            logger.error("Failed to disconnect", e);
             System.out.println("Failed to disconnect: " + e.getMessage());
             return false;
         }
@@ -291,6 +295,7 @@ public class NetworkCommand implements Command {
             System.out.println("Invalid port number in address: " + args[2]);
             return false;
         } catch (Exception e) {
+            logger.error("Failed to send file", e);
             System.out.println("Failed to send file: " + e.getMessage());
             return false;
         }
@@ -308,6 +313,7 @@ public class NetworkCommand implements Command {
             System.out.println("  Messages received: " + networkService.getMessagesReceived());
             return true;
         } catch (Exception e) {
+            logger.error("Failed to get network status", e);
             System.out.println("Failed to get network status: " + e.getMessage());
             return false;
         }
