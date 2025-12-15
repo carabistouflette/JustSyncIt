@@ -98,6 +98,7 @@ public class BackupCommand implements Command {
         }
 
         if (args.length == 0) {
+            logger.error("Source directory is required");
             System.err.println("Error: Source directory is required");
             System.err.println(getUsage());
             System.err.println("Use 'help backup' for more information");
@@ -146,6 +147,7 @@ public class BackupCommand implements Command {
                         netService = localNetworkService;
                     }
                 } catch (ServiceException e) {
+                    logger.error("Failed to initialize backup service", e);
                     System.err.println("Error: Failed to initialize backup service: " + e.getMessage());
                     return false;
                 }
@@ -169,11 +171,13 @@ public class BackupCommand implements Command {
 
     private boolean validateSourcePath(Path sourcePath, String sourceDir) {
         if (!Files.exists(sourcePath)) {
+            logger.error("Source directory does not exist: {}", sourceDir);
             System.err.println("Error: Source directory does not exist: " + sourceDir);
             return false;
         }
 
         if (!Files.isDirectory(sourcePath)) {
+            logger.error("Source path is not a directory: {}", sourceDir);
             System.err.println("Error: Source path is not a directory: " + sourceDir);
             return false;
         }
@@ -330,6 +334,7 @@ public class BackupCommand implements Command {
             try {
                 resource.close();
             } catch (Exception e) {
+                logger.warn("Failed to close resource", e);
                 System.err.println("Warning: Failed to close resource: " + e.getMessage());
             }
         }

@@ -23,7 +23,8 @@ import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.web.WebServer;
 import com.justsyncit.web.WebServerContext;
 
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Command to start the web server for the management interface.
@@ -31,7 +32,7 @@ import java.util.logging.Logger;
  */
 public final class WebStartCommand implements Command {
 
-    private static final Logger LOGGER = Logger.getLogger(WebStartCommand.class.getName());
+    private static final Logger logger = LoggerFactory.getLogger(WebStartCommand.class);
     private static final int DEFAULT_PORT = 8080;
 
     private static WebServer runningServer;
@@ -149,7 +150,7 @@ public final class WebStartCommand implements Command {
 
             return true;
         } catch (Exception e) {
-            LOGGER.severe("Failed to start web server: " + e.getMessage());
+            logger.error("Failed to start web server: " + e.getMessage(), e);
             System.err.println("Error: Failed to start web server: " + e.getMessage());
             return false;
         }

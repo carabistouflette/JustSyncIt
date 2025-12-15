@@ -24,10 +24,15 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Command group for web-related commands.
  */
 public final class WebCommandGroup implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(WebCommandGroup.class);
 
     private final Map<String, Command> subCommands = new HashMap<>();
 
@@ -80,6 +85,7 @@ public final class WebCommandGroup implements Command {
         // Look up the subcommand
         Command cmd = subCommands.get(subCommand);
         if (cmd == null) {
+            logger.error("Unknown web command: {}", subCommand);
             System.err.println("Unknown web command: " + subCommand);
             System.out.println(getUsage());
             return false;

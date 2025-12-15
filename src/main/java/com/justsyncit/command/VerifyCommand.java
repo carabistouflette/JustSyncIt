@@ -210,18 +210,21 @@ public class VerifyCommand implements Command {
     private boolean verifyFileIntegrity(String filePath, String expectedHash, CommandContext context) {
         // Validate inputs
         if (!isValidHashFormat(expectedHash)) {
+            logger.error("Invalid hash format: {}", expectedHash);
             System.err.println("Error: Invalid hash format. Expected 64-character hexadecimal string.");
             return false;
         }
 
         Path path = validateAndNormalizePath(filePath);
         if (path == null) {
+            logger.error("Invalid file path: {}", filePath);
             System.err.println("Error: Invalid file path: " + filePath);
             return false;
         }
 
         Blake3Service blake3Service = context.getBlake3Service();
         if (blake3Service == null) {
+            logger.error("BLAKE3 service not available");
             System.err.println("Error: BLAKE3 service not available");
             return false;
         }
@@ -229,17 +232,20 @@ public class VerifyCommand implements Command {
         try {
             // Check file existence and type
             if (!Files.exists(path)) {
+                logger.error("File does not exist: {}", path);
                 System.err.println("Error: File does not exist: " + path);
                 return false;
             }
 
             if (!Files.isRegularFile(path)) {
+                logger.error("Path is not a regular file: {}", path);
                 System.err.println("Error: Path is not a regular file: " + path);
                 return false;
             }
 
             // Check file readability
             if (!Files.isReadable(path)) {
+                logger.error("File is not readable: {}", path);
                 System.err.println("Error: File is not readable: " + path);
                 return false;
             }

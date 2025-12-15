@@ -53,8 +53,15 @@ public class FileProcessor {
     private static final long CHUNKING_TIMEOUT_HOURS = 24L;
     private static final int BATCH_SIZE = 200;
 
-    /** Executor service for async operations. */
+    /** ExecutorService for processing tasks. */
     private volatile ExecutorService executorService;
+    /** Scheduler for delayed retry operations. */
+    private final java.util.concurrent.ScheduledExecutorService scheduler = java.util.concurrent.Executors
+            .newScheduledThreadPool(1, r -> {
+                Thread t = new Thread(r, "FileProcessor-Scheduler");
+                t.setDaemon(true);
+                return t;
+            });
 
     /** Flag indicating if processing is currently running. */
     private volatile boolean isRunning = false;
@@ -384,6 +391,17 @@ public class FileProcessor {
             executorService.shutdownNow();
             Thread.currentThread().interrupt();
         }
+
+        if (!scheduler.isShutdown()) {
+            scheduler.shutdown();
+            try {
+                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                    scheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                scheduler.shutdownNow();
+            }
+        }
     }
 
     /**
@@ -501,48 +519,47 @@ public class FileProcessor {
                 // Start chunking file
                 chunkingPhaser.register();
                 chunker.chunkFile(file, currentOptions)
-                        .thenCompose(result -> {
-                            return CompletableFuture.supplyAsync(() -> {
-                                try {
-                                    if (result.isSuccess()) {
-                                        // Enqueue for batch persistence instead of processing immediately
-                                        if (!persistenceQueue.offer(result)) {
-                                            logger.warn("Persistence queue full, processing immediately: {}",
-                                                    result.getFile());
-                                            processChunkingResult(result);
-                                        }
-                                    } else {
-                                        if (result.getError() instanceof java.nio.file.AccessDeniedException) {
-                                            if (eventListener != null) {
-                                                eventListener.onEvent("SCAN_ERROR", "WARN", "Access denied",
-                                                        file.toString());
-                                            } else {
-                                                logger.warn("Access denied for file: {}", file);
-                                            }
-                                            skippedFiles.incrementAndGet(); // Count as skipped, not error
-                                        } else {
-                                            if (eventListener != null) {
-                                                eventListener.onEvent("CHUNK_ERROR", "ERROR",
-                                                        result.getError() != null ? result.getError().getMessage()
-                                                                : "Unknown error",
-                                                        file.toString());
-                                            } else {
-                                                logger.error("Chunking failed for file: {}", file, result.getError());
-                                            }
-                                            errorFiles.incrementAndGet();
-                                        }
+                        .thenComposeAsync(result -> {
+                            try {
+                                if (result.isSuccess()) {
+                                    // Enqueue for batch persistence instead of processing immediately
+                                    if (!persistenceQueue.offer(result)) {
+                                        logger.warn("Persistence queue full, processing immediately: {}",
+                                                result.getFile());
+                                        return processChunkingResultAsync(result).thenApply(v -> result);
                                     }
-                                    return result;
-                                } catch (Exception e) {
-                                    logger.error("Error processing chunking result for file: {}", file, e);
-                                    errorFiles.incrementAndGet();
-                                    IOException ioException = e instanceof IOException
-                                            ? (IOException) e
-                                            : new IOException(e);
-                                    return FileChunker.ChunkingResult.createFailed(file, ioException);
+                                } else {
+                                    if (result.getError() instanceof java.nio.file.AccessDeniedException) {
+                                        if (eventListener != null) {
+                                            eventListener.onEvent("SCAN_ERROR", "WARN", "Access denied",
+                                                    file.toString());
+                                        } else {
+                                            logger.warn("Access denied for file: {}", file);
+                                        }
+                                        skippedFiles.incrementAndGet(); // Count as skipped, not error
+                                    } else {
+                                        if (eventListener != null) {
+                                            eventListener.onEvent("CHUNK_ERROR", "ERROR",
+                                                    result.getError() != null ? result.getError().getMessage()
+                                                            : "Unknown error",
+                                                    file.toString());
+                                        } else {
+                                            logger.error("Chunking failed for file: {}", file, result.getError());
+                                        }
+                                        errorFiles.incrementAndGet();
+                                    }
                                 }
-                            }, executorService);
-                        })
+                                return CompletableFuture.completedFuture(result);
+                            } catch (Exception e) {
+                                logger.error("Error processing chunking result for file: {}", file, e);
+                                errorFiles.incrementAndGet();
+                                IOException ioException = e instanceof IOException
+                                        ? (IOException) e
+                                        : new IOException(e);
+                                return CompletableFuture
+                                        .completedFuture(FileChunker.ChunkingResult.createFailed(file, ioException));
+                            }
+                        }, executorService)
                         .exceptionally(throwable -> {
                             Throwable cause = throwable;
                             if (throwable instanceof java.util.concurrent.CompletionException) {
@@ -658,150 +675,141 @@ public class FileProcessor {
         }
     }
 
-    private void processChunkingResult(FileChunker.ChunkingResult result) {
-        try {
-            // Create file metadata with generated ID and snapshot ID
-            String fileId = java.util.UUID.randomUUID().toString();
+    private CompletableFuture<Void> processChunkingResultAsync(FileChunker.ChunkingResult result) {
+        // Create file metadata with generated ID and snapshot ID
+        String fileId = java.util.UUID.randomUUID().toString();
+        List<String> chunkHashes = result.getChunkHashes();
 
-            // The FixedSizeFileChunker now handles chunk storage automatically
-            // when it has a content store set.
-            List<String> chunkHashes = result.getChunkHashes();
-
-            // Verification of chunks happens below with retries, effectively handling
-            // any slight delay in DB visibility without blocking the thread for 3s.
-
-            // Verify chunks exist with retries
-            boolean allChunksExist = true;
-            for (String chunkHash : chunkHashes) {
-                if (!verifyChunkExists(chunkHash)) {
-                    allChunksExist = false;
-                    // Continue checking other chunks to give them more time to appear
-                    logger.warn("Chunk {} verification failed, continuing with other chunks", chunkHash);
-                }
-            }
-
-            // If not all chunks exist, don't process this file but don't count as error
-            // This allows for transient storage issues to resolve themselves
-            if (!allChunksExist) {
-                logger.warn("Not all chunks exist for file {}, skipping file processing", result.getFile());
-                skippedFiles.incrementAndGet();
-                // bytes are already added via progress callback
-                return;
-            }
-
-            FileMetadata fileMetadata = new FileMetadata(
-                    fileId,
-                    currentSnapshotId,
-                    result.getFile().toString(),
-                    result.getTotalSize(),
-                    Instant.now(),
-                    result.getFileHash(),
-                    chunkHashes);
-            // Store file metadata with retry for foreign key constraint
-            storeFileMetadataWithRetry(fileMetadata, chunkHashes, result);
-
-            processedFiles.incrementAndGet();
-            // bytes are already added via progress callback
-            logger.debug("Completed processing file: {} ({} chunks)",
-                    result.getFile(), result.getChunkCount());
-
-            setCurrentActivity("Completed");
-
-            if (progressListener != null) {
-                progressListener.accept(FileProcessor.this);
-            }
-
-        } catch (IOException e) {
-            logger.error("Error storing metadata for file: {}", result.getFile(), e);
-            errorFiles.incrementAndGet();
+        // Verify chunks exist with retries (async)
+        List<CompletableFuture<Boolean>> checks = new ArrayList<>();
+        for (String chunkHash : chunkHashes) {
+            checks.add(verifyChunkExistsAsync(chunkHash));
         }
+
+        return CompletableFuture.allOf(checks.toArray(new CompletableFuture<?>[0]))
+                .thenCompose(v -> {
+                    boolean allChunksExist = checks.stream().allMatch(CompletableFuture::join);
+
+                    if (!allChunksExist) {
+                        logger.warn("Not all chunks exist for file {}, skipping file processing", result.getFile());
+                        skippedFiles.incrementAndGet();
+                        return CompletableFuture.completedFuture(null);
+                    }
+
+                    FileMetadata fileMetadata = new FileMetadata(
+                            fileId,
+                            currentSnapshotId,
+                            result.getFile().toString(),
+                            result.getTotalSize(),
+                            Instant.now(),
+                            result.getFileHash(),
+                            chunkHashes);
+
+                    return storeFileMetadataWithRetryAsync(fileMetadata, chunkHashes, result)
+                            .thenAccept(ignore -> {
+                                processedFiles.incrementAndGet();
+                                logger.debug("Completed processing file: {} ({} chunks)",
+                                        result.getFile(), result.getChunkCount());
+
+                                setCurrentActivity("Completed");
+
+                                if (progressListener != null) {
+                                    progressListener.accept(FileProcessor.this);
+                                }
+                            })
+                            .exceptionally(ex -> {
+                                logger.error("Error storing metadata for file: {}", result.getFile(), ex);
+                                errorFiles.incrementAndGet();
+                                return null;
+                            });
+                });
     }
 
     /**
-     * Verifies that a chunk exists in the content store with retries.
+     * Verifies that a chunk exists in the content store with retries (async).
      *
      * @param chunkHash the hash of the chunk to verify
-     * @return true if the chunk exists, false otherwise
+     * @return a future that completes with true if the chunk exists, false
+     *         otherwise
      */
-    private boolean verifyChunkExists(String chunkHash) {
-        boolean chunkExists = false;
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-            try {
-                if (contentStore.existsChunk(chunkHash)) {
-                    chunkExists = true;
-                    logger.debug("Chunk {} is visible (attempt {}/{})", chunkHash, attempt, MAX_RETRIES);
-                    break;
-                } else if (attempt < MAX_RETRIES) {
+    private CompletableFuture<Boolean> verifyChunkExistsAsync(String chunkHash) {
+        return verifyChunkExistsAsync(chunkHash, 1);
+    }
+
+    private CompletableFuture<Boolean> verifyChunkExistsAsync(String chunkHash, int attempt) {
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        try {
+            if (contentStore.existsChunk(chunkHash)) {
+                logger.debug("Chunk {} is visible (attempt {}/{})", chunkHash, attempt, MAX_RETRIES);
+                future.complete(true);
+            } else {
+                if (attempt < MAX_RETRIES) {
                     logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
                             chunkHash, attempt, MAX_RETRIES);
-                    try {
-                        // Use exponential backoff for better reliability
-                        long delayMs = INITIAL_BACKOFF_MS * (1L << (attempt - 1));
-                        // Cap at MAX_BACKOFF_MS
-                        delayMs = Math.min(delayMs, MAX_BACKOFF_MS);
-                        Thread.sleep(delayMs);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        return false;
-                    }
-                }
-            } catch (IOException e) {
-                logger.warn("Failed to check if chunk exists: {} (attempt {}/{})",
-                        chunkHash, attempt, MAX_RETRIES, e);
-                if (attempt < MAX_RETRIES) {
-                    try {
-                        long delayMs = INITIAL_BACKOFF_MS * (1L << (attempt - 1));
-                        delayMs = Math.min(delayMs, MAX_BACKOFF_MS);
-                        Thread.sleep(delayMs);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        return false;
-                    }
+                    // Calculate delay with exponential backoff
+                    long delayMs = Math.min(INITIAL_BACKOFF_MS * (1L << (attempt - 1)), MAX_BACKOFF_MS);
+
+                    scheduler.schedule(() -> {
+                        verifyChunkExistsAsync(chunkHash, attempt + 1)
+                                .thenAccept(future::complete)
+                                .exceptionally(ex -> {
+                                    future.completeExceptionally(ex);
+                                    return null;
+                                });
+                    }, delayMs, TimeUnit.MILLISECONDS);
+                } else {
+                    logger.error("Chunk {} does not exist in content store after {} retries", chunkHash, MAX_RETRIES);
+                    future.complete(false);
                 }
             }
+        } catch (IOException e) {
+            if (attempt < MAX_RETRIES) {
+                logger.warn("Failed to check if chunk exists: {} (attempt {}/{}), retrying...",
+                        chunkHash, attempt, MAX_RETRIES, e);
+                long delayMs = Math.min(INITIAL_BACKOFF_MS * (1L << (attempt - 1)), MAX_BACKOFF_MS);
+                scheduler.schedule(() -> {
+                    verifyChunkExistsAsync(chunkHash, attempt + 1)
+                            .thenAccept(future::complete)
+                            .exceptionally(ex -> {
+                                future.completeExceptionally(ex);
+                                return null;
+                            });
+                }, delayMs, TimeUnit.MILLISECONDS);
+            } else {
+                logger.error("Failed to check if chunk exists: {} after {} retries", chunkHash, MAX_RETRIES, e);
+                future.complete(false);
+            }
         }
-        if (!chunkExists) {
-            logger.error("Chunk {} does not exist in content store after {} retries", chunkHash, MAX_RETRIES);
-            // Don't increment error count here - let the caller handle it
-            // This allows for more graceful handling of transient failures
-            return false;
-        }
-        return true;
+        return future;
     }
 
     /**
-     * Stores file metadata with retry logic for foreign key constraints.
-     *
-     * @param fileMetadata the file metadata to store
-     * @param chunkHashes  the list of chunk hashes
-     * @param result       the chunking result
-     * @throws IOException if storing fails after all retries
+     * Stores file metadata with retry logic for foreign key constraints (async).
      */
-    private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
-            FileChunker.ChunkingResult result) throws IOException {
-        IOException lastException = null;
+    private CompletableFuture<Void> storeFileMetadataWithRetryAsync(FileMetadata fileMetadata, List<String> chunkHashes,
+            FileChunker.ChunkingResult result) {
+        return storeFileMetadataWithRetryAsync(fileMetadata, chunkHashes, result, 1);
+    }
 
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    private CompletableFuture<Void> storeFileMetadataWithRetryAsync(FileMetadata fileMetadata, List<String> chunkHashes,
+            FileChunker.ChunkingResult result, int attempt) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        executorService.submit(() -> {
             Transaction transaction = null;
             try {
                 // Begin transaction for file metadata
                 transaction = metadataService.beginTransaction();
 
                 // Ensure all chunk metadata exists before inserting file
-                try {
-                    ensureChunkMetadataExists(chunkHashes);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("Interrupted while ensuring chunk metadata exists", ie);
-                }
+                ensureChunkMetadataExists(chunkHashes);
 
                 // Now insert file metadata
                 metadataService.insertFile(fileMetadata);
                 transaction.commit();
-                // Success, break out of retry loop
-                break;
-            } catch (IOException e) {
-                lastException = e;
+                // Success
+                future.complete(null);
+            } catch (Exception e) {
                 if (transaction != null) {
                     try {
                         transaction.rollback();
@@ -810,37 +818,39 @@ public class FileProcessor {
                                 result.getFile(), rollbackEx.getMessage());
                     }
                 }
-                // If it's a foreign key constraint or visibility issue, chunks might not be
-                // visible yet
-                if (e.getMessage() != null
-                        && (e.getMessage().contains("FOREIGN KEY constraint failed")
-                                || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
-                                || e.getMessage().contains("Not all chunk metadata is visible"))) {
-                    if (attempt < MAX_RETRIES) {
-                        // Adjusted backoff: 200ms, 400ms, 600ms, 800ms
-                        long delayMs = 200L * attempt;
-                        logger.warn(
-                                "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
-                                result.getFile(), attempt, delayMs);
-                        try {
-                            Thread.sleep(delayMs);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            throw new IOException("Interrupted while retrying file insertion", ie);
-                        }
-                    } else {
-                        logger.error("Failed to insert file metadata after {} attempts: {}",
-                                MAX_RETRIES, result.getFile());
-                        throw lastException;
+
+                // Check if retryable
+                boolean retryable = false;
+                if (e instanceof IOException) {
+                    String msg = e.getMessage();
+                    if (msg != null && (msg.contains("FOREIGN KEY constraint failed")
+                            || msg.contains("SQLITE_CONSTRAINT_FOREIGNKEY")
+                            || msg.contains("Not all chunk metadata is visible"))) {
+                        retryable = true;
                     }
+                }
+
+                if (retryable && attempt < MAX_RETRIES) {
+                    // Adjusted backoff: 200ms, 400ms, 600ms, 800ms
+                    long delayMs = 200L * attempt;
+                    logger.warn(
+                            "Chunk metadata visibility issue for file {} (attempt {}), retrying after {}ms...",
+                            result.getFile(), attempt, delayMs);
+
+                    scheduler.schedule(() -> {
+                        storeFileMetadataWithRetryAsync(fileMetadata, chunkHashes, result, attempt + 1)
+                                .thenAccept(v -> future.complete(null))
+                                .exceptionally(ex -> {
+                                    future.completeExceptionally(ex);
+                                    return null;
+                                });
+                    }, delayMs, TimeUnit.MILLISECONDS);
                 } else if (e.getMessage() != null && e.getMessage().contains("Snapshot does not exist")) {
-                    // Critical error: Snapshot is gone, we must abort immediately
                     logger.error("Snapshot missing during processing: {}. Aborting FileProcessor.", result.getFile());
-                    stop(); // Stop the processor
-                    throw new IOException("Snapshot missing, aborting processing", e);
+                    stop();
+                    future.completeExceptionally(new IOException("Snapshot missing, aborting processing", e));
                 } else {
-                    // Not a foreign key constraint, don't retry
-                    throw e;
+                    future.completeExceptionally(e);
                 }
             } finally {
                 if (transaction != null) {
@@ -852,7 +862,9 @@ public class FileProcessor {
                     }
                 }
             }
-        }
+        });
+
+        return future;
     }
 
     /**
@@ -1140,7 +1152,11 @@ public class FileProcessor {
                     logger.error("Batch insert failed, falling back to individual processing", e);
                     // Fallback to individual processing
                     for (FileChunker.ChunkingResult result : validResults) {
-                        FileProcessor.this.processChunkingResult(result);
+                        try {
+                            FileProcessor.this.processChunkingResultAsync(result).join();
+                        } catch (Exception ex) {
+                            logger.error("Error processing fallback result for file: {}", result.getFile(), ex);
+                        }
                     }
                 }
 

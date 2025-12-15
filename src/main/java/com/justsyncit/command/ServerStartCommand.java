@@ -39,7 +39,7 @@ public class ServerStartCommand implements Command {
     private static final int MIN_PORT = 1;
     private static final int MAX_PORT = 65535;
     private static final int STARTUP_TIMEOUT_MS = 5000;
-    private static final int STARTUP_POLL_INTERVAL_MS = 100;
+
     private static final int STATUS_UPDATE_INTERVAL_MS = 1000;
 
     private final NetworkService networkService;
@@ -223,15 +223,21 @@ public class ServerStartCommand implements Command {
         setupCompletionHandler(service, startFuture, options);
 
         // Wait for server to start with polling
-        long deadline = System.currentTimeMillis() + STARTUP_TIMEOUT_MS;
-        while (System.currentTimeMillis() < deadline) {
-            if (service.isServerRunning()) {
-                break;
-            }
-            if (startFuture.isCompletedExceptionally()) {
-                break; // Handled by completion handler or future.get check if we were doing that
-            }
-            Thread.sleep(STARTUP_POLL_INTERVAL_MS);
+        // Wait for server to start using Future.get() instead of polling/sleeping
+        try {
+            startFuture.get(STARTUP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            System.err.println("Server failed to start: Timed out after " + STARTUP_TIMEOUT_MS + "ms");
+            return false;
+        } catch (java.util.concurrent.ExecutionException e) {
+            // The completion handler will also log this, but we need to return false here
+            // We can let the user know via stderr as well if needed, though completion
+            // handler usually does it.
+            // Relying on service.isServerRunning check below is safest.
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("Server start interrupted");
+            return false;
         }
 
         if (!service.isServerRunning()) {

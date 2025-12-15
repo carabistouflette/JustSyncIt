@@ -297,6 +297,7 @@ public class TransferCommand implements Command {
                     try {
                         String[] parts = args[i + 1].split(":");
                         if (parts.length != 2) {
+                            logger.error("Invalid server format. Use host:port");
                             System.err.println("Error: Invalid server format. Use host:port");
                             return null;
                         }

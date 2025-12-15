@@ -18,9 +18,11 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Command for stopping a backup server.
@@ -29,6 +31,8 @@ import com.justsyncit.network.NetworkService;
  */
 
 public class ServerStopCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(ServerStopCommand.class);
 
     private static final long KB = 1024;
     private static final long MB = KB * 1024;
@@ -76,6 +80,7 @@ public class ServerStopCommand implements Command {
 
         // Check for subcommand
         if (args.length == 0 || !args[0].equals("stop")) {
+            logger.error("Missing subcommand 'stop'");
             System.err.println("Error: Missing subcommand 'stop'");
             System.err.println(getUsage());
             System.err.println("Use 'help server stop' for more information");
@@ -103,9 +108,9 @@ public class ServerStopCommand implements Command {
             }
             if (service == null) {
                 try {
-                    localService = serviceFactory.createNetworkService();
                     service = localService;
                 } catch (Exception e) {
+                    logger.error("Failed to initialize network service", e);
                     System.err.println("Error: Failed to initialize network service: " + e.getMessage());
                     return false;
                 }
@@ -114,6 +119,7 @@ public class ServerStopCommand implements Command {
             return stopServer(service, options);
 
         } catch (Exception e) {
+            logger.error("Failed to stop server", e);
             System.err.println("Error: Failed to stop server: " + e.getMessage());
             return false;
         } finally {
@@ -166,7 +172,9 @@ public class ServerStopCommand implements Command {
      */
     private boolean stopServer(NetworkService service, StopOptions options) throws Exception {
         // Check if server is running
+        // Check if server is running
         if (!service.isServerRunning()) {
+            logger.warn("Server is not running");
             System.err.println("Error: Server is not running");
             return false;
         }
@@ -174,6 +182,7 @@ public class ServerStopCommand implements Command {
         // Check for active transfers and warn if not forcing
         int activeTransfers = service.getActiveTransferCount();
         if (activeTransfers > 0 && !options.force) {
+            logger.warn("Server has {} active transfer(s) in progress, stopping aborted", activeTransfers);
             System.err.println("Error: Server has " + activeTransfers + " active transfer(s) in progress");
             System.err.println("Use --force to stop the server anyway");
             return false;
@@ -249,6 +258,7 @@ public class ServerStopCommand implements Command {
             try {
                 resource.close();
             } catch (Exception e) {
+                logger.warn("Failed to close resource", e);
                 System.err.println("Warning: Failed to close resource: " + e.getMessage());
             }
         }
