@@ -297,4 +297,13 @@ public final class FilesystemContentStore extends AbstractContentStore {
         chunkIndex.close();
         logger.info("Closed filesystem content store");
     }
+
+    /**
+     * Gets the integrity verifier used by this store.
+     *
+     * @return the integrity verifier
+     */
+    public IntegrityVerifier getIntegrityVerifier() {
+        return integrityVerifier;
+    }
 }

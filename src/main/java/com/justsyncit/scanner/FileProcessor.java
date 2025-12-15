@@ -45,6 +45,14 @@ public class FileProcessor {
     private final ContentStore contentStore;
     /** Metadata service for storing file and chunk metadata. */
     private final MetadataService metadataService;
+
+    // Constants for retry logic and timeouts
+    private static final int MAX_RETRIES = 5;
+    private static final long MAX_BACKOFF_MS = 500L;
+    private static final long INITIAL_BACKOFF_MS = 100L;
+    private static final long CHUNKING_TIMEOUT_HOURS = 24L;
+    private static final int BATCH_SIZE = 200;
+
     /** Executor service for async operations. */
     private volatile ExecutorService executorService;
 
@@ -399,10 +407,8 @@ public class FileProcessor {
     private class ChunkingFileVisitor implements FileVisitor {
         /** Queue of files to process. */
         private final ConcurrentLinkedQueue<Path> processingQueue = new ConcurrentLinkedQueue<>();
-        /** List of futures for chunking operations. */
-        private final List<CompletableFuture<FileChunker.ChunkingResult>> chunkingFutures = new ArrayList<>();
-        /** Lock for synchronizing access to chunkingFutures list. */
-        private final Object chunkingFuturesLock = new Object();
+        /** Phaser for tracking active chunking operations. */
+        private final java.util.concurrent.Phaser chunkingPhaser = new java.util.concurrent.Phaser(1); // Register self
         /** Chunking options to use. */
         private final FileChunker.ChunkingOptions options;
         /** Snapshot ID to use for this visitor. */
@@ -493,7 +499,8 @@ public class FileProcessor {
                 }
 
                 // Start chunking file
-                CompletableFuture<FileChunker.ChunkingResult> chunkingFuture = chunker.chunkFile(file, currentOptions)
+                chunkingPhaser.register();
+                chunker.chunkFile(file, currentOptions)
                         .thenCompose(result -> {
                             return CompletableFuture.supplyAsync(() -> {
                                 try {
@@ -579,8 +586,12 @@ public class FileProcessor {
                             return FileChunker.ChunkingResult.createFailed(file, ioException);
                         })
                         .handle((result, throwable) -> {
-                            // Always release the semaphore when the future completes (success or failure)
-                            fileConcurrencySemaphore.release();
+                            // Always release the semaphore and arrive at phaser when the future completes
+                            try {
+                                fileConcurrencySemaphore.release();
+                            } finally {
+                                chunkingPhaser.arriveAndDeregister();
+                            }
 
                             // Ensure we always return a valid result, even if both result and throwable are
                             // null
@@ -612,10 +623,6 @@ public class FileProcessor {
                             return result;
                         });
 
-                synchronized (chunkingFuturesLock) {
-                    chunkingFutures.add(chunkingFuture);
-                }
-
             } catch (RuntimeException | IOException e) {
                 logger.error("Error starting chunking for file: {}", file, e);
                 // Release permit if we failed to start
@@ -632,43 +639,19 @@ public class FileProcessor {
             }
 
             try {
-                // Filter out null futures to avoid ForEachOps issues
-                List<CompletableFuture<FileChunker.ChunkingResult>> validFutures;
-                synchronized (chunkingFuturesLock) {
-                    validFutures = new ArrayList<>();
-                    for (CompletableFuture<FileChunker.ChunkingResult> future : chunkingFutures) {
-                        if (future != null) {
-                            validFutures.add(future);
-                        }
-                    }
+                // Arrive and deregister self (the main thread)
+                chunkingPhaser.arriveAndDeregister();
+
+                // Wait for all registered parties (chunking tasks) to arrive
+                // We use a pragmatic timeout to avoid hanging forever
+                try {
+                    chunkingPhaser.awaitAdvanceInterruptibly(chunkingPhaser.getPhase(),
+                            CHUNKING_TIMEOUT_HOURS, java.util.concurrent.TimeUnit.HOURS);
+                } catch (java.util.concurrent.TimeoutException e) {
+                    logger.error("Timeout waiting for chunking completion after {} hours", CHUNKING_TIMEOUT_HOURS, e);
+                    chunkingPhaser.forceTermination();
                 }
 
-                if (validFutures.isEmpty()) {
-                    logger.debug("No valid futures to wait for");
-                    return;
-                }
-
-                // Add timeout to prevent infinite hanging
-                // Use the filtered list to create the array for allOf()
-                // Ensure no null elements in array to prevent ForEachOps issues
-                @SuppressWarnings("unchecked")
-                CompletableFuture<FileChunker.ChunkingResult>[] futuresArray = (CompletableFuture<FileChunker.ChunkingResult>[]) validFutures
-                        .toArray(
-                                new CompletableFuture<?>[validFutures.size()]);
-                CompletableFuture.allOf(futuresArray)
-                        .get(24, java.util.concurrent.TimeUnit.HOURS); // Increased timeout for large backups
-            } catch (java.util.concurrent.TimeoutException e) {
-                logger.error("Timeout waiting for chunking completion after 24 hours", e);
-                // Cancel any remaining futures
-                synchronized (chunkingFuturesLock) {
-                    // Create a copy to avoid concurrent modification
-                    List<CompletableFuture<FileChunker.ChunkingResult>> futuresCopy = new ArrayList<>(chunkingFutures);
-                    for (CompletableFuture<FileChunker.ChunkingResult> future : futuresCopy) {
-                        if (future != null && !future.isDone()) {
-                            future.cancel(true);
-                        }
-                    }
-                }
             } catch (Exception e) {
                 logger.error("Error waiting for chunking completion", e);
             }
@@ -742,22 +725,20 @@ public class FileProcessor {
      */
     private boolean verifyChunkExists(String chunkHash) {
         boolean chunkExists = false;
-        int maxRetries = 5; // Reduced from 15 to 5 to fail faster
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 if (contentStore.existsChunk(chunkHash)) {
                     chunkExists = true;
-                    logger.debug("Chunk {} is visible (attempt {}/{})", chunkHash, attempt, maxRetries);
+                    logger.debug("Chunk {} is visible (attempt {}/{})", chunkHash, attempt, MAX_RETRIES);
                     break;
-                } else if (attempt < maxRetries) {
+                } else if (attempt < MAX_RETRIES) {
                     logger.debug("Chunk {} not yet visible (attempt {}/{}), waiting...",
-                            chunkHash, attempt, maxRetries);
+                            chunkHash, attempt, MAX_RETRIES);
                     try {
                         // Use exponential backoff for better reliability
-                        // 100ms, 200ms, 400ms, 800ms
-                        long delayMs = 100L * (1L << (attempt - 1));
-                        // Cap at 500ms to avoid excessive delays
-                        delayMs = Math.min(delayMs, 500L);
+                        long delayMs = INITIAL_BACKOFF_MS * (1L << (attempt - 1));
+                        // Cap at MAX_BACKOFF_MS
+                        delayMs = Math.min(delayMs, MAX_BACKOFF_MS);
                         Thread.sleep(delayMs);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -766,11 +747,11 @@ public class FileProcessor {
                 }
             } catch (IOException e) {
                 logger.warn("Failed to check if chunk exists: {} (attempt {}/{})",
-                        chunkHash, attempt, maxRetries, e);
-                if (attempt < maxRetries) {
+                        chunkHash, attempt, MAX_RETRIES, e);
+                if (attempt < MAX_RETRIES) {
                     try {
-                        long delayMs = 100L * (1L << (attempt - 1));
-                        delayMs = Math.min(delayMs, 500L);
+                        long delayMs = INITIAL_BACKOFF_MS * (1L << (attempt - 1));
+                        delayMs = Math.min(delayMs, MAX_BACKOFF_MS);
                         Thread.sleep(delayMs);
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
@@ -780,7 +761,7 @@ public class FileProcessor {
             }
         }
         if (!chunkExists) {
-            logger.error("Chunk {} does not exist in content store after {} retries", chunkHash, maxRetries);
+            logger.error("Chunk {} does not exist in content store after {} retries", chunkHash, MAX_RETRIES);
             // Don't increment error count here - let the caller handle it
             // This allows for more graceful handling of transient failures
             return false;
@@ -798,10 +779,9 @@ public class FileProcessor {
      */
     private void storeFileMetadataWithRetry(FileMetadata fileMetadata, List<String> chunkHashes,
             FileChunker.ChunkingResult result) throws IOException {
-        int maxRetries = 5; // Reduced from 12 to 5 to fail faster
         IOException lastException = null;
 
-        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             Transaction transaction = null;
             try {
                 // Begin transaction for file metadata
@@ -836,7 +816,7 @@ public class FileProcessor {
                         && (e.getMessage().contains("FOREIGN KEY constraint failed")
                                 || e.getMessage().contains("SQLITE_CONSTRAINT_FOREIGNKEY")
                                 || e.getMessage().contains("Not all chunk metadata is visible"))) {
-                    if (attempt < maxRetries) {
+                    if (attempt < MAX_RETRIES) {
                         // Adjusted backoff: 200ms, 400ms, 600ms, 800ms
                         long delayMs = 200L * attempt;
                         logger.warn(
@@ -850,7 +830,7 @@ public class FileProcessor {
                         }
                     } else {
                         logger.error("Failed to insert file metadata after {} attempts: {}",
-                                maxRetries, result.getFile());
+                                MAX_RETRIES, result.getFile());
                         throw lastException;
                     }
                 } else if (e.getMessage() != null && e.getMessage().contains("Snapshot does not exist")) {
@@ -1089,7 +1069,7 @@ public class FileProcessor {
                             batch.add(result);
                         }
                     }
-                    persistenceQueue.drainTo(batch, 199); // Max 200 items per batch
+                    persistenceQueue.drainTo(batch, BATCH_SIZE - 1); // Max BATCH_SIZE items per batch
 
                     if (!batch.isEmpty()) {
                         processBatch(batch);

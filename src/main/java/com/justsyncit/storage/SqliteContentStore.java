@@ -70,14 +70,8 @@ public final class SqliteContentStore extends AbstractContentStore {
         // FilesystemContentStore
         IntegrityVerifier verifier = null;
         if (delegateStore instanceof FilesystemContentStore) {
-            // Use reflection to access the private integrityVerifier field
-            try {
-                java.lang.reflect.Field field = FilesystemContentStore.class.getDeclaredField("integrityVerifier");
-                field.setAccessible(true);
-                verifier = (IntegrityVerifier) field.get(delegateStore);
-            } catch (Exception e) {
-                logger.warn("Failed to extract integrity verifier from delegate store: {}", e.getMessage());
-            }
+            // Use getter to access the integrityVerifier field
+            verifier = ((FilesystemContentStore) delegateStore).getIntegrityVerifier();
         }
 
         // Create a new one as fallback or if extraction failed
