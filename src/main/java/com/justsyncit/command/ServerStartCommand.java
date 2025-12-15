@@ -23,6 +23,8 @@ import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.Locale;
 
 /**
@@ -44,6 +46,7 @@ public class ServerStartCommand implements Command {
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
+    private final CountDownLatch stopLatch = new CountDownLatch(1);
 
     /**
      * Creates a server start command with dependency injection.
@@ -80,6 +83,7 @@ public class ServerStartCommand implements Command {
 
         // Check for subcommand
         if (args.length == 0 || !args[0].equals("start")) {
+            logger.error("Missing subcommand 'start'");
             System.err.println("Error: Missing subcommand 'start'");
             System.err.println(getUsage());
             System.err.println("Use 'help server start' for more information");
@@ -90,6 +94,7 @@ public class ServerStartCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid arguments: {}", e.getMessage());
             System.err.println(e.getMessage());
             return false;
         }
@@ -205,6 +210,7 @@ public class ServerStartCommand implements Command {
     private boolean startServer(NetworkService service, StartOptions options) throws Exception {
         // Check if server is already running
         if (service.isServerRunning()) {
+            logger.warn("Server is already running on port {}", service.getServerPort());
             System.err.println("Error: Server is already running on port " + service.getServerPort());
             return false;
         }
@@ -227,6 +233,7 @@ public class ServerStartCommand implements Command {
         try {
             startFuture.get(STARTUP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
+            logger.error("Server failed to start: Timed out after {}ms", STARTUP_TIMEOUT_MS);
             System.err.println("Server failed to start: Timed out after " + STARTUP_TIMEOUT_MS + "ms");
             return false;
         } catch (java.util.concurrent.ExecutionException e) {
@@ -241,6 +248,7 @@ public class ServerStartCommand implements Command {
         }
 
         if (!service.isServerRunning()) {
+            logger.error("Server failed to start (timeout or error)");
             System.err.println("Server failed to start (timeout or error)");
             return false;
         }
@@ -305,6 +313,8 @@ public class ServerStartCommand implements Command {
             } catch (Exception e) {
                 logger.error("Error stopping server", e);
                 System.err.println("Error stopping server: " + e.getMessage());
+            } finally {
+                stopLatch.countDown();
             }
         }));
     }
@@ -344,7 +354,10 @@ public class ServerStartCommand implements Command {
      */
     private void monitorServerWithStatus(NetworkService service) throws InterruptedException {
         while (service.isServerRunning()) {
-            Thread.sleep(STATUS_UPDATE_INTERVAL_MS);
+            // Wait for 1 second or until stop signal
+            if (stopLatch.await(STATUS_UPDATE_INTERVAL_MS, TimeUnit.MILLISECONDS)) {
+                break; // Stop signal received
+            }
 
             NetworkService.NetworkStatistics stats = service.getStatistics();
             System.out.printf("\rConnections: %d, Transfers: %d, Bytes sent: %s, Bytes received: %s",
@@ -363,9 +376,8 @@ public class ServerStartCommand implements Command {
      * @throws InterruptedException if interrupted
      */
     private void monitorServerQuiet(NetworkService service) throws InterruptedException {
-        while (service.isServerRunning()) {
-            Thread.sleep(STATUS_UPDATE_INTERVAL_MS);
-        }
+        // Wait until stop signal
+        stopLatch.await();
     }
 
     /**

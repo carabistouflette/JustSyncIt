@@ -61,7 +61,7 @@ class ServerStartCommandTest {
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(context.getNetworkService()).thenReturn(networkService);
 
-        boolean result = command.execute(new String[] { "start", "--port", "8081", "--quiet" }, context);
+        boolean result = command.execute(new String[] { "start", "--port", "8081", "--quiet", "--daemon" }, context);
 
         assertTrue(result);
         verify(networkService).startServer(eq(8081), eq(TransportType.TCP));

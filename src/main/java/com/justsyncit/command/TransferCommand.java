@@ -304,11 +304,13 @@ public class TransferCommand implements Command {
                         String host = parts[0];
                         if (host == null || host.trim().isEmpty()) {
                             logger.error("Hostname cannot be empty");
+                            System.err.println("Error: Hostname cannot be empty");
                             return null;
                         }
                         int port = Integer.parseInt(parts[1]);
                         if (port < 1 || port > 65535) {
                             logger.error("Port must be between 1 and 65535");
+                            System.err.println("Error: Port must be between 1 and 65535");
                             return null;
                         }
                         options.serverAddress = new InetSocketAddress(host, port);
@@ -318,10 +320,12 @@ public class TransferCommand implements Command {
                         // Actually, let's just parse fully here.
                     } catch (NumberFormatException e) {
                         logger.error("Invalid port number: {}", args[i + 1]);
+                        System.err.println("Error: Invalid port number: " + args[i + 1]);
                         return null;
                     }
                 } else {
                     logger.error("--to requires a server address (host:port)");
+                    System.err.println("Error: --to requires a server address (host:port)");
                     return null;
                 }
                 break;
@@ -330,6 +334,7 @@ public class TransferCommand implements Command {
 
         if (!foundTo || options.serverAddress == null) {
             logger.error("--to option is required");
+            System.err.println("Error: --to option is required");
             return null;
         }
 
@@ -350,10 +355,13 @@ public class TransferCommand implements Command {
                             i++;
                         } catch (IllegalArgumentException e) {
                             logger.error("Invalid transport type: {}. Valid types: TCP, QUIC", args[i + 1]);
+                            System.err.println(
+                                    "Error: Invalid transport type: " + args[i + 1] + ". Valid types: TCP, QUIC");
                             return null;
                         }
                     } else {
                         logger.error("--transport requires a value (TCP|QUIC)");
+                        System.err.println("Error: --transport requires a value (TCP|QUIC)");
                         return null;
                     }
                     break;
@@ -376,6 +384,7 @@ public class TransferCommand implements Command {
                 default:
                     if (arg.startsWith("--")) {
                         logger.error("Unknown option: {}", arg);
+                        System.err.println("Error: Unknown option: " + arg);
                         return null;
                     }
                     break;
