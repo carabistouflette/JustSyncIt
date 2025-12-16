@@ -157,15 +157,102 @@ public class ModificationJournal implements Closeable {
     }
 
     /**
-     * Compacts the journal by removing old events or consolidating.
-     * For MVP, we might just truncate if confirmed processed, but we'll leave this
-     * as a TODO hook.
-     * 
-     * @param beforeTimestamp remove events older than this
+     * Compacts the journal by removing old events.
+     * Rewrites the journal file, keeping only events after the specified timestamp.
+     *
+     * @param beforeTimestamp remove events older than this (exclusive)
      */
-    public void compact(Instant beforeTimestamp) {
-        // Implementation: Read all, filter, atomic write new file, replace old file.
-        // Out of scope for Step 1, but good to have signature.
+    public void compact(Instant beforeTimestamp) throws IOException {
+        lock.writeLock().lock();
+        try {
+            logger.info("Compacting journal before {}", beforeTimestamp);
+
+            // 1. Read all valid events
+            List<FileChangeEvent> validEvents = new ArrayList<>();
+            // We can reuse replayEvents but we're already holding the write lock,
+            // so we shouldn't call a method that acquires the read lock if it's not
+            // reentrant upgradable (it isn't).
+            // Actually ReentrantReadWriteLock: "The writer lock is exclusive".
+            // So we can just read the file directly since we have exclusive access.
+
+            if (!Files.exists(journalFile)) {
+                return;
+            }
+
+            try (DataInputStream dis = new DataInputStream(
+                    new BufferedInputStream(Files.newInputStream(journalFile)))) {
+                if (dis.available() > 0) {
+                    int magic = dis.readInt();
+                    int version = dis.readInt();
+                    if (magic == 0xDEADBEEF && version == CURRENT_VERSION) {
+                        while (dis.available() > 0) {
+                            try {
+                                int typeOrdinal = dis.readByte();
+                                long timestamp = dis.readLong();
+                                String pathStr = dis.readUTF();
+                                String regId = dis.readUTF();
+
+                                Instant time = Instant.ofEpochMilli(timestamp);
+                                if (!time.isBefore(beforeTimestamp)) { // Keep if >= beforeTimestamp
+                                    validEvents.add(new FileChangeEvent(
+                                            FileChangeEvent.EventType.values()[typeOrdinal],
+                                            Path.of(pathStr),
+                                            time,
+                                            false, -1, regId.isEmpty() ? null : regId));
+                                }
+                            } catch (EOFException e) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                logger.error("Error reading journal during compaction", e);
+                // If read fails, abort compaction to avoid data loss
+                return;
+            }
+
+            if (validEvents.isEmpty()) {
+                logger.info("Journal compaction: No events to keep. Truncating file.");
+            } else {
+                logger.info("Journal compaction: Keeping {} events.", validEvents.size());
+            }
+
+            // 2. Write to temp file
+            Path tempFile = journalDir.resolve("modifications.journal.tmp");
+            try (DataOutputStream dos = new DataOutputStream(
+                    new BufferedOutputStream(Files.newOutputStream(tempFile, StandardOpenOption.CREATE,
+                            StandardOpenOption.TRUNCATE_EXISTING)))) {
+                dos.writeInt(0xDEADBEEF);
+                dos.writeInt(CURRENT_VERSION);
+
+                for (FileChangeEvent event : validEvents) {
+                    dos.writeByte(event.getEventType().ordinal());
+                    dos.writeLong(event.getEventTime().toEpochMilli());
+                    dos.writeUTF(event.getFilePath().toString());
+                    dos.writeUTF(event.getRegistrationId() != null ? event.getRegistrationId() : "");
+                }
+                dos.flush();
+            }
+
+            // 3. Close current output stream to release file handle
+            if (outputStream != null) {
+                outputStream.close();
+            }
+
+            // 4. Atomically replace
+            Files.move(tempFile, journalFile, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+
+            // 5. Re-open output stream
+            this.outputStream = new DataOutputStream(new BufferedOutputStream(
+                    Files.newOutputStream(journalFile, StandardOpenOption.CREATE, StandardOpenOption.APPEND)));
+
+            logger.info("Journal compaction completed.");
+
+        } finally {
+            lock.writeLock().unlock();
+        }
     }
 
     @Override
