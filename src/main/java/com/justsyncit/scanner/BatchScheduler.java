@@ -731,17 +731,54 @@ public class BatchScheduler {
                 // Collect resource utilization metrics
                 Runtime runtime = Runtime.getRuntime();
                 long maxMemory = runtime.maxMemory();
-                long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-                double memoryUtilization = (double) usedMemory / maxMemory * 100.0;
+                long totalMemory = runtime.totalMemory();
+                long freeMemory = runtime.freeMemory();
+                long usedMemory = totalMemory - freeMemory;
 
-                // Estimate CPU utilization (simplified)
-                // Create a simple resource utilization object for monitoring
-                double cpuUtilization = Math.min(90.0, 50.0); // Simplified estimate
-                double ioUtilization = Math.min(95.0, 60.0); // Simplified estimate
+                double memoryUtilization = 0.0;
+                if (maxMemory > 0) {
+                    memoryUtilization = (double) usedMemory / maxMemory * 100.0;
+                }
+
+                // Estimate CPU utilization
+                double cpuUtilization = 0.0;
+                try {
+                    java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory
+                            .getOperatingSystemMXBean();
+
+                    // Try to get system load average if available
+                    // Note: This is load average, not percentage, but gives an indication
+                    double loadAverage = osBean.getSystemLoadAverage();
+                    int availableProcessors = osBean.getAvailableProcessors();
+
+                    if (loadAverage >= 0 && availableProcessors > 0) {
+                        // Rough estimate: load / processors * 100. Cap at 100.
+                        cpuUtilization = Math.min(100.0, (loadAverage / availableProcessors) * 100.0);
+                    }
+
+                    // Try to use com.sun.management interface if available for more accurate
+                    // reading
+                    if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
+                        double systemCpuLoad = ((com.sun.management.OperatingSystemMXBean) osBean).getCpuLoad();
+                        if (systemCpuLoad >= 0) {
+                            cpuUtilization = systemCpuLoad * 100.0;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore errors accessing MXBean (e.g., restricted environment)
+                    logger.debug("Could not determine CPU utilization", e);
+                }
+
+                // I/O Wait is hard to get from Java without native libs.
+                // We'll leave it at 0.0 or a safe default unless we have a way to measure it.
+                // For now, we assume 0 to avoid false throttling.
+                double ioUtilization = 0.0;
 
                 ResourceUtilization utilization = new ResourceUtilization(
                         cpuUtilization, memoryUtilization, ioUtilization,
-                        1, usedMemory / (1024 * 1024), 0L, 0L);
+                        Runtime.getRuntime().availableProcessors(),
+                        usedMemory / (1024 * 1024),
+                        0L, 0L);
 
                 currentUtilization.set(utilization);
 

@@ -193,19 +193,12 @@ public class Blake3FileHasher implements FileHasher {
             } else {
                 return hashLargeFile(filePath, fileSize);
             }
-        } catch (Exception e) {
+        } catch (IOException | IllegalArgumentException | SecurityException e) {
             logger.error("Failed to hash file: {}", filePath, e);
-
-            // Re-throw with proper exception type
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            } else if (e instanceof IllegalArgumentException) {
-                throw (IllegalArgumentException) e;
-            } else if (e instanceof RuntimeException) {
-                throw new IOException("Unexpected error while hashing file: " + filePath, e);
-            } else {
-                throw new IOException("Error while hashing file: " + filePath, e);
-            }
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error while hashing file: {}", filePath, e);
+            throw new IOException("Unexpected error while hashing file: " + filePath, e);
         }
     }
 
