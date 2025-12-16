@@ -224,135 +224,14 @@ public interface FileChunker extends ChunkStorage {
         }
     }
 
-    /**
-     * Options for chunking operations.
-     */
-    class ChunkingOptions {
-        /** Default chunk size (64KB). */
-        public static final int DEFAULT_CHUNK_SIZE = 64 * 1024;
-        /** Default buffer count. */
-        public static final int DEFAULT_BUFFER_COUNT = 4;
-        /** Default async I/O setting. */
-        public static final boolean DEFAULT_USE_ASYNC_IO = true;
-        /** Default sparse file detection. */
-        public static final boolean DEFAULT_DETECT_SPARSE = true;
-
-        /** Current chunk size in bytes. */
-        private int chunkSize = DEFAULT_CHUNK_SIZE;
-        /** Whether to use async I/O. */
-        private boolean useAsyncIO = DEFAULT_USE_ASYNC_IO;
-        /** Number of buffers to use for chunking. */
-        private int bufferCount = DEFAULT_BUFFER_COUNT;
-        /** Whether to detect sparse files. */
-        private boolean detectSparseFiles = DEFAULT_DETECT_SPARSE;
-        /** Maximum number of concurrent chunks. */
-        private int maxConcurrentChunks = 4;
-        /** Progress callback. */
-        private ChunkProgressCallback progressCallback;
-        /** Status callback. */
-        private ChunkStatusCallback statusCallback;
-
-        /**
-         * Creates a new ChunkingOptions with defaults.
-         */
-        public ChunkingOptions() {
-        }
-
-        /**
-         * Creates a new ChunkingOptions as a copy of another.
-         *
-         * @param other options to copy
-         */
-        public ChunkingOptions(ChunkingOptions other) {
-            this.chunkSize = other.chunkSize;
-            this.useAsyncIO = other.useAsyncIO;
-            this.bufferCount = other.bufferCount;
-            this.detectSparseFiles = other.detectSparseFiles;
-            this.maxConcurrentChunks = other.maxConcurrentChunks;
-            this.progressCallback = other.progressCallback;
-            this.statusCallback = other.statusCallback;
-        }
-
-        // Getters and setters
-
-        public int getChunkSize() {
-            return chunkSize;
-        }
-
-        public ChunkingOptions withChunkSize(int chunkSize) {
-            if (chunkSize <= 0) {
-                throw new IllegalArgumentException("Chunk size must be positive");
-            }
-            this.chunkSize = chunkSize;
-            return this;
-        }
-
-        public boolean isUseAsyncIO() {
-            return useAsyncIO;
-        }
-
-        public ChunkingOptions withUseAsyncIO(boolean useAsyncIO) {
-            this.useAsyncIO = useAsyncIO;
-            return this;
-        }
-
-        public int getBufferCount() {
-            return bufferCount;
-        }
-
-        public ChunkingOptions withBufferCount(int bufferCount) {
-            if (bufferCount <= 0) {
-                throw new IllegalArgumentException("Buffer count must be positive");
-            }
-            this.bufferCount = bufferCount;
-            return this;
-        }
-
-        public boolean isDetectSparseFiles() {
-            return detectSparseFiles;
-        }
-
-        public ChunkingOptions withDetectSparseFiles(boolean detectSparseFiles) {
-            this.detectSparseFiles = detectSparseFiles;
-            return this;
-        }
-
-        public int getMaxConcurrentChunks() {
-            return maxConcurrentChunks;
-        }
-
-        public ChunkingOptions withMaxConcurrentChunks(int maxConcurrentChunks) {
-            if (maxConcurrentChunks <= 0) {
-                throw new IllegalArgumentException("Max concurrent chunks must be positive");
-            }
-            this.maxConcurrentChunks = maxConcurrentChunks;
-            return this;
-        }
-
-        public ChunkProgressCallback getProgressCallback() {
-            return progressCallback;
-        }
-
-        public ChunkingOptions withProgressCallback(ChunkProgressCallback progressCallback) {
-            this.progressCallback = progressCallback;
-            return this;
-        }
-
-        public ChunkStatusCallback getStatusCallback() {
-            return statusCallback;
-        }
-
-        public ChunkingOptions withStatusCallback(ChunkStatusCallback statusCallback) {
-            this.statusCallback = statusCallback;
-            return this;
-        }
-    }
+    // Inner class ChunkingOptions removed to use top-level
+    // com.justsyncit.scanner.ChunkingOptions
 
     /**
      * Callback for chunking progress.
      */
     @FunctionalInterface
-    interface ChunkProgressCallback {
+    public interface ChunkProgressCallback {
         /**
          * Called when bytes are processed.
          *
@@ -365,7 +244,7 @@ public interface FileChunker extends ChunkStorage {
      * Callback for chunking status updates.
      */
     @FunctionalInterface
-    interface ChunkStatusCallback {
+    public interface ChunkStatusCallback {
         /**
          * Called when the status changes.
          *
