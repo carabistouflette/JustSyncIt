@@ -26,12 +26,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-
-
 /**
  * SQLite implementation of SchemaMigrator.
  * Handles database schema creation and migration.
- * Follows Single Responsibility Principle by focusing only on schema management.
+ * Follows Single Responsibility Principle by focusing only on schema
+ * management.
  */
 public final class SqliteSchemaMigrator implements SchemaMigrator {
 
@@ -104,8 +103,8 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
 
         if (currentVersion > targetVersion) {
             throw new SQLException(
-                String.format("Database schema version %d is newer than target version %d",
-                currentVersion, targetVersion));
+                    String.format("Database schema version %d is newer than target version %d",
+                            currentVersion, targetVersion));
         }
 
         logger.info("Migrating database schema from version {} to {}", currentVersion, targetVersion);
@@ -114,14 +113,17 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
         if (currentVersion == 0) {
             createInitialSchema(connection);
             // createInitialSchema already inserts the target version, so no need to update
-        } else if (currentVersion == 1 && targetVersion >= 2) {
-            // Migration from version 1 to 2: Add foreign key constraint to file_chunks table
-            migrateToVersion2(connection);
-        } else if (currentVersion > 1) {
-            // Future migrations would be handled here
-            throw new SQLException(
-                    String.format("Migration from version %d to %d is not supported",
-                            currentVersion, targetVersion));
+        } else {
+            if (currentVersion < 2) {
+                // Migration from version 1 to 2
+                migrateToVersion2(connection);
+                currentVersion = 2;
+            }
+            if (currentVersion < 3) {
+                // Migration from version 2 to 3
+                migrateToVersion3(connection);
+                currentVersion = 3;
+            }
         }
 
         logger.info("Database schema migration completed successfully");
@@ -163,7 +165,8 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
     private void migrateToVersion2(Connection connection) throws SQLException {
         logger.info("Migrating database schema from version 1 to 2");
         try (Statement stmt = connection.createStatement()) {
-            // SQLite doesn't support adding foreign key constraints to existing tables directly
+            // SQLite doesn't support adding foreign key constraints to existing tables
+            // directly
             // We need to recreate the file_chunks table with the foreign key constraint
             logger.debug("Recreating file_chunks table with foreign key constraint");
             // Drop the existing table
@@ -188,6 +191,52 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
         }
     }
 
+    /**
+     * Migrates database schema from version 2 to 3.
+     * Adds FTS5 virtual table for files and related triggers.
+     * Starts populating the FTS index from existing files.
+     *
+     * @param connection database connection
+     * @throws SQLException if migration fails
+     */
+    private void migrateToVersion3(Connection connection) throws SQLException {
+        logger.info("Migrating database schema from version 2 to 3");
+        try (Statement stmt = connection.createStatement()) {
+            // Create FTS5 virtual table
+            logger.debug("Creating files_search FTS5 table");
+            stmt.execute("CREATE VIRTUAL TABLE IF NOT EXISTS files_search USING fts5("
+                    + "file_id UNINDEXED, "
+                    + "path"
+                    // + "content_model = 'trigram'" // Removed for compatibility check
+                    + ")");
+
+            // Create triggers
+            logger.debug("Creating triggers for FTS synchronization");
+            stmt.execute("CREATE TRIGGER IF NOT EXISTS files_ai AFTER INSERT ON files BEGIN "
+                    + "  INSERT INTO files_search(file_id, path) "
+                    + "  VALUES (new.id, new.path); "
+                    + "END");
+
+            stmt.execute("CREATE TRIGGER IF NOT EXISTS files_ad AFTER DELETE ON files BEGIN "
+                    + "  DELETE FROM files_search WHERE file_id = old.id; "
+                    + "END");
+
+            stmt.execute("CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN "
+                    + "  UPDATE files_search SET path = new.path "
+                    + "  WHERE file_id = old.id; "
+                    + "END");
+
+            // Populate existing data
+            logger.info("Populating FTS index with existing files...");
+            stmt.execute("INSERT INTO files_search(file_id, path) SELECT id, path FROM files");
+            logger.info("FTS index population complete");
+
+            // Update schema version to 3
+            stmt.execute("UPDATE schema_version SET version = 3");
+            logger.info("Successfully migrated database schema to version 3");
+        }
+    }
+
     @Override
     public boolean validateSchema(Connection connection) throws SQLException {
         if (connection == null) {
@@ -208,7 +257,8 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
             String tableQuery = "SELECT name FROM sqlite_master WHERE type='table'";
             ResultSet rs = stmt.executeQuery(tableQuery);
 
-            String[] requiredTables = {"snapshots", "files", "file_chunks", "chunks", "schema_version"};
+            String[] requiredTables = { "snapshots", "files", "file_chunks", "chunks", "schema_version",
+                    "files_search" };
             for (String table : requiredTables) {
                 boolean found = false;
                 while (rs.next()) {

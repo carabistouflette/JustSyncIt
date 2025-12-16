@@ -710,6 +710,55 @@ public final class SqliteMetadataService implements MetadataService {
     }
 
     @Override
+    public List<FileMetadata> searchFiles(String query) throws IOException {
+        validateNotClosed();
+        if (query == null || query.trim().isEmpty()) {
+            throw new IllegalArgumentException("Search query cannot be null or empty");
+        }
+
+        // Prepare the FTS query
+        // Escape special characters and wrap in quotes for exact phrase matching if
+        // needed,
+        // but for now, we'll assume the user provides a valid FTS5 query string OR
+        // simple terms.
+        // To be safe and support partial matches better with trigram, we can just pass
+        // the query.
+        // However, robust implementations often sanitizing.
+        // For this version, we pass the query directly to FTS5 MATCH operator.
+
+        String sql = "SELECT f.id, f.snapshot_id, f.path, f.size, f.modified_time, f.file_hash "
+                + "FROM files f "
+                + "JOIN files_search fs ON f.id = fs.file_id "
+                + "WHERE fs.path MATCH ? "
+                + "ORDER BY rank "
+                + "LIMIT 100";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setString(1, query);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<FileMetadata> files = new ArrayList<>();
+                while (rs.next()) {
+                    String fileId = rs.getString("id");
+                    // retrieving chunks might be expensive for just search results,
+                    // but FileMetadata requires it.
+                    // Optimisation: Lazily load chunks? Or just fetch them.
+                    // For < 100 results, fetching chunks is probably fine.
+                    List<String> chunkHashes = getFileChunks(connection, fileId);
+                    files.add(mapRowToFileMetadata(rs, chunkHashes));
+                }
+
+                logger.debug("Search for '{}' returned {} results", query, files.size());
+                return files;
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to search files", e);
+        }
+    }
+
+    @Override
     public void close() throws IOException {
         if (!closed) {
             connectionManager.close();

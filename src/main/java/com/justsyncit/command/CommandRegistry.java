@@ -51,6 +51,9 @@ public final class CommandRegistry {
 
         // Register web management command
         register(new WebCommandGroup());
+
+        // Register search command
+        register(new SearchCommand());
     }
 
     /**

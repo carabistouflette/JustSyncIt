@@ -33,6 +33,22 @@ import java.util.Optional;
 public interface MetadataService extends ClosableResource {
 
     /**
+     * Searches for files using full-text search on file path.
+     *
+     * @param query search query
+     * @return list of matching file metadata
+     * @throws IOException if search fails
+     */
+    List<FileMetadata> searchFiles(String query) throws IOException;
+
+    /**
+     * Closes the metadata service and releases resources.
+     *
+     * @throws IOException if close fails
+     */
+    void close() throws IOException;
+
+    /**
      * Begins a new database transaction.
      *
      * @return a new transaction instance
