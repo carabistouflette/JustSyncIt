@@ -151,6 +151,9 @@ public class ServerConnection implements Connection {
         this.readingHeader = true;
     }
 
+    /** The current protocol header. */
+    private ProtocolHeader currentHeader;
+
     /**
      * Processes received data from the socket channel.
      *
@@ -167,6 +170,14 @@ public class ServerConnection implements Connection {
         // Copy received data to read buffer
         while (dataBuffer.hasRemaining()) {
             if (readingHeader) {
+                // Defensive check: ensure buffer is large enough for header
+                if (readBuffer.capacity() < com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE) {
+                    logger.warn("Read buffer too small for header ({} < {}), reallocating. Pending bytes: {}",
+                            readBuffer.capacity(), com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE,
+                            dataBuffer.remaining());
+                    readBuffer = ByteBuffer.allocate(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
+                }
+
                 // Fill header buffer
                 int bytesToRead = Math.min(readBuffer.remaining(), dataBuffer.remaining());
                 copyBuffer(dataBuffer, readBuffer, bytesToRead);
@@ -174,19 +185,19 @@ public class ServerConnection implements Connection {
                 if (!readBuffer.hasRemaining()) {
                     // Header is complete, parse it
                     readBuffer.flip();
-                    ProtocolHeader header = ProtocolHeader.deserialize(readBuffer);
+                    currentHeader = ProtocolHeader.deserialize(readBuffer);
 
-                    if (!header.isValid()) {
+                    if (!currentHeader.isValid()) {
                         throw new IOException("Invalid protocol header received from " + remoteAddress);
                     }
 
                     expectedMessageSize = com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE
-                            + header.getPayloadLength();
-                    readBuffer = ByteBuffer.allocate(header.getPayloadLength());
+                            + currentHeader.getPayloadLength();
+                    readBuffer = ByteBuffer.allocate(currentHeader.getPayloadLength());
                     readingHeader = false;
 
                     // Reset for next header
-                    readBuffer.clear();
+                    // readBuffer is now allocated for payload, so clean start
                 }
             } else {
                 // Fill payload buffer
@@ -199,11 +210,13 @@ public class ServerConnection implements Connection {
 
                     // Create complete message buffer
                     ByteBuffer completeBuffer = ByteBuffer.allocate(expectedMessageSize);
-                    ByteBuffer headerBuffer = ByteBuffer.wrap(
-                            completeBuffer.array(), 0,
-                            com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
-                    completeBuffer.put(ProtocolHeader.deserialize(headerBuffer).serialize().array());
+
+                    // Put the stored header
+                    completeBuffer.put(currentHeader.serialize());
+
+                    // Put the payload
                     completeBuffer.put(readBuffer);
+
                     completeBuffer.flip();
 
                     try {
@@ -218,6 +231,7 @@ public class ServerConnection implements Connection {
                             com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
                     expectedMessageSize = -1;
                     readingHeader = true;
+                    currentHeader = null;
                 }
             }
         }

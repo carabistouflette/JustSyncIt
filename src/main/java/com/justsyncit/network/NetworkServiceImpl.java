@@ -627,7 +627,7 @@ public class NetworkServiceImpl implements NetworkService {
 
                 // 3. Serialize Header and adjust Payload Length
                 java.nio.ByteBuffer headerBuf = templateMsg.serialize();
-                headerBuf.flip(); // Prepare for reading
+                // headerBuf is already flipped by serialize()
                 com.justsyncit.network.protocol.ProtocolHeader header = com.justsyncit.network.protocol.ProtocolHeader
                         .deserialize(headerBuf);
 
