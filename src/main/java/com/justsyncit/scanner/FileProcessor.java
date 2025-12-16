@@ -1178,4 +1178,89 @@ public class FileProcessor {
             }
         }
     }
+
+    /**
+     * Processes a single file using the given options.
+     *
+     * @param file            the file to process
+     * @param chunkingOptions the chunking options
+     * @return a future that completes with the processing result
+     */
+    public CompletableFuture<ProcessingResult> processFile(Path file, FileChunker.ChunkingOptions chunkingOptions) {
+        if (executorService.isShutdown()) {
+            throw new IllegalStateException("FileProcessor has been stopped");
+        }
+
+        return CompletableFuture.supplyAsync(() -> {
+            if (isRunning) {
+                // For MVP single-file processing, we might want to allow this if we manage
+                // concurrency.
+                // But keeping same restrictions as processDirectory for safety.
+                throw new IllegalStateException("FileProcessor is already running");
+            }
+            if (file == null || !Files.exists(file) || !Files.isRegularFile(file)) {
+                throw new IllegalArgumentException("File must exist and be regular file: " + file);
+            }
+
+            isRunning = true;
+            resetCounters();
+
+            boolean externalSnapshot = (currentSnapshotId != null);
+            if (!externalSnapshot) {
+                currentSnapshotId = "processing-file-" + System.currentTimeMillis();
+            }
+
+            try {
+                // Initialize persistence worker
+                PersistenceWorker worker = new PersistenceWorker();
+                persistenceThread = new Thread(worker, "PersistenceWorker-" + currentSnapshotId);
+                persistenceThread.start();
+
+                // Create visitor
+                ChunkingFileVisitor fileVisitor = new ChunkingFileVisitor(chunkingOptions, currentSnapshotId);
+
+                // Directly start processing the file
+                fileVisitor.startProcessingFile(file);
+
+                // Wait for completion
+                fileVisitor.waitForCompletion();
+
+                // Shutdown worker
+                worker.shutdown();
+                try {
+                    persistenceThread.join(PERSISTENCE_SHUTDOWN_TIMEOUT_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+
+                // Construct ScannedFile for result
+                long fileSize = Files.size(file);
+                Instant lastMod = Files.getLastModifiedTime(file).toInstant();
+                ScanResult.ScannedFile scannedFile = new ScanResult.ScannedFile(file, fileSize, lastMod, false, false,
+                        null);
+
+                ProcessingResult result = ProcessingResult.create(
+                        new ScanResult(file.getParent(), List.of(scannedFile), null, Instant.now(), Instant.now(),
+                                null),
+                        processedFiles.get(),
+                        skippedFiles.get(),
+                        errorFiles.get(),
+                        totalBytes.get(),
+                        processedBytes.get());
+
+                return result;
+
+            } catch (Exception e) {
+                logger.error("Error processing file: " + file, e);
+                // Wrap in CompletionException if not already
+                if (e instanceof CompletionException)
+                    throw (CompletionException) e;
+                throw new CompletionException(e);
+            } finally {
+                isRunning = false;
+                if (!externalSnapshot)
+                    currentSnapshotId = null;
+            }
+        }, executorService);
+    }
 }
