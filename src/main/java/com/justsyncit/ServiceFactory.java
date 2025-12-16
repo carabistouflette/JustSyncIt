@@ -154,8 +154,9 @@ public class ServiceFactory {
      * @return configured network service
      */
     public NetworkService createNetworkService(Blake3Service blake3Service) {
-        TcpServer tcpServer = new TcpServer();
-        TcpClient tcpClient = new TcpClient();
+        com.justsyncit.network.NetworkConfiguration configuration = new com.justsyncit.network.NetworkConfiguration();
+        TcpServer tcpServer = new TcpServer(configuration);
+        TcpClient tcpClient = new TcpClient(configuration);
         ConnectionManager connectionManager = new ConnectionManagerImpl();
         FileTransferManagerImpl fileTransferManager = new FileTransferManagerImpl();
         fileTransferManager.setBlake3Service(blake3Service);

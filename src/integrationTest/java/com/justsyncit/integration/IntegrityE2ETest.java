@@ -49,6 +49,7 @@ public class IntegrityE2ETest extends E2ETestBase {
 
     private IntegrityVerifier integrityVerifier;
 
+    @org.junit.jupiter.api.BeforeEach
     @Override
     protected void setUp() throws Exception {
         super.setUp();

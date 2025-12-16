@@ -51,15 +51,15 @@ public class ProtocolHeader {
     /**
      * Creates a new protocol header.
      *
-     * @param magic the magic number
-     * @param version the protocol version
-     * @param messageType the message type
-     * @param flags the message flags
+     * @param magic         the magic number
+     * @param version       the protocol version
+     * @param messageType   the message type
+     * @param flags         the message flags
      * @param payloadLength the payload length in bytes
-     * @param messageId the unique message identifier
+     * @param messageId     the unique message identifier
      */
     public ProtocolHeader(int magic, short version, MessageType messageType,
-                       byte flags, int payloadLength, int messageId) {
+            byte flags, int payloadLength, int messageId) {
         this.magic = magic;
         this.version = version;
         this.messageType = Objects.requireNonNull(messageType, "messageType cannot be null");
@@ -71,9 +71,9 @@ public class ProtocolHeader {
     /**
      * Creates a new protocol header with default values.
      *
-     * @param messageType the message type
+     * @param messageType   the message type
      * @param payloadLength the payload length in bytes
-     * @param messageId the unique message identifier
+     * @param messageId     the unique message identifier
      */
     public ProtocolHeader(MessageType messageType, int payloadLength, int messageId) {
         this(ProtocolConstants.PROTOCOL_MAGIC, ProtocolConstants.PROTOCOL_VERSION,
@@ -83,10 +83,10 @@ public class ProtocolHeader {
     /**
      * Creates a new protocol header with flags.
      *
-     * @param messageType the message type
-     * @param flags the message flags
+     * @param messageType   the message type
+     * @param flags         the message flags
      * @param payloadLength the payload length in bytes
-     * @param messageId the unique message identifier
+     * @param messageId     the unique message identifier
      */
     public ProtocolHeader(MessageType messageType, byte flags, int payloadLength, int messageId) {
         this(ProtocolConstants.PROTOCOL_MAGIC, ProtocolConstants.PROTOCOL_VERSION,
@@ -244,6 +244,6 @@ public class ProtocolHeader {
     @Override
     public String toString() {
         return String.format("ProtocolHeader{magic=0x%08X, version=%d, type=%s, flags=0x%02X, payload=%d, id=%d}",
-                           magic, version, messageType, flags, payloadLength, messageId);
+                magic, version, messageType, flags, payloadLength, messageId);
     }
 }
