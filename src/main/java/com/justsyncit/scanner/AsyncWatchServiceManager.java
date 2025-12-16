@@ -357,18 +357,10 @@ public class AsyncWatchServiceManager {
                 throw new IllegalArgumentException("No event kinds specified for registration");
             }
 
-            // Register with varargs using reflection to handle generic types
-            try {
-                // Use reflection to call register with varargs
-                java.lang.reflect.Method registerMethod = WatchService.class.getMethod("register",
-                        Path.class, WatchEvent.Kind[].class);
-                @SuppressWarnings({ "unchecked", "rawtypes" })
-                WatchEvent.Kind<?>[] kindsArray = kinds.toArray(new WatchEvent.Kind[0]);
-                return (WatchKey) registerMethod.invoke(watchService, directory, kindsArray);
-            } catch (Exception e) {
-                logger.error("Failed to register directory using reflection", e);
-                throw new RuntimeException("Failed to register directory", e);
-            }
+            // Register using standard Path.register API
+            @SuppressWarnings({ "unchecked", "rawtypes" })
+            WatchEvent.Kind<?>[] kindsArray = kinds.toArray(new WatchEvent.Kind[0]);
+            return directory.register(watchService, kindsArray);
 
         } catch (Exception e) {
             logger.error("Failed to register directory: {}", directory, e);
