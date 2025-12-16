@@ -101,8 +101,7 @@ public class TransferCommand implements Command {
             try {
                 snapshotOpt = services.metadataService.getSnapshot(options.snapshotId);
             } catch (Exception e) {
-                logger.error("Failed to retrieve snapshot", e);
-                System.err.println("Error: Failed to retrieve snapshot: " + e.getMessage());
+                handleError("Failed to retrieve snapshot", e, logger);
                 return false;
             }
 
@@ -127,14 +126,8 @@ public class TransferCommand implements Command {
                     options.transportType);
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
-            } catch (java.util.concurrent.ExecutionException e) {
-                Throwable cause = e.getCause();
-                logger.error("Connection failed", cause);
-                System.err.println("Error: Connection failed: " + cause.getMessage());
-                return false;
-            } catch (TimeoutException e) {
-                logger.error("Connection timeout after 30 seconds");
-                System.err.println("Error: Connection timeout after 30 seconds");
+            } catch (Exception e) {
+                handleError("Connection failed", e, logger);
                 return false;
             }
 
@@ -163,8 +156,7 @@ public class TransferCommand implements Command {
             return success;
 
         } catch (Exception e) {
-            logger.error("Transfer failed", e);
-            System.err.println("Error: Transfer failed: " + e.getMessage());
+            handleError("Transfer failed", e, logger);
             return false;
         }
     }
@@ -225,7 +217,7 @@ public class TransferCommand implements Command {
             return true;
 
         } catch (Exception e) {
-            logger.error("Transfer logic failed", e);
+            handleError("Transfer logic failed", e, logger);
             return false;
         }
     }
@@ -435,14 +427,7 @@ public class TransferCommand implements Command {
             ns = networkService != null ? networkService : serviceFactory.createNetworkService();
             ms = serviceFactory.createMetadataService();
         } catch (Exception e) {
-            logger.error("Failed to initialize services: {}", e.getMessage());
-            if (ns != null && networkService == null) {
-                try {
-                    ns.close();
-                } catch (Exception ignored) {
-                }
-            }
-            return null;
+            throw new RuntimeException("Failed to initialize services", e);
         }
 
         return new ServiceContext(ns, ms);

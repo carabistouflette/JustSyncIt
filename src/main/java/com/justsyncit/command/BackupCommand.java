@@ -148,8 +148,7 @@ public class BackupCommand implements Command {
                         netService = localNetworkService;
                     }
                 } catch (ServiceException e) {
-                    logger.error("Failed to initialize backup service", e);
-                    System.err.println("Error: Failed to initialize backup service: " + e.getMessage());
+                    handleError("Failed to initialize backup service", e, logger);
                     return false;
                 }
             }
@@ -157,13 +156,10 @@ public class BackupCommand implements Command {
             return performBackup(service, netService, sourcePath, options);
 
         } catch (Exception e) {
-            logger.error("Backup execution failed", e);
-            System.err.println("\nBackup failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
+            handleError("Backup execution failed", e, logger);
             return false;
         } finally {
+
             closeQuietly(localContentStore);
             closeQuietly(localMetadataService);
             closeQuietly(localNetworkService);

@@ -18,7 +18,6 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.storage.metadata.MetadataService;
@@ -30,6 +29,8 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.FormatStyle;
 import java.time.ZonedDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Command for listing all available snapshots.
@@ -38,6 +39,8 @@ import java.util.List;
  */
 
 public class SnapshotsListCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(SnapshotsListCommand.class);
 
     private final MetadataService metadataService;
     private final ServiceFactory serviceFactory;
@@ -121,7 +124,7 @@ public class SnapshotsListCommand implements Command {
             try {
                 service = serviceFactory.createMetadataService();
             } catch (ServiceException e) {
-                System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
+                handleError("Failed to initialize metadata service", e, logger);
                 return false;
             }
         }
@@ -197,7 +200,7 @@ public class SnapshotsListCommand implements Command {
             System.out.println("Total size across all snapshots: " + formatFileSize(totalSize));
 
         } catch (Exception e) {
-            System.err.println("Error: Failed to list snapshots: " + e.getMessage());
+            handleError("Failed to list snapshots", e, logger);
             return false;
         } finally {
             // Clean up resources if we created them

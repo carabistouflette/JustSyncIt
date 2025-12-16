@@ -143,12 +143,7 @@ public class NetworkCommand implements Command {
             networkService.startServer(port)
                     .thenRun(() -> System.out.println("Network server started on port " + port))
                     .exceptionally(e -> {
-                        Throwable cause = e;
-                        if (cause instanceof java.util.concurrent.CompletionException) {
-                            cause = cause.getCause();
-                        }
-                        logger.error("Failed to start network server", cause);
-                        System.err.println("Failed to start network server: " + cause.getMessage());
+                        handleError("Failed to start network server", e, logger);
                         return null;
                     })
                     .join();
@@ -158,8 +153,7 @@ public class NetworkCommand implements Command {
             System.err.println("Invalid port number: " + args[1]);
             return false;
         } catch (Exception e) {
-            logger.error("Failed to start network server", e);
-            System.err.println("Failed to start network server: " + e.getMessage());
+            handleError("Failed to start network server", e, logger);
             return false;
         }
     }
@@ -169,19 +163,13 @@ public class NetworkCommand implements Command {
             networkService.stopServer()
                     .thenRun(() -> System.out.println("Network server stopped"))
                     .exceptionally(e -> {
-                        Throwable cause = e;
-                        if (cause instanceof java.util.concurrent.CompletionException) {
-                            cause = cause.getCause();
-                        }
-                        logger.error("Failed to stop network server", cause);
-                        System.err.println("Failed to stop network server: " + cause.getMessage());
+                        handleError("Failed to stop network server", e, logger);
                         return null;
                     })
                     .join();
             return true;
         } catch (Exception e) {
-            logger.error("Failed to stop network server", e);
-            System.err.println("Failed to stop network server: " + e.getMessage());
+            handleError("Failed to stop network server", e, logger);
             return false;
         }
     }
@@ -206,12 +194,7 @@ public class NetworkCommand implements Command {
             networkService.connectToNode(address)
                     .thenRun(() -> System.out.println("Connected to " + address))
                     .exceptionally(e -> {
-                        Throwable cause = e;
-                        if (cause instanceof java.util.concurrent.CompletionException) {
-                            cause = cause.getCause();
-                        }
-                        logger.error("Failed to connect to " + address, cause);
-                        System.err.println("Failed to connect to " + address + ": " + cause.getMessage());
+                        handleError("Failed to connect to " + address, e, logger);
                         return null;
                     })
                     .join();
@@ -221,8 +204,7 @@ public class NetworkCommand implements Command {
             System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
-            logger.error("Failed to connect", e);
-            System.err.println("Failed to connect: " + e.getMessage());
+            handleError("Failed to connect", e, logger);
             return false;
         }
     }
@@ -247,12 +229,7 @@ public class NetworkCommand implements Command {
             networkService.disconnectFromNode(address)
                     .thenRun(() -> System.out.println("Disconnected from " + address))
                     .exceptionally(e -> {
-                        Throwable cause = e;
-                        if (cause instanceof java.util.concurrent.CompletionException) {
-                            cause = cause.getCause();
-                        }
-                        logger.error("Failed to disconnect from " + address, cause);
-                        System.err.println("Failed to disconnect from " + address + ": " + cause.getMessage());
+                        handleError("Failed to disconnect from " + address, e, logger);
                         return null;
                     })
                     .join();
@@ -262,8 +239,7 @@ public class NetworkCommand implements Command {
             System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
-            logger.error("Failed to disconnect", e);
-            System.err.println("Failed to disconnect: " + e.getMessage());
+            handleError("Failed to disconnect", e, logger);
             return false;
         }
     }
@@ -294,12 +270,7 @@ public class NetworkCommand implements Command {
             Instant start = Instant.now();
             FileTransferResult result = networkService.sendFile(filePath, remoteAddress, contentStore)
                     .exceptionally(e -> {
-                        Throwable cause = e;
-                        if (cause instanceof java.util.concurrent.CompletionException) {
-                            cause = cause.getCause();
-                        }
-                        logger.error("File transfer failed", cause);
-                        System.err.println("File transfer failed: " + cause.getMessage());
+                        handleError("File transfer failed", e, logger);
                         return null;
                     })
                     .join();
@@ -320,8 +291,7 @@ public class NetworkCommand implements Command {
             System.err.println("Invalid port number in address: " + args[2]);
             return false;
         } catch (Exception e) {
-            logger.error("Failed to send file", e);
-            System.err.println("Failed to send file: " + e.getMessage());
+            handleError("Failed to send file", e, logger);
             return false;
         }
     }

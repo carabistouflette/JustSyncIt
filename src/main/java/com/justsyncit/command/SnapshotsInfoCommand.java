@@ -120,8 +120,7 @@ public class SnapshotsInfoCommand implements Command {
                     localService = serviceFactory.createMetadataService();
                     service = localService;
                 } catch (ServiceException e) {
-                    logger.error("Failed to initialize metadata service", e);
-                    System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
+                    handleError("Failed to initialize metadata service", e, logger);
                     return false;
                 }
             }
@@ -129,8 +128,7 @@ public class SnapshotsInfoCommand implements Command {
             return displaySnapshotInfo(service, snapshotId, options);
 
         } catch (IOException e) {
-            logger.error("Failed to get snapshot information for ID: {}", snapshotId, e);
-            System.err.println("Error: Failed to get snapshot information: " + e.getMessage());
+            handleError("Failed to get snapshot information for ID: " + snapshotId, e, logger);
             return false;
         } finally {
             closeQuietly(localService);

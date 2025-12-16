@@ -145,7 +145,7 @@ class SnapshotsInfoCommandTest {
         assertFalse(result);
 
         String error = errorStream.toString();
-        assertTrue(error.contains("Error: Failed to get snapshot information"));
+        assertTrue(error.contains("Failed to get snapshot information for ID: " + snapshotId));
         assertTrue(error.contains("Disk error"));
     }
 }

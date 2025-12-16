@@ -122,14 +122,8 @@ public class SyncCommand implements Command {
                     options.transportType);
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
-            } catch (java.util.concurrent.ExecutionException e) {
-                Throwable cause = e.getCause();
-                logger.error("Connection failed", cause);
-                System.err.println("Error: Connection failed: " + cause.getMessage());
-                return false;
-            } catch (TimeoutException e) {
-                logger.error("Connection timeout after 30 seconds", e);
-                System.err.println("Error: Connection timeout after 30 seconds");
+            } catch (Exception e) {
+                handleError("Connection failed", e, logger);
                 return false;
             }
 
@@ -151,11 +145,7 @@ public class SyncCommand implements Command {
             return success;
 
         } catch (Exception e) {
-            logger.error("Synchronization failed", e);
-            System.err.println("Error: Synchronization failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
+            handleError("Synchronization failed", e, logger);
             return false;
         }
     }
@@ -172,8 +162,7 @@ public class SyncCommand implements Command {
                     localSnapshots = List.of();
                 }
             } catch (Exception e) {
-                logger.error("Failed to retrieve local snapshots", e);
-                System.err.println("Error: Failed to retrieve local snapshots: " + e.getMessage());
+                handleError("Failed to retrieve local snapshots", e, logger);
                 return false;
             }
 
@@ -222,8 +211,7 @@ public class SyncCommand implements Command {
             return true;
 
         } catch (Exception e) {
-            logger.error("Synchronization logic failed", e);
-            System.err.println("Error: Synchronization logic failed: " + e.getMessage());
+            handleError("Synchronization logic failed", e, logger);
             return false;
         }
     }
@@ -474,22 +462,10 @@ public class SyncCommand implements Command {
             bs = serviceFactory.createBlake3Service();
             cs = serviceFactory.createSqliteContentStore(bs);
         } catch (Exception e) {
-            logger.error("Failed to initialize services", e);
-            System.err.println("Error: Failed to initialize services: " + e.getMessage());
-            // Cleanup partilly initialized services
-            if (ns != null && networkService == null) {
-                try {
-                    ns.close();
-                } catch (Exception ignored) {
-                }
-            }
-            if (ms != null) {
-                try {
-                    ms.close();
-                } catch (Exception ignored) {
-                }
-            }
-            return null;
+            // Propagate as generic ServiceException if possible, or just wrap
+            // For now, let handleError handle it in the caller or rethrow to be caught by
+            // caller
+            throw new RuntimeException("Failed to initialize services", e);
         }
         return new ServiceContext(ns, ms, cs);
     }

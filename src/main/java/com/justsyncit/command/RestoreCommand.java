@@ -155,8 +155,7 @@ public class RestoreCommand implements Command {
                         netService = localNetworkService;
                     }
                 } catch (ServiceException e) {
-                    logger.error("Failed to initialize restore service", e);
-                    System.err.println("Error: Failed to initialize restore service: " + e.getMessage());
+                    handleError("Failed to initialize restore service", e, logger);
                     return false;
                 }
             }
@@ -164,13 +163,10 @@ public class RestoreCommand implements Command {
             return performRestore(service, netService, snapshotId, targetPath, options);
 
         } catch (Exception e) {
-            logger.error("Restore failed", e);
-            System.err.println("\nRestore failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
+            handleError("Restore failed", e, logger);
             return false;
         } finally {
+
             closeQuietly(localContentStore);
             closeQuietly(localMetadataService);
             closeQuietly(localNetworkService);

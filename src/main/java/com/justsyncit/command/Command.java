@@ -151,6 +151,29 @@ public interface Command {
     }
 
     /**
+     * Standardized error handling method for commands.
+     * Unwraps CompletionException/ExecutionException and logs appropriately.
+     *
+     * @param message User-facing error message prefix
+     * @param e       The exception that occurred
+     * @param logger  The SLF4J logger to use
+     */
+    default void handleError(String message, Throwable e, org.slf4j.Logger logger) {
+        Throwable cause = e;
+        // Unwrap concurrency exceptions to get to the real error
+        while ((cause instanceof java.util.concurrent.CompletionException ||
+                cause instanceof java.util.concurrent.ExecutionException) &&
+                cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+
+        if (logger != null) {
+            logger.error(message, cause);
+        }
+        System.err.println(message + ": " + cause.getMessage());
+    }
+
+    /**
      * Displays a standardized error message for unknown options.
      * This is a convenience method that implementations can use.
      *
