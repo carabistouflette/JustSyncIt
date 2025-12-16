@@ -100,9 +100,12 @@ public class BackupService {
                         ? options.getSnapshotName()
                         : "backup-" + Instant.now().toString();
 
-                String description = options.getDescription() != null
+                // Include source root in description for restore path relativization
+                String baseDescription = options.getDescription() != null
                         ? options.getDescription()
                         : "Backup created on " + Instant.now();
+                String description = "Processing session for directory: " + sourceDir.toAbsolutePath().toString()
+                        + " | " + baseDescription;
 
                 // Create snapshot in DB before processing
                 metadataService.createSnapshot(snapshotId, description);
@@ -172,9 +175,12 @@ public class BackupService {
                         ? options.getSnapshotName()
                         : "backup-" + Instant.now().toString();
 
-                String description = options.getDescription() != null
+                // Include source root in description for restore path relativization
+                String baseDescription = options.getDescription() != null
                         ? options.getDescription()
                         : "Backup created on " + Instant.now();
+                String description = "Processing session for directory: " + sourceDir.toAbsolutePath().toString()
+                        + " | " + baseDescription;
 
                 // Create snapshot in DB before processing
                 metadataService.createSnapshot(snapshotId, description);

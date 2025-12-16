@@ -344,7 +344,13 @@ final public class RestoreService {
             if (snapshotOpt.isPresent()) {
                 String desc = snapshotOpt.get().getDescription();
                 if (desc != null && desc.startsWith("Processing session for directory: ")) {
-                    sourceRoot = Paths.get(desc.substring("Processing session for directory: ".length()));
+                    String pathPart = desc.substring("Processing session for directory: ".length());
+                    // Handle potential separator for additional description
+                    int separatorIdx = pathPart.indexOf(" | ");
+                    if (separatorIdx > 0) {
+                        pathPart = pathPart.substring(0, separatorIdx);
+                    }
+                    sourceRoot = Paths.get(pathPart);
                 }
             }
         } catch (IOException | RuntimeException e) {
