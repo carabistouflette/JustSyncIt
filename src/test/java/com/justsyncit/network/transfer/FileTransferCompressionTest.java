@@ -122,7 +122,6 @@ class FileTransferCompressionTest {
         byte[] compressedChunk = compressionService.compress(originalChunk);
 
         // Compute checksum expected by manager (of DECOMPRESSED data)
-        // Compute checksum expected by manager (of DECOMPRESSED data)
         String checksum;
         try {
             java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
