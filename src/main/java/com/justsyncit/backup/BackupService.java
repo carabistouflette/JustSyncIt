@@ -18,6 +18,7 @@
 
 package com.justsyncit.backup;
 
+import com.justsyncit.scanner.ChunkingOptions;
 import com.justsyncit.scanner.FileChunker;
 import com.justsyncit.scanner.FileProcessor;
 import com.justsyncit.scanner.FilesystemScanner;
@@ -123,7 +124,7 @@ public class BackupService {
                 LOGGER.info("Created snapshot: {}", snapshotId);
 
                 // Configure chunking options
-                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+                ChunkingOptions chunkingOptions = new ChunkingOptions()
                         .withChunkSize(options.getChunkSize())
                         .withDetectSparseFiles(true);
 
@@ -198,7 +199,7 @@ public class BackupService {
                 LOGGER.info("Created snapshot: {}", snapshotId);
 
                 // Configure chunking options
-                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+                ChunkingOptions chunkingOptions = new ChunkingOptions()
                         .withChunkSize(options.getChunkSize())
                         .withDetectSparseFiles(true);
 
@@ -303,7 +304,7 @@ public class BackupService {
                             // If compilation fails, we will check FileProcessor content and add it.
 
                             FileProcessor.ProcessingResult fileResult = processor.processFile(file,
-                                    new com.justsyncit.scanner.FileChunker.ChunkingOptions()
+                                    new com.justsyncit.scanner.ChunkingOptions()
                                             .withChunkSize(options.getChunkSize()))
                                     .join();
                             totalBytes += fileResult.getTotalBytes();

@@ -119,7 +119,7 @@ class AsyncFileChunkerTest {
             }
         };
 
-        asyncChunker.chunkFileAsync(emptyFile, new FileChunker.ChunkingOptions(), handler);
+        asyncChunker.chunkFileAsync(emptyFile, new ChunkingOptions(), handler);
 
         assertTrue(latch.await(5, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(errorRef.get(), "Should not have any errors");
@@ -158,7 +158,7 @@ class AsyncFileChunkerTest {
             }
         };
 
-        asyncChunker.chunkFileAsync(smallFile, new FileChunker.ChunkingOptions(), handler);
+        asyncChunker.chunkFileAsync(smallFile, new ChunkingOptions(), handler);
 
         assertTrue(latch.await(5, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(errorRef.get(), "Should not have any errors");
@@ -201,7 +201,7 @@ class AsyncFileChunkerTest {
             }
         };
 
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+        ChunkingOptions options = new ChunkingOptions()
                 .withChunkSize(64 * 1024); // 64KB chunks
         asyncChunker.chunkFileAsync(largeFile, options, handler);
 
@@ -226,7 +226,7 @@ class AsyncFileChunkerTest {
         Files.write(file, data);
 
         CompletableFuture<FileChunker.ChunkingResult> future = asyncChunker.chunkFileAsync(file,
-                new FileChunker.ChunkingOptions());
+                new ChunkingOptions());
 
         FileChunker.ChunkingResult result = future.get(5, TimeUnit.SECONDS);
 
@@ -260,7 +260,7 @@ class AsyncFileChunkerTest {
             }
         };
 
-        asyncChunker.chunkFileAsync(nonExistentFile, new FileChunker.ChunkingOptions(), handler);
+        asyncChunker.chunkFileAsync(nonExistentFile, new ChunkingOptions(), handler);
 
         assertTrue(latch.await(5, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(resultRef.get(), "Should not have a successful result");
@@ -296,7 +296,7 @@ class AsyncFileChunkerTest {
             }
         };
 
-        asyncChunker.chunkFileAsync(dir, new FileChunker.ChunkingOptions(), handler);
+        asyncChunker.chunkFileAsync(dir, new ChunkingOptions(), handler);
 
         assertTrue(latch.await(5, TimeUnit.SECONDS), "Operation should complete within timeout");
         assertNull(resultRef.get(), "Should not have a successful result");
@@ -360,7 +360,7 @@ class AsyncFileChunkerTest {
 
         // First chunk successfully
         CountDownLatch successLatch = new CountDownLatch(1);
-        asyncChunker.chunkFileAsync(file, new FileChunker.ChunkingOptions(), new CompletionHandler<>() {
+        asyncChunker.chunkFileAsync(file, new ChunkingOptions(), new CompletionHandler<>() {
             @Override
             public void completed(FileChunker.ChunkingResult result) {
                 successLatch.countDown();
@@ -381,7 +381,7 @@ class AsyncFileChunkerTest {
         CountDownLatch failureLatch = new CountDownLatch(1);
         AtomicReference<Exception> errorRef = new AtomicReference<>();
 
-        asyncChunker.chunkFileAsync(file, new FileChunker.ChunkingOptions(), new CompletionHandler<>() {
+        asyncChunker.chunkFileAsync(file, new ChunkingOptions(), new CompletionHandler<>() {
             @Override
             public void completed(FileChunker.ChunkingResult result) {
                 failureLatch.countDown();
@@ -425,7 +425,7 @@ class AsyncFileChunkerTest {
             byte[] data = ("Concurrent test data " + i).getBytes(java.nio.charset.StandardCharsets.UTF_8);
             Files.write(file, data);
 
-            asyncChunker.chunkFileAsync(file, new FileChunker.ChunkingOptions(), handler);
+            asyncChunker.chunkFileAsync(file, new ChunkingOptions(), handler);
         }
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "All operations should complete within timeout");
@@ -457,7 +457,7 @@ class AsyncFileChunkerTest {
             }
         };
 
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+        ChunkingOptions options = new ChunkingOptions()
                 .withChunkSize(32 * 1024) // 32KB chunks
                 .withMaxConcurrentChunks(2)
                 .withUseAsyncIO(true);

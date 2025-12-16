@@ -159,7 +159,7 @@ class AsyncErrorHandlingTest extends AsyncTestBase {
                 try {
                     Path nonExistentFile = Path.of("/non/existent/file.txt");
                     CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(nonExistentFile,
-                            new FileChunker.ChunkingOptions());
+                            new ChunkingOptions());
 
                     FileChunker.ChunkingResult result = AsyncTestUtils.getFutureResult(future, SHORT_TIMEOUT);
                     // The result should indicate failure
@@ -192,7 +192,7 @@ class AsyncErrorHandlingTest extends AsyncTestBase {
                 try {
                     // Test that null file path returns failed future
                     CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(null,
-                            new FileChunker.ChunkingOptions());
+                            new ChunkingOptions());
                     AsyncTestUtils.expectFailedFuture(future, SHORT_TIMEOUT, IllegalArgumentException.class);
                 } finally {
                     chunker.closeAsync().get(1, java.util.concurrent.TimeUnit.SECONDS);
@@ -289,7 +289,7 @@ class AsyncErrorHandlingTest extends AsyncTestBase {
                 try {
                     Path nonExistentFile = Path.of("/non/existent/file.txt");
                     CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFileAsync(nonExistentFile,
-                            new FileChunker.ChunkingOptions());
+                            new ChunkingOptions());
 
                     FileChunker.ChunkingResult result = AsyncTestUtils.getFutureResult(future, SHORT_TIMEOUT);
                     // The result should indicate failure with preserved cause

@@ -62,7 +62,7 @@ class FixedSizeFileChunkerTest {
         Path emptyFile = tempDir.resolve("empty.txt");
         Files.createFile(emptyFile);
 
-        FileChunker.ChunkingResult result = chunker.chunkFile(emptyFile, new FileChunker.ChunkingOptions()).get();
+        FileChunker.ChunkingResult result = chunker.chunkFile(emptyFile, new ChunkingOptions()).get();
 
         assertTrue(result.isSuccess());
         assertEquals(0, result.getChunkCount());
@@ -78,7 +78,7 @@ class FixedSizeFileChunkerTest {
         byte[] data = "Hello, World!".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         Files.write(smallFile, data);
 
-        FileChunker.ChunkingResult result = chunker.chunkFile(smallFile, new FileChunker.ChunkingOptions()).get();
+        FileChunker.ChunkingResult result = chunker.chunkFile(smallFile, new ChunkingOptions()).get();
 
         assertTrue(result.isSuccess());
         assertEquals(1, result.getChunkCount());
@@ -95,7 +95,7 @@ class FixedSizeFileChunkerTest {
         byte[] data = new byte[100 * 1024]; // 100KB
         Files.write(largeFile, data);
 
-        FileChunker.ChunkingResult result = chunker.chunkFile(largeFile, new FileChunker.ChunkingOptions()).get();
+        FileChunker.ChunkingResult result = chunker.chunkFile(largeFile, new ChunkingOptions()).get();
 
         assertTrue(result.isSuccess());
         assertEquals(2, result.getChunkCount()); // 100KB / 64KB = 2 chunks
@@ -111,7 +111,7 @@ class FixedSizeFileChunkerTest {
         byte[] data = new byte[32 * 1024]; // 32KB
         Files.write(file, data);
 
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions().withChunkSize(16 * 1024); // 16KB chunks
+        ChunkingOptions options = new ChunkingOptions().withChunkSize(16 * 1024); // 16KB chunks
         FileChunker.ChunkingResult result = chunker.chunkFile(file, options).get();
 
         assertTrue(result.isSuccess());
@@ -128,7 +128,7 @@ class FixedSizeFileChunkerTest {
         byte[] data = new byte[64 * 1024]; // Exactly 64KB
         Files.write(file, data);
 
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions().withUseAsyncIO(true);
+        ChunkingOptions options = new ChunkingOptions().withUseAsyncIO(true);
         FileChunker.ChunkingResult result = chunker.chunkFile(file, options).get();
 
         assertTrue(result.isSuccess());
@@ -145,7 +145,7 @@ class FixedSizeFileChunkerTest {
         byte[] data = new byte[64 * 1024]; // Exactly 64KB
         Files.write(file, data);
 
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions().withUseAsyncIO(false);
+        ChunkingOptions options = new ChunkingOptions().withUseAsyncIO(false);
         FileChunker.ChunkingResult result = chunker.chunkFile(file, options).get();
 
         assertTrue(result.isSuccess());
@@ -161,7 +161,7 @@ class FixedSizeFileChunkerTest {
         Path nonExistentFile = tempDir.resolve("nonexistent.txt");
 
         CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFile(nonExistentFile,
-                new FileChunker.ChunkingOptions());
+                new ChunkingOptions());
 
         ExecutionException exception = assertThrows(ExecutionException.class, () -> future.get());
         assertTrue(
@@ -176,7 +176,7 @@ class FixedSizeFileChunkerTest {
         Files.createDirectories(dir);
 
         CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFile(dir,
-                new FileChunker.ChunkingOptions());
+                new ChunkingOptions());
 
         ExecutionException exception = assertThrows(ExecutionException.class, () -> future.get());
         assertTrue(exception.getCause() instanceof IllegalArgumentException);
@@ -239,7 +239,7 @@ class FixedSizeFileChunkerTest {
         Files.write(file, "test".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
         // Chunk file successfully
-        FileChunker.ChunkingResult result = chunker.chunkFile(file, new FileChunker.ChunkingOptions()).get();
+        FileChunker.ChunkingResult result = chunker.chunkFile(file, new ChunkingOptions()).get();
         assertTrue(result.isSuccess());
 
         // Close chunker
@@ -247,14 +247,14 @@ class FixedSizeFileChunkerTest {
 
         // Try to chunk again - should fail
         CompletableFuture<FileChunker.ChunkingResult> future = chunker.chunkFile(file,
-                new FileChunker.ChunkingOptions());
+                new ChunkingOptions());
         ExecutionException exception = assertThrows(ExecutionException.class, () -> future.get());
         assertTrue(exception.getCause() instanceof IllegalStateException);
     }
 
     @Test
     void testChunkingOptions() {
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+        ChunkingOptions options = new ChunkingOptions()
                 .withChunkSize(32 * 1024)
                 .withUseAsyncIO(false)
                 .withDetectSparseFiles(false);
@@ -264,7 +264,7 @@ class FixedSizeFileChunkerTest {
         assertFalse(options.isDetectSparseFiles());
 
         // Test copy constructor
-        FileChunker.ChunkingOptions copy = new FileChunker.ChunkingOptions(options);
+        ChunkingOptions copy = new ChunkingOptions(options);
         assertEquals(options.getChunkSize(), copy.getChunkSize());
         assertEquals(options.isUseAsyncIO(), copy.isUseAsyncIO());
         assertEquals(options.isDetectSparseFiles(), copy.isDetectSparseFiles());
@@ -273,11 +273,11 @@ class FixedSizeFileChunkerTest {
     @Test
     void testChunkingOptionsValidation() {
         assertThrows(IllegalArgumentException.class,
-                () -> new FileChunker.ChunkingOptions().withChunkSize(0));
+                () -> new ChunkingOptions().withChunkSize(0));
         assertThrows(IllegalArgumentException.class,
-                () -> new FileChunker.ChunkingOptions().withChunkSize(-1));
+                () -> new ChunkingOptions().withChunkSize(-1));
 
         // Valid chunk size should not throw
-        assertDoesNotThrow(() -> new FileChunker.ChunkingOptions().withChunkSize(1024));
+        assertDoesNotThrow(() -> new ChunkingOptions().withChunkSize(1024));
     }
 }

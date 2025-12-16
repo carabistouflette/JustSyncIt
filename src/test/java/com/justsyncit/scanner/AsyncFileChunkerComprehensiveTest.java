@@ -244,7 +244,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldChunkSmallFileSuccessfully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "small.txt", 1024);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(512)
                     .withUseAsyncIO(true);
 
@@ -268,7 +268,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldChunkMediumFileSuccessfully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "medium.txt", 65536); // 64KB
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(8192)
                     .withUseAsyncIO(true);
 
@@ -292,7 +292,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleFileWithExactChunkSizeMultiple() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "exact.txt", 4096);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -313,7 +313,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleFileWithNonChunkSizeMultiple() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "partial.txt", 5000);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(2048)
                     .withUseAsyncIO(true);
 
@@ -334,7 +334,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleEmptyFile() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "empty.txt", 0);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -362,7 +362,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldChunkFileWithCompletionHandlerSuccessfully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "handler.txt", 2048);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(512)
                     .withUseAsyncIO(true);
 
@@ -401,7 +401,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleErrorWithCompletionHandler() throws Exception {
             // Given
             Path nonExistentFile = tempDir.resolve("nonexistent.txt");
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -446,7 +446,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleVariousFileSizes(int fileSize) throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "size_" + fileSize + ".txt", fileSize);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -469,7 +469,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleVariousChunkSizes(int chunkSize) throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "chunks_" + chunkSize + ".txt", 65536);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(chunkSize)
                     .withUseAsyncIO(true);
 
@@ -491,7 +491,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleSingleByteFile() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "single.txt", 1);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -513,7 +513,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // Given
             int largeFileSize = 10 * 1024 * 1024; // 10MB
             Path testFile = createTestFile(tempDir, "large.txt", largeFileSize);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(65536) // 64KB chunks
                     .withUseAsyncIO(true);
 
@@ -535,7 +535,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleNonExistentFile() throws Exception {
             // Given
             Path nonExistentFile = tempDir.resolve("nonexistent.txt");
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -557,7 +557,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         @DisplayName("Should handle null file path")
         void shouldHandleNullFilePath() {
             // Given
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -604,14 +604,14 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When - Test that creating options with invalid chunk size throws exception
             assertThrows(IllegalArgumentException.class, () -> {
-                new FileChunker.ChunkingOptions()
+                new ChunkingOptions()
                         .withChunkSize(-1)
                         .withUseAsyncIO(true);
             });
 
             // Test that zero chunk size also throws exception
             assertThrows(IllegalArgumentException.class, () -> {
-                new FileChunker.ChunkingOptions()
+                new ChunkingOptions()
                         .withChunkSize(0)
                         .withUseAsyncIO(true);
             });
@@ -635,7 +635,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 Path testFile = createTestFile(tempDir, "concurrent_" + i + ".txt", 4096);
                 testFiles.add(testFile);
 
-                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                ChunkingOptions options = new ChunkingOptions()
                         .withChunkSize(1024)
                         .withUseAsyncIO(true);
 
@@ -674,7 +674,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                     for (int j = 0; j < operationsPerThread; j++) {
                         try {
                             Path testFile = createTestFile(tempDir, "mixed_" + threadIndex + "_" + j + ".txt", 2048);
-                            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                            ChunkingOptions options = new ChunkingOptions()
                                     .withChunkSize(512)
                                     .withUseAsyncIO(true);
 
@@ -713,7 +713,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 Path testFile = createTestFile(tempDir, "limited_" + i + ".txt", 8192);
                 testFiles.add(testFile);
 
-                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                ChunkingOptions options = new ChunkingOptions()
                         .withChunkSize(2048)
                         .withUseAsyncIO(true);
 
@@ -759,7 +759,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                             try {
                                 Path testFile = createTestFile(tempDir, "perf_small_" + i + ".txt", fileSize,
                                         AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
-                                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                                ChunkingOptions options = new ChunkingOptions()
                                         .withChunkSize(256)
                                         .withUseAsyncIO(true);
 
@@ -816,7 +816,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                     for (int j = 0; j < filesPerThread; j++) {
                         try {
                             Path testFile = createTestFile(tempDir, "load_" + threadIndex + "_" + j + ".txt", fileSize);
-                            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                            ChunkingOptions options = new ChunkingOptions()
                                     .withChunkSize(1024)
                                     .withUseAsyncIO(true);
 
@@ -861,7 +861,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             Path testFile = createTestFile(tempDir, "tracking.txt", 2048);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(512)
                     .withUseAsyncIO(true);
 
@@ -889,7 +889,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             Path testFile = createTestFile(tempDir, "buffer_integration.txt", 4096);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(1024)
                     .withUseAsyncIO(true);
 
@@ -916,7 +916,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             Path testFile = createTestFile(tempDir, "handler_integration.txt", 2048);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(512)
                     .withUseAsyncIO(true);
 
@@ -943,7 +943,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
 
             // When
             Path testFile = createTestFile(tempDir, "metrics.txt", 2048);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(512)
                     .withUseAsyncIO(true);
 
@@ -974,7 +974,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                                 Path testFile = createTestFile(tempDir,
                                         "scenario_" + operationIndex + "_" + System.currentTimeMillis() + ".txt", 1024,
                                         AsyncTestDataProvider.ChunkingDataProvider.ContentPattern.RANDOM);
-                                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                                ChunkingOptions options = new ChunkingOptions()
                                         .withChunkSize(256)
                                         .withUseAsyncIO(true);
 
@@ -1010,7 +1010,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
                 // When
                 Path testFile = createTestFile(tempDir, testFileData.getFileName(),
                         testFileData.getSize(), testFileData.getPattern());
-                FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+                ChunkingOptions options = new ChunkingOptions()
                         .withChunkSize(1024)
                         .withUseAsyncIO(true);
 
@@ -1036,7 +1036,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
         void shouldHandleInterruptedOperationsGracefully() throws Exception {
             // Given
             Path testFile = createTestFile(tempDir, "interrupt.txt", 2048);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(512)
                     .withUseAsyncIO(true);
 
@@ -1066,7 +1066,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // Use a larger file (50MB) with very small chunks (64 bytes) to ensure it takes
             // longer than 1 second
             Path testFile = createTestFile(tempDir, "timeout.txt", 50 * 1024 * 1024); // 50MB
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(64) // Very small chunk size to increase processing time
                     .withUseAsyncIO(true);
 
@@ -1089,7 +1089,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             // Given
             // First, successful operation
             Path goodFile = createTestFile(tempDir, "good.txt", 1024);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(256)
                     .withUseAsyncIO(true);
 
@@ -1119,7 +1119,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
             assertTrue(chunker.isClosed());
 
             Path testFile = createTestFile(tempDir, "closed.txt", 1024);
-            FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+            ChunkingOptions options = new ChunkingOptions()
                     .withChunkSize(256)
                     .withUseAsyncIO(true);
 
@@ -1157,7 +1157,7 @@ class AsyncFileChunkerComprehensiveTest extends AsyncTestBase {
     void shouldHandleVariousCombinationsOfFileAndChunkSizes(int fileSize, int chunkSize) throws Exception {
         // Given
         Path testFile = createTestFile(tempDir, "combo_" + fileSize + "_" + chunkSize + ".txt", fileSize);
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions()
+        ChunkingOptions options = new ChunkingOptions()
                 .withChunkSize(chunkSize)
                 .withUseAsyncIO(true);
 
