@@ -33,6 +33,9 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.TimeUnit;
 
 import java.util.Collections;
 import java.util.List;
@@ -190,7 +193,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
                     try {
                         networkService.sendMessage(
                                 new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, PLACEHOLDER_HASH),
-                                remoteAddress);
+                                remoteAddress).orTimeout(30, TimeUnit.SECONDS).join();
                     } catch (Exception e) {
                         logger.warn("Failed to send transfer complete message", e);
                     }
@@ -347,6 +350,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
                     compressionType);
 
             return networkService.sendMessage(request, remoteAddress)
+                    .orTimeout(30, TimeUnit.SECONDS)
                     .thenCompose(
                             v -> simulateFileTransfer(transferId, filePath, remoteAddress, contentStore, startTime));
 
@@ -610,11 +614,30 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 // Use BLAKE3 to compute checksum
                 return blake3Service.hashBuffer(data);
             } catch (Exception e) {
-                logger.error("Failed to compute BLAKE3 checksum, falling back to simple hash", e);
+                logger.error("Failed to compute BLAKE3 checksum, falling back to SHA-256", e);
             }
         }
-        // Fallback or if service not set
-        return Integer.toHexString(java.util.Arrays.hashCode(data));
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encodedhash = digest.digest(data);
+            return bytesToHex(encodedhash);
+        } catch (NoSuchAlgorithmException e) {
+            logger.error("SHA-256 algorithm not found, falling back to weak hash", e);
+            return Integer.toHexString(java.util.Arrays.hashCode(data));
+        }
+    }
+
+    private static String bytesToHex(byte[] hash) {
+        StringBuilder hexString = new StringBuilder(2 * hash.length);
+        for (int i = 0; i < hash.length; i++) {
+            String hex = Integer.toHexString(0xff & hash[i]);
+            if (hex.length() == 1) {
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+        return hexString.toString();
     }
 
     private String formatFileSize(long bytes) {
