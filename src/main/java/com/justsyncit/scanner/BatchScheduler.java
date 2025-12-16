@@ -367,7 +367,7 @@ public class BatchScheduler {
                     try {
                         executeBatchOperation(operation);
                         success = true;
-                    } catch (Exception e) {
+                    } catch (RuntimeException e) {
                         logger.error("Unexpected error submitting batch operation", e);
                     } finally {
                         if (!success) {
@@ -405,7 +405,7 @@ public class BatchScheduler {
             future.whenComplete((result, throwable) -> {
                 handleBatchCompletion(operation, result, throwable);
             });
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Synchronous error submitting batch operation", e);
             handleBatchCompletion(operation, null, e);
         }
@@ -452,7 +452,7 @@ public class BatchScheduler {
                     operation.getOperationId(), operation.getStatus(),
                     operation.getProcessingTimeMs());
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Error handling batch completion", e);
         }
     }

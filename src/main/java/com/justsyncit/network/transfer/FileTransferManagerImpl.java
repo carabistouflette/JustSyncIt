@@ -201,17 +201,37 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 return result;
 
-            } catch (Exception e) {
+            } catch (IOException | java.util.concurrent.CompletionException e) {
                 long endTime = System.currentTimeMillis();
                 FileTransferStatus status = activeTransfers.get(transferId);
                 long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
+
+                // Unwrap CompletionException if present
+                Throwable cause = e instanceof java.util.concurrent.CompletionException ? e.getCause() : e;
+                String errorMessage = cause != null ? cause.getMessage() : e.getMessage();
+
                 FileTransferResult result = FileTransferResult.failure(
-                        transferId, filePath, remoteAddress, e.getMessage(),
+                        transferId, filePath, remoteAddress, errorMessage,
                         bytesTransferred, startTime, endTime);
 
                 activeTransfers.remove(transferId);
-                notifyTransferCompleted(filePath, remoteAddress, false, e.getMessage());
-                notifyError(e, "File transfer execution");
+                notifyTransferCompleted(filePath, remoteAddress, false, errorMessage);
+                notifyError(cause != null ? cause : e, "File transfer execution");
+
+                return result;
+            } catch (Exception e) {
+                // Catch-all for unexpected runtime exceptions to ensure we don't hang
+                long endTime = System.currentTimeMillis();
+                FileTransferStatus status = activeTransfers.get(transferId);
+                long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
+
+                FileTransferResult result = FileTransferResult.failure(
+                        transferId, filePath, remoteAddress, "Unexpected error: " + e.getMessage(),
+                        bytesTransferred, startTime, endTime);
+
+                activeTransfers.remove(transferId);
+                notifyTransferCompleted(filePath, remoteAddress, false, "Unexpected error: " + e.getMessage());
+                notifyError(e, "File transfer execution (Unexpected)");
 
                 return result;
             }
@@ -615,8 +635,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferStarted(filePath, remoteAddress, fileSize);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onTransferStarted)", e);
             }
         }
     }
@@ -626,8 +646,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onTransferProgress)", e);
             }
         }
     }
@@ -637,8 +657,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferCompleted(filePath, remoteAddress, success, errorMessage);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onTransferCompleted)", e);
             }
         }
     }
@@ -647,8 +667,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onError(error, context);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onError)", e);
             }
         }
     }
