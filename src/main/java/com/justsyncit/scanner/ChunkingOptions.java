@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.scanner;
 
 /**
@@ -27,14 +9,44 @@ public class ChunkingOptions {
     /** Default chunk size (64KB). */
     private static final int DEFAULT_CHUNK_SIZE = 64 * 1024;
 
+    /** Default minimum chunk size for CDC (4KB). */
+    private static final int DEFAULT_MIN_CHUNK_SIZE = 4 * 1024;
+
+    /** Default maximum chunk size for CDC (256KB). */
+    private static final int DEFAULT_MAX_CHUNK_SIZE = 256 * 1024;
+
+    /** Algorithm to use for chunking. */
+    public enum ChunkingAlgorithm {
+        FIXED,
+        CDC
+    }
+
     /** Whether to use asynchronous I/O. */
     private boolean useAsyncIO = true;
 
-    /** Chunk size in bytes. */
+    /** Chunk size in bytes (used for Fixed and as average for CDC). */
     private int chunkSize = DEFAULT_CHUNK_SIZE;
+
+    /** Minimum chunk size in bytes (CDC only). */
+    private int minChunkSize = DEFAULT_MIN_CHUNK_SIZE;
+
+    /** Maximum chunk size in bytes (CDC only). */
+    private int maxChunkSize = DEFAULT_MAX_CHUNK_SIZE;
+
+    /** Algorithm to use. */
+    private ChunkingAlgorithm algorithm = ChunkingAlgorithm.FIXED;
 
     /** Whether to detect sparse files. */
     private boolean detectSparseFiles = true;
+
+    /** Maximum number of concurrent chunks. */
+    private int maxConcurrentChunks = 4;
+
+    /** Progress callback. */
+    private com.justsyncit.scanner.FileChunker.ChunkProgressCallback progressCallback;
+
+    /** Status callback. */
+    private com.justsyncit.scanner.FileChunker.ChunkStatusCallback statusCallback;
 
     /**
      * Creates a new ChunkingOptions with default settings.
@@ -51,7 +63,13 @@ public class ChunkingOptions {
     public ChunkingOptions(ChunkingOptions other) {
         this.useAsyncIO = other.useAsyncIO;
         this.chunkSize = other.chunkSize;
+        this.minChunkSize = other.minChunkSize;
+        this.maxChunkSize = other.maxChunkSize;
+        this.algorithm = other.algorithm;
         this.detectSparseFiles = other.detectSparseFiles;
+        this.maxConcurrentChunks = other.maxConcurrentChunks;
+        this.progressCallback = other.progressCallback;
+        this.statusCallback = other.statusCallback;
     }
 
     /**
@@ -67,6 +85,8 @@ public class ChunkingOptions {
 
     /**
      * Sets the chunk size in bytes.
+     * For Fixed algorithm, this is the exact chunk size.
+     * For CDC algorithm, this is the target average chunk size.
      *
      * @param chunkSize chunk size in bytes, must be positive
      * @return this builder for method chaining
@@ -81,6 +101,50 @@ public class ChunkingOptions {
     }
 
     /**
+     * Sets the minimum chunk size in bytes (CDC only).
+     *
+     * @param minChunkSize minimum chunk size in bytes, must be positive
+     * @return this builder for method chaining
+     * @throws IllegalArgumentException if minChunkSize is not positive
+     */
+    public ChunkingOptions withMinChunkSize(int minChunkSize) {
+        if (minChunkSize <= 0) {
+            throw new IllegalArgumentException("Minimum chunk size must be positive");
+        }
+        this.minChunkSize = minChunkSize;
+        return this;
+    }
+
+    /**
+     * Sets the maximum chunk size in bytes (CDC only).
+     *
+     * @param maxChunkSize maximum chunk size in bytes, must be positive
+     * @return this builder for method chaining
+     * @throws IllegalArgumentException if maxChunkSize is not positive
+     */
+    public ChunkingOptions withMaxChunkSize(int maxChunkSize) {
+        if (maxChunkSize <= 0) {
+            throw new IllegalArgumentException("Maximum chunk size must be positive");
+        }
+        this.maxChunkSize = maxChunkSize;
+        return this;
+    }
+
+    /**
+     * Sets the chunking algorithm to use.
+     *
+     * @param algorithm the chunking algorithm
+     * @return this builder for method chaining
+     */
+    public ChunkingOptions withAlgorithm(ChunkingAlgorithm algorithm) {
+        if (algorithm == null) {
+            throw new IllegalArgumentException("Algorithm cannot be null");
+        }
+        this.algorithm = algorithm;
+        return this;
+    }
+
+    /**
      * Sets whether to detect sparse files.
      *
      * @param detectSparseFiles true to detect sparse files
@@ -88,6 +152,43 @@ public class ChunkingOptions {
      */
     public ChunkingOptions withDetectSparseFiles(boolean detectSparseFiles) {
         this.detectSparseFiles = detectSparseFiles;
+        return this;
+    }
+
+    /**
+     * Sets the maximum number of concurrent chunks.
+     *
+     * @param maxConcurrentChunks maximum concurrent chunks
+     * @return this builder for method chaining
+     */
+    public ChunkingOptions withMaxConcurrentChunks(int maxConcurrentChunks) {
+        if (maxConcurrentChunks <= 0) {
+            throw new IllegalArgumentException("Max concurrent chunks must be positive");
+        }
+        this.maxConcurrentChunks = maxConcurrentChunks;
+        return this;
+    }
+
+    /**
+     * Sets the progress callback.
+     *
+     * @param progressCallback callback for progress updates
+     * @return this builder for method chaining
+     */
+    public ChunkingOptions withProgressCallback(
+            com.justsyncit.scanner.FileChunker.ChunkProgressCallback progressCallback) {
+        this.progressCallback = progressCallback;
+        return this;
+    }
+
+    /**
+     * Sets the status callback.
+     *
+     * @param statusCallback callback for status updates
+     * @return this builder for method chaining
+     */
+    public ChunkingOptions withStatusCallback(com.justsyncit.scanner.FileChunker.ChunkStatusCallback statusCallback) {
+        this.statusCallback = statusCallback;
         return this;
     }
 
@@ -110,6 +211,33 @@ public class ChunkingOptions {
     }
 
     /**
+     * Gets the minimum chunk size in bytes.
+     *
+     * @return minimum chunk size in bytes
+     */
+    public int getMinChunkSize() {
+        return minChunkSize;
+    }
+
+    /**
+     * Gets the maximum chunk size in bytes.
+     *
+     * @return maximum chunk size in bytes
+     */
+    public int getMaxChunkSize() {
+        return maxChunkSize;
+    }
+
+    /**
+     * Gets the chunking algorithm.
+     *
+     * @return the chunking algorithm
+     */
+    public ChunkingAlgorithm getAlgorithm() {
+        return algorithm;
+    }
+
+    /**
      * Gets whether to detect sparse files.
      *
      * @return true if sparse file detection is enabled
@@ -118,12 +246,43 @@ public class ChunkingOptions {
         return detectSparseFiles;
     }
 
+    /**
+     * Gets the maximum number of concurrent chunks.
+     *
+     * @return maximum concurrent chunks
+     */
+    public int getMaxConcurrentChunks() {
+        return maxConcurrentChunks;
+    }
+
+    /**
+     * Gets the progress callback.
+     *
+     * @return the progress callback
+     */
+    public com.justsyncit.scanner.FileChunker.ChunkProgressCallback getProgressCallback() {
+        return progressCallback;
+    }
+
+    /**
+     * Gets the status callback.
+     *
+     * @return the status callback
+     */
+    public com.justsyncit.scanner.FileChunker.ChunkStatusCallback getStatusCallback() {
+        return statusCallback;
+    }
+
     @Override
     public String toString() {
         return "ChunkingOptions{"
                 + "useAsyncIO=" + useAsyncIO
                 + ", chunkSize=" + chunkSize
+                + ", minChunkSize=" + minChunkSize
+                + ", maxChunkSize=" + maxChunkSize
+                + ", algorithm=" + algorithm
                 + ", detectSparseFiles=" + detectSparseFiles
+                + ", maxConcurrentChunks=" + maxConcurrentChunks
                 + '}';
     }
 }

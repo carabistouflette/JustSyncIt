@@ -1006,7 +1006,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     private CompletableFuture<BatchResult.FileProcessingResult> processFileInBatch(Path file, BatchOptions options) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+                ChunkingOptions chunkingOptions = new ChunkingOptions()
                         .withChunkSize(options.getChunkSize())
                         .withUseAsyncIO(options.isBackpressureControl())
                         .withDetectSparseFiles(true);
@@ -1300,7 +1300,7 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
         Map<Path, BatchResult.FileProcessingResult> fileResults = new ConcurrentHashMap<>();
 
         for (Path file : operation.getFiles()) {
-            FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+            ChunkingOptions chunkingOptions = new ChunkingOptions()
                     .withChunkSize(options.getChunkSize())
                     .withUseAsyncIO(true)
                     .withDetectSparseFiles(true);

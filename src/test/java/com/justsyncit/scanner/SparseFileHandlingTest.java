@@ -95,7 +95,7 @@ class SparseFileHandlingTest {
         // Create a sparse file
         Path sparseFile = createSparseFileWithHoles("chunk_sparse_test.dat", 2 * 1024 * 1024); // 2MB
 
-        FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+        ChunkingOptions chunkingOptions = new ChunkingOptions()
                 .withDetectSparseFiles(true)
                 .withUseAsyncIO(true);
 

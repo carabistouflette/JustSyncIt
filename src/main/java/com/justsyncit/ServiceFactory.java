@@ -473,6 +473,39 @@ public class ServiceFactory {
     }
 
     /**
+     * Creates a FastCDC file chunker.
+     *
+     * @param blake3Service BLAKE3 service for hashing
+     * @return configured FastCDC file chunker
+     * @throws ServiceException if chunker creation fails
+     */
+    public com.justsyncit.scanner.FileChunker createFastCDCFileChunker(Blake3Service blake3Service)
+            throws ServiceException {
+        try {
+            return com.justsyncit.scanner.FastCDCFileChunker.create(blake3Service);
+        } catch (Exception e) {
+            throw new ServiceException("Failed to create FastCDC file chunker", e);
+        }
+    }
+
+    /**
+     * Creates a file chunker based on the provided algorithm.
+     *
+     * @param blake3Service BLAKE3 service for hashing
+     * @param algorithm     the chunking algorithm to use
+     * @return configured file chunker
+     * @throws ServiceException if chunker creation fails
+     */
+    public com.justsyncit.scanner.FileChunker createFileChunker(Blake3Service blake3Service,
+            com.justsyncit.scanner.ChunkingOptions.ChunkingAlgorithm algorithm) throws ServiceException {
+        if (algorithm == com.justsyncit.scanner.ChunkingOptions.ChunkingAlgorithm.CDC) {
+            return createFastCDCFileChunker(blake3Service);
+        } else {
+            return com.justsyncit.scanner.FixedSizeFileChunker.create(blake3Service);
+        }
+    }
+
+    /**
      * Creates a batch-aware async file chunker.
      *
      * @param blake3Service BLAKE3 service for hashing

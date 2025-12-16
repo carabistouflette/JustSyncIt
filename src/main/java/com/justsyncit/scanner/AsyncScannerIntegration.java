@@ -284,7 +284,7 @@ final public class AsyncScannerIntegration {
                         if (scannedFile.getSize() > asyncFileChunker.getChunkSize()) {
                             CompletableFuture<Void> chunkingFuture = asyncFileChunker.chunkFileAsync(
                                     scannedFile.getPath(),
-                                    new FileChunker.ChunkingOptions()
+                                    new ChunkingOptions()
                                             .withChunkSize(asyncFileChunker.getChunkSize()))
                                     .thenAccept(chunkingResult -> {
                                         logger.debug("File chunked: {} -> {} chunks",
@@ -440,7 +440,7 @@ final public class AsyncScannerIntegration {
                 logger.debug("Triggering chunking for changed file: {}", event.getFilePath());
 
                 asyncFileChunker.chunkFileAsync(event.getFilePath(),
-                        new FileChunker.ChunkingOptions()
+                        new ChunkingOptions()
                                 .withChunkSize(asyncFileChunker.getChunkSize()))
                         .thenAccept(chunkingResult -> {
                             logger.debug("Changed file chunked: {} -> {} chunks",

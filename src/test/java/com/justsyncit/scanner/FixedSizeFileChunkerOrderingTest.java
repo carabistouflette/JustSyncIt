@@ -66,7 +66,7 @@ class FixedSizeFileChunkerOrderingTest {
         });
 
         // Execute
-        FileChunker.ChunkingOptions options = new FileChunker.ChunkingOptions().withUseAsyncIO(true);
+        ChunkingOptions options = new ChunkingOptions().withUseAsyncIO(true);
         // Force concurrency > 1
         chunker.setMaxConcurrentOperations(4);
 

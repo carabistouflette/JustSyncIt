@@ -216,7 +216,7 @@ public class FileProcessor {
      * @return a future that completes with the processing result
      */
     public CompletableFuture<ProcessingResult> processDirectory(Path directory, ScanOptions options) {
-        return processDirectory(directory, options, new FileChunker.ChunkingOptions()
+        return processDirectory(directory, options, new ChunkingOptions()
                 .withChunkSize(chunker.getChunkSize())
                 .withUseAsyncIO(true)
                 .withDetectSparseFiles(true));
@@ -231,7 +231,7 @@ public class FileProcessor {
      * @return a future that completes with the processing result
      */
     public CompletableFuture<ProcessingResult> processDirectory(Path directory, ScanOptions options,
-            FileChunker.ChunkingOptions chunkingOptions) {
+            ChunkingOptions chunkingOptions) {
         // Check if executor has been shut down (stopped) and don't restart
         if (executorService.isShutdown()) {
             throw new IllegalStateException("FileProcessor has been stopped and cannot be restarted");
@@ -429,11 +429,11 @@ public class FileProcessor {
         /** Phaser for tracking active chunking operations. */
         private final java.util.concurrent.Phaser chunkingPhaser = new java.util.concurrent.Phaser(1); // Register self
         /** Chunking options to use. */
-        private final FileChunker.ChunkingOptions options;
+        private final ChunkingOptions options;
         /** Snapshot ID to use for this visitor. */
         private final String snapshotId;
 
-        ChunkingFileVisitor(FileChunker.ChunkingOptions options, String snapshotId) {
+        ChunkingFileVisitor(ChunkingOptions options, String snapshotId) {
             this.options = options;
             this.snapshotId = snapshotId;
         }
@@ -478,7 +478,7 @@ public class FileProcessor {
             try {
                 // Use provided chunking options
                 // We create a copy to ensure thread safety if options are mutable
-                FileChunker.ChunkingOptions currentOptions = new FileChunker.ChunkingOptions(options);
+                ChunkingOptions currentOptions = new ChunkingOptions(options);
 
                 // Update current file and notify listener
                 currentFile = file.toString();
@@ -1186,7 +1186,7 @@ public class FileProcessor {
      * @param chunkingOptions the chunking options
      * @return a future that completes with the processing result
      */
-    public CompletableFuture<ProcessingResult> processFile(Path file, FileChunker.ChunkingOptions chunkingOptions) {
+    public CompletableFuture<ProcessingResult> processFile(Path file, ChunkingOptions chunkingOptions) {
         if (executorService.isShutdown()) {
             throw new IllegalStateException("FileProcessor has been stopped");
         }
