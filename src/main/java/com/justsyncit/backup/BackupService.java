@@ -28,7 +28,8 @@ import com.justsyncit.storage.metadata.MetadataService;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Service for backing up directories to content store.
@@ -37,7 +38,7 @@ import java.util.logging.Logger;
 
 public class BackupService {
 
-    private static final Logger LOGGER = Logger.getLogger(BackupService.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(BackupService.class);
 
     private final ContentStore contentStore;
     private final MetadataService metadataService;
@@ -86,7 +87,7 @@ public class BackupService {
                     throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
                 }
 
-                LOGGER.info(String.format("Starting backup of %s", sourceDir));
+                LOGGER.info("Starting backup of {}", sourceDir);
 
                 // Configure scan options
                 ScanOptions scanOptions = new ScanOptions()
@@ -105,7 +106,7 @@ public class BackupService {
 
                 // Create snapshot in DB before processing
                 metadataService.createSnapshot(snapshotId, description);
-                LOGGER.info("Created snapshot: " + snapshotId);
+                LOGGER.info("Created snapshot: {}", snapshotId);
 
                 // Configure chunking options
                 FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
@@ -120,7 +121,7 @@ public class BackupService {
                 FileProcessor.ProcessingResult result = processor
                         .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
 
-                LOGGER.info(String.format("Backup completed successfully: %s", snapshotId));
+                LOGGER.info("Backup completed successfully: {}", snapshotId);
 
                 // Calculate chunks created (approximate based on total bytes and chunk size)
                 int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
@@ -129,7 +130,7 @@ public class BackupService {
                         result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
 
             } catch (Exception e) {
-                LOGGER.severe("Backup failed: " + e.getMessage());
+                LOGGER.error("Backup failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
         });
@@ -158,7 +159,7 @@ public class BackupService {
                     throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
                 }
 
-                LOGGER.info(String.format("Starting backup of %s", sourceDir));
+                LOGGER.info("Starting backup of {}", sourceDir);
 
                 // Configure scan options
                 ScanOptions scanOptions = new ScanOptions()
@@ -177,7 +178,7 @@ public class BackupService {
 
                 // Create snapshot in DB before processing
                 metadataService.createSnapshot(snapshotId, description);
-                LOGGER.info("Created snapshot: " + snapshotId);
+                LOGGER.info("Created snapshot: {}", snapshotId);
 
                 // Configure chunking options
                 FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
@@ -200,7 +201,7 @@ public class BackupService {
                 FileProcessor.ProcessingResult result = processor
                         .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
 
-                LOGGER.info(String.format("Backup completed successfully: %s", snapshotId));
+                LOGGER.info("Backup completed successfully: {}", snapshotId);
 
                 // Calculate chunks created (approximate based on total bytes and chunk size)
                 int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
@@ -209,7 +210,7 @@ public class BackupService {
                         result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
 
             } catch (Exception e) {
-                LOGGER.severe("Backup failed: " + e.getMessage());
+                LOGGER.error("Backup failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
         });
