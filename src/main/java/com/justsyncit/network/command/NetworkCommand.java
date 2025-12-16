@@ -143,8 +143,12 @@ public class NetworkCommand implements Command {
             networkService.startServer(port)
                     .thenRun(() -> System.out.println("Network server started on port " + port))
                     .exceptionally(e -> {
-                        logger.error("Failed to start network server", e);
-                        System.err.println("Failed to start network server: " + e.getMessage());
+                        Throwable cause = e;
+                        if (cause instanceof java.util.concurrent.CompletionException) {
+                            cause = cause.getCause();
+                        }
+                        logger.error("Failed to start network server", cause);
+                        System.err.println("Failed to start network server: " + cause.getMessage());
                         return null;
                     })
                     .join();
@@ -165,8 +169,12 @@ public class NetworkCommand implements Command {
             networkService.stopServer()
                     .thenRun(() -> System.out.println("Network server stopped"))
                     .exceptionally(e -> {
-                        logger.error("Failed to stop network server", e);
-                        System.err.println("Failed to stop network server: " + e.getMessage());
+                        Throwable cause = e;
+                        if (cause instanceof java.util.concurrent.CompletionException) {
+                            cause = cause.getCause();
+                        }
+                        logger.error("Failed to stop network server", cause);
+                        System.err.println("Failed to stop network server: " + cause.getMessage());
                         return null;
                     })
                     .join();
@@ -198,8 +206,12 @@ public class NetworkCommand implements Command {
             networkService.connectToNode(address)
                     .thenRun(() -> System.out.println("Connected to " + address))
                     .exceptionally(e -> {
-                        logger.error("Failed to connect to " + address, e);
-                        System.err.println("Failed to connect to " + address + ": " + e.getMessage());
+                        Throwable cause = e;
+                        if (cause instanceof java.util.concurrent.CompletionException) {
+                            cause = cause.getCause();
+                        }
+                        logger.error("Failed to connect to " + address, cause);
+                        System.err.println("Failed to connect to " + address + ": " + cause.getMessage());
                         return null;
                     })
                     .join();
@@ -235,8 +247,12 @@ public class NetworkCommand implements Command {
             networkService.disconnectFromNode(address)
                     .thenRun(() -> System.out.println("Disconnected from " + address))
                     .exceptionally(e -> {
-                        logger.error("Failed to disconnect from " + address, e);
-                        System.err.println("Failed to disconnect from " + address + ": " + e.getMessage());
+                        Throwable cause = e;
+                        if (cause instanceof java.util.concurrent.CompletionException) {
+                            cause = cause.getCause();
+                        }
+                        logger.error("Failed to disconnect from " + address, cause);
+                        System.err.println("Failed to disconnect from " + address + ": " + cause.getMessage());
                         return null;
                     })
                     .join();
@@ -278,8 +294,12 @@ public class NetworkCommand implements Command {
             Instant start = Instant.now();
             FileTransferResult result = networkService.sendFile(filePath, remoteAddress, contentStore)
                     .exceptionally(e -> {
-                        logger.error("File transfer failed", e);
-                        System.err.println("File transfer failed: " + e.getMessage());
+                        Throwable cause = e;
+                        if (cause instanceof java.util.concurrent.CompletionException) {
+                            cause = cause.getCause();
+                        }
+                        logger.error("File transfer failed", cause);
+                        System.err.println("File transfer failed: " + cause.getMessage());
                         return null;
                     })
                     .join();

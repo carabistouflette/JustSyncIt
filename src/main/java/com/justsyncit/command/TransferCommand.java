@@ -127,6 +127,11 @@ public class TransferCommand implements Command {
                     options.transportType);
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
+            } catch (java.util.concurrent.ExecutionException e) {
+                Throwable cause = e.getCause();
+                logger.error("Connection failed", cause);
+                System.err.println("Error: Connection failed: " + cause.getMessage());
+                return false;
             } catch (TimeoutException e) {
                 logger.error("Connection timeout after 30 seconds");
                 System.err.println("Error: Connection timeout after 30 seconds");

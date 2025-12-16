@@ -285,8 +285,12 @@ public class ServerStartCommand implements Command {
             StartOptions options) {
         startFuture.whenComplete((result, throwable) -> {
             if (throwable != null) {
-                logger.error("Failed to start server", throwable);
-                System.err.println("Failed to start server: " + throwable.getMessage());
+                Throwable cause = throwable;
+                if (cause instanceof java.util.concurrent.CompletionException) {
+                    cause = cause.getCause();
+                }
+                logger.error("Failed to start server", cause);
+                System.err.println("Failed to start server: " + cause.getMessage());
             } else if (options.verbose) {
                 System.out.println("Server started successfully!");
                 System.out.println("Listening on port " + options.port + " using " + options.transportType);

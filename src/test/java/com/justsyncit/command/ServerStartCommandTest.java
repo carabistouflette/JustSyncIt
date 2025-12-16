@@ -93,4 +93,22 @@ class ServerStartCommandTest {
         assertFalse(result);
         assertTrue(errContent.toString().contains("Timed out"));
     }
+
+    @Test
+    void testExecute_UnwrapsExecutionException() throws Exception {
+        when(networkService.isServerRunning()).thenReturn(false);
+        String underlyingError = "Critical failure";
+        CompletableFuture<Void> failedFuture = new CompletableFuture<>();
+        failedFuture.completeExceptionally(new RuntimeException(underlyingError));
+
+        when(networkService.startServer(anyInt(), any(TransportType.class)))
+                .thenReturn(failedFuture);
+        when(context.getNetworkService()).thenReturn(networkService);
+
+        boolean result = command.execute(new String[] { "start", "--quiet" }, context);
+
+        assertFalse(result);
+        assertTrue(errContent.toString().contains("Server start failed: " + underlyingError),
+                "Output should contain unwrapped error. Actual: " + errContent.toString());
+    }
 }
