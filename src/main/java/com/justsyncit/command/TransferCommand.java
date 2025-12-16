@@ -102,11 +102,13 @@ public class TransferCommand implements Command {
                 snapshotOpt = services.metadataService.getSnapshot(options.snapshotId);
             } catch (Exception e) {
                 logger.error("Failed to retrieve snapshot", e);
+                System.err.println("Error: Failed to retrieve snapshot: " + e.getMessage());
                 return false;
             }
 
             if (snapshotOpt.isEmpty()) {
                 logger.error("Snapshot not found: {}", options.snapshotId);
+                System.err.println("Error: Snapshot not found: " + options.snapshotId);
                 return false;
             }
 
@@ -127,6 +129,7 @@ public class TransferCommand implements Command {
                 connectFuture.get(30, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
                 logger.error("Connection timeout after 30 seconds");
+                System.err.println("Error: Connection timeout after 30 seconds");
                 return false;
             }
 
@@ -156,6 +159,7 @@ public class TransferCommand implements Command {
 
         } catch (Exception e) {
             logger.error("Transfer failed", e);
+            System.err.println("Error: Transfer failed: " + e.getMessage());
             return false;
         }
     }

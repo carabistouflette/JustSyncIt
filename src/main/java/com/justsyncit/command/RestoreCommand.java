@@ -18,11 +18,13 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.restore.RestoreOptions;
 import com.justsyncit.restore.RestoreService;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
@@ -43,6 +45,8 @@ import java.util.Locale;
  */
 
 public class RestoreCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(RestoreCommand.class);
 
     private final RestoreService restoreService;
     private final ServiceFactory serviceFactory;
@@ -100,6 +104,7 @@ public class RestoreCommand implements Command {
         }
 
         if (args.length < 2) {
+            logger.error("Missing required arguments");
             System.err.println("Error: Snapshot ID and target directory are required");
             System.err.println(getUsage());
             System.err.println("Use 'help restore' for more information");
@@ -118,6 +123,7 @@ public class RestoreCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid arguments: {}", e.getMessage());
             System.err.println(e.getMessage());
             return false;
         }
@@ -149,6 +155,7 @@ public class RestoreCommand implements Command {
                         netService = localNetworkService;
                     }
                 } catch (ServiceException e) {
+                    logger.error("Failed to initialize restore service", e);
                     System.err.println("Error: Failed to initialize restore service: " + e.getMessage());
                     return false;
                 }
@@ -157,6 +164,7 @@ public class RestoreCommand implements Command {
             return performRestore(service, netService, snapshotId, targetPath, options);
 
         } catch (Exception e) {
+            logger.error("Restore failed", e);
             System.err.println("\nRestore failed: " + e.getMessage());
             if (e.getCause() != null) {
                 System.err.println("Cause: " + e.getCause().getMessage());

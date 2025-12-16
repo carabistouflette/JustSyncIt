@@ -116,6 +116,7 @@ public class BackupCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid arguments: {}", e.getMessage());
             System.err.println(e.getMessage());
             return false;
         }
