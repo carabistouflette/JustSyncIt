@@ -367,8 +367,8 @@ public class BatchScheduler {
                     try {
                         executeBatchOperation(operation);
                         success = true;
-                    } catch (Throwable t) {
-                        logger.error("Unexpected error submitting batch operation", t);
+                    } catch (Exception e) {
+                        logger.error("Unexpected error submitting batch operation", e);
                     } finally {
                         if (!success) {
                             concurrentBatchSemaphore.release();
@@ -378,8 +378,8 @@ public class BatchScheduler {
                     concurrentBatchSemaphore.release();
                 }
             }
-        } catch (Throwable t) {
-            logger.error("Critical error in scheduling loop", t);
+        } catch (Exception e) {
+            logger.error("Critical error in scheduling loop", e);
         }
     }
 

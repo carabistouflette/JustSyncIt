@@ -368,10 +368,8 @@ public class AsyncWatchServiceManager {
             } catch (Exception e) {
                 logger.error("Failed to register directory using reflection", e);
                 throw new RuntimeException("Failed to register directory", e);
-            } catch (Throwable t) {
-                logger.error("Unexpected error during directory registration", t);
-                throw new RuntimeException("Unexpected error during directory registration", t);
             }
+
         } catch (Exception e) {
             logger.error("Failed to register directory: {}", directory, e);
             throw new RuntimeException("Failed to register directory", e);

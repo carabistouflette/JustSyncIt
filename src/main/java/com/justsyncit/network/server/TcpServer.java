@@ -208,9 +208,9 @@ public class TcpServer {
                 if (running.get()) {
                     logger.error("Error in server selector loop", e);
                 }
-            } catch (Throwable t) {
+            } catch (Exception e) {
                 if (running.get()) {
-                    logger.error("Critical error in server selector loop", t);
+                    logger.error("Critical error in server selector loop", e);
                 }
             }
         }

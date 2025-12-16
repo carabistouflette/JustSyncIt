@@ -126,8 +126,7 @@ public class NetworkCommand implements Command {
                     return false;
             }
         } catch (Exception e) {
-            System.err.println("Command execution failed: " + e.getMessage());
-            logger.error("Command execution failed", e);
+            handleError("Command execution failed", e, logger);
             return false;
         }
     }
@@ -308,8 +307,7 @@ public class NetworkCommand implements Command {
             System.out.println("  Messages received: " + networkService.getMessagesReceived());
             return true;
         } catch (Exception e) {
-            logger.error("Failed to get network status", e);
-            System.err.println("Failed to get network status: " + e.getMessage());
+            handleError("Failed to get network status", e, logger);
             return false;
         }
     }
