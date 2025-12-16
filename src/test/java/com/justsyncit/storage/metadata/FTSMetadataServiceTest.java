@@ -136,6 +136,24 @@ class FTSMetadataServiceTest {
         assertTrue(resultsNot.stream().noneMatch(f -> f.getPath().endsWith(".pdf")));
     }
 
+    @Test
+    @DisplayName("Should support wildcard matching")
+    void shouldSupportWildcardMatching() throws IOException {
+        // Given
+        Snapshot snapshot = metadataService.createSnapshot("fts-snap-6", "desc");
+        createDummyFile(snapshot.getId(), "/data/2023-report.csv");
+        createDummyFile(snapshot.getId(), "/data/2024-report.csv");
+        createDummyFile(snapshot.getId(), "/data/old-data.csv");
+
+        // When
+        // FTS5 uses * for prefix matching
+        List<FileMetadata> results = metadataService.searchFiles("20*");
+
+        // Then
+        assertEquals(2, results.size());
+        assertTrue(results.stream().allMatch(f -> f.getPath().contains("report")));
+    }
+
     private FileMetadata createDummyFile(String snapshotId, String path) throws IOException {
         // We need to create chunks first due to FK constraints
         ChunkMetadata chunk = new ChunkMetadata("hash-" + path.hashCode(), 100, Instant.now(), 1, Instant.now());
