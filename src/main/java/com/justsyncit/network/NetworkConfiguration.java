@@ -9,7 +9,7 @@ public class NetworkConfiguration {
     // Default values tuned for high-bandwidth WAN connections
     public static final int DEFAULT_SEND_BUFFER_SIZE = 4 * 1024 * 1024; // 4MB
     public static final int DEFAULT_RECEIVE_BUFFER_SIZE = 4 * 1024 * 1024; // 4MB
-    public static final int DEFAULT_CONNECT_TIMEOUT_MS = 30_000;
+    public static final int DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
     public static final boolean DEFAULT_TCP_NO_DELAY = true;
     public static final boolean DEFAULT_KEEP_ALIVE = true;
     public static final boolean DEFAULT_REUSE_ADDRESS = true;
