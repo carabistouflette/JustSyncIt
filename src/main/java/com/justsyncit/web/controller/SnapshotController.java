@@ -32,14 +32,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * REST controller for snapshot operations.
  */
 public final class SnapshotController {
 
-    private static final Logger LOGGER = Logger.getLogger(SnapshotController.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(SnapshotController.class);
 
     private final WebServerContext context;
 
@@ -69,14 +70,14 @@ public final class SnapshotController {
                 // These are now available in the Snapshot object
                 response.setFileCount(snapshot.getTotalFiles());
                 response.setTotalBytes(snapshot.getTotalSize());
-                LOGGER.info(String.format("Snapshot %s: files=%d, bytes=%d",
-                        snapshot.getId(), snapshot.getTotalFiles(), snapshot.getTotalSize()));
+                LOGGER.info("Snapshot {}: files={}, bytes={}",
+                        snapshot.getId(), snapshot.getTotalFiles(), snapshot.getTotalSize());
                 responses.add(response);
             }
 
             ctx.json(Map.of("snapshots", responses));
         } catch (Exception e) {
-            LOGGER.severe("Failed to list snapshots: " + e.getMessage());
+            LOGGER.error("Failed to list snapshots", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -110,7 +111,7 @@ public final class SnapshotController {
 
             ctx.json(response);
         } catch (Exception e) {
-            LOGGER.severe("Failed to get snapshot: " + e.getMessage());
+            LOGGER.error("Failed to get snapshot", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -164,7 +165,7 @@ public final class SnapshotController {
                     "limit", limit,
                     "offset", offset));
         } catch (Exception e) {
-            LOGGER.severe("Failed to get snapshot files: " + e.getMessage());
+            LOGGER.error("Failed to get snapshot files", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -192,7 +193,7 @@ public final class SnapshotController {
             metadataService.deleteSnapshot(snapshotId);
             ctx.json(Map.of("status", "deleted", "snapshotId", snapshotId));
         } catch (Exception e) {
-            LOGGER.severe("Failed to delete snapshot: " + e.getMessage());
+            LOGGER.error("Failed to delete snapshot", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -210,7 +211,7 @@ public final class SnapshotController {
                     "message", "Verification started",
                     "snapshotId", snapshotId));
         } catch (Exception e) {
-            LOGGER.severe("Failed to start verification: " + e.getMessage());
+            LOGGER.error("Failed to start verification", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -248,7 +249,7 @@ public final class SnapshotController {
                     "fileCount", files.size()));
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to get snapshot stats: " + e.getMessage());
+            LOGGER.error("Failed to get snapshot stats", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }

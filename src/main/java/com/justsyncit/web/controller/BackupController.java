@@ -36,14 +36,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * REST controller for backup operations.
  */
 public final class BackupController {
 
-    private static final Logger LOGGER = Logger.getLogger(BackupController.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(BackupController.class);
 
     private final WebServerContext context;
     private final WebServer webServer;
@@ -174,7 +175,7 @@ public final class BackupController {
                         webServer.broadcast("backup:failed", Map.of("error", result.getError()));
                     }
                 } catch (Exception e) {
-                    LOGGER.severe("Backup failed: " + e.getMessage());
+                    LOGGER.error("Backup failed", e);
                     newState.setStatus("failed");
                     newState.setError(e.getMessage());
                     webServer.broadcast("backup:failed", Map.of("error", e.getMessage()));
@@ -187,7 +188,7 @@ public final class BackupController {
                     "snapshotId", newState.getSnapshotId()));
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to start backup: " + e.getMessage());
+            LOGGER.error("Failed to start backup", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }

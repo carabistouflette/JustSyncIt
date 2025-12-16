@@ -350,7 +350,7 @@ public class SnapshotsInfoCommand implements Command {
             try {
                 resource.close();
             } catch (Exception e) {
-                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+                logger.warn("Failed to close resource", e);
             }
         }
     }
