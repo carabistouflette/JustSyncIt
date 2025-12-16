@@ -143,12 +143,8 @@ public class ServiceFactory {
      *
      * @return configured network service
      */
-    public NetworkService createNetworkService() {
-        try {
-            return createNetworkService(createBlake3Service());
-        } catch (ServiceException e) {
-            throw new RuntimeException("Failed to create default Blake3Service for NetworkService", e);
-        }
+    public NetworkService createNetworkService() throws ServiceException {
+        return createNetworkService(createBlake3Service());
     }
 
     /**

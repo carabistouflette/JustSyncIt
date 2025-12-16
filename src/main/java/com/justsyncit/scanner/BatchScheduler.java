@@ -504,10 +504,12 @@ public class BatchScheduler {
         int baseBatchSize = options.getBatchSize();
 
         // Adjust based on CPU utilization
-        if (utilization.cpuUtilizationPercent > 80.0) {
-            baseBatchSize = Math.max(baseBatchSize / 2, configuration.getMinBatchSize());
-        } else if (utilization.cpuUtilizationPercent < 40.0) {
-            baseBatchSize = Math.min(baseBatchSize * 2, configuration.getMaxBatchSize());
+        if (utilization.isCpuAvailable()) {
+            if (utilization.cpuUtilizationPercent > 80.0) {
+                baseBatchSize = Math.max(baseBatchSize / 2, configuration.getMinBatchSize());
+            } else if (utilization.cpuUtilizationPercent < 40.0) {
+                baseBatchSize = Math.min(baseBatchSize * 2, configuration.getMaxBatchSize());
+            }
         }
 
         // Adjust based on memory utilization
@@ -714,7 +716,7 @@ public class BatchScheduler {
      */
     private static class ResourceMonitor {
         private final AtomicReference<ResourceUtilization> currentUtilization = new AtomicReference<>(
-                new ResourceUtilization(0.0, 0.0, 0.0, 0, 0L, 0L, 0L));
+                new ResourceUtilization(0.0, false, 0.0, 0.0, 0, 0L, 0L, 0L));
         private volatile java.util.concurrent.ScheduledFuture<?> monitorTask;
 
         public void start(ScheduledExecutorService executor) {
@@ -752,6 +754,7 @@ public class BatchScheduler {
 
                 // Estimate CPU utilization
                 double cpuUtilization = 0.0;
+                boolean isCpuAvailable = false;
                 try {
                     java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory
                             .getOperatingSystemMXBean();
@@ -764,6 +767,7 @@ public class BatchScheduler {
                     if (loadAverage >= 0 && availableProcessors > 0) {
                         // Rough estimate: load / processors * 100. Cap at 100.
                         cpuUtilization = Math.min(100.0, (loadAverage / availableProcessors) * 100.0);
+                        isCpuAvailable = true;
                     }
 
                     // Try to use com.sun.management interface if available for more accurate
@@ -772,6 +776,7 @@ public class BatchScheduler {
                         double systemCpuLoad = ((com.sun.management.OperatingSystemMXBean) osBean).getCpuLoad();
                         if (systemCpuLoad >= 0) {
                             cpuUtilization = systemCpuLoad * 100.0;
+                            isCpuAvailable = true;
                         }
                     }
                 } catch (Exception e) {
@@ -785,7 +790,7 @@ public class BatchScheduler {
                 double ioUtilization = 0.0;
 
                 ResourceUtilization utilization = new ResourceUtilization(
-                        cpuUtilization, memoryUtilization, ioUtilization,
+                        cpuUtilization, isCpuAvailable, memoryUtilization, ioUtilization,
                         Runtime.getRuntime().availableProcessors(),
                         usedMemory / (1024 * 1024),
                         0L, 0L);
