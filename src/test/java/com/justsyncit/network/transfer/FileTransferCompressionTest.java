@@ -61,6 +61,8 @@ class FileTransferCompressionTest {
         transferManager = new FileTransferManagerImpl();
         transferManager.setNetworkService(networkService);
         transferManager.setCompressionService(compressionService);
+        transferManager.setTransferPipelineFactory(
+                new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory());
         transferManager.start().join();
     }
 

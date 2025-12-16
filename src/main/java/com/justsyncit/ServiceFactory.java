@@ -159,6 +159,9 @@ public class ServiceFactory {
         ConnectionManager connectionManager = new ConnectionManagerImpl();
         FileTransferManagerImpl fileTransferManager = new FileTransferManagerImpl();
         fileTransferManager.setBlake3Service(blake3Service);
+        // Inject dependencies for DIP
+        fileTransferManager.setTransferPipelineFactory(
+                new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory());
 
         return new NetworkServiceImpl(tcpServer, tcpClient, connectionManager, fileTransferManager, blake3Service);
     }
