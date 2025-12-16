@@ -170,7 +170,7 @@ final public class RestoreService {
                     tracker.errorRestore(e);
                 }
                 throw e;
-            } catch (Exception e) {
+            } catch (IOException | RuntimeException e) {
                 logger.error("Restore failed", e);
                 progressTracker.errorRestore(e);
                 if (tracker != null) {
@@ -347,7 +347,7 @@ final public class RestoreService {
                     sourceRoot = Paths.get(desc.substring("Processing session for directory: ".length()));
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             logger.warn("Failed to determine source root from snapshot description", e);
         }
 
@@ -550,7 +550,7 @@ final public class RestoreService {
 
         } catch (StorageIntegrityException e) {
             throw new RestoreException("Storage integrity error", e);
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new IOException("Failed to reconstruct file from chunks: " + targetFile, e);
         }
     }
@@ -562,7 +562,7 @@ final public class RestoreService {
         try {
             String actualHash = blake3Service.hashBuffer(chunkData);
             return expectedHash.equals(actualHash);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.warn("Failed to verify chunk integrity: {}", expectedHash, e);
             return false;
         }
@@ -607,7 +607,7 @@ final public class RestoreService {
                 }
             }
             return true;
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             logger.error("Failed to verify restore integrity", e);
             return false;
         }

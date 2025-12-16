@@ -180,7 +180,7 @@ public class ServiceFactory {
         } catch (IOException e) {
             // Handle registration exception
             throw new ServiceException("Failed to register network command", e);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             // Catch unexpected runtime exceptions
             throw new ServiceException("Unexpected error registering network command", e);
         }
@@ -254,7 +254,7 @@ public class ServiceFactory {
             return new com.justsyncit.command.BackupCommand(backupService, networkService);
         } catch (ServiceException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create backup command", e);
         }
     }
@@ -271,7 +271,7 @@ public class ServiceFactory {
             NetworkService networkService) throws ServiceException {
         try {
             return new com.justsyncit.command.BackupCommand(backupService, networkService);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create backup command", e);
         }
     }
@@ -291,7 +291,7 @@ public class ServiceFactory {
             return new com.justsyncit.command.RestoreCommand(restoreService, networkService);
         } catch (ServiceException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create restore command", e);
         }
     }
@@ -309,7 +309,7 @@ public class ServiceFactory {
             throws ServiceException {
         try {
             return new com.justsyncit.command.RestoreCommand(restoreService, networkService);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create restore command", e);
         }
     }

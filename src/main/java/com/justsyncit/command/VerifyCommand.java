@@ -65,12 +65,17 @@ public class VerifyCommand implements Command {
         }
 
         // Validate minimum arguments
-        if (!validateMinArgs(args, 2, "--verify command requires a file path and expected hash")) {
+        // Validate minimum arguments
+        if (args == null || args.length < 2) {
+            logger.error("Insufficient arguments. Expected 2, got {}", args == null ? 0 : args.length);
+            System.err.println("Error: --verify command requires a file path and expected hash");
+            System.err.println(getUsage());
             return false;
         }
 
         // Validate context
         if (context == null) {
+            logger.error("Command context is null");
             System.err.println("Error: Command context cannot be null");
             return false;
         }
