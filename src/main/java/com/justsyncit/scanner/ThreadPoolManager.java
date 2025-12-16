@@ -70,6 +70,9 @@ public class ThreadPoolManager {
     private final ResourceCoordinator resourceCoordinator;
     private final PerformanceOptimizer performanceOptimizer;
 
+    // Executor for waiting on Futures
+    private final ExecutorService futureWaitExecutor;
+
     // System resource detection
     private final SystemResourceInfo systemInfo;
 
@@ -155,6 +158,11 @@ public class ThreadPoolManager {
         this.monitor = new ThreadPoolMonitor(config, systemInfo);
         this.resourceCoordinator = new ResourceCoordinator(config, systemInfo);
         this.performanceOptimizer = new PerformanceOptimizer();
+        this.futureWaitExecutor = Executors.newCachedThreadPool(r -> {
+            Thread t = new Thread(r, "FutureWaiter-" + System.nanoTime());
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     /**
@@ -336,15 +344,12 @@ public class ThreadPoolManager {
     private <T> CompletableFuture<T> futureToCompletableFuture(java.util.concurrent.Future<T> future) {
         CompletableFuture<T> completableFuture = new CompletableFuture<>();
 
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
-        executor.submit(() -> {
+        futureWaitExecutor.submit(() -> {
             try {
                 T result = future.get();
                 completableFuture.complete(result);
             } catch (Exception e) {
                 completableFuture.completeExceptionally(e);
-            } finally {
-                executor.shutdown();
             }
         });
 
@@ -457,6 +462,7 @@ public class ThreadPoolManager {
             // PerformanceOptimizer doesn't have shutdown method - it's auto-cleanup
             resourceCoordinator.shutdown();
             monitor.shutdown();
+            futureWaitExecutor.shutdown();
 
             // Shutdown all thread pools in parallel
             List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();

@@ -150,6 +150,7 @@ public class NetworkCommand implements Command {
                     .join();
             return true;
         } catch (NumberFormatException e) {
+            logger.warn("Invalid port number provided: {}", args[1]);
             System.err.println("Invalid port number: " + args[1]);
             return false;
         } catch (Exception e) {
@@ -204,6 +205,7 @@ public class NetworkCommand implements Command {
                     .join();
             return true;
         } catch (NumberFormatException e) {
+            logger.warn("Invalid port number in address: {}", args[1]);
             System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
@@ -240,6 +242,7 @@ public class NetworkCommand implements Command {
                     .join();
             return true;
         } catch (NumberFormatException e) {
+            logger.warn("Invalid port number in address: {}", args[1]);
             System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
@@ -288,10 +291,12 @@ public class NetworkCommand implements Command {
                         result.getBytesTransferred(), duration.toMillis() / 1000.0, rateKBps);
                 return true;
             } else {
+                logger.warn("File transfer reported failure via result status");
                 System.err.println("File transfer failed");
                 return false;
             }
         } catch (NumberFormatException e) {
+            logger.warn("Invalid port number in address: {}", args[2]);
             System.err.println("Invalid port number in address: " + args[2]);
             return false;
         } catch (Exception e) {
