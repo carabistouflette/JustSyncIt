@@ -171,7 +171,7 @@ public class BatchScheduler {
             logger.info("Starting batch scheduler...");
 
             // Start the scheduling loop
-            schedulingExecutor.scheduleAtFixedRate(this::scheduleNextBatch,
+            schedulingExecutor.scheduleWithFixedDelay(this::scheduleNextBatch,
                     0, DEFAULT_SCHEDULING_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
             // Start resource monitoring
