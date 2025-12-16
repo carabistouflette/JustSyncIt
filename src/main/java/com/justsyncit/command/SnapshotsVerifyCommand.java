@@ -18,7 +18,6 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.hash.Blake3Service;
@@ -33,6 +32,9 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Command for verifying the integrity of a snapshot.
  * Follows Single Responsibility Principle by handling only snapshot
@@ -40,6 +42,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 
 public class SnapshotsVerifyCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(SnapshotsVerifyCommand.class);
 
     private final MetadataService metadataService;
     private final ServiceFactory serviceFactory;
@@ -89,6 +93,7 @@ public class SnapshotsVerifyCommand implements Command {
         }
 
         if (args.length < 2 || !args[0].equals("verify")) {
+            logger.error("Missing subcommand 'verify' or snapshot ID");
             System.err.println("Error: Missing subcommand 'verify' or snapshot ID");
             System.err.println(getUsage());
             System.err.println("Use 'help snapshots verify' for more information");
@@ -114,6 +119,7 @@ public class SnapshotsVerifyCommand implements Command {
             // Get snapshot information
             Optional<Snapshot> snapshotOpt = services.metadataService.getSnapshot(snapshotId);
             if (snapshotOpt.isEmpty()) {
+                logger.error("Snapshot not found: {}", snapshotId);
                 System.err.println("Error: Snapshot not found: " + snapshotId);
                 return false;
             }
@@ -127,6 +133,7 @@ public class SnapshotsVerifyCommand implements Command {
             // Get files in snapshot
             List<FileMetadata> files = services.metadataService.getFilesInSnapshot(snapshotId);
             if (files == null) {
+                logger.error("Failed to retrieve files for snapshot: {}", snapshotId);
                 System.err.println("Error: Failed to retrieve files for snapshot: " + snapshotId);
                 return false;
             }
@@ -141,6 +148,7 @@ public class SnapshotsVerifyCommand implements Command {
             return verifyFiles(files, options, services);
 
         } catch (IOException e) {
+            logger.error("Failed to verify snapshot: {}", e.getMessage(), e);
             System.err.println("Error: Failed to verify snapshot: " + e.getMessage());
             return false;
         } catch (Exception e) {

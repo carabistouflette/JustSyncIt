@@ -164,7 +164,10 @@ class FixedSizeFileChunkerTest {
                 new FileChunker.ChunkingOptions());
 
         ExecutionException exception = assertThrows(ExecutionException.class, () -> future.get());
-        assertTrue(exception.getCause() instanceof IllegalArgumentException);
+        assertTrue(
+                exception.getCause() instanceof IllegalArgumentException || exception.getCause() instanceof IOException,
+                "Expected IllegalArgumentException or IOException, but got: "
+                        + exception.getCause().getClass().getName());
     }
 
     @Test

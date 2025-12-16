@@ -22,6 +22,8 @@ import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.backup.BackupOptions;
 import com.justsyncit.backup.BackupService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.network.NetworkService;
@@ -43,6 +45,8 @@ import java.util.Locale;
  */
 
 public class BackupCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(BackupCommand.class);
 
     private final BackupService backupService;
     private final ServiceFactory serviceFactory;
@@ -94,6 +98,7 @@ public class BackupCommand implements Command {
         }
 
         if (args.length == 0) {
+            logger.error("Source directory is required");
             System.err.println("Error: Source directory is required");
             System.err.println(getUsage());
             System.err.println("Use 'help backup' for more information");
@@ -111,6 +116,7 @@ public class BackupCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid arguments: {}", e.getMessage());
             System.err.println(e.getMessage());
             return false;
         }
@@ -142,7 +148,7 @@ public class BackupCommand implements Command {
                         netService = localNetworkService;
                     }
                 } catch (ServiceException e) {
-                    System.err.println("Error: Failed to initialize backup service: " + e.getMessage());
+                    handleError("Failed to initialize backup service", e, logger);
                     return false;
                 }
             }
@@ -150,12 +156,10 @@ public class BackupCommand implements Command {
             return performBackup(service, netService, sourcePath, options);
 
         } catch (Exception e) {
-            System.err.println("\nBackup failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
+            handleError("Backup execution failed", e, logger);
             return false;
         } finally {
+
             closeQuietly(localContentStore);
             closeQuietly(localMetadataService);
             closeQuietly(localNetworkService);
@@ -164,11 +168,13 @@ public class BackupCommand implements Command {
 
     private boolean validateSourcePath(Path sourcePath, String sourceDir) {
         if (!Files.exists(sourcePath)) {
+            logger.error("Source directory does not exist: {}", sourceDir);
             System.err.println("Error: Source directory does not exist: " + sourceDir);
             return false;
         }
 
         if (!Files.isDirectory(sourcePath)) {
+            logger.error("Source path is not a directory: {}", sourceDir);
             System.err.println("Error: Source path is not a directory: " + sourceDir);
             return false;
         }
@@ -284,15 +290,18 @@ public class BackupCommand implements Command {
                 // For remote backup, we would typically send the snapshot data after creating
                 // it locally
                 // For now, we'll create the backup locally and then simulate sending it
-                CompletableFuture<BackupService.BackupResult> backupFuture = service.backup(sourcePath, options);
-                BackupService.BackupResult result = backupFuture.get();
+                // CompletableFuture<BackupService.BackupResult> backupFuture =
+                // service.backup(sourcePath, options);
+                // BackupService.BackupResult result = backupFuture.get();
 
                 // In a real implementation, we would send the snapshot and chunks to the remote
                 // server
-                // For demonstration, we'll just show what would happen
-                System.out.println("Remote backup data sent successfully!");
+                throw new UnsupportedOperationException("Remote backup is not yet fully implemented.");
 
-                printResult(result, true);
+                // For demonstration, we'll just show what would happen
+                // System.out.println("Remote backup data sent successfully!");
+
+                // printResult(result, true);
             } finally {
                 // Disconnect from remote server
                 netService.disconnectFromNode(options.getRemoteAddress()).get();
@@ -325,6 +334,7 @@ public class BackupCommand implements Command {
             try {
                 resource.close();
             } catch (Exception e) {
+                logger.warn("Failed to close resource", e);
                 System.err.println("Warning: Failed to close resource: " + e.getMessage());
             }
         }

@@ -106,6 +106,7 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
         private final int prefetchThreshold;
         private final double memoryPressureThreshold;
         private final int backpressureThreshold;
+        private final long adaptiveSizingIntervalMs;
 
         private PoolConfiguration(Builder builder) {
             this.minBuffersPerTier = builder.minBuffersPerTier;
@@ -119,6 +120,7 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
             this.prefetchThreshold = builder.prefetchThreshold;
             this.memoryPressureThreshold = builder.memoryPressureThreshold;
             this.backpressureThreshold = builder.backpressureThreshold;
+            this.adaptiveSizingIntervalMs = builder.adaptiveSizingIntervalMs;
         }
 
         public static class Builder {
@@ -133,6 +135,7 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
             private int prefetchThreshold = 10;
             private double memoryPressureThreshold = 0.8;
             private int backpressureThreshold = 100;
+            private long adaptiveSizingIntervalMs = 30000;
 
             public Builder minBuffersPerTier(int minBuffersPerTier) {
                 this.minBuffersPerTier = minBuffersPerTier;
@@ -189,6 +192,11 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
                 return this;
             }
 
+            public Builder adaptiveSizingIntervalMs(long adaptiveSizingIntervalMs) {
+                this.adaptiveSizingIntervalMs = adaptiveSizingIntervalMs;
+                return this;
+            }
+
             public PoolConfiguration build() {
                 return new PoolConfiguration(this);
             }
@@ -237,6 +245,10 @@ public class OptimizedAsyncByteBufferPool implements AsyncByteBufferPool {
 
         public int getBackpressureThreshold() {
             return backpressureThreshold;
+        }
+
+        public long getAdaptiveSizingIntervalMs() {
+            return adaptiveSizingIntervalMs;
         }
     }
 

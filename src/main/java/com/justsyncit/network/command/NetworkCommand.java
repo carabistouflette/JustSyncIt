@@ -36,7 +36,8 @@ import com.justsyncit.storage.ContentStore;
 
 /**
  * Command for managing network operations.
- * Follows Single Responsibility Principle by handling only network-related commands.
+ * Follows Single Responsibility Principle by handling only network-related
+ * commands.
  */
 public class NetworkCommand implements Command {
 
@@ -52,7 +53,7 @@ public class NetworkCommand implements Command {
      * Creates a new network command.
      *
      * @param networkService the network service
-     * @param contentStore the content store
+     * @param contentStore   the content store
      */
     private NetworkCommand(NetworkService networkService, ContentStore contentStore) {
         // Store references to services - these are injected dependencies
@@ -64,7 +65,7 @@ public class NetworkCommand implements Command {
      * Creates a new network command with validation.
      *
      * @param networkService the network service
-     * @param contentStore the content store
+     * @param contentStore   the content store
      * @return a new NetworkCommand instance
      * @throws IllegalArgumentException if any parameter is null
      */
@@ -125,8 +126,7 @@ public class NetworkCommand implements Command {
                     return false;
             }
         } catch (Exception e) {
-            System.err.println("Command execution failed: " + e.getMessage());
-            logger.error("Command execution failed", e);
+            handleError("Command execution failed", e, logger);
             return false;
         }
     }
@@ -142,16 +142,17 @@ public class NetworkCommand implements Command {
             networkService.startServer(port)
                     .thenRun(() -> System.out.println("Network server started on port " + port))
                     .exceptionally(e -> {
-                        System.out.println("Failed to start network server: " + e.getMessage());
+                        handleError("Failed to start network server", e, logger);
                         return null;
                     })
                     .join();
             return true;
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number: " + args[1]);
+            logger.warn("Invalid port number provided: {}", args[1]);
+            System.err.println("Invalid port number: " + args[1]);
             return false;
         } catch (Exception e) {
-            System.out.println("Failed to start network server: " + e.getMessage());
+            handleError("Failed to start network server", e, logger);
             return false;
         }
     }
@@ -161,13 +162,13 @@ public class NetworkCommand implements Command {
             networkService.stopServer()
                     .thenRun(() -> System.out.println("Network server stopped"))
                     .exceptionally(e -> {
-                        System.out.println("Failed to stop network server: " + e.getMessage());
+                        handleError("Failed to stop network server", e, logger);
                         return null;
                     })
                     .join();
             return true;
         } catch (Exception e) {
-            System.out.println("Failed to stop network server: " + e.getMessage());
+            handleError("Failed to stop network server", e, logger);
             return false;
         }
     }
@@ -192,16 +193,17 @@ public class NetworkCommand implements Command {
             networkService.connectToNode(address)
                     .thenRun(() -> System.out.println("Connected to " + address))
                     .exceptionally(e -> {
-                        System.out.println("Failed to connect to " + address + ": " + e.getMessage());
+                        handleError("Failed to connect to " + address, e, logger);
                         return null;
                     })
                     .join();
             return true;
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number in address: " + args[1]);
+            logger.warn("Invalid port number in address: {}", args[1]);
+            System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
-            System.out.println("Failed to connect: " + e.getMessage());
+            handleError("Failed to connect", e, logger);
             return false;
         }
     }
@@ -226,16 +228,17 @@ public class NetworkCommand implements Command {
             networkService.disconnectFromNode(address)
                     .thenRun(() -> System.out.println("Disconnected from " + address))
                     .exceptionally(e -> {
-                        System.out.println("Failed to disconnect from " + address + ": " + e.getMessage());
+                        handleError("Failed to disconnect from " + address, e, logger);
                         return null;
                     })
                     .join();
             return true;
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number in address: " + args[1]);
+            logger.warn("Invalid port number in address: {}", args[1]);
+            System.err.println("Invalid port number in address: " + args[1]);
             return false;
         } catch (Exception e) {
-            System.out.println("Failed to disconnect: " + e.getMessage());
+            handleError("Failed to disconnect", e, logger);
             return false;
         }
     }
@@ -266,7 +269,7 @@ public class NetworkCommand implements Command {
             Instant start = Instant.now();
             FileTransferResult result = networkService.sendFile(filePath, remoteAddress, contentStore)
                     .exceptionally(e -> {
-                        System.out.println("File transfer failed: " + e.getMessage());
+                        handleError("File transfer failed", e, logger);
                         return null;
                     })
                     .join();
@@ -278,14 +281,16 @@ public class NetworkCommand implements Command {
                         result.getBytesTransferred(), duration.toMillis() / 1000.0, rateKBps);
                 return true;
             } else {
-                System.out.println("File transfer failed");
+                logger.warn("File transfer reported failure via result status");
+                System.err.println("File transfer failed");
                 return false;
             }
         } catch (NumberFormatException e) {
-            System.out.println("Invalid port number in address: " + args[2]);
+            logger.warn("Invalid port number in address: {}", args[2]);
+            System.err.println("Invalid port number in address: " + args[2]);
             return false;
         } catch (Exception e) {
-            System.out.println("Failed to send file: " + e.getMessage());
+            handleError("Failed to send file", e, logger);
             return false;
         }
     }
@@ -302,7 +307,7 @@ public class NetworkCommand implements Command {
             System.out.println("  Messages received: " + networkService.getMessagesReceived());
             return true;
         } catch (Exception e) {
-            System.out.println("Failed to get network status: " + e.getMessage());
+            handleError("Failed to get network status", e, logger);
             return false;
         }
     }

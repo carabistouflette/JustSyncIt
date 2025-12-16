@@ -18,12 +18,13 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.TransportType;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.Locale;
 
 /**
@@ -34,14 +35,18 @@ import java.util.Locale;
 
 public class ServerStartCommand implements Command {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ServerStartCommand.class);
+
     private static final int DEFAULT_PORT = 8080;
     private static final int MIN_PORT = 1;
     private static final int MAX_PORT = 65535;
-    private static final int STARTUP_WAIT_MS = 1000;
+    private static final int STARTUP_TIMEOUT_MS = 5000;
+
     private static final int STATUS_UPDATE_INTERVAL_MS = 1000;
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
+    private final CountDownLatch stopLatch = new CountDownLatch(1);
 
     /**
      * Creates a server start command with dependency injection.
@@ -78,6 +83,7 @@ public class ServerStartCommand implements Command {
 
         // Check for subcommand
         if (args.length == 0 || !args[0].equals("start")) {
+            logger.error("Missing subcommand 'start'");
             System.err.println("Error: Missing subcommand 'start'");
             System.err.println(getUsage());
             System.err.println("Use 'help server start' for more information");
@@ -88,6 +94,7 @@ public class ServerStartCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid arguments: {}", e.getMessage());
             System.err.println(e.getMessage());
             return false;
         }
@@ -108,6 +115,7 @@ public class ServerStartCommand implements Command {
                     localService = serviceFactory.createNetworkService();
                     service = localService;
                 } catch (Exception e) {
+                    logger.error("Failed to initialize network service", e);
                     System.err.println("Error: Failed to initialize network service: " + e.getMessage());
                     return false;
                 }
@@ -116,6 +124,7 @@ public class ServerStartCommand implements Command {
             return startServer(service, options);
 
         } catch (Exception e) {
+            logger.error("Failed to start server", e);
             System.err.println("Error: Failed to start server: " + e.getMessage());
             return false;
         } finally {
@@ -201,6 +210,7 @@ public class ServerStartCommand implements Command {
     private boolean startServer(NetworkService service, StartOptions options) throws Exception {
         // Check if server is already running
         if (service.isServerRunning()) {
+            logger.warn("Server is already running on port {}", service.getServerPort());
             System.err.println("Error: Server is already running on port " + service.getServerPort());
             return false;
         }
@@ -218,11 +228,27 @@ public class ServerStartCommand implements Command {
         // Setup completion handler
         setupCompletionHandler(service, startFuture, options);
 
-        // Wait for server to start
-        Thread.sleep(STARTUP_WAIT_MS);
+        // Wait for server to start with polling
+        // Wait for server to start using Future.get() instead of polling/sleeping
+        try {
+            startFuture.get(STARTUP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            logger.error("Server failed to start: Timed out after {}ms", STARTUP_TIMEOUT_MS);
+            System.err.println("Server failed to start: Timed out after " + STARTUP_TIMEOUT_MS + "ms");
+            return false;
+        } catch (java.util.concurrent.ExecutionException e) {
+            logger.error("Server start execution failed", e);
+            System.err.println("Error: Server start failed: " + e.getCause().getMessage());
+            return false;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("Server start interrupted");
+            return false;
+        }
 
         if (!service.isServerRunning()) {
-            System.err.println("Server failed to start");
+            logger.error("Server failed to start (timeout or error)");
+            System.err.println("Server failed to start (timeout or error)");
             return false;
         }
 
@@ -259,7 +285,12 @@ public class ServerStartCommand implements Command {
             StartOptions options) {
         startFuture.whenComplete((result, throwable) -> {
             if (throwable != null) {
-                System.err.println("Failed to start server: " + throwable.getMessage());
+                Throwable cause = throwable;
+                if (cause instanceof java.util.concurrent.CompletionException) {
+                    cause = cause.getCause();
+                }
+                logger.error("Failed to start server", cause);
+                System.err.println("Failed to start server: " + cause.getMessage());
             } else if (options.verbose) {
                 System.out.println("Server started successfully!");
                 System.out.println("Listening on port " + options.port + " using " + options.transportType);
@@ -283,7 +314,10 @@ public class ServerStartCommand implements Command {
                 service.stopServer().get();
                 System.out.println("Server stopped.");
             } catch (Exception e) {
+                logger.error("Error stopping server", e);
                 System.err.println("Error stopping server: " + e.getMessage());
+            } finally {
+                stopLatch.countDown();
             }
         }));
     }
@@ -323,7 +357,10 @@ public class ServerStartCommand implements Command {
      */
     private void monitorServerWithStatus(NetworkService service) throws InterruptedException {
         while (service.isServerRunning()) {
-            Thread.sleep(STATUS_UPDATE_INTERVAL_MS);
+            // Wait for 1 second or until stop signal
+            if (stopLatch.await(STATUS_UPDATE_INTERVAL_MS, TimeUnit.MILLISECONDS)) {
+                break; // Stop signal received
+            }
 
             NetworkService.NetworkStatistics stats = service.getStatistics();
             System.out.printf("\rConnections: %d, Transfers: %d, Bytes sent: %s, Bytes received: %s",
@@ -342,9 +379,8 @@ public class ServerStartCommand implements Command {
      * @throws InterruptedException if interrupted
      */
     private void monitorServerQuiet(NetworkService service) throws InterruptedException {
-        while (service.isServerRunning()) {
-            Thread.sleep(STATUS_UPDATE_INTERVAL_MS);
-        }
+        // Wait until stop signal
+        stopLatch.await();
     }
 
     /**
@@ -357,6 +393,7 @@ public class ServerStartCommand implements Command {
             try {
                 resource.close();
             } catch (Exception e) {
+                logger.warn("Failed to close resource", e);
                 System.err.println("Warning: Failed to close resource: " + e.getMessage());
             }
         }

@@ -45,17 +45,17 @@ public final class FileMetadata {
     /**
      * Creates a new FileMetadata instance.
      *
-     * @param id unique identifier for the file metadata
-     * @param snapshotId ID of the snapshot this file belongs to
-     * @param path path of the file relative to backup root
-     * @param size size of the file in bytes
+     * @param id           unique identifier for the file metadata
+     * @param snapshotId   ID of the snapshot this file belongs to
+     * @param path         path of the file relative to backup root
+     * @param size         size of the file in bytes
      * @param modifiedTime last modification time of the file
-     * @param fileHash BLAKE3 hash of the entire file
-     * @param chunkHashes list of chunk hashes that make up this file, in order
+     * @param fileHash     BLAKE3 hash of the entire file
+     * @param chunkHashes  list of chunk hashes that make up this file, in order
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
     public FileMetadata(String id, String snapshotId, String path, long size,
-                       Instant modifiedTime, String fileHash, List<String> chunkHashes) {
+            Instant modifiedTime, String fileHash, List<String> chunkHashes) {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("File ID cannot be null or empty");
         }
@@ -74,8 +74,11 @@ public final class FileMetadata {
         if (fileHash == null || fileHash.trim().isEmpty()) {
             throw new IllegalArgumentException("File hash cannot be null or empty");
         }
-        if (chunkHashes == null || chunkHashes.isEmpty()) {
-            throw new IllegalArgumentException("Chunk hashes list cannot be null or empty");
+        if (chunkHashes == null) {
+            throw new IllegalArgumentException("Chunk hashes list cannot be null");
+        }
+        if (size > 0 && chunkHashes.isEmpty()) {
+            throw new IllegalArgumentException("Chunk hashes list cannot be empty for non-empty file");
         }
 
         this.id = id;

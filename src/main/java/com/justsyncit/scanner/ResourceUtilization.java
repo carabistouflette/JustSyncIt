@@ -45,11 +45,14 @@ public class ResourceUtilization {
 
     /** Total bytes written. */
     public final long totalBytesWritten;
+    /** Whether CPU utilization is available/reliable. */
+    public final boolean isCpuAvailable;
 
     /**
      * Creates resource utilization information.
      *
      * @param cpuUtilizationPercent    CPU utilization percentage
+     * @param isCpuAvailable           whether CPU utilization is available
      * @param memoryUtilizationPercent memory utilization percentage
      * @param ioUtilizationPercent     I/O utilization percentage
      * @param maxConcurrentOperations  maximum concurrent operations
@@ -57,10 +60,11 @@ public class ResourceUtilization {
      * @param totalBytesRead           total bytes read
      * @param totalBytesWritten        total bytes written
      */
-    public ResourceUtilization(double cpuUtilizationPercent, double memoryUtilizationPercent,
+    public ResourceUtilization(double cpuUtilizationPercent, boolean isCpuAvailable, double memoryUtilizationPercent,
             double ioUtilizationPercent, int maxConcurrentOperations,
             long peakMemoryUsageMB, long totalBytesRead, long totalBytesWritten) {
         this.cpuUtilizationPercent = cpuUtilizationPercent;
+        this.isCpuAvailable = isCpuAvailable;
         this.memoryUtilizationPercent = memoryUtilizationPercent;
         this.ioUtilizationPercent = ioUtilizationPercent;
         this.maxConcurrentOperations = maxConcurrentOperations;
@@ -76,6 +80,15 @@ public class ResourceUtilization {
      */
     public double getCpuUtilizationPercent() {
         return cpuUtilizationPercent;
+    }
+
+    /**
+     * Checks if CPU utilization is available.
+     *
+     * @return true if available, false otherwise
+     */
+    public boolean isCpuAvailable() {
+        return isCpuAvailable;
     }
 
     /**
@@ -132,12 +145,13 @@ public class ResourceUtilization {
         return totalBytesWritten;
     }
 
+    
     @Override
     public String toString() {
         return String.format(
-                "ResourceUtilization{cpu=%.1f%%, memory=%.1f%%, io=%.1f%%, "
+                "ResourceUtilization{cpu=%.1f%% (avail=%s), memory=%.1f%%, io=%.1f%%, "
                         + "maxConcurrent=%d, peakMemory=%dMB, read=%dMB, written=%dMB}",
-                cpuUtilizationPercent, memoryUtilizationPercent, ioUtilizationPercent,
+                cpuUtilizationPercent, isCpuAvailable, memoryUtilizationPercent, ioUtilizationPercent,
                 maxConcurrentOperations, peakMemoryUsageMB,
                 totalBytesRead / (1024 * 1024), totalBytesWritten / (1024 * 1024));
     }

@@ -38,6 +38,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.Locale;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Command for synchronizing local directory with remote server.
  * Follows Single Responsibility Principle by handling only synchronization
@@ -45,6 +48,8 @@ import java.util.Locale;
  */
 
 public class SyncCommand implements Command {
+
+    private static final Logger logger = LoggerFactory.getLogger(SyncCommand.class);
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
@@ -117,8 +122,8 @@ public class SyncCommand implements Command {
                     options.transportType);
             try {
                 connectFuture.get(30, TimeUnit.SECONDS);
-            } catch (TimeoutException e) {
-                System.err.println("Error: Connection timeout after 30 seconds");
+            } catch (Exception e) {
+                handleError("Connection failed", e, logger);
                 return false;
             }
 
@@ -133,16 +138,14 @@ public class SyncCommand implements Command {
             try {
                 services.netService.disconnectFromNode(options.serverAddress).get(10, TimeUnit.SECONDS);
             } catch (TimeoutException e) {
+                logger.warn("Disconnect timeout after 10 seconds", e);
                 System.err.println("Warning: Disconnect timeout after 10 seconds");
             }
 
             return success;
 
         } catch (Exception e) {
-            System.err.println("Error: Synchronization failed: " + e.getMessage());
-            if (e.getCause() != null) {
-                System.err.println("Cause: " + e.getCause().getMessage());
-            }
+            handleError("Synchronization failed", e, logger);
             return false;
         }
     }
@@ -159,56 +162,59 @@ public class SyncCommand implements Command {
                     localSnapshots = List.of();
                 }
             } catch (Exception e) {
-                System.err.println("Error: Failed to retrieve local snapshots: " + e.getMessage());
+                handleError("Failed to retrieve local snapshots", e, logger);
                 return false;
             }
 
             // In a real implementation, we would query the remote server for its snapshots
-            remoteSnapshots = simulateRemoteSnapshots();
+            // remoteSnapshots = simulateRemoteSnapshots();
+            throw new UnsupportedOperationException("Remote synchronization is not yet implemented.");
 
-            if (options.verbose) {
-                System.out.println("Local snapshots: " + localSnapshots.size());
-                System.out.println("Remote snapshots: " + remoteSnapshots.size());
-                System.out.println();
-            }
-
-            // Perform synchronization logic
-            SyncResult result = new SyncResult();
-
-            // Create sets for efficient lookup
-            Set<String> localSnapshotIds = new HashSet<>();
-            Set<String> remoteSnapshotIds = new HashSet<>();
-
-            for (Snapshot snapshot : localSnapshots) {
-                if (snapshot != null && snapshot.getId() != null) {
-                    localSnapshotIds.add(snapshot.getId());
-                }
-            }
-
-            for (Snapshot snapshot : remoteSnapshots) {
-                if (snapshot != null && snapshot.getId() != null) {
-                    remoteSnapshotIds.add(snapshot.getId());
-                }
-            }
-
-            if (options.bidirectional) {
-                syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
-                syncRemoteToLocal(remoteSnapshots, localSnapshotIds, result, options);
-            } else {
-                syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
-            }
-
-            if (options.verbose) {
-                printSyncSummary(result, options);
-            } else {
-                System.out.println("Sync completed: " + result.syncedToRemote + " to remote, " + result.syncedToLocal
-                        + " to local");
-            }
-
-            return true;
+            /*
+             * if (options.verbose) {
+             * System.out.println("Local snapshots: " + localSnapshots.size());
+             * System.out.println("Remote snapshots: " + remoteSnapshots.size());
+             * System.out.println();
+             * }
+             * 
+             * // Perform synchronization logic
+             * SyncResult result = new SyncResult();
+             * 
+             * // Create sets for efficient lookup
+             * Set<String> localSnapshotIds = new HashSet<>();
+             * Set<String> remoteSnapshotIds = new HashSet<>();
+             * 
+             * for (Snapshot snapshot : localSnapshots) {
+             * if (snapshot != null && snapshot.getId() != null) {
+             * localSnapshotIds.add(snapshot.getId());
+             * }
+             * }
+             * 
+             * for (Snapshot snapshot : remoteSnapshots) {
+             * if (snapshot != null && snapshot.getId() != null) {
+             * remoteSnapshotIds.add(snapshot.getId());
+             * }
+             * }
+             * 
+             * if (options.bidirectional) {
+             * syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
+             * syncRemoteToLocal(remoteSnapshots, localSnapshotIds, result, options);
+             * } else {
+             * syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
+             * }
+             * 
+             * if (options.verbose) {
+             * printSyncSummary(result, options);
+             * } else {
+             * System.out.println("Sync completed: " + result.syncedToRemote +
+             * " to remote, " + result.syncedToLocal
+             * + " to local");
+             * }
+             */
+            // return true;
 
         } catch (Exception e) {
-            System.err.println("Error: Synchronization logic failed: " + e.getMessage());
+            handleError("Synchronization logic failed", e, logger);
             return false;
         }
     }
@@ -424,6 +430,7 @@ public class SyncCommand implements Command {
                 try {
                     netService.close();
                 } catch (Exception e) {
+                    logger.warn("Failed to close network service", e);
                     System.err.println("Warning: Failed to close network service: " + e.getMessage());
                 }
             }
@@ -431,6 +438,7 @@ public class SyncCommand implements Command {
                 try {
                     metadataService.close();
                 } catch (Exception e) {
+                    logger.warn("Failed to close metadata service", e);
                     System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
                 }
             }
@@ -438,6 +446,7 @@ public class SyncCommand implements Command {
                 try {
                     contentStore.close();
                 } catch (Exception e) {
+                    logger.warn("Failed to close content store", e);
                     System.err.println("Warning: Failed to close content store: " + e.getMessage());
                 }
             }
@@ -456,21 +465,10 @@ public class SyncCommand implements Command {
             bs = serviceFactory.createBlake3Service();
             cs = serviceFactory.createSqliteContentStore(bs);
         } catch (Exception e) {
-            System.err.println("Error: Failed to initialize services: " + e.getMessage());
-            // Cleanup partilly initialized services
-            if (ns != null && networkService == null) {
-                try {
-                    ns.close();
-                } catch (Exception ignored) {
-                }
-            }
-            if (ms != null) {
-                try {
-                    ms.close();
-                } catch (Exception ignored) {
-                }
-            }
-            return null;
+            // Propagate as generic ServiceException if possible, or just wrap
+            // For now, let handleError handle it in the caller or rethrow to be caught by
+            // caller
+            throw new RuntimeException("Failed to initialize services", e);
         }
         return new ServiceContext(ns, ms, cs);
     }
@@ -503,9 +501,6 @@ public class SyncCommand implements Command {
         while (transferred < bytes) {
             long currentChunk = Math.min(chunkSize, bytes - transferred);
             transferred += currentChunk;
-
-            // Simulate network delay
-            Thread.sleep(50);
         }
     }
 

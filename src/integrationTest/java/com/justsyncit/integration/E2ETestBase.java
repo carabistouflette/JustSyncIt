@@ -78,8 +78,11 @@ public abstract class E2ETestBase {
     void setUp() throws Exception {
         serviceFactory = new ServiceFactory();
         blake3Service = serviceFactory.createBlake3Service();
-        contentStore = serviceFactory.createSqliteContentStore(blake3Service);
+        // Create content store in test-specific temp directory for isolation
         metadataService = serviceFactory.createMetadataService(tempDir.resolve("test-metadata.db").toString());
+        String testStorageDir = tempDir.resolve("test-chunks").toString();
+        contentStore = com.justsyncit.storage.ContentStoreFactory.createSqliteStore(
+                testStorageDir, metadataService, blake3Service);
         backupService = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
         restoreService = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
         networkService = serviceFactory.createNetworkService();

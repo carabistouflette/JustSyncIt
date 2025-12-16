@@ -37,6 +37,8 @@ public final class AdaptiveSizingController implements Runnable {
 
     private final PerformanceMonitor performanceMonitor;
 
+    private final OptimizedAsyncByteBufferPool.PoolConfiguration config;
+
     // Adaptive sizing state
     private volatile boolean running = true;
     private final AtomicBoolean shutdownRequested = new AtomicBoolean(false);
@@ -56,6 +58,7 @@ public final class AdaptiveSizingController implements Runnable {
      */
     public AdaptiveSizingController(OptimizedAsyncByteBufferPool.PoolConfiguration config,
             PerformanceMonitor performanceMonitor) {
+        this.config = config;
         this.performanceMonitor = performanceMonitor;
 
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -72,7 +75,8 @@ public final class AdaptiveSizingController implements Runnable {
      */
     public void start() {
         // Start adaptive analysis
-        scheduler.scheduleAtFixedRate(this, 30, 30, TimeUnit.SECONDS);
+        scheduler.scheduleAtFixedRate(this, config.getAdaptiveSizingIntervalMs(),
+                config.getAdaptiveSizingIntervalMs(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -95,7 +99,7 @@ public final class AdaptiveSizingController implements Runnable {
         long currentTime = System.currentTimeMillis();
         long timeSinceLastAnalysis = currentTime - lastAnalysisTime;
 
-        if (timeSinceLastAnalysis < 30000) { // Minimum 30 seconds between analyses
+        if (timeSinceLastAnalysis < config.getAdaptiveSizingIntervalMs()) { // Minimum interval between analyses
             return;
         }
 

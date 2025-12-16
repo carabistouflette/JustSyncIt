@@ -96,6 +96,12 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
     private final Map<String, BatchPerformanceMetrics> performanceMetrics = new ConcurrentHashMap<>();
 
     /**
+     * Future that completes when all active operations are finished after close is
+     * initiated.
+     */
+    private final CompletableFuture<Void> operationsComplete = new CompletableFuture<>();
+
+    /**
      * Creates a new AsyncFileBatchProcessorImpl with default settings.
      *
      * @param asyncFileChunker  async file chunker to use
@@ -370,9 +376,14 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (closed.get()) {
+        if (closed.getAndSet(true)) {
             logger.info("Batch processor already closed");
             return CompletableFuture.completedFuture(null);
+        }
+
+        // If no operations are currently active, signal completion immediately
+        if (activeBatchOperations.get() == 0) {
+            operationsComplete.complete(null);
         }
 
         logger.info("Closing batch processor...");
@@ -381,8 +392,19 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
         return CompletableFuture.runAsync(() -> {
             try {
                 // Wait for all active operations to complete
-                while (activeBatchOperations.get() > 0) {
-                    Thread.sleep(100);
+                // Use the event-driven future instead of busy-waiting
+                try {
+                    // If no operations are active, the future might not be completed yet if we just
+                    // set closed
+                    if (activeBatchOperations.get() == 0) {
+                        // Fallback just in case, though the setClosed logic should handle it
+                    } else {
+                        operationsComplete.get(30, java.util.concurrent.TimeUnit.SECONDS);
+                    }
+                } catch (java.util.concurrent.TimeoutException e) {
+                    logger.warn("Timed out waiting for batch operations to complete");
+                } catch (java.util.concurrent.ExecutionException e) {
+                    logger.warn("Error while waiting for batch operations to complete", e);
                 }
 
                 // Close resources
@@ -497,6 +519,9 @@ public class AsyncFileBatchProcessorImpl implements AsyncBatchProcessor {
                 } finally {
                     batchOperationSemaphore.release();
                     activeBatchOperations.decrementAndGet();
+                    if (closed.get() && activeBatchOperations.get() == 0) {
+                        operationsComplete.complete(null);
+                    }
                 }
 
             } catch (InterruptedException e) {

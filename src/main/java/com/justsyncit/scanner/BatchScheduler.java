@@ -92,6 +92,12 @@ public class BatchScheduler {
     /** Resource monitor for adaptive scheduling. */
     private final ResourceMonitor resourceMonitor;
 
+    /** Lock for waiting on operations to complete. */
+    private final java.util.concurrent.locks.ReentrantLock shutdownLock = new java.util.concurrent.locks.ReentrantLock();
+
+    /** Condition for waiting on operations to complete. */
+    private final java.util.concurrent.locks.Condition allOperationsCompleted = shutdownLock.newCondition();
+
     /**
      * Creates a new BatchScheduler with default configuration.
      *
@@ -165,11 +171,11 @@ public class BatchScheduler {
             logger.info("Starting batch scheduler...");
 
             // Start the scheduling loop
-            schedulingExecutor.scheduleAtFixedRate(this::scheduleNextBatch,
+            schedulingExecutor.scheduleWithFixedDelay(this::scheduleNextBatch,
                     0, DEFAULT_SCHEDULING_INTERVAL_MS, TimeUnit.MILLISECONDS);
 
             // Start resource monitoring
-            resourceMonitor.start();
+            resourceMonitor.start(schedulingExecutor);
 
             logger.info("Batch scheduler started successfully");
         }
@@ -186,13 +192,19 @@ public class BatchScheduler {
             resourceMonitor.stop();
 
             // Wait for active operations to complete
-            while (!activeOperations.isEmpty()) {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
+            // Wait for active operations to complete
+            shutdownLock.lock();
+            try {
+                while (!activeOperations.isEmpty()) {
+                    try {
+                        allOperationsCompleted.await(100, TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
+            } finally {
+                shutdownLock.unlock();
             }
 
             logger.info("Batch scheduler stopped successfully");
@@ -351,13 +363,23 @@ public class BatchScheduler {
                 ScheduledBatchOperation operation = batchQueue.poll();
 
                 if (operation != null) {
-                    executeBatchOperation(operation);
+                    boolean success = false;
+                    try {
+                        executeBatchOperation(operation);
+                        success = true;
+                    } catch (RuntimeException e) {
+                        logger.error("Unexpected error submitting batch operation", e);
+                    } finally {
+                        if (!success) {
+                            concurrentBatchSemaphore.release();
+                        }
+                    }
                 } else {
                     concurrentBatchSemaphore.release();
                 }
             }
         } catch (Exception e) {
-            logger.error("Error in scheduling loop", e);
+            logger.error("Critical error in scheduling loop", e);
         }
     }
 
@@ -376,12 +398,17 @@ public class BatchScheduler {
         List<Path> adaptedFiles = applyAdaptiveSizing(operation.getFiles(), operation.getOptions());
 
         // Execute the batch
-        CompletableFuture<BatchResult> future = asyncBatchProcessor.processBatch(
-                adaptedFiles, operation.getOptions(), operation.getPriority());
+        try {
+            CompletableFuture<BatchResult> future = asyncBatchProcessor.processBatch(
+                    adaptedFiles, operation.getOptions(), operation.getPriority());
 
-        future.whenComplete((result, throwable) -> {
-            handleBatchCompletion(operation, result, throwable);
-        });
+            future.whenComplete((result, throwable) -> {
+                handleBatchCompletion(operation, result, throwable);
+            });
+        } catch (RuntimeException e) {
+            logger.error("Synchronous error submitting batch operation", e);
+            handleBatchCompletion(operation, null, e);
+        }
     }
 
     /**
@@ -408,6 +435,16 @@ public class BatchScheduler {
             // Remove from active operations
             activeOperations.remove(operation.getOperationId());
 
+            // Signal if empty
+            if (activeOperations.isEmpty()) {
+                shutdownLock.lock();
+                try {
+                    allOperationsCompleted.signalAll();
+                } finally {
+                    shutdownLock.unlock();
+                }
+            }
+
             // Release semaphore permit
             concurrentBatchSemaphore.release();
 
@@ -415,7 +452,7 @@ public class BatchScheduler {
                     operation.getOperationId(), operation.getStatus(),
                     operation.getProcessingTimeMs());
 
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Error handling batch completion", e);
         }
     }
@@ -467,10 +504,12 @@ public class BatchScheduler {
         int baseBatchSize = options.getBatchSize();
 
         // Adjust based on CPU utilization
-        if (utilization.cpuUtilizationPercent > 80.0) {
-            baseBatchSize = Math.max(baseBatchSize / 2, configuration.getMinBatchSize());
-        } else if (utilization.cpuUtilizationPercent < 40.0) {
-            baseBatchSize = Math.min(baseBatchSize * 2, configuration.getMaxBatchSize());
+        if (utilization.isCpuAvailable()) {
+            if (utilization.cpuUtilizationPercent > 80.0) {
+                baseBatchSize = Math.max(baseBatchSize / 2, configuration.getMinBatchSize());
+            } else if (utilization.cpuUtilizationPercent < 40.0) {
+                baseBatchSize = Math.min(baseBatchSize * 2, configuration.getMaxBatchSize());
+            }
         }
 
         // Adjust based on memory utilization
@@ -676,21 +715,23 @@ public class BatchScheduler {
      * Resource monitor for adaptive scheduling.
      */
     private static class ResourceMonitor {
-        private final AtomicBoolean monitoring = new AtomicBoolean(false);
         private final AtomicReference<ResourceUtilization> currentUtilization = new AtomicReference<>(
-                new ResourceUtilization(0.0, 0.0, 0.0, 0, 0L, 0L, 0L));
+                new ResourceUtilization(0.0, false, 0.0, 0.0, 0, 0L, 0L, 0L));
+        private volatile java.util.concurrent.ScheduledFuture<?> monitorTask;
 
-        public void start() {
-            if (monitoring.compareAndSet(false, true)) {
-                // Start resource monitoring thread
-                Thread monitorThread = new Thread(this::monitorResources, "BatchResourceMonitor");
-                monitorThread.setDaemon(true);
-                monitorThread.start();
+        public void start(ScheduledExecutorService executor) {
+            if (monitorTask == null || monitorTask.isCancelled()) {
+                // Schedule resource monitoring
+                monitorTask = executor.scheduleAtFixedRate(this::monitorResources,
+                        0, 1, TimeUnit.SECONDS);
             }
         }
 
         public void stop() {
-            monitoring.set(false);
+            if (monitorTask != null) {
+                monitorTask.cancel(false);
+                monitorTask = null;
+            }
         }
 
         public ResourceUtilization getCurrentUtilization() {
@@ -698,33 +739,66 @@ public class BatchScheduler {
         }
 
         private void monitorResources() {
-            while (monitoring.get()) {
-                try {
-                    // Collect resource utilization metrics
-                    Runtime runtime = Runtime.getRuntime();
-                    long maxMemory = runtime.maxMemory();
-                    long usedMemory = runtime.totalMemory() - runtime.freeMemory();
-                    double memoryUtilization = (double) usedMemory / maxMemory * 100.0;
+            try {
+                // Collect resource utilization metrics
+                Runtime runtime = Runtime.getRuntime();
+                long maxMemory = runtime.maxMemory();
+                long totalMemory = runtime.totalMemory();
+                long freeMemory = runtime.freeMemory();
+                long usedMemory = totalMemory - freeMemory;
 
-                    // Estimate CPU utilization (simplified)
-                    // Create a simple resource utilization object for monitoring
-                    double cpuUtilization = Math.min(90.0, 50.0); // Simplified estimate
-                    double ioUtilization = Math.min(95.0, 60.0); // Simplified estimate
-
-                    ResourceUtilization utilization = new ResourceUtilization(
-                            cpuUtilization, memoryUtilization, ioUtilization,
-                            1, usedMemory / (1024 * 1024), 0L, 0L);
-
-                    currentUtilization.set(utilization);
-
-                    Thread.sleep(1000); // Update every second
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception e) {
-                    logger.error("Error monitoring resources", e);
+                double memoryUtilization = 0.0;
+                if (maxMemory > 0) {
+                    memoryUtilization = (double) usedMemory / maxMemory * 100.0;
                 }
+
+                // Estimate CPU utilization
+                double cpuUtilization = 0.0;
+                boolean isCpuAvailable = false;
+                try {
+                    java.lang.management.OperatingSystemMXBean osBean = java.lang.management.ManagementFactory
+                            .getOperatingSystemMXBean();
+
+                    // Try to get system load average if available
+                    // Note: This is load average, not percentage, but gives an indication
+                    double loadAverage = osBean.getSystemLoadAverage();
+                    int availableProcessors = osBean.getAvailableProcessors();
+
+                    if (loadAverage >= 0 && availableProcessors > 0) {
+                        // Rough estimate: load / processors * 100. Cap at 100.
+                        cpuUtilization = Math.min(100.0, (loadAverage / availableProcessors) * 100.0);
+                        isCpuAvailable = true;
+                    }
+
+                    // Try to use com.sun.management interface if available for more accurate
+                    // reading
+                    if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
+                        double systemCpuLoad = ((com.sun.management.OperatingSystemMXBean) osBean).getCpuLoad();
+                        if (systemCpuLoad >= 0) {
+                            cpuUtilization = systemCpuLoad * 100.0;
+                            isCpuAvailable = true;
+                        }
+                    }
+                } catch (Exception e) {
+                    // Ignore errors accessing MXBean (e.g., restricted environment)
+                    logger.debug("Could not determine CPU utilization", e);
+                }
+
+                // I/O Wait is hard to get from Java without native libs.
+                // We'll leave it at 0.0 or a safe default unless we have a way to measure it.
+                // For now, we assume 0 to avoid false throttling.
+                double ioUtilization = 0.0;
+
+                ResourceUtilization utilization = new ResourceUtilization(
+                        cpuUtilization, isCpuAvailable, memoryUtilization, ioUtilization,
+                        Runtime.getRuntime().availableProcessors(),
+                        usedMemory / (1024 * 1024),
+                        0L, 0L);
+
+                currentUtilization.set(utilization);
+
+            } catch (Exception e) {
+                logger.error("Error monitoring resources", e);
             }
         }
     }

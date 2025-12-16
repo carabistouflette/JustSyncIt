@@ -50,8 +50,8 @@ public class Blake3FileHasher implements FileHasher {
     /** Threshold for small files that can be read entirely into memory. */
     private static final long SMALL_FILE_THRESHOLD = 1024 * 1024; // 1MB
 
-    /** Maximum file size to prevent resource exhaustion (100MB). */
-    private static final long MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+    /** Maximum file size to prevent resource exhaustion (1TB). */
+    private static final long MAX_FILE_SIZE = 1099511627776L; // 1TB
 
     /** Stream hasher instance. */
     private final StreamHasher streamHasher;
@@ -193,19 +193,12 @@ public class Blake3FileHasher implements FileHasher {
             } else {
                 return hashLargeFile(filePath, fileSize);
             }
-        } catch (Exception e) {
+        } catch (IOException | IllegalArgumentException | SecurityException e) {
             logger.error("Failed to hash file: {}", filePath, e);
-
-            // Re-throw with proper exception type
-            if (e instanceof IOException) {
-                throw (IOException) e;
-            } else if (e instanceof IllegalArgumentException) {
-                throw (IllegalArgumentException) e;
-            } else if (e instanceof RuntimeException) {
-                throw new IOException("Unexpected error while hashing file: " + filePath, e);
-            } else {
-                throw new IOException("Error while hashing file: " + filePath, e);
-            }
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error while hashing file: {}", filePath, e);
+            throw new IOException("Unexpected error while hashing file: " + filePath, e);
         }
     }
 

@@ -34,8 +34,10 @@ import java.util.Optional;
 
 /**
  * SQLite implementation of MetadataService.
- * Provides metadata management for snapshots, files, and chunks using SQLite database.
- * Follows Single Responsibility Principle by focusing only on metadata operations.
+ * Provides metadata management for snapshots, files, and chunks using SQLite
+ * database.
+ * Follows Single Responsibility Principle by focusing only on metadata
+ * operations.
  */
 public final class SqliteMetadataService implements MetadataService {
 
@@ -53,11 +55,11 @@ public final class SqliteMetadataService implements MetadataService {
      * Creates a new SqliteMetadataService.
      *
      * @param connectionManager database connection manager
-     * @param schemaMigrator schema migrator
+     * @param schemaMigrator    schema migrator
      * @throws IllegalArgumentException if any parameter is null
      */
     public SqliteMetadataService(DatabaseConnectionManager connectionManager,
-                      SchemaMigrator schemaMigrator) throws IOException {
+            SchemaMigrator schemaMigrator) throws IOException {
         if (connectionManager == null) {
             throw new IllegalArgumentException("Connection manager cannot be null");
         }
@@ -74,12 +76,12 @@ public final class SqliteMetadataService implements MetadataService {
             // Enable foreign keys and performance optimizations for this connection
             try (var stmt = connection.createStatement()) {
                 stmt.execute("PRAGMA foreign_keys=ON");
-                // Use DELETE journal mode instead of WAL to avoid connection isolation issues in tests
-                stmt.execute("PRAGMA journal_mode=DELETE");
+                // Note: Journal mode and timeouts are handled by ConnectionManager
                 stmt.execute("PRAGMA synchronous=NORMAL");
                 stmt.execute("PRAGMA cache_size=10000");
                 stmt.execute("PRAGMA temp_store=MEMORY");
                 stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
+                stmt.execute("PRAGMA busy_timeout=5000"); // 5s timeout for lock acquisition
                 stmt.execute("PRAGMA optimize");
             }
 
@@ -116,7 +118,8 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Snapshot name cannot be null or empty");
         }
 
-        // Use the provided name as the ID for consistency with FileProcessor expectations
+        // Use the provided name as the ID for consistency with FileProcessor
+        // expectations
         String id = name;
         Instant now = Instant.now();
 
@@ -139,6 +142,34 @@ public final class SqliteMetadataService implements MetadataService {
 
         } catch (SQLException e) {
             throw new IOException("Failed to create snapshot", e);
+        }
+    }
+
+    @Override
+    public void updateSnapshot(Snapshot snapshot) throws IOException {
+        validateNotClosed();
+        if (snapshot == null) {
+            throw new IllegalArgumentException("Snapshot cannot be null");
+        }
+
+        String sql = "UPDATE snapshots SET total_files = ?, total_size = ? WHERE id = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setLong(1, snapshot.getTotalFiles());
+            stmt.setLong(2, snapshot.getTotalSize());
+            stmt.setString(3, snapshot.getId());
+
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected > 0) {
+                logger.debug("Updated snapshot stats: {}", snapshot);
+            } else {
+                logger.warn("Snapshot not found for update: {}", snapshot.getId());
+            }
+
+        } catch (SQLException e) {
+            throw new IOException("Failed to update snapshot", e);
         }
     }
 
@@ -279,35 +310,94 @@ public final class SqliteMetadataService implements MetadataService {
 
         List<String> insertedIds = new ArrayList<>();
 
-        String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+        // 1. Prepare all chunk hashes from all files for bulk processing
+        java.util.Set<String> allChunkHashes = new java.util.HashSet<>();
+        for (FileMetadata file : files) {
+            if (file.getChunkHashes() != null) {
+                allChunkHashes.addAll(file.getChunkHashes());
+            }
+        }
 
         try (Connection connection = connectionManager.getConnection()) {
-            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-                for (FileMetadata file : files) {
-                    stmt.setString(1, file.getId());
-                    stmt.setString(2, file.getSnapshotId());
-                    stmt.setString(3, file.getPath());
-                    stmt.setLong(4, file.getSize());
-                    stmt.setLong(5, file.getModifiedTime().toEpochMilli());
-                    stmt.setString(6, file.getFileHash());
-                    logger.debug("Adding file to batch: {} with hash: {}", file.getPath(), file.getFileHash());
-                    stmt.addBatch();
+            // Disable auto-commit for the entire batch operation
+            boolean originalAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+
+            try {
+                // 2. Ensure all chunks exist using efficient batch INSERT OR IGNORE
+                if (!allChunkHashes.isEmpty()) {
+                    ensureChunksExist(connection, new ArrayList<>(allChunkHashes));
                 }
 
-                logger.debug("Executing batch insert for {} files", files.size());
-                int[] results = stmt.executeBatch();
-                logger.debug("Batch insert results: {}", results.length);
-                // Insert file chunks for all files
-                for (FileMetadata file : files) {
-                    insertFileChunks(connection, file);
-                    insertedIds.add(file.getId());
-                    logger.debug("Inserted file: {}", file.getPath());
+                // 3. Insert files
+                String fileSql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
+                        + "VALUES (?, ?, ?, ?, ?, ?)";
+
+                try (PreparedStatement stmt = connection.prepareStatement(fileSql)) {
+                    int batchCount = 0;
+                    for (FileMetadata file : files) {
+                        stmt.setString(1, file.getId());
+                        stmt.setString(2, file.getSnapshotId());
+                        stmt.setString(3, file.getPath());
+                        stmt.setLong(4, file.getSize());
+                        stmt.setLong(5, file.getModifiedTime().toEpochMilli());
+                        stmt.setString(6, file.getFileHash());
+                        stmt.addBatch();
+                        batchCount++;
+                        insertedIds.add(file.getId());
+
+                        if (batchCount >= 500) {
+                            stmt.executeBatch();
+                            batchCount = 0;
+                        }
+                    }
+                    if (batchCount > 0) {
+                        stmt.executeBatch();
+                    }
                 }
+
+                // 4. Insert file_chunks mappings
+                String chunkSql = "INSERT INTO file_chunks (file_id, chunk_hash, chunk_order, chunk_size) "
+                        + "VALUES (?, ?, ?, ?)";
+
+                try (PreparedStatement stmt = connection.prepareStatement(chunkSql)) {
+                    int batchCount = 0;
+                    for (FileMetadata file : files) {
+                        List<String> chunkHashes = file.getChunkHashes();
+                        if (chunkHashes != null) {
+                            for (int i = 0; i < chunkHashes.size(); i++) {
+                                String chunkHash = chunkHashes.get(i);
+                                stmt.setString(1, file.getId());
+                                stmt.setString(2, chunkHash);
+                                stmt.setInt(3, i);
+                                stmt.setInt(4, 65536); // Default estimation
+                                stmt.addBatch();
+                                batchCount++;
+
+                                if (batchCount >= 500) {
+                                    stmt.executeBatch();
+                                    batchCount = 0;
+                                }
+                            }
+                        }
+                    }
+                    if (batchCount > 0) {
+                        stmt.executeBatch();
+                    }
+                }
+
+                connection.commit();
                 return insertedIds;
+
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(originalAutoCommit);
             }
+
         } catch (SQLException e) {
-            throw new IOException("Failed to insert files", e);
+            throw new IOException("Failed to insert files batch", e);
         }
     }
 
@@ -590,8 +680,21 @@ public final class SqliteMetadataService implements MetadataService {
 
             if (totalFiles > 0) {
                 avgChunksPerFile = (double) totalChunks / totalFiles;
-                // FIXME: Calculate actual deduplication ratio when we have more data
-                deduplicationRatio = 1.0;
+
+                // Calculate total logical size of all files
+                long totalLogicalSize = 0;
+                try (Statement stmt = connection.createStatement();
+                        ResultSet rs = stmt.executeQuery(
+                                "SELECT SUM(size) FROM files")) {
+                    if (rs.next()) {
+                        totalLogicalSize = rs.getLong(1);
+                    }
+                }
+
+                // Calculate deduplication ratio: Logical Size / Physical Storage Size
+                if (totalChunkSize > 0) {
+                    deduplicationRatio = (double) totalLogicalSize / totalChunkSize;
+                }
             }
 
             MetadataStats stats = new MetadataStats(
@@ -627,6 +730,7 @@ public final class SqliteMetadataService implements MetadataService {
 
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             List<String> chunkHashes = file.getChunkHashes();
+            int batchCount = 0;
             for (int i = 0; i < chunkHashes.size(); i++) {
                 String chunkHash = chunkHashes.get(i);
 
@@ -637,41 +741,49 @@ public final class SqliteMetadataService implements MetadataService {
                 // The actual size will be updated when the chunk is accessed
                 stmt.setInt(4, 65536); // Default chunk size
                 stmt.addBatch();
+                batchCount++;
+
+                if (batchCount >= 500) {
+                    stmt.executeBatch();
+                    batchCount = 0;
+                }
             }
-            stmt.executeBatch();
+            if (batchCount > 0) {
+                stmt.executeBatch();
+            }
         }
     }
 
     /**
      * Ensures all chunks exist in the chunks table.
-     * Creates missing chunks with default metadata.
+     * Uses INSERT OR IGNORE to efficiently handle existing chunks.
      */
     private void ensureChunksExist(Connection connection, List<String> chunkHashes) throws SQLException {
-        String checkSql = "SELECT hash FROM chunks WHERE hash = ?";
+        // Use INSERT OR IGNORE to skip existing chunks without a separate SELECT
         String insertSql = "INSERT OR IGNORE INTO chunks (hash, size, first_seen, reference_count, last_accessed) "
                 + "VALUES (?, ?, ?, ?, ?)";
-        try (PreparedStatement checkStmt = connection.prepareStatement(checkSql);
-                PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
 
+        try (PreparedStatement insertStmt = connection.prepareStatement(insertSql)) {
             long now = System.currentTimeMillis();
+            int batchCount = 0;
 
             for (String chunkHash : chunkHashes) {
-                // Check if chunk exists
-                checkStmt.setString(1, chunkHash);
-                try (ResultSet rs = checkStmt.executeQuery()) {
-                    if (!rs.next()) {
-                        // Chunk doesn't exist, create it with default metadata
-                        insertStmt.setString(1, chunkHash);
-                        insertStmt.setLong(2, 65536); // Default chunk size
-                        insertStmt.setLong(3, now); // first_seen
-                        insertStmt.setLong(4, 1); // reference_count
-                        insertStmt.setLong(5, now); // last_accessed
-                        insertStmt.addBatch();
-                    }
+                insertStmt.setString(1, chunkHash);
+                insertStmt.setLong(2, 65536); // Default chunk size
+                insertStmt.setLong(3, now); // first_seen
+                insertStmt.setLong(4, 1); // reference_count
+                insertStmt.setLong(5, now); // last_accessed
+                insertStmt.addBatch();
+                batchCount++;
+
+                if (batchCount >= 500) {
+                    insertStmt.executeBatch();
+                    batchCount = 0;
                 }
             }
-            // Execute batch insert for missing chunks
-            insertStmt.executeBatch();
+            if (batchCount > 0) {
+                insertStmt.executeBatch();
+            }
         }
     }
 

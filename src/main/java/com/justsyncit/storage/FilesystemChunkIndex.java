@@ -33,7 +33,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 /**
  * Filesystem-based implementation of ChunkIndex.
  * Thread-safe implementation using concurrent collections and read-write locks.
- * Delegates persistence operations to IndexPersistence following Single Responsibility Principle.
+ * Delegates persistence operations to IndexPersistence following Single
+ * Responsibility Principle.
  */
 public final class FilesystemChunkIndex implements ChunkIndex {
 
@@ -49,6 +50,11 @@ public final class FilesystemChunkIndex implements ChunkIndex {
     /** Persistence handler for loading and saving the index. */
     private final IndexPersistence persistence;
 
+    /** Counter for pending changes since last save. */
+    private final java.util.concurrent.atomic.AtomicInteger pendingChanges;
+    /** Timestamp of the last index save. */
+    private volatile long lastSaveTime;
+
     /**
      * Creates a new FilesystemChunkIndex.
      *
@@ -60,6 +66,8 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         this.indexMap = new ConcurrentHashMap<>();
         this.lock = new ReentrantReadWriteLock();
         this.closed = false;
+        this.pendingChanges = new java.util.concurrent.atomic.AtomicInteger(0);
+        this.lastSaveTime = System.currentTimeMillis();
 
         // Ensure directories exist and load existing index if it exists
         persistence.ensureDirectoriesExist();
@@ -70,7 +78,7 @@ public final class FilesystemChunkIndex implements ChunkIndex {
      * Creates a new FilesystemChunkIndex.
      *
      * @param storageDirectory directory where chunks are stored
-     * @param indexFile file to use for index
+     * @param indexFile        file to use for index
      * @return a new FilesystemChunkIndex instance
      * @throws IOException if index cannot be initialized
      */
@@ -91,7 +99,17 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         lock.writeLock().lock();
         try {
             indexMap.put(hash, filePath);
-            persistence.saveIndex(indexMap);
+
+            // Check if we need to save the index
+            int pending = pendingChanges.incrementAndGet();
+            long now = System.currentTimeMillis();
+            if (pending >= 1000 || (now - lastSaveTime) > 5000) {
+                persistence.saveIndex(indexMap);
+                pendingChanges.set(0);
+                lastSaveTime = now;
+                logger.debug("Saved index with {} pending changes", pending);
+            }
+
             logger.debug("Added chunk {} to index at path {}", hash, filePath);
         } finally {
             lock.writeLock().unlock();
@@ -133,7 +151,14 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         try {
             Path removed = indexMap.remove(hash);
             if (removed != null) {
-                persistence.saveIndex(indexMap);
+                // Check if we need to save the index
+                int pending = pendingChanges.incrementAndGet();
+                long now = System.currentTimeMillis();
+                if (pending >= 1000 || (now - lastSaveTime) > 5000) {
+                    persistence.saveIndex(indexMap);
+                    pendingChanges.set(0);
+                    lastSaveTime = now;
+                }
                 logger.debug("Removed chunk {} from index", hash);
                 return true;
             }
@@ -189,9 +214,12 @@ public final class FilesystemChunkIndex implements ChunkIndex {
             }
 
             if (!toRemove.isEmpty()) {
+                // Force save after bulk removal
                 persistence.saveIndex(indexMap);
+                pendingChanges.set(0);
+                lastSaveTime = System.currentTimeMillis();
                 logger.debug("Retained {} chunks, removed {} orphaned chunks",
-                            activeHashes.size(), toRemove.size());
+                        activeHashes.size(), toRemove.size());
             }
 
             return toRemove.size();

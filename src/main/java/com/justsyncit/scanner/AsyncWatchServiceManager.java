@@ -96,6 +96,12 @@ public class AsyncWatchServiceManager {
     /** Event handlers by registration ID. */
     private final Map<String, Consumer<FileChangeEvent>> eventHandlers;
 
+    /** Lock for synchronization. */
+    private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
+
+    /** Condition for tracking active registrations. */
+    private final java.util.concurrent.locks.Condition hasRegistrations = lock.newCondition();
+
     /**
      * Creates a new AsyncWatchServiceManager.
      *
@@ -171,6 +177,14 @@ public class AsyncWatchServiceManager {
                 eventQueue.clear();
                 eventHandlers.clear();
 
+                // Signal any waiting threads
+                lock.lock();
+                try {
+                    hasRegistrations.signalAll();
+                } finally {
+                    lock.unlock();
+                }
+
                 logger.info("AsyncWatchServiceManager stopped successfully");
 
             } catch (Exception e) {
@@ -229,6 +243,14 @@ public class AsyncWatchServiceManager {
                 // Update statistics
                 stats.incrementWatchRegistrations();
                 stats.incrementActiveWatchRegistrations();
+
+                // Signal that we have registrations
+                lock.lock();
+                try {
+                    hasRegistrations.signalAll();
+                } finally {
+                    lock.unlock();
+                }
 
                 logger.info("Started monitoring directory: {} with registration: {}",
                         absoluteDir, registration.getRegistrationId());
@@ -346,10 +368,8 @@ public class AsyncWatchServiceManager {
             } catch (Exception e) {
                 logger.error("Failed to register directory using reflection", e);
                 throw new RuntimeException("Failed to register directory", e);
-            } catch (Throwable t) {
-                logger.error("Unexpected error during directory registration", t);
-                throw new RuntimeException("Unexpected error during directory registration", t);
             }
+
         } catch (Exception e) {
             logger.error("Failed to register directory: {}", directory, e);
             throw new RuntimeException("Failed to register directory", e);
@@ -392,13 +412,22 @@ public class AsyncWatchServiceManager {
                 // Process queued events
                 processQueuedEvents();
 
-                // Small delay to prevent busy waiting
-                Thread.sleep(10);
+                // If no active registrations, wait for notification
+                if (activeRegistrations.isEmpty()) {
+                    lock.lock();
+                    try {
+                        // Double check while holding lock
+                        while (running.get() && activeRegistrations.isEmpty()) {
+                            hasRegistrations.await(1000, TimeUnit.MILLISECONDS); // Wait with timeout just in case
+                        }
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    } finally {
+                        lock.unlock();
+                    }
+                }
 
-            } catch (InterruptedException e) {
-                logger.info("Event processing loop interrupted");
-                Thread.currentThread().interrupt();
-                break;
             } catch (Exception e) {
                 logger.error("Error in event processing loop", e);
                 stats.incrementWatchServiceErrors();

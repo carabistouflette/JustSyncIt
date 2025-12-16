@@ -28,6 +28,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,10 +59,19 @@ public class ThreadPoolManager {
     private final Map<PoolType, ManagedThreadPool> threadPools;
 
     // Configuration and monitoring
-    private final ThreadPoolConfiguration config;
+    private volatile ThreadPoolConfiguration config;
     private final ThreadPoolMonitor monitor;
+    // ... (rest of fields)
+
+    // ...
+
+    // ...
+
     private final ResourceCoordinator resourceCoordinator;
     private final PerformanceOptimizer performanceOptimizer;
+
+    // Executor for waiting on Futures
+    private final ExecutorService futureWaitExecutor;
 
     // System resource detection
     private final SystemResourceInfo systemInfo;
@@ -148,6 +158,17 @@ public class ThreadPoolManager {
         this.monitor = new ThreadPoolMonitor(config, systemInfo);
         this.resourceCoordinator = new ResourceCoordinator(config, systemInfo);
         this.performanceOptimizer = new PerformanceOptimizer();
+        this.futureWaitExecutor = new java.util.concurrent.ThreadPoolExecutor(
+                1, 5, 60L, TimeUnit.SECONDS,
+                new java.util.concurrent.LinkedBlockingQueue<>(100),
+                r -> {
+                    Thread t = new Thread(r, "FutureWaiter-" + System.nanoTime());
+                    t.setDaemon(true);
+                    t.setUncaughtExceptionHandler((thread, exc) -> {
+                        logger.error("Uncaught exception in FutureWaiter thread: " + thread.getName(), exc);
+                    });
+                    return t;
+                });
     }
 
     /**
@@ -229,6 +250,9 @@ public class ThreadPoolManager {
      * Gets the appropriate thread pool for the given type.
      */
     public ExecutorService getThreadPool(PoolType type) {
+        if (type == null) {
+            throw new IllegalArgumentException("Pool type cannot be null");
+        }
         ensureInitialized();
         ManagedThreadPool pool = threadPools.get(type);
         if (pool == null) {
@@ -283,6 +307,10 @@ public class ThreadPoolManager {
      * Submits a task to the appropriate thread pool.
      */
     public <T> CompletableFuture<T> submitTask(PoolType type, Callable<T> task) {
+        if (task == null) {
+            throw new IllegalArgumentException("Task cannot be null");
+        }
+
         try {
             return CompletableFuture.supplyAsync(() -> {
                 try {
@@ -308,33 +336,9 @@ public class ThreadPoolManager {
      * Submits a task to the appropriate thread pool with custom priority.
      */
     public <T> CompletableFuture<T> submitTask(PoolType type, ThreadPriority priority, Callable<T> task) {
-        ExecutorService executor = getThreadPool(type);
-        if (executor instanceof PrioritizedExecutorService) {
-            java.util.concurrent.Future<T> future = ((PrioritizedExecutorService) executor).submit(priority, task);
-            return futureToCompletableFuture(future);
-        }
+        // Priority is handled by the pool configuration in the current implementation
+        // Direct priority passing is not supported by standard ExecutorService
         return submitTask(type, task);
-    }
-
-    /**
-     * Converts a Future to CompletableFuture.
-     */
-    private <T> CompletableFuture<T> futureToCompletableFuture(java.util.concurrent.Future<T> future) {
-        CompletableFuture<T> completableFuture = new CompletableFuture<>();
-
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
-        executor.submit(() -> {
-            try {
-                T result = future.get();
-                completableFuture.complete(result);
-            } catch (Exception e) {
-                completableFuture.completeExceptionally(e);
-            } finally {
-                executor.shutdown();
-            }
-        });
-
-        return completableFuture;
     }
 
     /**
@@ -415,15 +419,8 @@ public class ThreadPoolManager {
         if (!initialized.get()) {
             throw new IllegalStateException("ThreadPoolManager is not initialized");
         }
-        // Allow tests to continue even if previously shutdown
-        // Reinitialize if needed
         if (shutdown.get()) {
-            synchronized (this) {
-                if (shutdown.get()) {
-                    // Reset shutdown state for testing
-                    shutdown.set(false);
-                }
-            }
+            throw new IllegalStateException("ThreadPoolManager is shutdown");
         }
     }
 
@@ -437,16 +434,27 @@ public class ThreadPoolManager {
 
         logger.info("Shutting down ThreadPoolManager");
 
+        // Use a dedicated executor for shutdown tasks to avoid starving the common pool
+        ExecutorService shutdownExecutor = Executors.newFixedThreadPool(
+                Math.max(2, Runtime.getRuntime().availableProcessors()));
+
         try {
+            // Unregister shutdown hook if possible (to avoid leaks in tests)
+            // Note: We don't have the thread reference stored, but we can prevent logic
+            // from running twice
+            // via the atomic boolean.
+
             // Shutdown management services first
             // PerformanceOptimizer doesn't have shutdown method - it's auto-cleanup
             resourceCoordinator.shutdown();
             monitor.shutdown();
+            futureWaitExecutor.shutdown();
 
-            // Shutdown all thread pools
+            // Shutdown all thread pools in parallel
             List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();
             for (ManagedThreadPool pool : threadPools.values()) {
-                shutdownFutures.add(pool.shutdownAsync());
+                // Run shutdown in the dedicated executor
+                shutdownFutures.add(CompletableFuture.runAsync(pool::shutdown, shutdownExecutor));
             }
 
             // Wait for all pools to shutdown
@@ -457,6 +465,12 @@ public class ThreadPoolManager {
 
         } catch (Exception e) {
             logger.error("Error during ThreadPoolManager shutdown", e);
+        } finally {
+            // Shutdown the dedicated executor
+            shutdownExecutor.shutdown();
+
+            // Reset the singleton instance to allow re-initialization in tests
+            instance.compareAndSet(this, null);
         }
     }
 
@@ -476,7 +490,7 @@ public class ThreadPoolManager {
         logger.info("Updating ThreadPoolManager configuration");
 
         // Update configuration
-        config.updateFrom(newConfig);
+        this.config = newConfig;
 
         // Apply changes to all thread pools
         for (Map.Entry<PoolType, ManagedThreadPool> entry : threadPools.entrySet()) {
@@ -485,5 +499,46 @@ public class ThreadPoolManager {
         }
 
         logger.info("ThreadPoolManager configuration updated successfully");
+    }
+
+    /**
+     * Checks if the thread pool manager has been shut down.
+     */
+    public boolean isShutdown() {
+        return shutdown.get();
+    }
+
+    /**
+     * Checks if all thread pools have terminated.
+     */
+    public boolean isTerminated() {
+        if (!shutdown.get()) {
+            return false;
+        }
+        for (ManagedThreadPool pool : threadPools.values()) {
+            if (!pool.getExecutor().isTerminated()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Blocks until all tasks have completed execution after a shutdown request.
+     */
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+        long nanos = unit.toNanos(timeout);
+        long deadline = System.nanoTime() + nanos;
+
+        for (ManagedThreadPool pool : threadPools.values()) {
+            long remainingNanos = deadline - System.nanoTime();
+            if (remainingNanos <= 0) {
+                return false;
+            }
+            if (!pool.getExecutor().awaitTermination(remainingNanos, TimeUnit.NANOSECONDS)) {
+                return false;
+            }
+        }
+        return true;
     }
 }

@@ -28,7 +28,8 @@ import com.justsyncit.storage.metadata.MetadataService;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Service for backing up directories to content store.
@@ -37,12 +38,13 @@ import java.util.logging.Logger;
 
 public class BackupService {
 
-    private static final Logger LOGGER = Logger.getLogger(BackupService.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(BackupService.class);
 
     private final ContentStore contentStore;
     private final MetadataService metadataService;
     private final FilesystemScanner scanner;
     private final FileChunker chunker;
+    private volatile FileProcessor.EventListener eventListener;
 
     /**
      * Creates a new backup service.
@@ -58,6 +60,10 @@ public class BackupService {
         this.metadataService = metadataService;
         this.scanner = scanner;
         this.chunker = chunker;
+    }
+
+    public void setEventListener(FileProcessor.EventListener eventListener) {
+        this.eventListener = eventListener;
     }
 
     /**
@@ -81,7 +87,7 @@ public class BackupService {
                     throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
                 }
 
-                LOGGER.info(String.format("Starting backup of %s", sourceDir));
+                LOGGER.info("Starting backup of {}", sourceDir);
 
                 // Configure scan options
                 ScanOptions scanOptions = new ScanOptions()
@@ -89,30 +95,36 @@ public class BackupService {
                         .withIncludeHiddenFiles(options.isIncludeHiddenFiles())
                         .withMaxDepth(options.getMaxDepth());
 
+                // Create snapshot details
+                String snapshotId = options.getSnapshotName() != null
+                        ? options.getSnapshotName()
+                        : "backup-" + Instant.now().toString();
+
+                // Include source root in description for restore path relativization
+                String baseDescription = options.getDescription() != null
+                        ? options.getDescription()
+                        : "Backup created on " + Instant.now();
+                String description = "Processing session for directory: " + sourceDir.toAbsolutePath().toString()
+                        + " | " + baseDescription;
+
+                // Create snapshot in DB before processing
+                metadataService.createSnapshot(snapshotId, description);
+                LOGGER.info("Created snapshot: {}", snapshotId);
+
                 // Configure chunking options
                 FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
                         .withChunkSize(options.getChunkSize())
                         .withDetectSparseFiles(true);
 
-                // Create file processor
+                // Create file processor and set snapshot ID
                 FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
+                processor.setSnapshotId(snapshotId);
 
                 // Process directory
                 FileProcessor.ProcessingResult result = processor
                         .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
 
-                // Create snapshot
-                String snapshotId = options.getSnapshotName() != null
-                        ? options.getSnapshotName()
-                        : "backup-" + Instant.now().toString();
-
-                String description = options.getDescription() != null
-                        ? options.getDescription()
-                        : "Backup created on " + Instant.now();
-
-                metadataService.createSnapshot(snapshotId, description);
-
-                LOGGER.info(String.format("Backup completed successfully: %s", snapshotId));
+                LOGGER.info("Backup completed successfully: {}", snapshotId);
 
                 // Calculate chunks created (approximate based on total bytes and chunk size)
                 int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
@@ -121,7 +133,90 @@ public class BackupService {
                         result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
 
             } catch (Exception e) {
-                LOGGER.severe("Backup failed: " + e.getMessage());
+                LOGGER.error("Backup failed: {}", e.getMessage());
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    /**
+     * Backs up a directory to content store with progress tracking.
+     *
+     * @param sourceDir        directory to backup
+     * @param options          backup options
+     * @param progressListener listener for progress updates
+     * @return future that completes with snapshot ID
+     */
+    public CompletableFuture<BackupResult> backup(Path sourceDir, BackupOptions options,
+            java.util.function.Consumer<FileProcessor> progressListener) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                // Validate source directory
+                if (sourceDir == null) {
+                    throw new IllegalArgumentException("Source directory cannot be null");
+                }
+                if (!java.nio.file.Files.exists(sourceDir)) {
+                    throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
+                }
+                if (!java.nio.file.Files.isDirectory(sourceDir)) {
+                    throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
+                }
+
+                LOGGER.info("Starting backup of {}", sourceDir);
+
+                // Configure scan options
+                ScanOptions scanOptions = new ScanOptions()
+                        .withSymlinkStrategy(options.getSymlinkStrategy())
+                        .withIncludeHiddenFiles(options.isIncludeHiddenFiles())
+                        .withMaxDepth(options.getMaxDepth());
+
+                // Create snapshot details
+                String snapshotId = options.getSnapshotName() != null
+                        ? options.getSnapshotName()
+                        : "backup-" + Instant.now().toString();
+
+                // Include source root in description for restore path relativization
+                String baseDescription = options.getDescription() != null
+                        ? options.getDescription()
+                        : "Backup created on " + Instant.now();
+                String description = "Processing session for directory: " + sourceDir.toAbsolutePath().toString()
+                        + " | " + baseDescription;
+
+                // Create snapshot in DB before processing
+                metadataService.createSnapshot(snapshotId, description);
+                LOGGER.info("Created snapshot: {}", snapshotId);
+
+                // Configure chunking options
+                FileChunker.ChunkingOptions chunkingOptions = new FileChunker.ChunkingOptions()
+                        .withChunkSize(options.getChunkSize())
+                        .withDetectSparseFiles(true);
+
+                // Create file processor and set snapshot ID
+                FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
+                processor.setSnapshotId(snapshotId);
+
+                if (progressListener != null) {
+                    processor.setProgressListener(progressListener);
+                }
+
+                if (eventListener != null) {
+                    processor.setEventListener(eventListener);
+                }
+
+                // Process directory
+                FileProcessor.ProcessingResult result = processor
+                        .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
+
+                LOGGER.info("Backup completed successfully: {}", snapshotId);
+
+                // Calculate chunks created (approximate based on total bytes and chunk size)
+                int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
+
+                return BackupResult.success(snapshotId, result.getProcessedFiles(),
+                        result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
+
+            } catch (Exception e) {
+                LOGGER.error("Backup failed: {}", e.getMessage());
                 throw new RuntimeException(e);
             }
         });

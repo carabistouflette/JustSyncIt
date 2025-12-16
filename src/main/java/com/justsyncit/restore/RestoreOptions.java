@@ -33,6 +33,9 @@ public class RestoreOptions {
     /** Whether to overwrite existing files. */
     private final boolean overwriteExisting;
 
+    /** Whether to skip existing files. */
+    private final boolean skipExisting;
+
     /** Whether to backup existing files before overwriting. */
     private final boolean backupExisting;
 
@@ -64,6 +67,7 @@ public class RestoreOptions {
      */
     private RestoreOptions(Builder builder) {
         this.overwriteExisting = builder.overwriteExisting;
+        this.skipExisting = builder.skipExisting;
         this.backupExisting = builder.backupExisting;
         this.verifyIntegrity = builder.verifyIntegrity;
         this.preserveAttributes = builder.preserveAttributes;
@@ -81,6 +85,7 @@ public class RestoreOptions {
      */
     public RestoreOptions() {
         this.overwriteExisting = false;
+        this.skipExisting = false;
         this.backupExisting = false;
         this.verifyIntegrity = true;
         this.preserveAttributes = true;
@@ -95,6 +100,10 @@ public class RestoreOptions {
 
     public boolean isOverwriteExisting() {
         return overwriteExisting;
+    }
+
+    public boolean isSkipExisting() {
+        return skipExisting;
     }
 
     public boolean isBackupExisting() {
@@ -141,6 +150,7 @@ public class RestoreOptions {
     public String toString() {
         return "RestoreOptions{"
                 + "overwriteExisting=" + overwriteExisting
+                + ", skipExisting=" + skipExisting
                 + ", backupExisting=" + backupExisting
                 + ", verifyIntegrity=" + verifyIntegrity
                 + ", preserveAttributes=" + preserveAttributes
@@ -154,6 +164,7 @@ public class RestoreOptions {
      */
     public static class Builder {
         private boolean overwriteExisting = false;
+        private boolean skipExisting = false;
         private boolean backupExisting = false;
         private boolean verifyIntegrity = true;
         private boolean preserveAttributes = true;
@@ -169,6 +180,11 @@ public class RestoreOptions {
 
         public Builder overwriteExisting(boolean overwriteExisting) {
             this.overwriteExisting = overwriteExisting;
+            return this;
+        }
+
+        public Builder skipExisting(boolean skipExisting) {
+            this.skipExisting = skipExisting;
             return this;
         }
 

@@ -110,14 +110,14 @@ class SqliteTransactionTest {
     void shouldCommitTransaction() throws SQLException, IOException {
         // Given
         Connection connection = connectionManager.beginTransaction();
-        Transaction transaction = new SqliteTransaction(connection, connectionManager);
+        try (Transaction transaction = new SqliteTransaction(connection, connectionManager)) {
+            // When
+            transaction.commit();
 
-        // When
-        transaction.commit();
-
-        // Then
-        assertFalse(transaction.isActive());
-        assertTrue(connection.getAutoCommit());
+            // Then
+            assertFalse(transaction.isActive());
+            assertTrue(connection.getAutoCommit());
+        }
     }
 
     @Test
@@ -125,14 +125,14 @@ class SqliteTransactionTest {
     void shouldRollbackTransaction() throws SQLException, IOException {
         // Given
         Connection connection = connectionManager.beginTransaction();
-        Transaction transaction = new SqliteTransaction(connection, connectionManager);
+        try (Transaction transaction = new SqliteTransaction(connection, connectionManager)) {
+            // When
+            transaction.rollback();
 
-        // When
-        transaction.rollback();
-
-        // Then
-        assertFalse(transaction.isActive());
-        assertTrue(connection.getAutoCommit());
+            // Then
+            assertFalse(transaction.isActive());
+            assertTrue(connection.getAutoCommit());
+        }
     }
 
     @Test

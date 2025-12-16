@@ -108,7 +108,7 @@ public class ServiceFactory {
      * @param blake3Service BLAKE3 service for hashing
      * @return configured content store
      */
-    ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
+    public ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
         java.nio.file.Path storageDir = java.nio.file.Paths.get("storage", "chunks");
         java.nio.file.Path indexFile = java.nio.file.Paths.get("storage", "index.txt");
 
@@ -143,12 +143,8 @@ public class ServiceFactory {
      *
      * @return configured network service
      */
-    public NetworkService createNetworkService() {
-        try {
-            return createNetworkService(createBlake3Service());
-        } catch (ServiceException e) {
-            throw new RuntimeException("Failed to create default Blake3Service for NetworkService", e);
-        }
+    public NetworkService createNetworkService() throws ServiceException {
+        return createNetworkService(createBlake3Service());
     }
 
     /**
@@ -161,7 +157,11 @@ public class ServiceFactory {
         TcpServer tcpServer = new TcpServer();
         TcpClient tcpClient = new TcpClient();
         ConnectionManager connectionManager = new ConnectionManagerImpl();
-        FileTransferManager fileTransferManager = new FileTransferManagerImpl();
+        FileTransferManagerImpl fileTransferManager = new FileTransferManagerImpl();
+        fileTransferManager.setBlake3Service(blake3Service);
+        // Inject dependencies for DIP
+        fileTransferManager.setTransferPipelineFactory(
+                new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory());
 
         return new NetworkServiceImpl(tcpServer, tcpClient, connectionManager, fileTransferManager, blake3Service);
     }
@@ -184,9 +184,9 @@ public class ServiceFactory {
         } catch (IOException e) {
             // Handle registration exception
             throw new ServiceException("Failed to register network command", e);
-        } catch (Exception e) {
-            // Handle registration exception
-            throw new ServiceException("Failed to register network command", e);
+        } catch (RuntimeException e) {
+            // Catch unexpected runtime exceptions
+            throw new ServiceException("Unexpected error registering network command", e);
         }
 
         return registry;
@@ -223,7 +223,7 @@ public class ServiceFactory {
             com.justsyncit.scanner.FileChunker chunker = com.justsyncit.scanner.FixedSizeFileChunker
                     .create(blake3Service);
             return new com.justsyncit.backup.BackupService(contentStore, metadataService, scanner, chunker);
-        } catch (Exception e) {
+        } catch (HashingException e) {
             throw new ServiceException("Failed to create backup service", e);
         }
     }
@@ -240,11 +240,7 @@ public class ServiceFactory {
     public com.justsyncit.restore.RestoreService createRestoreService(ContentStore contentStore,
             MetadataService metadataService,
             Blake3Service blake3Service) throws ServiceException {
-        try {
-            return new com.justsyncit.restore.RestoreService(contentStore, metadataService, blake3Service);
-        } catch (Exception e) {
-            throw new ServiceException("Failed to create restore service", e);
-        }
+        return new com.justsyncit.restore.RestoreService(contentStore, metadataService, blake3Service);
     }
 
     /**
@@ -260,7 +256,9 @@ public class ServiceFactory {
             Blake3Service blake3Service = createBlake3Service();
             NetworkService networkService = createNetworkService(blake3Service);
             return new com.justsyncit.command.BackupCommand(backupService, networkService);
-        } catch (Exception e) {
+        } catch (ServiceException e) {
+            throw e;
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create backup command", e);
         }
     }
@@ -277,7 +275,7 @@ public class ServiceFactory {
             NetworkService networkService) throws ServiceException {
         try {
             return new com.justsyncit.command.BackupCommand(backupService, networkService);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create backup command", e);
         }
     }
@@ -295,7 +293,9 @@ public class ServiceFactory {
             Blake3Service blake3Service = createBlake3Service();
             NetworkService networkService = createNetworkService(blake3Service);
             return new com.justsyncit.command.RestoreCommand(restoreService, networkService);
-        } catch (Exception e) {
+        } catch (ServiceException e) {
+            throw e;
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create restore command", e);
         }
     }
@@ -313,7 +313,7 @@ public class ServiceFactory {
             throws ServiceException {
         try {
             return new com.justsyncit.command.RestoreCommand(restoreService, networkService);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create restore command", e);
         }
     }
@@ -396,7 +396,7 @@ public class ServiceFactory {
                     .create(blake3Service);
 
             return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner, asyncChunker);
-        } catch (Exception e) {
+        } catch (HashingException e) {
             throw new ServiceException("Failed to create async backup service", e);
         }
     }
@@ -431,7 +431,7 @@ public class ServiceFactory {
 
             return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner,
                     batchAsyncChunker);
-        } catch (Exception e) {
+        } catch (HashingException e) {
             throw new ServiceException("Failed to create batch async backup service", e);
         }
     }
@@ -449,7 +449,7 @@ public class ServiceFactory {
             com.justsyncit.scanner.ThreadPoolManager threadPoolManager = com.justsyncit.scanner.ThreadPoolManager
                     .getInstance();
             return new com.justsyncit.scanner.AsyncFilesystemScannerImpl(threadPoolManager, bufferPool);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create async filesystem scanner", e);
         }
     }
@@ -466,7 +466,7 @@ public class ServiceFactory {
         try {
 
             return com.justsyncit.scanner.AsyncFileChunkerImpl.create(blake3Service);
-        } catch (Exception e) {
+        } catch (HashingException e) {
             throw new ServiceException("Failed to create async file chunker", e);
         }
     }
@@ -491,7 +491,7 @@ public class ServiceFactory {
                     .create(delegateChunker, bufferPool, threadPoolManager);
             com.justsyncit.scanner.BatchConfiguration batchConfig = new com.justsyncit.scanner.BatchConfiguration();
             return new com.justsyncit.scanner.BatchAwareAsyncFileChunker(delegateChunker, batchProcessor, batchConfig);
-        } catch (Exception e) {
+        } catch (HashingException e) {
             throw new ServiceException("Failed to create batch async file chunker", e);
         }
     }
@@ -505,7 +505,7 @@ public class ServiceFactory {
     public com.justsyncit.scanner.AsyncByteBufferPool createAsyncByteBufferPool() throws ServiceException {
         try {
             return com.justsyncit.scanner.AsyncByteBufferPoolImpl.create();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create async buffer pool", e);
         }
     }
@@ -519,8 +519,19 @@ public class ServiceFactory {
     public com.justsyncit.scanner.ThreadPoolManager createThreadPoolManager() throws ServiceException {
         try {
             return com.justsyncit.scanner.ThreadPoolManager.getInstance();
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             throw new ServiceException("Failed to create thread pool manager", e);
         }
+    }
+
+    /**
+     * Creates a scheduler service.
+     *
+     * @param backupService the backup service
+     * @return configured scheduler service
+     */
+    public com.justsyncit.scheduler.SchedulerService createSchedulerService(
+            com.justsyncit.backup.BackupService backupService) {
+        return new com.justsyncit.scheduler.SchedulerService(backupService);
     }
 }

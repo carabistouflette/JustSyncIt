@@ -132,7 +132,7 @@ public class TieredBufferPool {
         this.availableBuffers = new ConcurrentLinkedQueue<>();
         this.currentMaxBuffers = config.getMaxBuffersPerTier();
         this.currentMinBuffers = config.getMinBuffersPerTier();
-        this.executor = Executors.newSingleThreadExecutor(r -> {
+        this.executor = Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "TieredPool-" + bufferSize + (isDirect ? "-direct" : "-heap"));
             t.setDaemon(true);
             return t;
@@ -258,8 +258,8 @@ public class TieredBufferPool {
                 LockSupport.parkNanos(actualWait);
                 waitTime = Math.min(waitTime * 2, maxWaitTime);
 
-                // Check for memory pressure and trigger adaptive sizing
-                if (allocationFailures.get() > 10) {
+                // Check for starvation and trigger adaptive sizing if enough time has passed
+                if (System.currentTimeMillis() - lastResizeTime.get() > config.getAdaptiveSizingIntervalMs()) {
                     triggerAdaptiveSizing();
                 }
             }
@@ -324,8 +324,8 @@ public class TieredBufferPool {
         long currentTime = System.currentTimeMillis();
         long timeSinceLastResize = currentTime - lastResizeTime.get();
 
-        // Trigger every 30 seconds or if allocation failures are high
-        return timeSinceLastResize > 30000 || allocationFailures.get() > 5;
+        // Trigger based on configured interval or if allocation failures are high
+        return timeSinceLastResize > config.getAdaptiveSizingIntervalMs() || allocationFailures.get() > 5;
     }
 
     /**

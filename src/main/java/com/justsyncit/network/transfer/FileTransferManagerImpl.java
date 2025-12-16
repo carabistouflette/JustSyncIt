@@ -18,6 +18,8 @@
 
 package com.justsyncit.network.transfer;
 
+import com.justsyncit.network.transfer.pipeline.ReceivePipeline;
+
 import com.justsyncit.network.protocol.ProtocolMessage;
 import com.justsyncit.network.protocol.FileTransferRequestMessage;
 import com.justsyncit.network.protocol.ChunkDataMessage;
@@ -33,6 +35,9 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.concurrent.TimeUnit;
 
 import java.util.Collections;
 import java.util.List;
@@ -74,7 +79,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
     /** The compression service. */
     private CompressionService compressionService;
     /** Executor for parallel decompression tasks. */
-    private final java.util.concurrent.ExecutorService decompressionExecutor;
+    // private final java.util.concurrent.ExecutorService decompressionExecutor; //
+    // Removed in favor of ThreadPoolManager
 
     /** Configuration: Compression enabled. */
     private boolean compressionEnabled = true;
@@ -82,8 +88,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
     /** Configuration: Compression level. */
     private int compressionLevel = 3;
 
-    /** Pipeline manager. */
-    private final com.justsyncit.network.transfer.pipeline.PipelineManager pipelineManager;
+    /** Pipeline factory. */
+    private com.justsyncit.network.transfer.pipeline.TransferPipelineFactory transferPipelineFactory;
 
     /**
      * Creates a new file transfer manager.
@@ -93,13 +99,13 @@ public class FileTransferManagerImpl implements FileTransferManager {
         this.listeners = new CopyOnWriteArrayList<>();
         this.running = new AtomicBoolean(false);
         this.transferIdCounter = new AtomicLong(0);
-        // Use a fixed thread pool based on available processors for parallel
-        // decompression
-        this.decompressionExecutor = java.util.concurrent.Executors.newFixedThreadPool(
-                Runtime.getRuntime().availableProcessors());
+        // Use ThreadPoolManager instead of custom executor
+        // this.decompressionExecutor = ...
 
-        // Initialize pipeline manager
-        this.pipelineManager = new com.justsyncit.network.transfer.pipeline.PipelineManager();
+        // Initialize with default factory if not set (or leave null and expect
+        // injection)
+        // For backwards compatibility/safety, we can use a default here or in start()
+        this.transferPipelineFactory = new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory();
     }
 
     /**
@@ -124,22 +130,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 // --- NEW PIPELINE EXECUTION ---
 
                 // Create stages
-                java.util.concurrent.ExecutorService pipelineExecutor = pipelineManager.getExecutor();
-
-                com.justsyncit.network.transfer.pipeline.ReadStage readStage = new com.justsyncit.network.transfer.pipeline.ReadStage(
-                        pipelineExecutor);
-
-                com.justsyncit.network.transfer.pipeline.HashStage hashStage = new com.justsyncit.network.transfer.pipeline.HashStage(
-                        pipelineExecutor);
-
-                com.justsyncit.network.transfer.pipeline.CompressStage compressStage = new com.justsyncit.network.transfer.pipeline.CompressStage(
-                        pipelineExecutor, compressionService, useCompression);
-
-                com.justsyncit.network.transfer.pipeline.SendStage sendStage = new com.justsyncit.network.transfer.pipeline.SendStage(
-                        pipelineExecutor, networkService, remoteAddress);
-
-                com.justsyncit.network.transfer.pipeline.TransferPipeline pipeline = new com.justsyncit.network.transfer.pipeline.TransferPipeline(
-                        readStage, hashStage, compressStage, sendStage);
+                com.justsyncit.network.transfer.pipeline.TransferPipeline pipeline = transferPipelineFactory
+                        .createPipeline(
+                                networkService, compressionService, useCompression, remoteAddress);
 
                 long offset = 0;
                 long remaining = fileSize;
@@ -191,7 +184,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
                     try {
                         networkService.sendMessage(
                                 new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, PLACEHOLDER_HASH),
-                                remoteAddress);
+                                remoteAddress).orTimeout(30, TimeUnit.SECONDS).join();
                     } catch (Exception e) {
                         logger.warn("Failed to send transfer complete message", e);
                     }
@@ -202,21 +195,41 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 return result;
 
-            } catch (Exception e) {
+            } catch (IOException | java.util.concurrent.CompletionException e) {
                 long endTime = System.currentTimeMillis();
                 FileTransferStatus status = activeTransfers.get(transferId);
                 long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
+
+                // Unwrap CompletionException if present
+                Throwable cause = e instanceof java.util.concurrent.CompletionException ? e.getCause() : e;
+                String errorMessage = cause != null ? cause.getMessage() : e.getMessage();
+
                 FileTransferResult result = FileTransferResult.failure(
-                        transferId, filePath, remoteAddress, e.getMessage(),
+                        transferId, filePath, remoteAddress, errorMessage,
                         bytesTransferred, startTime, endTime);
 
                 activeTransfers.remove(transferId);
-                notifyTransferCompleted(filePath, remoteAddress, false, e.getMessage());
-                notifyError(e, "File transfer execution");
+                notifyTransferCompleted(filePath, remoteAddress, false, errorMessage);
+                notifyError(cause != null ? cause : e, "File transfer execution");
+
+                return result;
+            } catch (Exception e) {
+                // Catch-all for unexpected runtime exceptions to ensure we don't hang
+                long endTime = System.currentTimeMillis();
+                FileTransferStatus status = activeTransfers.get(transferId);
+                long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
+
+                FileTransferResult result = FileTransferResult.failure(
+                        transferId, filePath, remoteAddress, "Unexpected error: " + e.getMessage(),
+                        bytesTransferred, startTime, endTime);
+
+                activeTransfers.remove(transferId);
+                notifyTransferCompleted(filePath, remoteAddress, false, "Unexpected error: " + e.getMessage());
+                notifyError(e, "File transfer execution (Unexpected)");
 
                 return result;
             }
-        });
+        }, com.justsyncit.scanner.ThreadPoolManager.getInstance().getBatchProcessingThreadPool());
     }
 
     /**
@@ -249,6 +262,16 @@ public class FileTransferManagerImpl implements FileTransferManager {
         this.compressionService = compressionService;
     }
 
+    /**
+     * Sets the transfer pipeline factory.
+     *
+     * @param transferPipelineFactory the factory to use
+     */
+    public void setTransferPipelineFactory(
+            com.justsyncit.network.transfer.pipeline.TransferPipelineFactory transferPipelineFactory) {
+        this.transferPipelineFactory = transferPipelineFactory;
+    }
+
     @Override
     public CompletableFuture<Void> start() {
         if (running.compareAndSet(false, true)) {
@@ -269,12 +292,16 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 cancelFutures.add(cancelTransfer(transferId));
             }
 
-            // Shutdown executor
-            decompressionExecutor.shutdown();
+            // Shutdown executor - Handled by ThreadPoolManager globally now
+            // decompressionExecutor.shutdown();
 
             return CompletableFuture.allOf(cancelFutures.toArray(new CompletableFuture<?>[0]))
                     .thenRun(() -> {
                         activeTransfers.clear();
+                        if (transferPipelineFactory instanceof com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory) {
+                            ((com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory) transferPipelineFactory)
+                                    .shutdown();
+                        }
                         logger.info("File transfer manager stopped");
                     });
         } else {
@@ -328,6 +355,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
                     compressionType);
 
             return networkService.sendMessage(request, remoteAddress)
+                    .orTimeout(30, TimeUnit.SECONDS)
                     .thenCompose(
                             v -> simulateFileTransfer(transferId, filePath, remoteAddress, contentStore, startTime));
 
@@ -404,59 +432,44 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
 
-        // Submit decompression task to executor
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                byte[] dataToStore = chunkDataBytes;
+        // Create and execute receive pipeline
+        ReceivePipeline pipeline = transferPipelineFactory.createReceivePipeline(
+                compressionService,
+                status.getCompressionType(),
+                blake3Service,
+                checksum,
+                chunkOffset,
+                contentStore);
 
-                // Decompress if needed
-                if ("ZSTD".equals(status.getCompressionType()) && compressionService != null) {
-                    dataToStore = compressionService.decompress(chunkDataBytes);
-                } else if ("ZSTD".equals(status.getCompressionType()) && compressionService == null) {
-                    throw new IOException("Received ZSTD compressed data but no compression service configured");
-                }
+        return pipeline.process(chunkDataBytes)
+                .thenAccept(dataLength -> {
+                    // Update progress
+                    status.addBytesTransferred(dataLength);
 
-                return dataToStore;
-            } catch (IOException e) {
-                throw new java.util.concurrent.CompletionException(e);
-            }
-        }, decompressionExecutor).thenCompose(dataToStore -> {
-            // Verify checksum (on raw data)
-            String actualChecksum = computeChecksum(dataToStore);
-            if (!checksum.equals(actualChecksum)) {
-                return CompletableFuture.failedFuture(
-                        new IOException("Checksum mismatch for chunk " + chunkOffset));
-            }
+                    notifyTransferProgress(status.getFilePath(), remoteAddress,
+                            status.getBytesTransferred(),
+                            status.getFileSize());
 
-            // Store chunk in content store
-            try {
-                contentStore.storeChunk(dataToStore);
-            } catch (IOException e) {
-                return CompletableFuture.failedFuture(e);
-            }
+                    // Send acknowledgment
+                    new ChunkAckMessage(filePath, chunkOffset, dataLength);
+                    logger.debug("Sending chunk acknowledgment for offset {}", chunkOffset);
 
-            // Update progress - we use UNCOMPRESSED size for progress to match file size
-            status.addBytesTransferred(dataToStore.length);
+                    // This would delegate to NetworkService to send the acknowledgment
+                })
+                .exceptionallyCompose(e -> {
+                    logger.error("Error processing chunk {} for transfer {}", chunkOffset, filePath, e);
 
-            notifyTransferProgress(status.getFilePath(), remoteAddress, status.getBytesTransferred(),
-                    status.getFileSize());
+                    // Unwrap potential completion exception
+                    Throwable cause = e instanceof java.util.concurrent.CompletionException ? e.getCause() : e;
 
-            // Send acknowledgment
-            new ChunkAckMessage(filePath, chunkOffset, dataToStore.length);
-            logger.debug("Sending chunk acknowledgment for offset {}", chunkOffset);
+                    // Send negative acknowledgment
+                    logger.debug("Sending negative chunk acknowledgment for offset {}: {}", chunkOffset,
+                            cause.getMessage());
 
-            // This would delegate to NetworkService to send the acknowledgment
-            return CompletableFuture.<Void>completedFuture(null);
-        }).exceptionallyCompose(e -> {
-            logger.error("Error processing chunk {} for transfer {}", chunkOffset, filePath, e);
-
-            // Send negative acknowledgment
-            logger.debug("Sending negative chunk acknowledgment for offset {}: {}", chunkOffset, e.getMessage());
-
-            // This would delegate to NetworkService to send the acknowledgment
-            // We return a completed null future to indicate handled exception
-            return CompletableFuture.<Void>completedFuture(null);
-        });
+                    // This would delegate to NetworkService to send the acknowledgment
+                    // We return a completed null future to indicate handled exception
+                    return CompletableFuture.<Void>completedFuture(null);
+                });
     }
 
     @Override
@@ -557,10 +570,49 @@ public class FileTransferManagerImpl implements FileTransferManager {
         return "transfer-" + transferIdCounter.incrementAndGet() + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
+    /** The BLAKE3 service for checksums. */
+    private com.justsyncit.hash.Blake3Service blake3Service;
+
+    /**
+     * Sets the BLAKE3 service.
+     *
+     * @param blake3Service the BLAKE3 service
+     */
+    public void setBlake3Service(com.justsyncit.hash.Blake3Service blake3Service) {
+        this.blake3Service = blake3Service;
+    }
+
     private String computeChecksum(byte[] data) {
-        // This would use Blake3Service to compute checksum
-        // For now, return a simple hash
-        return Integer.toHexString(java.util.Arrays.hashCode(data));
+        if (blake3Service != null) {
+            try {
+                // Use BLAKE3 to compute checksum
+                return blake3Service.hashBuffer(data);
+            } catch (Exception e) {
+                logger.error("Failed to compute BLAKE3 checksum, falling back to SHA-256", e);
+            }
+        }
+
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] encodedhash = digest.digest(data);
+            return bytesToHex(encodedhash);
+        } catch (NoSuchAlgorithmException e) {
+            // CRITICAL: Do not fall back to weak hash. Fail securely.
+            logger.error("SHA-256 algorithm not found - cannot verify data integrity", e);
+            throw new RuntimeException("Secure hashing algorithm not available", e);
+        }
+    }
+
+    private static String bytesToHex(byte[] hash) {
+        StringBuilder hexString = new StringBuilder(2 * hash.length);
+        for (int i = 0; i < hash.length; i++) {
+            String hex = Integer.toHexString(0xff & hash[i]);
+            if (hex.length() == 1) {
+                hexString.append('0');
+            }
+            hexString.append(hex);
+        }
+        return hexString.toString();
     }
 
     private String formatFileSize(long bytes) {
@@ -581,8 +633,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferStarted(filePath, remoteAddress, fileSize);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onTransferStarted)", e);
             }
         }
     }
@@ -592,8 +644,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onTransferProgress)", e);
             }
         }
     }
@@ -603,8 +655,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onTransferCompleted(filePath, remoteAddress, success, errorMessage);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onTransferCompleted)", e);
             }
         }
     }
@@ -613,8 +665,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         for (TransferEventListener listener : listeners) {
             try {
                 listener.onError(error, context);
-            } catch (Exception e) {
-                logger.error("Error in transfer event listener", e);
+            } catch (RuntimeException e) {
+                logger.error("Error in transfer event listener (onError)", e);
             }
         }
     }

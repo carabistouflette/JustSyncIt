@@ -125,15 +125,20 @@ public class Blake3IncrementalHasherFactory implements IncrementalHasherFactory 
                                 .invoke(null);
                         logger.debug("Created hasher instance using reflection: {}",
                                 prototypeHashAlgorithm.getClass().getSimpleName());
-                    } catch (Exception e) {
+                    } catch (ReflectiveOperationException e) {
                         throw new HashingException(
                                 "Failed to create hasher instance: " + prototypeHashAlgorithm.getClass().getSimpleName()
                                         + ". Ensure the class has a static create() method.",
                                 e);
+                    } catch (Exception e) {
+                        throw new HashingException(
+                                "Unexpected error during reflection creation of: "
+                                        + prototypeHashAlgorithm.getClass().getSimpleName(),
+                                e);
                     }
                 }
             } catch (HashingException e) {
-                throw new HashingException("Failed to create hash algorithm instance", e);
+                throw e;
             } catch (Exception e) {
                 throw new HashingException("Unexpected error creating hash algorithm instance", e);
             }

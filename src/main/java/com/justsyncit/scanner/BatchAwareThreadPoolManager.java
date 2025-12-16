@@ -480,9 +480,7 @@ public final class BatchAwareThreadPoolManager {
      * workaround.
      */
     public boolean isShutdown() {
-        // ThreadPoolManager doesn't expose shutdown state directly
-        // This is a simplified implementation
-        return false;
+        return delegate.isShutdown();
     }
 
     /**
@@ -491,9 +489,7 @@ public final class BatchAwareThreadPoolManager {
      * workaround.
      */
     public boolean isTerminated() {
-        // ThreadPoolManager doesn't expose termination state directly
-        // This is a simplified implementation
-        return false;
+        return delegate.isTerminated();
     }
 
     /**
@@ -501,11 +497,8 @@ public final class BatchAwareThreadPoolManager {
      * Note: ThreadPoolManager doesn't have awaitTermination() method, so we use a
      * workaround.
      */
-    public boolean awaitTermination(long timeout) throws InterruptedException {
-        // ThreadPoolManager doesn't expose awaitTermination directly
-        // This is a simplified implementation that just waits
-        Thread.sleep(timeout);
-        return true;
+    public boolean awaitTermination(long timeout, java.util.concurrent.TimeUnit unit) throws InterruptedException {
+        return delegate.awaitTermination(timeout, unit);
     }
 
     // Batch processing methods

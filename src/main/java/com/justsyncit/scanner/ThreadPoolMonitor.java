@@ -163,7 +163,7 @@ public class ThreadPoolMonitor {
             return;
         }
 
-        scheduler.scheduleAtFixedRate(this::performMonitoring, 10, 10, TimeUnit.SECONDS);
+        scheduler.scheduleWithFixedDelay(this::performMonitoring, 10, 10, TimeUnit.SECONDS);
         logger.info("ThreadPoolMonitor started");
     }
 

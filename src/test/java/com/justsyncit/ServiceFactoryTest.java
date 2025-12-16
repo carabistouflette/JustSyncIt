@@ -53,8 +53,10 @@ public class ServiceFactoryTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testCreateNetworkService() {
-        NetworkService networkService = serviceFactory.createNetworkService();
-        assertNotNull(networkService);
+        assertDoesNotThrow(() -> {
+            NetworkService networkService = serviceFactory.createNetworkService();
+            assertNotNull(networkService);
+        });
     }
 
     @Test

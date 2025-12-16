@@ -33,7 +33,8 @@ import java.util.Set;
 /**
  * Filesystem-based implementation of ContentStore using Java NIO.
  * Provides content-addressable storage with automatic deduplication.
- * Follows Single Responsibility Principle by delegating to specialized components.
+ * Follows Single Responsibility Principle by delegating to specialized
+ * components.
  * Extends AbstractContentStore to follow Open/Closed Principle.
  */
 public final class FilesystemContentStore extends AbstractContentStore {
@@ -53,15 +54,15 @@ public final class FilesystemContentStore extends AbstractContentStore {
     /**
      * Creates a new FilesystemContentStore.
      *
-     * @param storageDirectory the directory to store chunks in
-     * @param chunkIndex the chunk index to use
+     * @param storageDirectory  the directory to store chunks in
+     * @param chunkIndex        the chunk index to use
      * @param integrityVerifier the integrity verifier to use
-     * @param pathGenerator the path generator to use
+     * @param pathGenerator     the path generator to use
      * @throws IOException if the storage cannot be initialized
      */
     private FilesystemContentStore(Path storageDirectory, ChunkIndex chunkIndex,
-                                  IntegrityVerifier integrityVerifier,
-                                  ChunkPathGenerator pathGenerator) throws IOException {
+            IntegrityVerifier integrityVerifier,
+            ChunkPathGenerator pathGenerator) throws IOException {
         this.storageDirectory = storageDirectory;
         this.chunkIndex = chunkIndex;
         this.integrityVerifier = integrityVerifier;
@@ -76,13 +77,13 @@ public final class FilesystemContentStore extends AbstractContentStore {
      * Creates a new FilesystemContentStore with default components.
      *
      * @param storageDirectory directory to store chunks in
-     * @param chunkIndex chunk index to use
-     * @param blake3Service BLAKE3 service for hashing
+     * @param chunkIndex       chunk index to use
+     * @param blake3Service    BLAKE3 service for hashing
      * @return a new FilesystemContentStore instance
      * @throws IOException if storage cannot be initialized
      */
     public static FilesystemContentStore create(Path storageDirectory, ChunkIndex chunkIndex,
-                                          Blake3Service blake3Service) throws IOException {
+            Blake3Service blake3Service) throws IOException {
         IntegrityVerifier integrityVerifier = new Blake3IntegrityVerifier(blake3Service);
         ChunkPathGenerator pathGenerator = new TwoLevelChunkPathGenerator();
         return new FilesystemContentStore(storageDirectory, chunkIndex, integrityVerifier, pathGenerator);
@@ -91,16 +92,16 @@ public final class FilesystemContentStore extends AbstractContentStore {
     /**
      * Creates a new FilesystemContentStore with custom components.
      *
-     * @param storageDirectory directory to store chunks in
-     * @param chunkIndex chunk index to use
+     * @param storageDirectory  directory to store chunks in
+     * @param chunkIndex        chunk index to use
      * @param integrityVerifier integrity verifier to use
-     * @param pathGenerator path generator to use
+     * @param pathGenerator     path generator to use
      * @return a new FilesystemContentStore instance
      * @throws IOException if storage cannot be initialized
      */
     public static FilesystemContentStore create(Path storageDirectory, ChunkIndex chunkIndex,
-                                          IntegrityVerifier integrityVerifier,
-                                          ChunkPathGenerator pathGenerator) throws IOException {
+            IntegrityVerifier integrityVerifier,
+            ChunkPathGenerator pathGenerator) throws IOException {
         return new FilesystemContentStore(storageDirectory, chunkIndex, integrityVerifier, pathGenerator);
     }
 
@@ -176,7 +177,7 @@ public final class FilesystemContentStore extends AbstractContentStore {
         try {
             Path chunkPath = chunkIndex.getChunkPath(hash);
             if (chunkPath == null) {
-                logger.debug("Chunk {} not found in index", hash);
+                logger.warn("Chunk {} not found in index", hash);
                 return null;
             }
 
@@ -285,8 +286,7 @@ public final class FilesystemContentStore extends AbstractContentStore {
                     totalSize,
                     1L, // Simplified ratio - would need more tracking for accurate calculation
                     lastGcTime,
-                    orphanedChunks
-            );
+                    orphanedChunks);
         } finally {
             lock.readLock().unlock();
         }
@@ -296,5 +296,14 @@ public final class FilesystemContentStore extends AbstractContentStore {
     protected void doClose() throws IOException {
         chunkIndex.close();
         logger.info("Closed filesystem content store");
+    }
+
+    /**
+     * Gets the integrity verifier used by this store.
+     *
+     * @return the integrity verifier
+     */
+    public IntegrityVerifier getIntegrityVerifier() {
+        return integrityVerifier;
     }
 }

@@ -278,6 +278,7 @@ public class BatchProcessingBasicTest {
         // When
         ResourceUtilization utilization = new ResourceUtilization(
                 80.0, // CPU utilization %
+                true, // CPU available
                 60.0, // memory utilization %
                 90.0, // I/O utilization %
                 5, // max concurrent operations
@@ -289,6 +290,7 @@ public class BatchProcessingBasicTest {
         // Then
         assertNotNull(utilization);
         assertEquals(80.0, utilization.getCpuUtilizationPercent());
+        assertTrue(utilization.isCpuAvailable());
         assertEquals(60.0, utilization.getMemoryUtilizationPercent());
         assertEquals(90.0, utilization.getIoUtilizationPercent());
         assertEquals(5, utilization.getMaxConcurrentOperations());
