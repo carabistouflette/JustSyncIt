@@ -161,6 +161,9 @@ public class ThreadPoolManager {
         this.futureWaitExecutor = Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r, "FutureWaiter-" + System.nanoTime());
             t.setDaemon(true);
+            t.setUncaughtExceptionHandler((thread, exc) -> {
+                logger.error("Uncaught exception in FutureWaiter thread: " + thread.getName(), exc);
+            });
             return t;
         });
     }

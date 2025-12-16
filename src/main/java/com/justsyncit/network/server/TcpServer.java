@@ -157,6 +157,9 @@ public class TcpServer {
         // Start server thread
         serverThread = new Thread(this::serverLoop, "TcpServer-Main");
         serverThread.setDaemon(false);
+        serverThread.setUncaughtExceptionHandler((t, e) -> {
+            logger.error("Uncaught exception in TCP server thread", e);
+        });
         serverThread.start();
 
         logger.info("TCP server started on port {}", port);
@@ -205,8 +208,13 @@ public class TcpServer {
                 if (running.get()) {
                     logger.error("Error in server selector loop", e);
                 }
+            } catch (Throwable t) {
+                if (running.get()) {
+                    logger.error("Critical error in server selector loop", t);
+                }
             }
         }
+
     }
 
     /**

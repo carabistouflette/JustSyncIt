@@ -368,8 +368,17 @@ public class BatchScheduler {
                     concurrentBatchSemaphore.release();
                 }
             }
-        } catch (Exception e) {
-            logger.error("Error in scheduling loop", e);
+        } catch (Throwable t) {
+            logger.error("Critical error in scheduling loop", t);
+            if (t instanceof Error) {
+                // If it's a serious Error (like OOM), we might want to rethrow or stop,
+                // but logging it first is crucial.
+                // For robustness, we try to clear the semaphore permit if we acquired it but
+                // failed before polling/releasing.
+                // However, logic complexity makes that risky.
+                // We'll trust the finally block logic in a more complex refactor,
+                // but here we just want to ensure we don't die silent.
+            }
         }
     }
 
