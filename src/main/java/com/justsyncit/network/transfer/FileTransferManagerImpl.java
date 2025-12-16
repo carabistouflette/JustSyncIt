@@ -74,7 +74,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
     /** The compression service. */
     private CompressionService compressionService;
     /** Executor for parallel decompression tasks. */
-    private final java.util.concurrent.ExecutorService decompressionExecutor;
+    // private final java.util.concurrent.ExecutorService decompressionExecutor; //
+    // Removed in favor of ThreadPoolManager
 
     /** Configuration: Compression enabled. */
     private boolean compressionEnabled = true;
@@ -93,10 +94,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
         this.listeners = new CopyOnWriteArrayList<>();
         this.running = new AtomicBoolean(false);
         this.transferIdCounter = new AtomicLong(0);
-        // Use a fixed thread pool based on available processors for parallel
-        // decompression
-        this.decompressionExecutor = java.util.concurrent.Executors.newFixedThreadPool(
-                Runtime.getRuntime().availableProcessors());
+        // Use ThreadPoolManager instead of custom executor
+        // this.decompressionExecutor = ...
 
         // Initialize pipeline manager
         this.pipelineManager = new com.justsyncit.network.transfer.pipeline.PipelineManager();
@@ -216,7 +215,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 return result;
             }
-        });
+        }, com.justsyncit.scanner.ThreadPoolManager.getInstance().getBatchProcessingThreadPool());
     }
 
     /**
@@ -269,8 +268,8 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 cancelFutures.add(cancelTransfer(transferId));
             }
 
-            // Shutdown executor
-            decompressionExecutor.shutdown();
+            // Shutdown executor - Handled by ThreadPoolManager globally now
+            // decompressionExecutor.shutdown();
 
             return CompletableFuture.allOf(cancelFutures.toArray(new CompletableFuture<?>[0]))
                     .thenRun(() -> {
@@ -420,43 +419,59 @@ public class FileTransferManagerImpl implements FileTransferManager {
             } catch (IOException e) {
                 throw new java.util.concurrent.CompletionException(e);
             }
-        }, decompressionExecutor).thenCompose(dataToStore -> {
-            // Verify checksum (on raw data)
-            String actualChecksum = computeChecksum(dataToStore);
-            if (!checksum.equals(actualChecksum)) {
-                return CompletableFuture.failedFuture(
-                        new IOException("Checksum mismatch for chunk " + chunkOffset));
-            }
+        }, com.justsyncit.scanner.ThreadPoolManager.getInstance().getCpuThreadPool()) // CPU pool for decompression
+                .thenComposeAsync(dataToStore -> {
+                    // Verify checksum (on raw data) - Keeping small hash verification on CPU thread
+                    // or switching to IO?
+                    // Since we are switching to IO pool next for storeChunk, might as well do it
+                    // there or here.
+                    // Let's do verification here in CPU pool context before switching to IO to fail
+                    // fast?
+                    // Actually, we are chaining from the previous CPU task.
+                    // But we want storeChunk to be on IO pool.
 
-            // Store chunk in content store
-            try {
-                contentStore.storeChunk(dataToStore);
-            } catch (IOException e) {
-                return CompletableFuture.failedFuture(e);
-            }
+                    // We'll wrap the IO part in supplyAsync on IO pool.
 
-            // Update progress - we use UNCOMPRESSED size for progress to match file size
-            status.addBytesTransferred(dataToStore.length);
+                    String actualChecksum = computeChecksum(dataToStore);
+                    if (!checksum.equals(actualChecksum)) {
+                        return CompletableFuture.failedFuture(
+                                new IOException("Checksum mismatch for chunk " + chunkOffset));
+                    }
 
-            notifyTransferProgress(status.getFilePath(), remoteAddress, status.getBytesTransferred(),
-                    status.getFileSize());
+                    return CompletableFuture.runAsync(() -> {
+                        // Store chunk in content store (IO operation)
+                        try {
+                            contentStore.storeChunk(dataToStore);
+                        } catch (IOException e) {
+                            throw new java.util.concurrent.CompletionException(e);
+                        }
+                    }, com.justsyncit.scanner.ThreadPoolManager.getInstance().getIoThreadPool()) // IO pool for storage
+                            .thenRun(() -> {
+                                // Update progress - we use UNCOMPRESSED size for progress to match file size
+                                status.addBytesTransferred(dataToStore.length);
 
-            // Send acknowledgment
-            new ChunkAckMessage(filePath, chunkOffset, dataToStore.length);
-            logger.debug("Sending chunk acknowledgment for offset {}", chunkOffset);
+                                notifyTransferProgress(status.getFilePath(), remoteAddress,
+                                        status.getBytesTransferred(),
+                                        status.getFileSize());
 
-            // This would delegate to NetworkService to send the acknowledgment
-            return CompletableFuture.<Void>completedFuture(null);
-        }).exceptionallyCompose(e -> {
-            logger.error("Error processing chunk {} for transfer {}", chunkOffset, filePath, e);
+                                // Send acknowledgment
+                                new ChunkAckMessage(filePath, chunkOffset, dataToStore.length);
+                                logger.debug("Sending chunk acknowledgment for offset {}", chunkOffset);
 
-            // Send negative acknowledgment
-            logger.debug("Sending negative chunk acknowledgment for offset {}: {}", chunkOffset, e.getMessage());
+                                // This would delegate to NetworkService to send the acknowledgment
+                            });
 
-            // This would delegate to NetworkService to send the acknowledgment
-            // We return a completed null future to indicate handled exception
-            return CompletableFuture.<Void>completedFuture(null);
-        });
+                }).exceptionallyCompose(e -> {
+                    logger.error("Error processing chunk {} for transfer {}", chunkOffset, filePath, e);
+
+                    // Send negative acknowledgment
+                    logger.debug("Sending negative chunk acknowledgment for offset {}: {}", chunkOffset,
+                            e.getMessage());
+
+                    // This would delegate to NetworkService to send the acknowledgment
+                    // We return a completed null future to indicate handled exception
+                    return CompletableFuture.<Void>completedFuture(null);
+                });
     }
 
     @Override
@@ -557,9 +572,28 @@ public class FileTransferManagerImpl implements FileTransferManager {
         return "transfer-" + transferIdCounter.incrementAndGet() + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
+    /** The BLAKE3 service for checksums. */
+    private com.justsyncit.hash.Blake3Service blake3Service;
+
+    /**
+     * Sets the BLAKE3 service.
+     *
+     * @param blake3Service the BLAKE3 service
+     */
+    public void setBlake3Service(com.justsyncit.hash.Blake3Service blake3Service) {
+        this.blake3Service = blake3Service;
+    }
+
     private String computeChecksum(byte[] data) {
-        // This would use Blake3Service to compute checksum
-        // For now, return a simple hash
+        if (blake3Service != null) {
+            try {
+                // Use BLAKE3 to compute checksum
+                return blake3Service.hashBuffer(data);
+            } catch (Exception e) {
+                logger.error("Failed to compute BLAKE3 checksum, falling back to simple hash", e);
+            }
+        }
+        // Fallback or if service not set
         return Integer.toHexString(java.util.Arrays.hashCode(data));
     }
 

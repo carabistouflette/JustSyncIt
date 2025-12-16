@@ -290,15 +290,18 @@ public class BackupCommand implements Command {
                 // For remote backup, we would typically send the snapshot data after creating
                 // it locally
                 // For now, we'll create the backup locally and then simulate sending it
-                CompletableFuture<BackupService.BackupResult> backupFuture = service.backup(sourcePath, options);
-                BackupService.BackupResult result = backupFuture.get();
+                // CompletableFuture<BackupService.BackupResult> backupFuture =
+                // service.backup(sourcePath, options);
+                // BackupService.BackupResult result = backupFuture.get();
 
                 // In a real implementation, we would send the snapshot and chunks to the remote
                 // server
-                // For demonstration, we'll just show what would happen
-                System.out.println("Remote backup data sent successfully!");
+                throw new UnsupportedOperationException("Remote backup is not yet fully implemented.");
 
-                printResult(result, true);
+                // For demonstration, we'll just show what would happen
+                // System.out.println("Remote backup data sent successfully!");
+
+                // printResult(result, true);
             } finally {
                 // Disconnect from remote server
                 netService.disconnectFromNode(options.getRemoteAddress()).get();

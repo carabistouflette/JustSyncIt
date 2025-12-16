@@ -581,136 +581,107 @@ public class NetworkServiceImpl implements NetworkService {
 
     /**
      * Sends a file part using zero-copy transfer and memory-mapped checksumming.
+     * Offloads blocking I/O and CPU operations to the thread pool.
      */
     private CompletableFuture<Void> sendFilePartInternal(Connection connection, Path filePath, long offset, long length,
             int messageId) {
-        // Open the file channel - we need it to stay open for the transfer
-        java.nio.channels.FileChannel fileChannel;
-        try {
-            fileChannel = java.nio.channels.FileChannel.open(filePath, java.nio.file.StandardOpenOption.READ);
-        } catch (IOException e) {
-            return CompletableFuture.failedFuture(e);
-        }
-
-        try {
-            // 1. Calculate checksum using Memory-Mapped I/O
-            // This allows us to hash the file content without copying it into a heap array
-            // filling the integrity gap in zero-copy transfers.
-            String hash;
-            java.nio.MappedByteBuffer mappedBuffer = null;
+        return CompletableFuture.supplyAsync(() -> {
+            // Open the file channel - we need it to stay open for the transfer
+            java.nio.channels.FileChannel fileChannel;
             try {
-                mappedBuffer = fileChannel.map(java.nio.channels.FileChannel.MapMode.READ_ONLY, offset, length);
-                // Use the injected BLAKE3 service to calculate the hash of the mapped buffer
-                hash = blake3Service.hashBuffer(mappedBuffer);
+                fileChannel = java.nio.channels.FileChannel.open(filePath, java.nio.file.StandardOpenOption.READ);
             } catch (IOException e) {
-                logger.error("Failed to map file for checksumming: {}", filePath, e);
-                // Fallback or fail? Fail for integrity.
+                throw new java.util.concurrent.CompletionException(e);
+            }
+
+            try {
+                // 1. Calculate checksum using Memory-Mapped I/O
+                // This allows us to hash the file content without copying it into a heap array
+                // filling the integrity gap in zero-copy transfers.
+                String hash;
+                java.nio.MappedByteBuffer mappedBuffer = null;
+                try {
+                    mappedBuffer = fileChannel.map(java.nio.channels.FileChannel.MapMode.READ_ONLY, offset, length);
+                    // Use the injected BLAKE3 service to calculate the hash of the mapped buffer
+                    hash = blake3Service.hashBuffer(mappedBuffer);
+                } catch (IOException e) {
+                    logger.error("Failed to map file for checksumming: {}", filePath, e);
+                    // Fallback or fail? Fail for integrity.
+                    try {
+                        fileChannel.close();
+                    } catch (IOException ignored) {
+                    }
+                    throw new java.util.concurrent.CompletionException(e);
+                }
+
+                // 2. Prepare the ChunkDataMessage
+                long totalSize = Files.size(filePath);
+                com.justsyncit.network.protocol.ChunkDataMessage templateMsg = new com.justsyncit.network.protocol.ChunkDataMessage(
+                        filePath.toString(),
+                        offset,
+                        (int) length,
+                        totalSize,
+                        hash,
+                        new byte[0] // Empty data for the template
+                );
+
+                // 3. Serialize Header and adjust Payload Length
+                java.nio.ByteBuffer headerBuf = templateMsg.serialize();
+                headerBuf.flip(); // Prepare for reading
+                com.justsyncit.network.protocol.ProtocolHeader header = com.justsyncit.network.protocol.ProtocolHeader
+                        .deserialize(headerBuf);
+
+                int metadataSize = templateMsg.getPayloadSize() - 0; // -0 for empty data
+                int newPayloadLength = metadataSize + (int) length;
+
+                com.justsyncit.network.protocol.ProtocolHeader newHeader = new com.justsyncit.network.protocol.ProtocolHeader(
+                        header.getMagic(),
+                        header.getVersion(),
+                        header.getMessageType(),
+                        header.getFlags(),
+                        newPayloadLength,
+                        messageId // Ensure we keep the correct message ID
+                );
+
+                java.nio.ByteBuffer newHeaderBuf = newHeader.serialize();
+
+                headerBuf.position(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
+                int bodySize = headerBuf.remaining();
+
+                java.nio.ByteBuffer finalMetaBuffer = java.nio.ByteBuffer
+                        .allocate(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE + bodySize);
+                finalMetaBuffer.put(newHeaderBuf);
+                finalMetaBuffer.put(headerBuf);
+                finalMetaBuffer.flip();
+
+                // 4. Return the future for the actual sending (to be composed)
+                return connection.send(finalMetaBuffer)
+                        .thenCompose(v -> connection.sendFileRegion(fileChannel, offset, length))
+                        .whenComplete((v, ex) -> {
+                            // Close the file channel when the transfer is complete (or failed)
+                            try {
+                                fileChannel.close();
+                            } catch (IOException e) {
+                                logger.warn("Failed to close file channel for {}", filePath, e);
+                            }
+
+                            if (ex != null) {
+                                logger.error("Failed to send file part: {}", filePath, ex);
+                            } else {
+                                logger.debug("Sent file part: {} offset={} length={} hash={}", filePath, offset, length,
+                                        hash);
+                            }
+                        });
+
+            } catch (Exception e) {
                 try {
                     fileChannel.close();
-                } catch (IOException ignored) {
+                } catch (IOException closeEx) {
+                    // ignore
                 }
-                return CompletableFuture.failedFuture(e);
-            } finally {
-                // Should optimally unmap here, but Java doesn't provide a clean API for it.
-                // The buffer will be cleaned up by GC.
-                // In a high-throughput system, we might want to use unsafe invokeCleaner.
-                // For now, we rely on the OS managing virtual memory pages.
+                throw new java.util.concurrent.CompletionException(e);
             }
-
-            // 2. Prepare the ChunkDataMessage
-            // We create the message with empty data because we will send the data using
-            // sendFileRegion.
-            // We provide the ACTUAL hash we just calculated.
-            long totalSize = Files.size(filePath);
-            com.justsyncit.network.protocol.ChunkDataMessage templateMsg = new com.justsyncit.network.protocol.ChunkDataMessage(
-                    filePath.toString(),
-                    offset,
-                    (int) length,
-                    totalSize,
-                    hash,
-                    new byte[0] // Empty data for the template
-            );
-
-            // 3. Serialize Header and adjust Payload Length
-            java.nio.ByteBuffer headerBuf = templateMsg.serialize();
-
-            // The header currently claims payload size corresponds to byte[0] (plus
-            // overhead).
-            // We need to patch the header to claim the payload size includes the file
-            // region.
-            // ProtocolHeader structure: Magic(4) + Version(2) + Type(2) + Flags(4) +
-            // Length(4) + ID(4)
-            // Length is at offset 12.
-
-            // It's safer to deserialize, modify, and re-serialize to avoid offset magic
-            // numbers assumptions
-            headerBuf.flip(); // Prepare for reading
-            com.justsyncit.network.protocol.ProtocolHeader header = com.justsyncit.network.protocol.ProtocolHeader
-                    .deserialize(headerBuf);
-
-            // Calculate new payload length: Original Metadata Overhead + File Region Length
-            // The template message payload size is just the metadata (strings, longs)
-            // because data is empty.
-            int metadataSize = templateMsg.getPayloadSize() - 0; // -0 for empty data
-            // The payload length in header should be Metadata + Data
-            int newPayloadLength = metadataSize + (int) length;
-
-            com.justsyncit.network.protocol.ProtocolHeader newHeader = new com.justsyncit.network.protocol.ProtocolHeader(
-                    header.getMagic(),
-                    header.getVersion(),
-                    header.getMessageType(),
-                    header.getFlags(),
-                    newPayloadLength,
-                    messageId // Ensure we keep the correct message ID
-            );
-
-            // Re-serialize the corrected header
-            java.nio.ByteBuffer newHeaderBuf = newHeader.serialize();
-
-            // We need to combine the new header with the metadata body (minus the empty
-            // data bytes).
-            // ProtocolHeader.serialize() gives us JUST the header (20 bytes).
-            // We need the rest of the serialized template message (the body fields),
-            // excluding the empty data array at the end.
-
-            // Reset original buffer to read the body
-            headerBuf.position(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
-            int bodySize = headerBuf.remaining(); // This is just metadata + 0-byte data
-
-            // Allocate a buffer for Header + Body
-            java.nio.ByteBuffer finalMetaBuffer = java.nio.ByteBuffer
-                    .allocate(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE + bodySize);
-            finalMetaBuffer.put(newHeaderBuf); // Put new header
-            finalMetaBuffer.put(headerBuf); // Put original body
-            finalMetaBuffer.flip();
-
-            // 4. Send Header+Metadata, then FileRegion
-            return connection.send(finalMetaBuffer)
-                    .thenCompose(v -> connection.sendFileRegion(fileChannel, offset, length))
-                    .whenComplete((v, ex) -> {
-                        // Close the file channel when the transfer is complete (or failed)
-                        try {
-                            fileChannel.close();
-                        } catch (IOException e) {
-                            logger.warn("Failed to close file channel for {}", filePath, e);
-                        }
-
-                        if (ex != null) {
-                            logger.error("Failed to send file part: {}", filePath, ex);
-                        } else {
-                            logger.debug("Sent file part: {} offset={} length={} hash={}", filePath, offset, length,
-                                    hash);
-                        }
-                    });
-
-        } catch (Exception e) {
-            try {
-                fileChannel.close();
-            } catch (IOException closeEx) {
-                // ignore
-            }
-            return CompletableFuture.failedFuture(e);
-        }
+        }, com.justsyncit.scanner.ThreadPoolManager.getInstance().getIoThreadPool()).thenCompose(f -> f);
     }
 
     private Connection getConnection(InetSocketAddress remoteAddress) {

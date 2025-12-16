@@ -157,7 +157,8 @@ public class ServiceFactory {
         TcpServer tcpServer = new TcpServer();
         TcpClient tcpClient = new TcpClient();
         ConnectionManager connectionManager = new ConnectionManagerImpl();
-        FileTransferManager fileTransferManager = new FileTransferManagerImpl();
+        FileTransferManagerImpl fileTransferManager = new FileTransferManagerImpl();
+        fileTransferManager.setBlake3Service(blake3Service);
 
         return new NetworkServiceImpl(tcpServer, tcpClient, connectionManager, fileTransferManager, blake3Service);
     }

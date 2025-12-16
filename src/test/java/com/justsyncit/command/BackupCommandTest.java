@@ -78,7 +78,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithHelp() {
-        boolean result = command.execute(new String[]{"--help"}, context);
+        boolean result = command.execute(new String[] { "--help" }, context);
         assertTrue(result);
         assertTrue(outputStream.toString().contains("Backup Command Help"));
     }
@@ -86,7 +86,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithNoArgs() {
-        boolean result = command.execute(new String[]{}, context);
+        boolean result = command.execute(new String[] {}, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Source directory is required"));
     }
@@ -94,7 +94,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithNonExistentSource() {
-        boolean result = command.execute(new String[]{"/non/existent/path"}, context);
+        boolean result = command.execute(new String[] { "/non/existent/path" }, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Source directory does not exist"));
     }
@@ -107,7 +107,7 @@ class BackupCommandTest {
         when(backupService.backup(any(Path.class), any(BackupOptions.class)))
                 .thenReturn(CompletableFuture.completedFuture(backupResult));
 
-        boolean result = command.execute(new String[]{tempDir.toString()}, context);
+        boolean result = command.execute(new String[] { tempDir.toString() }, context);
 
         assertTrue(result);
         assertTrue(outputStream.toString().contains("Backup completed successfully"));
@@ -117,40 +117,34 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteRemoteBackup() throws Exception {
-        // Mock successful connection and backup
+        // Mock successful connection
         when(networkService.connectToNode(any(InetSocketAddress.class), any(TransportType.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
+        // We expect disconnect to be called in finally block even if exception occurs
         when(networkService.disconnectFromNode(any(InetSocketAddress.class)))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
-        BackupService.BackupResult backupResult = BackupService.BackupResult.success("snap-1", 10, 1000, 5, true);
-        when(backupService.backup(any(Path.class), any(BackupOptions.class)))
-                .thenReturn(CompletableFuture.completedFuture(backupResult));
-
-        boolean result = command.execute(new String[]{
+        boolean result = command.execute(new String[] {
                 tempDir.toString(),
                 "--remote",
                 "--server", "localhost:8080",
                 "--transport", "TCP"
         }, context);
 
-        assertTrue(result);
-        assertTrue(outputStream.toString().contains("Remote backup completed successfully"));
+        // Should return false because it throws UnsupportedOperationException which is
+        // caught
+        assertFalse(result);
+        assertTrue(errorStream.toString().contains("Backup execution failed"));
 
-        ArgumentCaptor<BackupOptions> optionsCaptor = ArgumentCaptor.forClass(BackupOptions.class);
-        verify(backupService).backup(eq(tempDir), optionsCaptor.capture());
-
-        BackupOptions options = optionsCaptor.getValue();
-        assertTrue(options.isRemoteBackup());
-        assertEquals("localhost", options.getRemoteAddress().getHostString());
-        assertEquals(8080, options.getRemoteAddress().getPort());
-        assertEquals(TransportType.TCP, options.getTransportType());
+        // Note: The specific message might be logged or printed differently depending
+        // on handleError implementation
+        // But verifying failure is enough for now given we intentionally broke it.
     }
 
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithInvalidOptions() {
-        boolean result = command.execute(new String[]{tempDir.toString(), "--invalid-option"}, context);
+        boolean result = command.execute(new String[] { tempDir.toString(), "--invalid-option" }, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Unknown option"));
     }
@@ -158,7 +152,7 @@ class BackupCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithInvalidChunkSize() {
-        boolean result = command.execute(new String[]{tempDir.toString(), "--chunk-size", "invalid"}, context);
+        boolean result = command.execute(new String[] { tempDir.toString(), "--chunk-size", "invalid" }, context);
         assertFalse(result);
         assertTrue(errorStream.toString().contains("Invalid chunk size"));
     }

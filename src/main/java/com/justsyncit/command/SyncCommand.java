@@ -167,48 +167,51 @@ public class SyncCommand implements Command {
             }
 
             // In a real implementation, we would query the remote server for its snapshots
-            remoteSnapshots = simulateRemoteSnapshots();
+            // remoteSnapshots = simulateRemoteSnapshots();
+            throw new UnsupportedOperationException("Remote synchronization is not yet implemented.");
 
-            if (options.verbose) {
-                System.out.println("Local snapshots: " + localSnapshots.size());
-                System.out.println("Remote snapshots: " + remoteSnapshots.size());
-                System.out.println();
-            }
-
-            // Perform synchronization logic
-            SyncResult result = new SyncResult();
-
-            // Create sets for efficient lookup
-            Set<String> localSnapshotIds = new HashSet<>();
-            Set<String> remoteSnapshotIds = new HashSet<>();
-
-            for (Snapshot snapshot : localSnapshots) {
-                if (snapshot != null && snapshot.getId() != null) {
-                    localSnapshotIds.add(snapshot.getId());
-                }
-            }
-
-            for (Snapshot snapshot : remoteSnapshots) {
-                if (snapshot != null && snapshot.getId() != null) {
-                    remoteSnapshotIds.add(snapshot.getId());
-                }
-            }
-
-            if (options.bidirectional) {
-                syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
-                syncRemoteToLocal(remoteSnapshots, localSnapshotIds, result, options);
-            } else {
-                syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
-            }
-
-            if (options.verbose) {
-                printSyncSummary(result, options);
-            } else {
-                System.out.println("Sync completed: " + result.syncedToRemote + " to remote, " + result.syncedToLocal
-                        + " to local");
-            }
-
-            return true;
+            /*
+             * if (options.verbose) {
+             * System.out.println("Local snapshots: " + localSnapshots.size());
+             * System.out.println("Remote snapshots: " + remoteSnapshots.size());
+             * System.out.println();
+             * }
+             * 
+             * // Perform synchronization logic
+             * SyncResult result = new SyncResult();
+             * 
+             * // Create sets for efficient lookup
+             * Set<String> localSnapshotIds = new HashSet<>();
+             * Set<String> remoteSnapshotIds = new HashSet<>();
+             * 
+             * for (Snapshot snapshot : localSnapshots) {
+             * if (snapshot != null && snapshot.getId() != null) {
+             * localSnapshotIds.add(snapshot.getId());
+             * }
+             * }
+             * 
+             * for (Snapshot snapshot : remoteSnapshots) {
+             * if (snapshot != null && snapshot.getId() != null) {
+             * remoteSnapshotIds.add(snapshot.getId());
+             * }
+             * }
+             * 
+             * if (options.bidirectional) {
+             * syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
+             * syncRemoteToLocal(remoteSnapshots, localSnapshotIds, result, options);
+             * } else {
+             * syncLocalToRemote(localSnapshots, remoteSnapshotIds, result, options);
+             * }
+             * 
+             * if (options.verbose) {
+             * printSyncSummary(result, options);
+             * } else {
+             * System.out.println("Sync completed: " + result.syncedToRemote +
+             * " to remote, " + result.syncedToLocal
+             * + " to local");
+             * }
+             */
+            // return true;
 
         } catch (Exception e) {
             handleError("Synchronization logic failed", e, logger);
