@@ -141,6 +141,23 @@ public class ChangedBlockTrackingService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Cleans up events older than the specific timestamp.
+     * Compacts the journal and removes old entries from in-memory state.
+     *
+     * @param beforeTimestamp cutoff timestamp
+     */
+    public void cleanupEventsBefore(Instant beforeTimestamp) {
+        try {
+            journal.compact(beforeTimestamp);
+            // Cleanup in-memory map to free memory
+            dirtyFiles.entrySet().removeIf(entry -> entry.getValue().isBefore(beforeTimestamp));
+            logger.info("Cleaned up CBT events before {}", beforeTimestamp);
+        } catch (IOException e) {
+            logger.error("Failed to compact journal", e);
+        }
+    }
+
     private void handleFileChangeEvent(FileChangeEvent event) {
         // 1. Update in-memory state
         dirtyFiles.put(event.getFilePath(), event.getEventTime());
