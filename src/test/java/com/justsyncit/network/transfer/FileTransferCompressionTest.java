@@ -151,4 +151,39 @@ class FileTransferCompressionTest {
 
         assertArrayEquals(originalChunk, dataCaptor.getValue());
     }
+
+    @Test
+    void testTransferFailureHandling() throws IOException {
+        String fileName = "fail_test.txt";
+        long fileSize = 100;
+        String transferId = "fail-transfer-1";
+
+        // Register transfer manually
+        ProtocolMessage req = new FileTransferRequestMessage(fileName, fileSize, System.currentTimeMillis(), "hash",
+                65536, "NONE");
+        transferManager.handleFileTransferRequest(req, remoteAddress, contentStore).join();
+
+        // Prepare chunk with INVALID checksum
+        byte[] data = "Corrupted Data".getBytes(StandardCharsets.UTF_8);
+        String invalidChecksum = "0000000000000000000000000000000000000000000000000000000000000000";
+
+        ChunkDataMessage chunkMsg = new ChunkDataMessage(fileName, 0, data.length, fileSize, invalidChecksum, data);
+
+        // Handle chunk - should NOT throw exception but mark transfer as failed or log
+        // error
+        // The handleChunkData returns a Void future that completes even on error
+        // (internally verifying checksum)
+        // Ideally we should check if the transfer status is updated to FAILED or if
+        // error callback is invoked
+
+        // For this test, since we don't have easy access to internal state or listeners
+        // in this unit test setup
+        // without mocking listeners (which we haven't), we will verify that
+        // contentStore.storeChunk was NOT called
+        // because checksum verification happens BEFORE storage.
+
+        transferManager.handleChunkData(chunkMsg, remoteAddress, contentStore).join();
+
+        verify(contentStore, times(0)).storeChunk(any());
+    }
 }

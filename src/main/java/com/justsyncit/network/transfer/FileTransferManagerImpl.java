@@ -623,8 +623,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
             byte[] encodedhash = digest.digest(data);
             return bytesToHex(encodedhash);
         } catch (NoSuchAlgorithmException e) {
-            logger.error("SHA-256 algorithm not found, falling back to weak hash", e);
-            return Integer.toHexString(java.util.Arrays.hashCode(data));
+            // CRITICAL: Do not fall back to weak hash. Fail securely.
+            logger.error("SHA-256 algorithm not found - cannot verify data integrity", e);
+            throw new RuntimeException("Secure hashing algorithm not available", e);
         }
     }
 

@@ -34,7 +34,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.stream.Stream;
 
 /**
@@ -42,7 +43,7 @@ import java.util.stream.Stream;
  */
 public final class FileBrowserController {
 
-    private static final Logger LOGGER = Logger.getLogger(FileBrowserController.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(FileBrowserController.class);
     private static final int MAX_RESULTS = 1000;
 
     private static final java.util.Set<String> FORBIDDEN_NAMES = java.util.Set.of(
@@ -108,7 +109,7 @@ public final class FileBrowserController {
                         entries.add(fileEntry);
                     } catch (IOException e) {
                         // Skip files we can't read
-                        LOGGER.fine("Cannot read file attributes: " + entry);
+                        LOGGER.debug("Cannot read file attributes: {}", entry);
                     }
                 }
             }
@@ -127,7 +128,7 @@ public final class FileBrowserController {
             ctx.json(response);
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to browse directory: " + e.getMessage());
+            LOGGER.error("Failed to browse directory", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -193,7 +194,7 @@ public final class FileBrowserController {
                     "count", results.size()));
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to search files: " + e.getMessage());
+            LOGGER.error("Failed to search files", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -210,7 +211,7 @@ public final class FileBrowserController {
         // Block sensitive directories
         for (Path part : path) {
             if (FORBIDDEN_NAMES.contains(part.toString())) {
-                LOGGER.warning("Access denied to sensitive path: " + path);
+                LOGGER.warn("Access denied to sensitive path: {}", path);
                 return false;
             }
         }
