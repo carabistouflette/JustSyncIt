@@ -68,13 +68,16 @@ public class TcpClient {
 
     /** Selector for non-blocking I/O operations. */
     private Selector selector;
+    /** The network configuration. */
+    private final com.justsyncit.network.NetworkConfiguration configuration;
+
     /** Main client thread. */
     private Thread clientThread;
 
     /**
      * Creates a new TCP client.
      */
-    public TcpClient() {
+    public TcpClient(com.justsyncit.network.NetworkConfiguration configuration) {
         this.listeners = new CopyOnWriteArrayList<>();
         this.connections = new ConcurrentHashMap<>();
         this.pendingConnections = new ConcurrentHashMap<>();
@@ -89,6 +92,11 @@ public class TcpClient {
             return t;
         });
         this.running = new AtomicBoolean(false);
+        this.configuration = configuration != null ? configuration : new com.justsyncit.network.NetworkConfiguration();
+    }
+
+    public TcpClient() {
+        this(new com.justsyncit.network.NetworkConfiguration());
     }
 
     /**
@@ -138,14 +146,13 @@ public class TcpClient {
         // Create socket channel
         SocketChannel socketChannel = SocketChannel.open();
         socketChannel.configureBlocking(false);
-        socketChannel.socket().setTcpNoDelay(true);
-        socketChannel.socket().setKeepAlive(true);
+        socketChannel.socket().setTcpNoDelay(configuration.isTcpNoDelay());
+        socketChannel.socket().setKeepAlive(configuration.isKeepAlive());
+        socketChannel.socket().setReuseAddress(configuration.isReuseAddress());
 
         // Apply socket buffer tuning
-        socketChannel.socket().setSendBufferSize(
-                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_SEND_BUFFER_SIZE);
-        socketChannel.socket().setReceiveBufferSize(
-                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_RECEIVE_BUFFER_SIZE);
+        socketChannel.socket().setSendBufferSize(configuration.getSendBufferSize());
+        socketChannel.socket().setReceiveBufferSize(configuration.getReceiveBufferSize());
 
         // Store the connection future (already checked with putIfAbsent in connect
         // method)

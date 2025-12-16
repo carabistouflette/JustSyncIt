@@ -20,6 +20,7 @@ package com.justsyncit.network.server;
 
 import com.justsyncit.ServiceException;
 import com.justsyncit.network.protocol.ProtocolMessage;
+import com.justsyncit.network.NetworkConfiguration;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -63,8 +64,6 @@ public class TcpServer {
     private final ExecutorService executorService;
     /** The running flag. */
     private final AtomicBoolean running;
-    /** The accepting flag. */
-    private final AtomicBoolean accepting;
 
     /** The server socket channel. */
     private ServerSocketChannel serverChannel;
@@ -75,11 +74,13 @@ public class TcpServer {
 
     /** The server thread. */
     private Thread serverThread;
+    /** The network configuration. */
+    private final NetworkConfiguration configuration;
 
     /**
      * Creates a new TCP server.
      */
-    public TcpServer(com.justsyncit.scanner.AsyncByteBufferPool bufferPool) {
+    public TcpServer(com.justsyncit.scanner.AsyncByteBufferPool bufferPool, NetworkConfiguration configuration) {
         this.listeners = new CopyOnWriteArrayList<>();
         this.clients = new ConcurrentHashMap<>();
         this.executorService = Executors.newCachedThreadPool(r -> {
@@ -88,12 +89,17 @@ public class TcpServer {
             return t;
         });
         this.running = new AtomicBoolean(false);
-        this.accepting = new AtomicBoolean(false);
+
         this.bufferPool = bufferPool;
+        this.configuration = configuration != null ? configuration : new NetworkConfiguration();
+    }
+
+    public TcpServer(NetworkConfiguration configuration) {
+        this(null, configuration);
     }
 
     public TcpServer() {
-        this(null);
+        this(null, new NetworkConfiguration());
     }
 
     /**
@@ -141,11 +147,10 @@ public class TcpServer {
         // Create server socket channel
         serverChannel = ServerSocketChannel.open();
         serverChannel.configureBlocking(false);
-        serverChannel.socket().setReuseAddress(true);
+        serverChannel.socket().setReuseAddress(configuration.isReuseAddress());
 
         // Apply socket buffer tuning
-        serverChannel.socket().setReceiveBufferSize(
-                com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_RECEIVE_BUFFER_SIZE);
+        serverChannel.socket().setReceiveBufferSize(configuration.getReceiveBufferSize());
 
         // Bind to port
         serverChannel.bind(new InetSocketAddress(port));
@@ -228,14 +233,12 @@ public class TcpServer {
         if (clientChannel != null) {
             // Configure client channel
             clientChannel.configureBlocking(false);
-            clientChannel.socket().setTcpNoDelay(true);
-            clientChannel.socket().setKeepAlive(true);
+            clientChannel.socket().setTcpNoDelay(configuration.isTcpNoDelay());
+            clientChannel.socket().setKeepAlive(configuration.isKeepAlive());
 
             // Apply socket buffer tuning
-            clientChannel.socket().setSendBufferSize(
-                    com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_SEND_BUFFER_SIZE);
-            clientChannel.socket().setReceiveBufferSize(
-                    com.justsyncit.network.protocol.ProtocolConstants.DEFAULT_RECEIVE_BUFFER_SIZE);
+            clientChannel.socket().setSendBufferSize(configuration.getSendBufferSize());
+            clientChannel.socket().setReceiveBufferSize(configuration.getReceiveBufferSize());
 
             // Register for read operations
             clientChannel.register(selector, SelectionKey.OP_READ);
