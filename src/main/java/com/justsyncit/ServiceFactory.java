@@ -236,11 +236,7 @@ public class ServiceFactory {
     public com.justsyncit.restore.RestoreService createRestoreService(ContentStore contentStore,
             MetadataService metadataService,
             Blake3Service blake3Service) throws ServiceException {
-        try {
-            return new com.justsyncit.restore.RestoreService(contentStore, metadataService, blake3Service);
-        } catch (Exception e) { // RestoreService constructor might throw generic Exception based on source
-            throw new ServiceException("Failed to create restore service", e);
-        }
+        return new com.justsyncit.restore.RestoreService(contentStore, metadataService, blake3Service);
     }
 
     /**

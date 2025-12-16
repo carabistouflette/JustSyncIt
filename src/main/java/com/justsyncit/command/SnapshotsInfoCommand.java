@@ -18,13 +18,13 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.Snapshot;
 
+import org.slf4j.Logger;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.time.ZoneId;
@@ -50,6 +50,7 @@ public class SnapshotsInfoCommand implements Command {
     private static final int TABLE_WIDTH = 100;
     private static final int ELLIPSIS_LENGTH = 3;
 
+    private static final Logger logger = org.slf4j.LoggerFactory.getLogger(SnapshotsInfoCommand.class);
     private final MetadataService metadataService;
     private final ServiceFactory serviceFactory;
 
@@ -88,6 +89,7 @@ public class SnapshotsInfoCommand implements Command {
 
         // Check for subcommand and snapshot ID
         if (args.length < 2 || !args[0].equals("info")) {
+            logger.error("Missing subcommand 'info' or snapshot ID. Args: {}", java.util.Arrays.toString(args));
             System.err.println("Error: Missing subcommand 'info' or snapshot ID");
             System.err.println(getUsage());
             System.err.println("Use 'help snapshots info' for more information");
@@ -100,6 +102,7 @@ public class SnapshotsInfoCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
+            logger.error("Invalid arguments provided: {}", e.getMessage());
             System.err.println(e.getMessage());
             return false;
         }
@@ -117,6 +120,7 @@ public class SnapshotsInfoCommand implements Command {
                     localService = serviceFactory.createMetadataService();
                     service = localService;
                 } catch (ServiceException e) {
+                    logger.error("Failed to initialize metadata service", e);
                     System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
                     return false;
                 }
@@ -125,6 +129,7 @@ public class SnapshotsInfoCommand implements Command {
             return displaySnapshotInfo(service, snapshotId, options);
 
         } catch (IOException e) {
+            logger.error("Failed to get snapshot information for ID: {}", snapshotId, e);
             System.err.println("Error: Failed to get snapshot information: " + e.getMessage());
             return false;
         } finally {
