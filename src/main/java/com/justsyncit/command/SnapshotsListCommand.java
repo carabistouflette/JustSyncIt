@@ -78,20 +78,16 @@ public class SnapshotsListCommand implements Command {
             return true;
         }
 
-        // Check for subcommand
-        if (args.length == 0 || !args[0].equals("list")) {
-            System.err.println("Error: Missing subcommand 'list'");
-            System.err.println(getUsage());
-            System.err.println("Use 'help snapshots list' for more information");
-            return false;
-        }
+        // Check for subcommand - when called from SnapshotsCommandGroup, 'list' is
+        // already parsed
+        // so we don't need to check args[0] again. Just proceed with option parsing.
 
         // Parse options
         boolean verbose = false;
         boolean sortBySize = false;
         boolean sortByDate = true; // Default sort by date
 
-        for (int i = 1; i < args.length; i++) {
+        for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
                 case "--verbose":

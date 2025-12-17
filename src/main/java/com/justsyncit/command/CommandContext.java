@@ -42,6 +42,9 @@ public class CommandContext {
     /** Content store instance (optional). */
     private final ContentStore contentStore;
 
+    /** Restore service instance (optional). */
+    private final com.justsyncit.restore.RestoreService restoreService;
+
     /**
      * Creates a new CommandContext with the provided services.
      * Use the Builder for more flexible construction.
@@ -50,7 +53,7 @@ public class CommandContext {
      * @throws IllegalArgumentException if blake3Service is null
      */
     public CommandContext(Blake3Service blake3Service) {
-        this(blake3Service, null, null, null);
+        this(blake3Service, null, null, null, null);
     }
 
     /**
@@ -60,10 +63,12 @@ public class CommandContext {
      * @param networkService  the network service (optional, may be null)
      * @param metadataService the metadata service (optional, may be null)
      * @param contentStore    the content store (optional, may be null)
+     * @param restoreService  the restore service (optional, may be null)
      * @throws IllegalArgumentException if blake3Service is null
      */
     public CommandContext(Blake3Service blake3Service, NetworkService networkService,
-            MetadataService metadataService, ContentStore contentStore) {
+            MetadataService metadataService, ContentStore contentStore,
+            com.justsyncit.restore.RestoreService restoreService) {
         if (blake3Service == null) {
             throw new IllegalArgumentException("blake3Service cannot be null");
         }
@@ -71,6 +76,13 @@ public class CommandContext {
         this.networkService = networkService;
         this.metadataService = metadataService;
         this.contentStore = contentStore;
+        this.restoreService = restoreService;
+    }
+
+    // Backward compatible constructor
+    public CommandContext(Blake3Service blake3Service, NetworkService networkService,
+            MetadataService metadataService, ContentStore contentStore) {
+        this(blake3Service, networkService, metadataService, contentStore, null);
     }
 
     /**
@@ -79,7 +91,8 @@ public class CommandContext {
      * @param builder the builder
      */
     private CommandContext(Builder builder) {
-        this(builder.blake3Service, builder.networkService, builder.metadataService, builder.contentStore);
+        this(builder.blake3Service, builder.networkService, builder.metadataService, builder.contentStore,
+                builder.restoreService);
     }
 
     /**
@@ -119,6 +132,15 @@ public class CommandContext {
     }
 
     /**
+     * Gets the restore service.
+     *
+     * @return the restore service (may be null)
+     */
+    public com.justsyncit.restore.RestoreService getRestoreService() {
+        return restoreService;
+    }
+
+    /**
      * Creates a new builder for CommandContext.
      *
      * @param blake3Service the BLAKE3 service (required)
@@ -138,6 +160,7 @@ public class CommandContext {
         private NetworkService networkService;
         private MetadataService metadataService;
         private ContentStore contentStore;
+        private com.justsyncit.restore.RestoreService restoreService;
 
         /**
          * Creates a new builder with the required BLAKE3 service.
@@ -184,6 +207,17 @@ public class CommandContext {
          */
         public Builder contentStore(ContentStore contentStore) {
             this.contentStore = contentStore;
+            return this;
+        }
+
+        /**
+         * Sets the restore service.
+         *
+         * @param restoreService the restore service
+         * @return this builder
+         */
+        public Builder restoreService(com.justsyncit.restore.RestoreService restoreService) {
+            this.restoreService = restoreService;
             return this;
         }
 
