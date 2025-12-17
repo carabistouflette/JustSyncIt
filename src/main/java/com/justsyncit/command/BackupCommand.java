@@ -251,6 +251,24 @@ public class BackupCommand implements Command {
                         throw new IllegalArgumentException("Error: --transport requires a value (TCP|QUIC)");
                     }
                     break;
+                case "--name":
+                case "-n":
+                    if (i + 1 < args.length) {
+                        optionsBuilder.snapshotName(args[i + 1]);
+                        i++;
+                    } else {
+                        throw new IllegalArgumentException("Error: --name requires a value");
+                    }
+                    break;
+                case "--description":
+                case "-d":
+                    if (i + 1 < args.length) {
+                        optionsBuilder.description(args[i + 1]);
+                        i++;
+                    } else {
+                        throw new IllegalArgumentException("Error: --description requires a value");
+                    }
+                    break;
                 case "--help":
                     displayHelp();
                     return null; // Signal to stop parsing and exit

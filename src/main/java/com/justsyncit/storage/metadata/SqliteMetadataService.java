@@ -15,7 +15,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 package com.justsyncit.storage.metadata;
 
 import com.justsyncit.metadata.BlindIndexSearch;
@@ -24,8 +23,17 @@ import com.justsyncit.network.encryption.EncryptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.justsyncit.storage.snapshot.MerkleNode;
+import com.justsyncit.storage.snapshot.MerkleNode.Type;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -54,11 +62,13 @@ public final class SqliteMetadataService implements MetadataService {
     /** Database connection manager. */
     private final DatabaseConnectionManager connectionManager;
     /** Schema migrator for database management. */
-    private final SchemaMigrator schemaMigrator;
+
     /** Encryption service (optional). */
     private final EncryptionService encryptionService;
     /** Blind index search utility (optional). */
     private final BlindIndexSearch blindIndexSearch;
+    /** Object mapper for JSON serialization. */
+    private final ObjectMapper objectMapper;
     /** Key supplier (optional). */
     private final Supplier<byte[]> keySupplier;
 
@@ -88,9 +98,10 @@ public final class SqliteMetadataService implements MetadataService {
         }
 
         this.connectionManager = connectionManager;
-        this.schemaMigrator = schemaMigrator;
+
         this.encryptionService = encryptionService;
         this.blindIndexSearch = blindIndexSearch;
+        this.objectMapper = new ObjectMapper(); // Initialize ObjectMapper
         this.keySupplier = keySupplier;
         this.closed = false;
 
@@ -213,7 +224,7 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
         }
 
-        String sql = "SELECT id, name, created_at, description, total_files, total_size "
+        String sql = "SELECT id, name, created_at, description, total_files, total_size, merkle_root "
                 + "FROM snapshots WHERE id = ?";
 
         try (Connection connection = connectionManager.getConnection();
@@ -240,7 +251,7 @@ public final class SqliteMetadataService implements MetadataService {
     public List<Snapshot> listSnapshots() throws IOException {
         validateNotClosed();
 
-        String sql = "SELECT id, name, created_at, description, total_files, total_size "
+        String sql = "SELECT id, name, created_at, description, total_files, total_size, merkle_root "
                 + "FROM snapshots ORDER BY created_at DESC";
 
         try (Connection connection = connectionManager.getConnection();
@@ -875,6 +886,373 @@ public final class SqliteMetadataService implements MetadataService {
         }
     }
 
+    // Merkle Tree operations
+
+    private static class StoredMerkleChild {
+        public String hash;
+        public String type;
+        public String name;
+        public long size;
+        public String fileId;
+
+        public StoredMerkleChild(MerkleNode node) {
+            this.hash = node.getHash();
+            this.type = node.getType().name();
+            this.name = node.getName();
+            this.size = node.getSize();
+            this.fileId = node.getFileId();
+        }
+    }
+
+    @Override
+    public void upsertMerkleNode(MerkleNode node) throws IOException {
+        String sql = "INSERT OR REPLACE INTO merkle_nodes (hash, type, name, size, children, file_id, compression) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setString(1, node.getHash());
+            stmt.setString(2, node.getType().name());
+            stmt.setString(3, node.getName());
+            stmt.setLong(4, node.getSize());
+
+            String childrenData = null;
+            String compression = "NONE";
+
+            if (node.getType() == Type.DIRECTORY && node.getChildren() != null) {
+                List<StoredMerkleChild> storedChildren = new ArrayList<>();
+                for (MerkleNode child : node.getChildren()) {
+                    storedChildren.add(new StoredMerkleChild(child));
+                }
+                String json = objectMapper.writeValueAsString(storedChildren);
+
+                // Compress if larger than threshold (e.g., 100 bytes)
+                if (json.length() > 100) {
+                    childrenData = compress(json);
+                    compression = "GZIP";
+                } else {
+                    childrenData = json;
+                }
+            }
+            stmt.setString(5, childrenData);
+            stmt.setString(6, node.getFileId());
+            stmt.setString(7, compression);
+
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            throw new IOException("Failed to upsert Merkle node: " + node.getHash(), e);
+        }
+    }
+
+    @Override
+    public Optional<MerkleNode> getMerkleNode(String hash) throws IOException {
+        // Query both 'children' and 'compression' columns
+        // NOTE: Older schema versions/rows might have NULL compression. We treat NULL
+        // as "NONE".
+        String sql = "SELECT hash, type, name, size, children, file_id, compression FROM merkle_nodes WHERE hash = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setString(1, hash);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String typeStr = rs.getString("type");
+                    Type type = Type.valueOf(typeStr);
+                    String name = rs.getString("name");
+                    long size = rs.getLong("size");
+                    String childrenData = rs.getString("children");
+                    String fileId = rs.getString("file_id");
+                    String compression = rs.getString("compression");
+
+                    List<MerkleNode> children = null;
+                    if (childrenData != null && !childrenData.isEmpty()) {
+                        String json;
+                        if ("GZIP".equals(compression)) {
+                            json = decompress(childrenData);
+                        } else {
+                            json = childrenData;
+                        }
+
+                        List<StoredMerkleChild> storedChildren = objectMapper.readValue(
+                                json,
+                                new TypeReference<List<StoredMerkleChild>>() {
+                                });
+                        children = new ArrayList<>();
+                        for (StoredMerkleChild child : storedChildren) {
+                            children.add(new MerkleNode(
+                                    child.hash,
+                                    Type.valueOf(child.type),
+                                    child.name,
+                                    child.size,
+                                    null, // Lazy loaded children
+                                    child.fileId));
+                        }
+                    }
+
+                    return Optional.of(new MerkleNode(hash, type, name, size, children, fileId));
+                }
+                return Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get Merkle node: " + hash, e);
+        }
+    }
+
+    @Override
+    public void setSnapshotRoot(String snapshotId, String rootHash) throws IOException {
+        String sql = "UPDATE snapshots SET merkle_root = ? WHERE id = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setString(1, rootHash);
+            stmt.setString(2, snapshotId);
+
+            int rows = stmt.executeUpdate();
+            if (rows == 0) {
+                throw new IOException("Snapshot not found: " + snapshotId);
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to set snapshot root for: " + snapshotId, e);
+        }
+    }
+
+    @Override
+    public Optional<String> getSnapshotRoot(String snapshotId) throws IOException {
+        String sql = "SELECT merkle_root FROM snapshots WHERE id = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setString(1, snapshotId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String rootHash = rs.getString("merkle_root");
+                    return Optional.ofNullable(rootHash);
+                }
+                return Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get snapshot root for: " + snapshotId, e);
+        }
+    }
+
+    @Override
+    public void copyUnchangedFiles(String sourceSnapshotId, String targetSnapshotId, List<String> changedPaths)
+            throws IOException {
+        validateNotClosed();
+        if (sourceSnapshotId == null || targetSnapshotId == null) {
+            throw new IllegalArgumentException("Snapshot IDs cannot be null");
+        }
+
+        // We can use a temporary table or a WHERE NOT IN clause.
+        // For distinct paths, NOT IN is good but strict limit on params (SQLite limit
+        // ~999).
+        // If changedPaths is large, we should batch or use temp table.
+        // Given incremental backup, changed paths might be small or large.
+        // Safest is to treat "changedPaths" as exclusions.
+
+        // If changedPaths is empty, copy all.
+        // If changedPaths is small, use NOT IN.
+        // If large, create temp table.
+
+        // Optimisation: "INSERT INTO files ... SELECT ... FROM files WHERE snapshot_id
+        // = ? AND path NOT IN (...)"
+
+        // Note: We need to handle IDs. New files need new unique IDs.
+        // Generating UUIDs in SQLite is not standard.
+        // We can append a suffix or use hex(randomblob(16)).
+
+        // Actually, just copying the ID might violate PK if ID is global unique?
+        // files table: id TEXT PRIMARY KEY.
+        // So we MUST generate new IDs.
+        // SQLite: lower(hex(randomblob(16))) produces random UUID-like strings.
+
+        try (Connection connection = connectionManager.getConnection()) {
+            boolean originalAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+
+            try {
+                // If we have changed paths, we can construct the query dynamically or use a
+                // temp table.
+                if (changedPaths != null && !changedPaths.isEmpty()) {
+                    try (Statement stmt = connection.createStatement()) {
+                        stmt.execute("CREATE TEMPORARY TABLE IF NOT EXISTS excluded_paths (path TEXT PRIMARY KEY)");
+                        stmt.execute("DELETE FROM excluded_paths");
+                    }
+
+                    String insertExcluded = "INSERT INTO excluded_paths (path) VALUES (?)";
+                    try (PreparedStatement stmt = connection.prepareStatement(insertExcluded)) {
+                        int batchCount = 0;
+                        for (String path : changedPaths) {
+                            stmt.setString(1, path);
+                            stmt.addBatch();
+                            batchCount++;
+                            if (batchCount >= 500) {
+                                stmt.executeBatch();
+                                batchCount = 0;
+                            }
+                        }
+                        if (batchCount > 0)
+                            stmt.executeBatch();
+                    }
+                }
+
+                // Prepare INSERT statement
+                // Generate new IDs using randomblob and hex
+                // Note: We copy encryption_mode, etc.
+                // We MUST perform this copy for: files, and also file_chunks?
+                // Yes, file_chunks need to be copied for the new file IDs.
+                // This is complex in SQL because we need the mapping from old_file_id to
+                // new_file_id.
+                // Doing this purely in SQL is hard if we generate IDs on the fly.
+
+                // ALTERNATIVE:
+                // Generate IDs in Java? Too slow for 100k.
+                //
+                // Better approach:
+                // Use a mapping table for the copy:
+                // CREATE TEMP TABLE file_copy_map (old_id TEXT, new_id TEXT);
+                // INSERT INTO file_copy_map SELECT id, lower(hex(randomblob(16))) FROM files
+                // WHERE snapshot_id = OLD AND path NOT IN excluded.
+                // INSERT INTO files ... SELECT new_id, NEW_SNAP ... FROM files JOIN
+                // file_copy_map ON ...
+                // INSERT INTO file_chunks ... SELECT ... FROM file_chunks JOIN file_copy_map
+                // ...
+
+                // Let's implement this mapping approach.
+
+                try (Statement stmt = connection.createStatement()) {
+                    stmt.execute(
+                            "CREATE TEMPORARY TABLE IF NOT EXISTS file_copy_map (old_id TEXT PRIMARY KEY, new_id TEXT)");
+                    stmt.execute("DELETE FROM file_copy_map"); // Clear previous runs
+
+                    String mappingSql = "INSERT INTO file_copy_map (old_id, new_id) " +
+                            "SELECT id, lower(hex(randomblob(16))) FROM files " +
+                            "WHERE snapshot_id = '" + sourceSnapshotId + "' " +
+                            (changedPaths != null && !changedPaths.isEmpty()
+                                    ? "AND path NOT IN (SELECT path FROM excluded_paths)"
+                                    : "");
+
+                    stmt.execute(mappingSql);
+
+                    // Copy files
+                    String copyFilesSql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash, encryption_mode) "
+                            +
+                            "SELECT m.new_id, ?, f.path, f.size, f.modified_time, f.file_hash, f.encryption_mode " +
+                            "FROM files f JOIN file_copy_map m ON f.id = m.old_id";
+
+                    try (PreparedStatement ps = connection.prepareStatement(copyFilesSql)) {
+                        ps.setString(1, targetSnapshotId);
+                        ps.executeUpdate();
+                    }
+
+                    // Copy file chunks
+                    String copyChunksSql = "INSERT INTO file_chunks (file_id, chunk_hash, chunk_order, chunk_size) " +
+                            "SELECT m.new_id, fc.chunk_hash, fc.chunk_order, fc.chunk_size " +
+                            "FROM file_chunks fc JOIN file_copy_map m ON fc.file_id = m.old_id";
+
+                    stmt.execute(copyChunksSql);
+
+                    // Copy file keywords if needed
+                    String copyKeywordsSql = "INSERT INTO file_keywords (file_id, keyword_hash) " +
+                            "SELECT m.new_id, fk.keyword_hash " +
+                            "FROM file_keywords fk JOIN file_copy_map m ON fk.file_id = m.old_id";
+
+                    stmt.execute(copyKeywordsSql);
+
+                    // Clean up
+                    stmt.execute("DROP TABLE IF EXISTS file_copy_map");
+                    if (changedPaths != null && !changedPaths.isEmpty()) {
+                        stmt.execute("DROP TABLE IF EXISTS excluded_paths");
+                    }
+                }
+
+                connection.commit();
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(originalAutoCommit);
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to copy unchanged files", e);
+        }
+    }
+
+    @Override
+    public List<com.justsyncit.storage.snapshot.MerkleTreeDiffer.DiffEntry> compareSnapshots(String snapshotId1,
+            String snapshotId2) throws IOException {
+        String rootHash1 = getSnapshotRoot(snapshotId1).orElse(null);
+        String rootHash2 = getSnapshotRoot(snapshotId2).orElse(null);
+
+        com.justsyncit.storage.snapshot.MerkleNode root1 = rootHash1 != null ? getMerkleNode(rootHash1).orElse(null)
+                : null;
+        com.justsyncit.storage.snapshot.MerkleNode root2 = rootHash2 != null ? getMerkleNode(rootHash2).orElse(null)
+                : null;
+
+        com.justsyncit.storage.snapshot.MerkleTreeDiffer differ = new com.justsyncit.storage.snapshot.MerkleTreeDiffer();
+        return differ.diff(root1, root2);
+    }
+
+    @Override
+    public boolean validateSnapshotChain(String snapshotId) throws IOException {
+        Optional<Snapshot> snapshotOpt = getSnapshot(snapshotId);
+        if (snapshotOpt.isEmpty()) {
+            return false;
+        }
+        // Snapshot object doesn't have parentId, so we query it via SQL
+        // Snapshot snapshot = snapshotOpt.get(); // Not needed if we query parent
+        // separately
+
+        // 1. Check Merkle Root
+        Optional<String> rootHashOpt = getSnapshotRoot(snapshotId);
+        if (rootHashOpt.isEmpty()) {
+            // It's possible old snapshots don't have merkle roots if created before this
+            // feature?
+            // But going forward required. Let's assume invalid if missing for now, or warn?
+            // Sticking to strict validation: invalid.
+            return false;
+        }
+        String rootHash = rootHashOpt.get();
+        if (getMerkleNode(rootHash).isEmpty()) {
+            return false; // Root hash stored but node not found
+        }
+
+        // 2. Check Parent
+        String parentId = getParentSnapshotId(snapshotId);
+        if (parentId != null) {
+            // Verify parent exists
+            if (getSnapshot(parentId).isEmpty()) {
+                return false;
+            }
+            // Recursive validation
+            return validateSnapshotChain(parentId);
+        }
+
+        return true;
+    }
+
+    private String getParentSnapshotId(String snapshotId) throws IOException {
+        String sql = "SELECT parent_id FROM snapshots WHERE id = ?";
+        try (java.sql.Connection conn = connectionManager.getConnection();
+                java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, snapshotId);
+            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("parent_id");
+                }
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get parent snapshot ID", e);
+        }
+        return null;
+    }
+
     @Override
     public List<FileMetadata> searchFiles(String query) throws IOException {
         validateNotClosed();
@@ -1263,6 +1641,39 @@ public final class SqliteMetadataService implements MetadataService {
     private void validateNotClosed() throws IOException {
         if (closed) {
             throw new IOException("Metadata service has been closed");
+        }
+    }
+
+    /**
+     * Compresses a string using GZIP and encoding to Base64.
+     */
+    private String compress(String str) throws IOException {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(out)) {
+            gzip.write(str.getBytes(StandardCharsets.UTF_8));
+        }
+        return Base64.getEncoder().encodeToString(out.toByteArray());
+    }
+
+    /**
+     * Decompresses a Base64 encoded GZIP string.
+     */
+    private String decompress(String str) throws IOException {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        byte[] bytes = Base64.getDecoder().decode(str);
+        try (GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(bytes));
+                ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = gis.read(buffer)) > 0) {
+                out.write(buffer, 0, len);
+            }
+            return out.toString(StandardCharsets.UTF_8);
         }
     }
 }

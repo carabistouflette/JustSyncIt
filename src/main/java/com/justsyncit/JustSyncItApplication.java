@@ -230,7 +230,26 @@ public class JustSyncItApplication {
     private void processCommands(String[] args) {
         logger.info("Running with {} arguments", args.length);
 
-        CommandContext context = new CommandContext(blake3Service);
+        // Create a fully populated CommandContext with all services
+        CommandContext context;
+        try {
+            ServiceFactory serviceFactory = new ServiceFactory();
+            com.justsyncit.storage.metadata.MetadataService metadataService = serviceFactory.createMetadataService();
+            com.justsyncit.storage.ContentStore contentStore = serviceFactory.createContentStore(blake3Service);
+            com.justsyncit.restore.RestoreService restoreService = serviceFactory.createRestoreService(
+                    contentStore, metadataService, blake3Service);
+
+            context = CommandContext.builder(blake3Service)
+                    .metadataService(metadataService)
+                    .contentStore(contentStore)
+                    .restoreService(restoreService)
+                    .build();
+        } catch (Exception e) {
+            logger.error("Failed to initialize services for command context", e);
+            // Fall back to minimal context
+            context = new CommandContext(blake3Service);
+        }
+
         boolean commandExecuted = false;
 
         for (int i = 0; i < args.length; i++) {
@@ -302,9 +321,11 @@ public class JustSyncItApplication {
             case "--verify":
                 return 2; // file path and hash
             case "backup":
-                return 1; // source directory (minimum)
+                return Integer.MAX_VALUE; // source directory and options
             case "restore":
                 return 2; // snapshot ID and target directory (minimum)
+            case "diff":
+                return 2; // snapshotId1 and optional snapshotId2
             case "web":
             case "snapshots":
             case "server":

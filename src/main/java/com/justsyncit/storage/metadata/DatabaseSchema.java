@@ -25,7 +25,7 @@ package com.justsyncit.storage.metadata;
 public final class DatabaseSchema {
 
         /** Current version of the database schema. */
-        public static final int SCHEMA_VERSION = 4;
+        public static final int SCHEMA_VERSION = 6;
 
         /** Private constructor to prevent instantiation. */
         private DatabaseSchema() {
@@ -45,8 +45,12 @@ public final class DatabaseSchema {
                                                 + "name TEXT NOT NULL UNIQUE,"
                                                 + "created_at INTEGER NOT NULL,"
                                                 + "description TEXT,"
+                                                + "active INTEGER DEFAULT 1," // Added active for completeness if
+                                                                              // needed, but sticking to existing + new
+                                                                              // columns
                                                 + "total_files INTEGER DEFAULT 0,"
-                                                + "total_size INTEGER DEFAULT 0"
+                                                + "total_size INTEGER DEFAULT 0,"
+                                                + "merkle_root TEXT"
                                                 + ")",
 
                                 // Files table - represents files in snapshots
@@ -124,7 +128,19 @@ public final class DatabaseSchema {
                                 "CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN "
                                                 + "  UPDATE files_search SET path = new.path "
                                                 + "  WHERE file_id = old.id; "
-                                                + "END"
+                                                + "END",
+
+                                // Merkle Nodes table (Version 5)
+                                "CREATE TABLE IF NOT EXISTS merkle_nodes ("
+                                                + "hash TEXT PRIMARY KEY,"
+                                                + "type TEXT NOT NULL,"
+                                                + "name TEXT NOT NULL,"
+                                                + "size INTEGER NOT NULL,"
+                                                + "children TEXT,"
+                                                + "file_id TEXT,"
+                                                + "compression TEXT," // Added in v6
+                                                + "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE SET NULL"
+                                                + ")"
                 };
         }
 

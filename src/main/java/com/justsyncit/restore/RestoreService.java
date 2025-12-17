@@ -713,4 +713,134 @@ final public class RestoreService {
             return duration;
         }
     }
+
+    /**
+     * Performs a rollback of specified snapshot to target directory.
+     * Rollback REVERTS the directory to the exact state of the snapshot.
+     * This implies:
+     * 1. Restoring all files from snapshot (overwriting if necessary).
+     * 2. Deleting any local files that are NOT in the snapshot.
+     *
+     * @param snapshotId      ID of snapshot to rollback to
+     * @param targetDirectory directory to rollback
+     * @param options         restore options
+     * @return a CompletableFuture that completes with rollback result
+     */
+    public CompletableFuture<RestoreResult> rollback(String snapshotId, Path targetDirectory, RestoreOptions options) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                long startTime = System.currentTimeMillis();
+                logger.warn("Starting ROLLBACK to snapshot: {} on directory: {}", snapshotId, targetDirectory);
+
+                // Validate inputs
+                if (snapshotId == null || snapshotId.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
+                }
+                if (targetDirectory == null) {
+                    throw new IllegalArgumentException("Target directory cannot be null");
+                }
+
+                RestoreOptions finalOptions = options != null ? options : new RestoreOptions();
+                // Enforce overwrite for rollback to ensure strict state match
+                finalOptions.setOverwriteExisting(true);
+
+                // Get snapshot metadata
+                Snapshot snapshot = getSnapshot(snapshotId);
+
+                // Get expected files from snapshot
+                List<FileMetadata> snapshotFiles = metadataService.getFilesInSnapshot(snapshotId);
+
+                // Determine source root to normalize paths matches
+                // (simulating restore logic to get relative paths)
+                // We use a set of relative paths to identify what should be kept.
+                java.util.Set<Path> keptRelativePaths = new java.util.HashSet<>();
+
+                // We need the same logic as restoreFiles to determine relative paths
+                Path sourceRoot = determineSourceRoot(snapshot);
+
+                for (FileMetadata file : snapshotFiles) {
+                    Path relPath = resolveRelativePath(file.getPath(), sourceRoot);
+                    keptRelativePaths.add(relPath);
+                }
+
+                // 1. Scan and Delete Extraneous Files
+                int filesDeleted = 0;
+                if (Files.exists(targetDirectory)) {
+                    try (java.util.stream.Stream<Path> stream = Files.walk(targetDirectory)) {
+                        List<Path> allPaths = stream
+                                .filter(Files::isRegularFile)
+                                .collect(java.util.stream.Collectors.toList());
+
+                        for (Path existingFile : allPaths) {
+                            Path relative = targetDirectory.relativize(existingFile);
+                            if (!keptRelativePaths.contains(relative)) {
+                                // Extraneous file
+                                if (!finalOptions.isDryRun()) {
+                                    logger.info("Rollback: Deleting extraneous file: {}", existingFile);
+                                    Files.delete(existingFile);
+                                } else {
+                                    logger.info("Rollback (DryRun): Would delete extraneous file: {}", existingFile);
+                                }
+                                filesDeleted++;
+                            }
+                        }
+                    }
+                } else {
+                    Files.createDirectories(targetDirectory);
+                }
+
+                // 2. Restore Files (this handles modified and missing files)
+                // We reuse existing restore logic with overwrite=true
+                RestoreResult restoreResult;
+                if (!finalOptions.isDryRun()) {
+                    restoreResult = restoreFiles(snapshotFiles, targetDirectory, finalOptions, snapshotId,
+                            progressTracker);
+                } else {
+                    // In dry run, we just simulate
+                    restoreResult = RestoreResult.create(0, 0, 0, 0, false, 0);
+                    logger.info("Rollback (DryRun): Would restore {} files", snapshotFiles.size());
+                }
+
+                long endTime = System.currentTimeMillis();
+                long duration = endTime - startTime;
+
+                logger.info("Rollback completed. Deleted {} extraneous files. Restored {} files.",
+                        filesDeleted, restoreResult.getFilesRestored());
+
+                return restoreResult;
+
+            } catch (Exception e) {
+                throw new RestoreException("Rollback failed", e);
+            }
+        });
+    }
+
+    private Path determineSourceRoot(Snapshot snapshot) {
+        String desc = snapshot.getDescription();
+        if (desc != null && desc.startsWith("Processing session for directory: ")) {
+            String pathPart = desc.substring("Processing session for directory: ".length());
+            int separatorIdx = pathPart.indexOf(" | ");
+            if (separatorIdx > 0) {
+                pathPart = pathPart.substring(0, separatorIdx);
+            }
+            return Paths.get(pathPart);
+        }
+        return null;
+    }
+
+    private Path resolveRelativePath(String filePath, Path sourceRoot) {
+        Path originalPath = Paths.get(filePath);
+        if (originalPath.isAbsolute()) {
+            if (sourceRoot != null && originalPath.startsWith(sourceRoot)) {
+                return sourceRoot.relativize(originalPath);
+            } else {
+                Path root = originalPath.getRoot();
+                if (root != null) {
+                    return root.relativize(originalPath);
+                }
+            }
+        }
+        return originalPath;
+    }
+
 }

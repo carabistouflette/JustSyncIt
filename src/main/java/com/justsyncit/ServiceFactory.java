@@ -172,6 +172,16 @@ public class ServiceFactory {
         registry.register(new HashCommand(blake3Service));
         registry.register(new VerifyCommand()); // Uses CommandContext for injection
         registry.register(new com.justsyncit.command.DedupStatsCommand());
+        try {
+            registry.register(new com.justsyncit.command.DiffCommand(createMetadataService()));
+        } catch (ServiceException e) {
+            // Log error but allow startup? Or throw?
+            // Since this is factory, we should probably just throw if metadata service
+            // fails.
+            // But createCommandRegistry signature doesn't throw.
+            // Let's create metadata service outside or wrap exception.
+            throw new RuntimeException("Failed to create metadata service for DiffCommand", e);
+        }
 
         return registry;
     }
@@ -267,7 +277,8 @@ public class ServiceFactory {
             com.justsyncit.scanner.FilesystemScanner scanner = new com.justsyncit.scanner.NioFilesystemScanner();
             com.justsyncit.scanner.FileChunker chunker = com.justsyncit.scanner.FixedSizeFileChunker
                     .create(blake3Service);
-            return new com.justsyncit.backup.BackupService(contentStore, metadataService, scanner, chunker);
+            return new com.justsyncit.backup.BackupService(contentStore, metadataService, scanner, chunker, null,
+                    blake3Service);
         } catch (HashingException e) {
             throw new ServiceException("Failed to create backup service", e);
         }
@@ -440,7 +451,8 @@ public class ServiceFactory {
             com.justsyncit.scanner.AsyncFileChunker asyncChunker = com.justsyncit.scanner.AsyncFileChunkerImpl
                     .create(blake3Service);
 
-            return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner, asyncChunker);
+            return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner, asyncChunker,
+                    null, blake3Service);
         } catch (HashingException e) {
             throw new ServiceException("Failed to create async backup service", e);
         }
@@ -475,7 +487,7 @@ public class ServiceFactory {
                     delegateChunker, batchProcessor, batchConfig);
 
             return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner,
-                    batchAsyncChunker);
+                    batchAsyncChunker, null, blake3Service);
         } catch (HashingException e) {
             throw new ServiceException("Failed to create batch async backup service", e);
         }

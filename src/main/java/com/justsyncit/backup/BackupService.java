@@ -24,11 +24,19 @@ import com.justsyncit.scanner.FileProcessor;
 import com.justsyncit.scanner.FilesystemScanner;
 import com.justsyncit.scanner.ScanOptions;
 import com.justsyncit.storage.ContentStore;
+import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.storage.metadata.FileMetadata;
 import com.justsyncit.storage.metadata.MetadataService;
+import com.justsyncit.storage.snapshot.MerkleNode;
+import com.justsyncit.storage.snapshot.MerkleTree;
+import com.justsyncit.backup.cbt.ChangedBlockTrackingService;
 
 import java.nio.file.Path;
 import java.time.Instant;
+
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +52,10 @@ public class BackupService {
     private final ContentStore contentStore;
     private final MetadataService metadataService;
     private final FilesystemScanner scanner;
+
     private final FileChunker chunker;
-    private final com.justsyncit.backup.cbt.ChangedBlockTrackingService cbtService;
+    private final ChangedBlockTrackingService cbtService;
+    private final Blake3Service blake3Service;
     private volatile FileProcessor.EventListener eventListener;
 
     /**
@@ -55,23 +65,34 @@ public class BackupService {
      * @param metadataService metadata service for snapshot management
      * @param scanner         filesystem scanner for discovering files
      * @param chunker         file chunker for processing files
-     * @param cbtService      service for changed block tracking (optional, can be
-     *                        null)
+     * @param cbtService      service for changed block tracking (optional)
+     * @param blake3Service   hashing service for Merkle Tree
      */
     public BackupService(ContentStore contentStore, MetadataService metadataService,
             FilesystemScanner scanner, FileChunker chunker,
-            com.justsyncit.backup.cbt.ChangedBlockTrackingService cbtService) {
+            ChangedBlockTrackingService cbtService, Blake3Service blake3Service) {
         this.contentStore = contentStore;
         this.metadataService = metadataService;
         this.scanner = scanner;
         this.chunker = chunker;
         this.cbtService = cbtService;
+        this.blake3Service = blake3Service;
     }
 
-    // Overloaded constructor for backward compatibility
+    // Overloaded constructor for backward compatibility (assumes no CBT, no Blake3
+    // - DEPRECATED or needs fixing)
+    // Actually existing code uses this. We should deprecate or fail if Blake3 not
+    // provided?
+    // But for now, we can overload.
+    public BackupService(ContentStore contentStore, MetadataService metadataService,
+            FilesystemScanner scanner, FileChunker chunker,
+            ChangedBlockTrackingService cbtService) {
+        this(contentStore, metadataService, scanner, chunker, cbtService, null);
+    }
+
     public BackupService(ContentStore contentStore, MetadataService metadataService,
             FilesystemScanner scanner, FileChunker chunker) {
-        this(contentStore, metadataService, scanner, chunker, null);
+        this(contentStore, metadataService, scanner, chunker, null, null);
     }
 
     public void setEventListener(FileProcessor.EventListener eventListener) {
@@ -140,6 +161,26 @@ public class BackupService {
 
                 // Calculate chunks created (approximate based on total bytes and chunk size)
                 int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
+
+                // Build and persist Merkle Tree
+                if (blake3Service != null) {
+                    try {
+                        LOGGER.info("Building Merkle Tree for snapshot: {}", snapshotId);
+                        MerkleTree tree = new MerkleTree(blake3Service);
+                        // Reload all files from metadata to ensure we have the full list (though
+                        // result.getProcessedFiles() is partial? No, full for full backup)
+                        // result.getProcessedFiles() might be enough for full backup, but safer to read
+                        // from DB for consistency
+                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId);
+                        MerkleNode root = tree.build(allFiles);
+                        persistMerkleTree(root);
+                        metadataService.setSnapshotRoot(snapshotId, root.getHash());
+                        LOGGER.info("Merkle Tree built and persisted. Root: {}", root.getHash());
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to build Merkle Tree", e);
+                        // Do not fail the backup, but log error
+                    }
+                }
 
                 return BackupResult.success(snapshotId, result.getProcessedFiles(),
                         result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
@@ -223,6 +264,21 @@ public class BackupService {
 
                 // Calculate chunks created (approximate based on total bytes and chunk size)
                 int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
+
+                // Build and persist Merkle Tree
+                if (blake3Service != null) {
+                    try {
+                        LOGGER.info("Building Merkle Tree for snapshot: {}", snapshotId);
+                        MerkleTree tree = new MerkleTree(blake3Service);
+                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId);
+                        MerkleNode root = tree.build(allFiles);
+                        persistMerkleTree(root);
+                        metadataService.setSnapshotRoot(snapshotId, root.getHash());
+                        LOGGER.info("Merkle Tree built and persisted. Root: {}", root.getHash());
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to build Merkle Tree", e);
+                    }
+                }
 
                 return BackupResult.success(snapshotId, result.getProcessedFiles(),
                         result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
@@ -315,8 +371,27 @@ public class BackupService {
                     }
                 }
 
-                // Note: Unchanged files linking is assumed to be handled by metadata service or
-                // separate post-process.
+                // Copy unchanged files from previous snapshot
+                LOGGER.info("Copying unchanged files from {} to {}", previousSnapshotId, snapshotId);
+                List<String> changedPaths = changedFiles.stream().map(Path::toString).collect(Collectors.toList());
+                metadataService.copyUnchangedFiles(previousSnapshotId, snapshotId, changedPaths);
+
+                // Build Merkle Tree for the incremental snapshot
+                if (blake3Service != null) {
+                    try {
+                        LOGGER.info("Building Merkle Tree for incremental snapshot: {}", snapshotId);
+                        MerkleTree tree = new MerkleTree(blake3Service);
+                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId); // This will now
+                                                                                                      // return merged
+                                                                                                      // list
+                        MerkleNode root = tree.build(allFiles);
+                        persistMerkleTree(root);
+                        metadataService.setSnapshotRoot(snapshotId, root.getHash());
+                        LOGGER.info("Merkle Tree built and persisted. Root: {}", root.getHash());
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to build Merkle Tree", e);
+                    }
+                }
 
                 return BackupResult.success(snapshotId, processedCount, totalBytes, -1, false);
 
@@ -394,5 +469,24 @@ public class BackupService {
         public String getError() {
             return error;
         }
+    }
+
+    private void persistMerkleTree(MerkleNode root) throws java.io.IOException {
+        if (root == null)
+            return;
+
+        // Post-order traversal to persist children before parents (though not strictly
+        // required with current schema)
+        // Actually, efficiently we can just arbitrary order.
+        // But let's recursive.
+
+        List<MerkleNode> children = root.getChildren();
+        if (root.getType() == MerkleNode.Type.DIRECTORY && children != null) {
+            for (MerkleNode child : children) {
+                persistMerkleTree(child);
+            }
+        }
+
+        metadataService.upsertMerkleNode(root);
     }
 }

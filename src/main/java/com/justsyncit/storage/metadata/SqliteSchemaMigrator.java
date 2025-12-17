@@ -119,15 +119,15 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
                 migrateToVersion2(connection);
                 currentVersion = 2;
             }
-            if (currentVersion < 3) {
-                // Migration from version 2 to 3
-                migrateToVersion3(connection);
-                currentVersion = 3;
-            }
             if (currentVersion < 4) {
                 // Migration from version 3 to 4
                 migrateToVersion4(connection);
                 currentVersion = 4;
+            }
+            if (currentVersion < 6) {
+                // Migration from version 5 to 6
+                migrateToVersion6(connection);
+                currentVersion = 6;
             }
         }
 
@@ -193,52 +193,6 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
             // Update schema version to 2
             stmt.execute("UPDATE schema_version SET version = 2");
             logger.info("Successfully migrated database schema to version 2");
-        }
-    }
-
-    /**
-     * Migrates database schema from version 2 to 3.
-     * Adds FTS5 virtual table for files and related triggers.
-     * Starts populating the FTS index from existing files.
-     *
-     * @param connection database connection
-     * @throws SQLException if migration fails
-     */
-    private void migrateToVersion3(Connection connection) throws SQLException {
-        logger.info("Migrating database schema from version 2 to 3");
-        try (Statement stmt = connection.createStatement()) {
-            // Create FTS5 virtual table
-            logger.debug("Creating files_search FTS5 table");
-            stmt.execute("CREATE VIRTUAL TABLE IF NOT EXISTS files_search USING fts5("
-                    + "file_id UNINDEXED, "
-                    + "path"
-                    // + "content_model = 'trigram'" // Removed for compatibility check
-                    + ")");
-
-            // Create triggers
-            logger.debug("Creating triggers for FTS synchronization");
-            stmt.execute("CREATE TRIGGER IF NOT EXISTS files_ai AFTER INSERT ON files BEGIN "
-                    + "  INSERT INTO files_search(file_id, path) "
-                    + "  VALUES (new.id, new.path); "
-                    + "END");
-
-            stmt.execute("CREATE TRIGGER IF NOT EXISTS files_ad AFTER DELETE ON files BEGIN "
-                    + "  DELETE FROM files_search WHERE file_id = old.id; "
-                    + "END");
-
-            stmt.execute("CREATE TRIGGER IF NOT EXISTS files_au AFTER UPDATE ON files BEGIN "
-                    + "  UPDATE files_search SET path = new.path "
-                    + "  WHERE file_id = old.id; "
-                    + "END");
-
-            // Populate existing data
-            logger.info("Populating FTS index with existing files...");
-            stmt.execute("INSERT INTO files_search(file_id, path) SELECT id, path FROM files");
-            logger.info("FTS index population complete");
-
-            // Update schema version to 3
-            stmt.execute("UPDATE schema_version SET version = 3");
-            logger.info("Successfully migrated database schema to version 3");
         }
     }
 
@@ -325,5 +279,36 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
 
         logger.debug("Schema validation passed");
         return true;
+    }
+
+    /**
+     * Migrates database schema from version 5 to 6.
+     * Adds compression column to merkle_nodes table.
+     *
+     * @param connection database connection
+     * @throws SQLException if migration fails
+     */
+    private void migrateToVersion6(Connection connection) throws SQLException {
+        logger.info("Migrating database schema from version 5 to 6");
+        try (Statement stmt = connection.createStatement()) {
+            // Add compression column to merkle_nodes
+            logger.debug("Adding compression column to merkle_nodes table");
+            boolean colExists = false;
+            try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(merkle_nodes)")) {
+                while (rs.next()) {
+                    if ("compression".equals(rs.getString("name"))) {
+                        colExists = true;
+                        break;
+                    }
+                }
+            }
+            if (!colExists) {
+                stmt.execute("ALTER TABLE merkle_nodes ADD COLUMN compression TEXT");
+            }
+
+            // Update schema version to 6
+            stmt.execute("UPDATE schema_version SET version = 6");
+            logger.info("Successfully migrated database schema to version 6");
+        }
     }
 }
