@@ -129,6 +129,11 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
                 migrateToVersion6(connection);
                 currentVersion = 6;
             }
+            if (currentVersion < 7) {
+                // Migration from version 6 to 7
+                migrateToVersion7(connection);
+                currentVersion = 7;
+            }
         }
 
         logger.info("Database schema migration completed successfully");
@@ -261,7 +266,7 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
             ResultSet rs = stmt.executeQuery(tableQuery);
 
             String[] requiredTables = { "snapshots", "files", "file_chunks", "chunks", "schema_version",
-                    "files_search" };
+                    "files_search", "parity_groups", "chunk_parity" };
             for (String table : requiredTables) {
                 boolean found = false;
                 while (rs.next()) {
@@ -309,6 +314,46 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
             // Update schema version to 6
             stmt.execute("UPDATE schema_version SET version = 6");
             logger.info("Successfully migrated database schema to version 6");
+        }
+    }
+
+    /**
+     * Migrates database schema from version 6 to 7.
+     * Adds parity_groups and chunk_parity tables for data integrity verification.
+     *
+     * @param connection database connection
+     * @throws SQLException if migration fails
+     */
+    private void migrateToVersion7(Connection connection) throws SQLException {
+        logger.info("Migrating database schema from version 6 to 7");
+        try (Statement stmt = connection.createStatement()) {
+            // Create parity_groups table
+            logger.debug("Creating parity_groups table");
+            stmt.execute("CREATE TABLE IF NOT EXISTS parity_groups ("
+                    + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    + "algorithm TEXT NOT NULL,"
+                    + "created_at INTEGER NOT NULL"
+                    + ")");
+
+            // Create chunk_parity table
+            logger.debug("Creating chunk_parity table");
+            stmt.execute("CREATE TABLE IF NOT EXISTS chunk_parity ("
+                    + "group_id INTEGER NOT NULL,"
+                    + "chunk_hash TEXT NOT NULL,"
+                    + "chunk_index INTEGER NOT NULL,"
+                    + "is_parity INTEGER NOT NULL,"
+                    + "FOREIGN KEY (group_id) REFERENCES parity_groups(id) ON DELETE CASCADE,"
+                    + "FOREIGN KEY (chunk_hash) REFERENCES chunks(hash) ON DELETE CASCADE,"
+                    + "UNIQUE(group_id, chunk_index)"
+                    + ")");
+
+            // Create indexes
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_chunk_parity_chunk_hash ON chunk_parity(chunk_hash)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_chunk_parity_group_id ON chunk_parity(group_id)");
+
+            // Update schema version to 7
+            stmt.execute("UPDATE schema_version SET version = 7");
+            logger.info("Successfully migrated database schema to version 7");
         }
     }
 }

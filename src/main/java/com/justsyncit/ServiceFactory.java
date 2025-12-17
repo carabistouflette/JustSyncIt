@@ -47,6 +47,8 @@ import com.justsyncit.network.transfer.FileTransferManagerImpl;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.FilesystemChunkIndex;
 import com.justsyncit.storage.FilesystemContentStore;
+import com.justsyncit.storage.HealingContentStore;
+import com.justsyncit.integrity.service.ReedSolomonService;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.MetadataServiceFactory;
 
@@ -173,14 +175,19 @@ public class ServiceFactory {
         registry.register(new VerifyCommand()); // Uses CommandContext for injection
         registry.register(new com.justsyncit.command.DedupStatsCommand());
         try {
-            registry.register(new com.justsyncit.command.DiffCommand(createMetadataService()));
+            MetadataService metadataService = createMetadataService();
+            registry.register(new com.justsyncit.command.DiffCommand(metadataService));
+
+            // Register integrity command
+            registry.register(new com.justsyncit.command.IntegrityCommand(
+                    createIntegrityCheckService(metadataService, blake3Service)));
         } catch (ServiceException e) {
             // Log error but allow startup? Or throw?
             // Since this is factory, we should probably just throw if metadata service
             // fails.
             // But createCommandRegistry signature doesn't throw.
             // Let's create metadata service outside or wrap exception.
-            throw new RuntimeException("Failed to create metadata service for DiffCommand", e);
+            throw new RuntimeException("Failed to create services for commands", e);
         }
 
         return registry;
@@ -413,7 +420,15 @@ public class ServiceFactory {
     public ContentStore createSqliteContentStore(Blake3Service blake3Service) throws ServiceException {
         try {
             MetadataService metadataService = createMetadataService();
-            return com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService, blake3Service);
+            // Create raw store
+            ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService,
+                    blake3Service);
+
+            // Wire up self-healing
+            // Default policy: 4 data shards + 2 parity shards
+            ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, 4, 2);
+
+            return new HealingContentStore(rawStore, rsService);
         } catch (IOException e) {
             throw new ServiceException("Failed to create SQLite content store", e);
         }
@@ -623,5 +638,36 @@ public class ServiceFactory {
     public com.justsyncit.scheduler.SchedulerService createSchedulerService(
             com.justsyncit.backup.BackupService backupService) {
         return new com.justsyncit.scheduler.SchedulerService(backupService);
+    }
+
+    /**
+     * Creates an integrity check service.
+     * 
+     * @param metadataService the metadata service
+     * @param blake3Service   the blake3 service
+     * @return configured integrity check service
+     * @throws ServiceException if creation fails
+     */
+    public com.justsyncit.integrity.service.IntegrityCheckService createIntegrityCheckService(
+            MetadataService metadataService, Blake3Service blake3Service) throws ServiceException {
+        try {
+            // Recreate the stack to get access to internal components
+            // Note: This creates new instances of stores/services but sharing same
+            // underlying resources (DB, FS)
+
+            // 1. Raw Store (SqliteStore which wraps FilesystemStore)
+            ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService,
+                    blake3Service);
+
+            // 2. RS Service (using raw store to avoid recursion)
+            ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, 4, 2);
+
+            // 3. Healing Store (using raw store and RS service)
+            HealingContentStore healingStore = new HealingContentStore(rawStore, rsService);
+
+            return new com.justsyncit.integrity.service.IntegrityCheckService(healingStore, metadataService, rsService);
+        } catch (IOException e) {
+            throw new ServiceException("Failed to create integrity check service", e);
+        }
     }
 }

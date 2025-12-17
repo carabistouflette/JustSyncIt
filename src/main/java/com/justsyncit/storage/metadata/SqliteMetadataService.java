@@ -703,6 +703,69 @@ public final class SqliteMetadataService implements MetadataService {
     }
 
     @Override
+    public java.util.stream.Stream<ChunkMetadata> streamAllChunks() throws IOException {
+        validateNotClosed();
+
+        final String sql = "SELECT hash, size, first_seen, reference_count, last_accessed FROM chunks";
+
+        // Note: This implementation needs careful resource management.
+        // We return a stream that must be closed to close the ResultSet and Statement.
+        // Since Connection is pooled/shared, we might need a dedicated connection or
+        // hold it?
+        // simple-sqlite-jdbc usually allows streaming result sets if fetch size is set.
+
+        try {
+            Connection connection = connectionManager.getConnection();
+            PreparedStatement stmt = connection.prepareStatement(sql);
+            // setFetchSize is important for streaming large datasets
+            // stmt.setFetchSize(100); // Standard SQLite driver might handle this or ignore
+            // it.
+
+            ResultSet rs = stmt.executeQuery();
+
+            // Create a Spliterator/Iterator that wraps RS
+            java.util.Iterator<ChunkMetadata> iterator = new java.util.Iterator<>() {
+                boolean hasNext = rs.next();
+
+                @Override
+                public boolean hasNext() {
+                    return hasNext;
+                }
+
+                @Override
+                public ChunkMetadata next() {
+                    if (!hasNext)
+                        throw new java.util.NoSuchElementException();
+                    try {
+                        ChunkMetadata meta = mapRowToChunkMetadata(rs);
+                        hasNext = rs.next();
+                        return meta;
+                    } catch (SQLException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+
+            return java.util.stream.StreamSupport.stream(
+                    java.util.Spliterators.spliteratorUnknownSize(iterator,
+                            java.util.Spliterator.ORDERED | java.util.Spliterator.NONNULL),
+                    false)
+                    .onClose(() -> {
+                        try {
+                            rs.close();
+                            stmt.close();
+                            connection.close();
+                        } catch (SQLException e) {
+                            logger.error("Failed to close resources for chunk stream", e);
+                        }
+                    });
+
+        } catch (SQLException e) {
+            throw new IOException("Failed to stream chunks", e);
+        }
+    }
+
+    @Override
     public void recordChunkAccess(String chunkHash) throws IOException {
         validateNotClosed();
         if (chunkHash == null || chunkHash.trim().isEmpty()) {
@@ -1597,6 +1660,155 @@ public final class SqliteMetadataService implements MetadataService {
     /**
      * Maps a database row to a Snapshot object.
      */
+    @Override
+    public long createParityGroup(String algorithm) throws IOException {
+        validateNotClosed();
+        if (algorithm == null || algorithm.trim().isEmpty()) {
+            throw new IllegalArgumentException("Algorithm cannot be null or empty");
+        }
+
+        String sql = "INSERT INTO parity_groups (algorithm, created_at) VALUES (?, ?)";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            stmt.setString(1, algorithm);
+            stmt.setLong(2, Instant.now().toEpochMilli());
+
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected == 0) {
+                throw new IOException("Creating parity group failed, no rows affected.");
+            }
+
+            try (ResultSet generatedKeys = stmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    long id = generatedKeys.getLong(1);
+                    logger.debug("Created parity group: {} (Algo: {})", id, algorithm);
+                    return id;
+                } else {
+                    throw new IOException("Creating parity group failed, no ID obtained.");
+                }
+            }
+
+        } catch (SQLException e) {
+            throw new IOException("Failed to create parity group", e);
+        }
+    }
+
+    @Override
+    public void addChunkToParityGroup(long groupId, String chunkHash, int index, boolean isParity) throws IOException {
+        validateNotClosed();
+        if (chunkHash == null || chunkHash.trim().isEmpty()) {
+            throw new IllegalArgumentException("Chunk hash cannot be null or empty");
+        }
+
+        String sql = "INSERT INTO chunk_parity (group_id, chunk_hash, chunk_index, is_parity) VALUES (?, ?, ?, ?)";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setLong(1, groupId);
+            stmt.setString(2, chunkHash);
+            stmt.setInt(3, index);
+            stmt.setInt(4, isParity ? 1 : 0);
+
+            stmt.executeUpdate();
+            logger.debug("Added chunk {} to parity group {} at index {} (Parity: {})",
+                    chunkHash, groupId, index, isParity);
+
+        } catch (SQLException e) {
+            throw new IOException("Failed to add chunk to parity group", e);
+        }
+    }
+
+    @Override
+    public Optional<ParityGroupMetadata> getParityGroup(long groupId) throws IOException {
+        validateNotClosed();
+
+        String sql = "SELECT id, algorithm, created_at FROM parity_groups WHERE id = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setLong(1, groupId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    ParityGroupMetadata group = mapRowToParityGroupMetadata(rs);
+                    return Optional.of(group);
+                } else {
+                    return Optional.empty();
+                }
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get parity group", e);
+        }
+    }
+
+    @Override
+    public List<ChunkParityEntry> getChunksInParityGroup(long groupId) throws IOException {
+        validateNotClosed();
+
+        String sql = "SELECT group_id, chunk_hash, chunk_index, is_parity "
+                + "FROM chunk_parity WHERE group_id = ? ORDER BY chunk_index ASC";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setLong(1, groupId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<ChunkParityEntry> entries = new ArrayList<>();
+                while (rs.next()) {
+                    entries.add(mapRowToChunkParityEntry(rs));
+                }
+                return entries;
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get chunks in parity group", e);
+        }
+    }
+
+    @Override
+    public Optional<ChunkParityEntry> getChunkParityEntry(String chunkHash) throws IOException {
+        validateNotClosed();
+
+        String sql = "SELECT group_id, chunk_hash, chunk_index, is_parity "
+                + "FROM chunk_parity WHERE chunk_hash = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setString(1, chunkHash);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapRowToChunkParityEntry(rs));
+                }
+                return Optional.empty();
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get chunk parity entry", e);
+        }
+    }
+
+    // --- Mappers ---
+
+    private ParityGroupMetadata mapRowToParityGroupMetadata(ResultSet rs) throws SQLException {
+        long id = rs.getLong("id");
+        String algorithm = rs.getString("algorithm");
+        Instant createdAt = Instant.ofEpochMilli(rs.getLong("created_at"));
+        return new ParityGroupMetadata(id, algorithm, createdAt);
+    }
+
+    private ChunkParityEntry mapRowToChunkParityEntry(ResultSet rs) throws SQLException {
+        long groupId = rs.getLong("group_id");
+        String chunkHash = rs.getString("chunk_hash");
+        int chunkIndex = rs.getInt("chunk_index");
+        boolean isParity = rs.getInt("is_parity") == 1;
+        return new ChunkParityEntry(groupId, chunkHash, chunkIndex, isParity);
+    }
+
     private Snapshot mapRowToSnapshot(ResultSet rs) throws SQLException {
         String id = rs.getString("id");
         String name = rs.getString("name");

@@ -169,12 +169,28 @@ public interface MetadataService extends ClosableResource {
         // Chunk operations
 
         /**
-         * Records access to a chunk, updating its last accessed timestamp.
+         * Streams all chunk metadata.
+         * Useful for maintenance tasks like integrity checks.
+         * 
+         * @return stream of all chunk metadata
+         * @throws IOException if retrieval fails
+         */
+        java.util.stream.Stream<ChunkMetadata> streamAllChunks() throws IOException;
+
+        /**
+         * Records an access to a chunk (updates last_accessed).
          *
          * @param chunkHash the hash of the chunk
-         * @throws IOException              if the access cannot be recorded
+         * @throws IOException if the update fails
+         */
+        /**
+         * Records an access to a chunk (updates last_accessed).
+         *
+         * @param chunkHash the hash of the chunk
+         * @throws IOException              if the update fails
          * @throws IllegalArgumentException if chunkHash is null or empty
          */
+
         void recordChunkAccess(String chunkHash) throws IOException;
 
         /**
@@ -285,4 +301,60 @@ public interface MetadataService extends ClosableResource {
          * @throws IOException if an I/O error occurs
          */
         boolean validateSnapshotChain(String snapshotId) throws IOException;
+
+        // Parity Group operations
+
+        /**
+         * Creates a new parity group.
+         * 
+         * @param algorithm the algorithm identifier (e.g. "RS-4-2")
+         * @return the newly created group ID
+         * @throws IOException if creation fails
+         */
+        long createParityGroup(String algorithm) throws IOException;
+
+        /**
+         * Adds a chunk to a parity group.
+         * 
+         * @param groupId   the group ID
+         * @param chunkHash the chunk hash
+         * @param index     the index within the group (0..k+m-1)
+         * @param isParity  true if this is a parity chunk
+         * @throws IOException if operation fails
+         */
+        void addChunkToParityGroup(long groupId, String chunkHash, int index, boolean isParity) throws IOException;
+
+        /**
+         * Gets a parity group by ID.
+         * 
+         * @param groupId the group ID
+         * @return the group metadata if found
+         * @throws IOException if retrieval fails
+         */
+        Optional<ParityGroupMetadata> getParityGroup(long groupId) throws IOException;
+
+        /**
+         * Gets all chunks (data and parity) belonging to a parity group.
+         * 
+         * @param groupId the group ID
+         * @return list of chunk entries
+         * @throws IOException if retrieval fails
+         */
+        /**
+         * Gets all chunks (data and parity) belonging to a parity group.
+         * 
+         * @param groupId the group ID
+         * @return list of chunk entries
+         * @throws IOException if retrieval fails
+         */
+        List<ChunkParityEntry> getChunksInParityGroup(long groupId) throws IOException;
+
+        /**
+         * Gets the parity entry for a specific chunk.
+         * 
+         * @param chunkHash the chunk hash
+         * @return the parity entry if found
+         * @throws IOException if retrieval fails
+         */
+        Optional<ChunkParityEntry> getChunkParityEntry(String chunkHash) throws IOException;
 }

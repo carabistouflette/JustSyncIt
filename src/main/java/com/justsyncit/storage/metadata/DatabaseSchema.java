@@ -25,7 +25,7 @@ package com.justsyncit.storage.metadata;
 public final class DatabaseSchema {
 
         /** Current version of the database schema. */
-        public static final int SCHEMA_VERSION = 6;
+        public static final int SCHEMA_VERSION = 7;
 
         /** Private constructor to prevent instantiation. */
         private DatabaseSchema() {
@@ -108,6 +108,8 @@ public final class DatabaseSchema {
                                 "CREATE INDEX IF NOT EXISTS idx_chunks_last_accessed ON chunks(last_accessed)",
                                 "CREATE INDEX IF NOT EXISTS idx_file_keywords_hash ON file_keywords(keyword_hash)",
                                 "CREATE INDEX IF NOT EXISTS idx_file_keywords_file_id ON file_keywords(file_id)",
+                                "CREATE INDEX IF NOT EXISTS idx_file_keywords_hash ON file_keywords(keyword_hash)",
+                                "CREATE INDEX IF NOT EXISTS idx_file_keywords_file_id ON file_keywords(file_id)",
 
                                 // FTS5 Virtual Table for full-text search (Legacy/Plaintext support)
                                 "CREATE VIRTUAL TABLE IF NOT EXISTS files_search USING fts5("
@@ -140,7 +142,29 @@ public final class DatabaseSchema {
                                                 + "file_id TEXT,"
                                                 + "compression TEXT," // Added in v6
                                                 + "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE SET NULL"
-                                                + ")"
+                                                + ")",
+
+                                // Parity Groups table - groups chunks together for error correction (Version 7)
+                                "CREATE TABLE IF NOT EXISTS parity_groups ("
+                                                + "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                                                + "algorithm TEXT NOT NULL," // e.g., "RS-10-2"
+                                                + "created_at INTEGER NOT NULL"
+                                                + ")",
+
+                                // Chunk Parity table - maps chunks to parity groups (Version 7)
+                                "CREATE TABLE IF NOT EXISTS chunk_parity ("
+                                                + "group_id INTEGER NOT NULL,"
+                                                + "chunk_hash TEXT NOT NULL,"
+                                                + "chunk_index INTEGER NOT NULL," // 0..k-1 (data), k..k+m-1 (parity)
+                                                + "is_parity INTEGER NOT NULL," // Boolean (0 or 1)
+                                                + "FOREIGN KEY (group_id) REFERENCES parity_groups(id) ON DELETE CASCADE,"
+                                                + "FOREIGN KEY (chunk_hash) REFERENCES chunks(hash) ON DELETE CASCADE,"
+                                                + "UNIQUE(group_id, chunk_index)"
+                                                + ")",
+
+                                // Indexes for integrity tables
+                                "CREATE INDEX IF NOT EXISTS idx_chunk_parity_chunk_hash ON chunk_parity(chunk_hash)",
+                                "CREATE INDEX IF NOT EXISTS idx_chunk_parity_group_id ON chunk_parity(group_id)"
                 };
         }
 
@@ -169,6 +193,8 @@ public final class DatabaseSchema {
          */
         public static String[] getDropStatements() {
                 return new String[] {
+                                "DROP TABLE IF EXISTS chunk_parity",
+                                "DROP TABLE IF EXISTS parity_groups",
                                 "DROP TABLE IF EXISTS file_chunks",
                                 "DROP TABLE IF EXISTS files",
                                 "DROP TABLE IF EXISTS chunks",
