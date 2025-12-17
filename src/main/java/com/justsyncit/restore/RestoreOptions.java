@@ -31,36 +31,39 @@ import java.nio.file.PathMatcher;
 public class RestoreOptions {
 
     /** Whether to overwrite existing files. */
-    private final boolean overwriteExisting;
+    private boolean overwriteExisting;
 
     /** Whether to skip existing files. */
-    private final boolean skipExisting;
+    private boolean skipExisting;
 
     /** Whether to backup existing files before overwriting. */
-    private final boolean backupExisting;
+    private boolean backupExisting;
 
     /** Whether to verify integrity after restore. */
-    private final boolean verifyIntegrity;
+    private boolean verifyIntegrity;
 
     /** Whether to preserve file attributes. */
-    private final boolean preserveAttributes;
+    private boolean preserveAttributes;
 
     /** Include pattern for files to restore. */
-    private final PathMatcher includePattern;
+    private PathMatcher includePattern;
 
     /** Original include pattern string for files to restore. */
-    private final String includePatternString;
+    private String includePatternString;
 
     /** Exclude pattern for files to skip. */
-    private final PathMatcher excludePattern;
+    private PathMatcher excludePattern;
 
     /** Original exclude pattern string for files to skip. */
-    private final String excludePatternString;
+    private String excludePatternString;
+
+    /** Whether to perform a dry run (simulate changes). */
+    private boolean dryRun;
 
     // Network options for remote restore
-    private final boolean remoteRestore;
-    private final InetSocketAddress remoteAddress;
-    private final TransportType transportType;
+    private boolean remoteRestore;
+    private InetSocketAddress remoteAddress;
+    private TransportType transportType;
 
     /**
      * Creates a new RestoreOptions.
@@ -75,6 +78,7 @@ public class RestoreOptions {
         this.includePatternString = builder.includePatternString;
         this.excludePattern = builder.excludePattern;
         this.excludePatternString = builder.excludePatternString;
+        this.dryRun = builder.dryRun;
         this.remoteRestore = builder.remoteRestore;
         this.remoteAddress = builder.remoteAddress;
         this.transportType = builder.transportType;
@@ -93,6 +97,7 @@ public class RestoreOptions {
         this.includePatternString = null;
         this.excludePattern = null;
         this.excludePatternString = null;
+        this.dryRun = false;
         this.remoteRestore = false;
         this.remoteAddress = null;
         this.transportType = TransportType.TCP;
@@ -102,24 +107,54 @@ public class RestoreOptions {
         return overwriteExisting;
     }
 
+    public void setOverwriteExisting(boolean overwriteExisting) {
+        this.overwriteExisting = overwriteExisting;
+    }
+
     public boolean isSkipExisting() {
         return skipExisting;
+    }
+
+    public void setSkipExisting(boolean skipExisting) {
+        this.skipExisting = skipExisting;
     }
 
     public boolean isBackupExisting() {
         return backupExisting;
     }
 
+    public void setBackupExisting(boolean backupExisting) {
+        this.backupExisting = backupExisting;
+    }
+
     public boolean isVerifyIntegrity() {
         return verifyIntegrity;
+    }
+
+    public void setVerifyIntegrity(boolean verifyIntegrity) {
+        this.verifyIntegrity = verifyIntegrity;
     }
 
     public boolean isPreserveAttributes() {
         return preserveAttributes;
     }
 
+    public void setPreserveAttributes(boolean preserveAttributes) {
+        this.preserveAttributes = preserveAttributes;
+    }
+
     public PathMatcher getIncludePattern() {
         return includePattern;
+    }
+
+    public void setIncludePattern(String pattern) {
+        if (pattern != null && !pattern.trim().isEmpty()) {
+            this.includePattern = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+            this.includePatternString = pattern;
+        } else {
+            this.includePattern = null;
+            this.includePatternString = null;
+        }
     }
 
     public String getIncludePatternString() {
@@ -130,20 +165,50 @@ public class RestoreOptions {
         return excludePattern;
     }
 
+    public void setExcludePattern(String pattern) {
+        if (pattern != null && !pattern.trim().isEmpty()) {
+            this.excludePattern = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+            this.excludePatternString = pattern;
+        } else {
+            this.excludePattern = null;
+            this.excludePatternString = null;
+        }
+    }
+
     public String getExcludePatternString() {
         return excludePatternString;
+    }
+
+    public boolean isDryRun() {
+        return dryRun;
+    }
+
+    public void setDryRun(boolean dryRun) {
+        this.dryRun = dryRun;
     }
 
     public boolean isRemoteRestore() {
         return remoteRestore;
     }
 
+    public void setRemoteRestore(boolean remoteRestore) {
+        this.remoteRestore = remoteRestore;
+    }
+
     public InetSocketAddress getRemoteAddress() {
         return remoteAddress;
     }
 
+    public void setRemoteAddress(InetSocketAddress remoteAddress) {
+        this.remoteAddress = remoteAddress;
+    }
+
     public TransportType getTransportType() {
         return transportType;
+    }
+
+    public void setTransportType(TransportType transportType) {
+        this.transportType = transportType;
     }
 
     @Override
@@ -177,6 +242,9 @@ public class RestoreOptions {
         private boolean remoteRestore = false;
         private InetSocketAddress remoteAddress = null;
         private TransportType transportType = TransportType.TCP;
+
+        // Dry run option
+        private boolean dryRun = false;
 
         public Builder overwriteExisting(boolean overwriteExisting) {
             this.overwriteExisting = overwriteExisting;
