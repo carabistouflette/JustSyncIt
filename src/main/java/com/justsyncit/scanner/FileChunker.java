@@ -81,11 +81,36 @@ public interface FileChunker extends ChunkStorage {
         private final String fileHash;
         /** List of chunk hashes in order. */
         private final java.util.List<String> chunkHashes;
+        /** MinHash signature of the file content. */
+        private final long[] minHashSignature;
         /** Error if chunking failed. */
         private final Exception error;
 
         /**
          * Creates a successful ChunkingResult.
+         *
+         * @param file             the file that was chunked
+         * @param chunkCount       number of chunks created
+         * @param totalSize        total file size in bytes
+         * @param sparseSize       size of sparse regions in bytes
+         * @param fileHash         hash of the entire file
+         * @param chunkHashes      list of chunk hashes in order
+         * @param minHashSignature MinHash signature of the file
+         */
+        public ChunkingResult(Path file, int chunkCount, long totalSize, long sparseSize,
+                String fileHash, java.util.List<String> chunkHashes, long[] minHashSignature) {
+            this.file = file;
+            this.chunkCount = chunkCount;
+            this.totalSize = totalSize;
+            this.sparseSize = sparseSize;
+            this.fileHash = fileHash;
+            this.chunkHashes = chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
+            this.minHashSignature = minHashSignature;
+            this.error = null;
+        }
+
+        /**
+         * Creates a successful ChunkingResult (compatibility).
          *
          * @param file        the file that was chunked
          * @param chunkCount  number of chunks created
@@ -96,13 +121,7 @@ public interface FileChunker extends ChunkStorage {
          */
         public ChunkingResult(Path file, int chunkCount, long totalSize, long sparseSize,
                 String fileHash, java.util.List<String> chunkHashes) {
-            this.file = file;
-            this.chunkCount = chunkCount;
-            this.totalSize = totalSize;
-            this.sparseSize = sparseSize;
-            this.fileHash = fileHash;
-            this.chunkHashes = chunkHashes != null ? new java.util.ArrayList<>(chunkHashes) : null;
-            this.error = null;
+            this(file, chunkCount, totalSize, sparseSize, fileHash, chunkHashes, null);
         }
 
         /**
@@ -120,7 +139,17 @@ public interface FileChunker extends ChunkStorage {
             this.sparseSize = 0;
             this.fileHash = null;
             this.chunkHashes = java.util.Collections.emptyList();
+            this.minHashSignature = null;
             this.error = error != null ? createExceptionCopy(error) : null;
+        }
+
+        /**
+         * Gets the MinHash signature of the file.
+         *
+         * @return minhash signature or null if not available
+         */
+        public long[] getMinHashSignature() {
+            return minHashSignature;
         }
 
         /**

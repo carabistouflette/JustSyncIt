@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
-import java.nio.channels.CompletionHandler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -36,8 +35,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Implementation of FileChunker using FastCDC (Content-Defined Chunking).
@@ -210,7 +207,16 @@ public class FastCDCFileChunker implements FileChunker {
                 bufferPool.release(buffer);
             }
 
-            return new ChunkingResult(file, chunksCount, fileSize, 0, fileHash, chunkHashes);
+            // Compute MinHash signature from chunk hashes
+            // We use the chunk hashes as features
+            com.justsyncit.dedup.similarity.MinHash minHash = new com.justsyncit.dedup.similarity.MinHash();
+            java.util.Set<Integer> usageFeatures = new java.util.HashSet<>();
+            for (String h : chunkHashes) {
+                usageFeatures.add(com.justsyncit.dedup.similarity.MinHash.hashString(h));
+            }
+            long[] signature = minHash.computeSignature(usageFeatures);
+
+            return new ChunkingResult(file, chunksCount, fileSize, 0, fileHash, chunkHashes, signature);
         }
     }
 

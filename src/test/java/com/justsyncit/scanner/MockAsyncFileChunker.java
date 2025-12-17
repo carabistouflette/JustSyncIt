@@ -2,6 +2,7 @@ package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.DisplayName;
 
+import com.justsyncit.scanner.FileChunker.ChunkingResult;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
