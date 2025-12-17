@@ -60,6 +60,22 @@ public interface EncryptionService {
     byte[] decrypt(byte[] ciphertext, byte[] key, byte[] associatedData) throws EncryptionException;
 
     /**
+     * Encrypts data deterministically using a seed for IV generation.
+     * This is required for deduplication, as identical plaintext + seed will
+     * produce identical ciphertext.
+     *
+     * @param plaintext      the data to encrypt
+     * @param key            the encryption key
+     * @param ivSeed         the seed for generating the IV (e.g., hash of
+     *                       plaintext)
+     * @param associatedData additional authenticated data
+     * @return encrypted data with IV prepended
+     * @throws EncryptionException if encryption fails
+     */
+    byte[] encryptDeterministic(byte[] plaintext, byte[] key, byte[] ivSeed, byte[] associatedData)
+            throws EncryptionException;
+
+    /**
      * Gets the required key size in bytes.
      *
      * @return key size in bytes

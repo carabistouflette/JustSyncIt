@@ -69,18 +69,38 @@ public final class AesGcmEncryptionService implements EncryptionService {
     @Override
     public byte[] encrypt(byte[] plaintext, byte[] key, byte[] associatedData)
             throws EncryptionException {
+        // Generate random IV for standard encryption
+        byte[] iv = new byte[IV_SIZE_BYTES];
+        secureRandom.nextBytes(iv);
+
+        return encryptInternal(plaintext, key, iv, associatedData);
+    }
+
+    @Override
+    public byte[] encryptDeterministic(byte[] plaintext, byte[] key, byte[] ivSeed, byte[] associatedData)
+            throws EncryptionException {
+        if (ivSeed == null || ivSeed.length < IV_SIZE_BYTES) {
+            throw new EncryptionException("IV seed must be at least " + IV_SIZE_BYTES + " bytes");
+        }
+
+        // Derive IV from seed (truncate to 12 bytes)
+        // Since seed is expected to be a cryptographic hash, truncation is safe
+        byte[] iv = Arrays.copyOf(ivSeed, IV_SIZE_BYTES);
+
+        return encryptInternal(plaintext, key, iv, associatedData);
+    }
+
+    private byte[] encryptInternal(byte[] plaintext, byte[] key, byte[] iv, byte[] associatedData)
+            throws EncryptionException {
         validateKey(key);
 
-        byte[] iv = new byte[IV_SIZE_BYTES];
         byte[] keyCopy = null;
         try {
-            // Generate unique IV for each encryption
-            secureRandom.nextBytes(iv);
-
             // Create a copy of the key for internal use
             keyCopy = Arrays.copyOf(key, key.length);
 
-            Cipher cipher = cipherThreadLocal.get();
+            // Create new Cipher instance to avoid IV reuse issues with GCM
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             GCMParameterSpec gcmSpec = new GCMParameterSpec(TAG_SIZE_BITS, iv);
             SecretKeySpec keySpec = new SecretKeySpec(keyCopy, ALGORITHM);
 
@@ -107,7 +127,6 @@ public final class AesGcmEncryptionService implements EncryptionService {
             if (keyCopy != null) {
                 Arrays.fill(keyCopy, (byte) 0);
             }
-            Arrays.fill(iv, (byte) 0);
         }
     }
 
