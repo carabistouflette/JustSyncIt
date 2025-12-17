@@ -18,10 +18,14 @@
 
 package com.justsyncit.storage.metadata;
 
+import com.justsyncit.metadata.BlindIndexSearch;
+import com.justsyncit.network.encryption.EncryptionException;
+import com.justsyncit.network.encryption.EncryptionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,8 +33,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * SQLite implementation of MetadataService.
@@ -48,18 +55,31 @@ public final class SqliteMetadataService implements MetadataService {
     private final DatabaseConnectionManager connectionManager;
     /** Schema migrator for database management. */
     private final SchemaMigrator schemaMigrator;
+    /** Encryption service (optional). */
+    private final EncryptionService encryptionService;
+    /** Blind index search utility (optional). */
+    private final BlindIndexSearch blindIndexSearch;
+    /** Key supplier (optional). */
+    private final Supplier<byte[]> keySupplier;
+
     /** Flag indicating if the service has been closed. */
     private volatile boolean closed;
 
     /**
-     * Creates a new SqliteMetadataService.
+     * Creates a new SqliteMetadataService with encryption support.
      *
      * @param connectionManager database connection manager
      * @param schemaMigrator    schema migrator
-     * @throws IllegalArgumentException if any parameter is null
+     * @param encryptionService encryption service (can be null)
+     * @param blindIndexSearch  blind index search (can be null)
+     * @param keySupplier       key supplier (can be null)
+     * @throws IllegalArgumentException if required parameters are null
      */
     public SqliteMetadataService(DatabaseConnectionManager connectionManager,
-            SchemaMigrator schemaMigrator) throws IOException {
+            SchemaMigrator schemaMigrator,
+            EncryptionService encryptionService,
+            BlindIndexSearch blindIndexSearch,
+            Supplier<byte[]> keySupplier) throws IOException {
         if (connectionManager == null) {
             throw new IllegalArgumentException("Connection manager cannot be null");
         }
@@ -69,6 +89,9 @@ public final class SqliteMetadataService implements MetadataService {
 
         this.connectionManager = connectionManager;
         this.schemaMigrator = schemaMigrator;
+        this.encryptionService = encryptionService;
+        this.blindIndexSearch = blindIndexSearch;
+        this.keySupplier = keySupplier;
         this.closed = false;
 
         // Initialize database schema
@@ -97,7 +120,17 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IOException("Failed to initialize database schema", e);
         }
 
-        logger.info("Initialized SQLite metadata service");
+        logger.info("Initialized SQLite metadata service (Encryption: {})",
+                encryptionService != null ? "Enabled" : "Disabled");
+    }
+
+    /**
+     * Creates a new SqliteMetadataService without encryption support.
+     * Kept for backward compatibility.
+     */
+    public SqliteMetadataService(DatabaseConnectionManager connectionManager,
+            SchemaMigrator schemaMigrator) throws IOException {
+        this(connectionManager, schemaMigrator, null, null, null);
     }
 
     @Override
@@ -260,8 +293,51 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("File metadata cannot be null");
         }
 
-        String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
-                + "VALUES (?, ?, ?, ?, ?, ?)";
+        // Apply encryption if enabled
+        boolean encryptionEnabled = false;
+        String originalPath = file.getPath();
+        byte[] key = null;
+
+        if (encryptionService != null && keySupplier != null) {
+            key = keySupplier.get();
+            if (key != null) {
+                encryptionEnabled = true;
+                try {
+                    // Deterministic encryption for path to ensure uniqueness constraint works
+                    // IV Seed = SHA-256(path)
+                    // We use the path bytes as seed directly (service handles hashing/truncation if
+                    // needed,
+                    // or we should hash it. AesGcmEncryptionService expects truncated hash usually,
+                    // but let's check contract. It expects a byte array seed.
+
+                    // Actually, to be safe and consistent with EncryptedContentStore, let's use the
+                    // path hash.
+                    // But we don't have blake3 service here easily.
+                    // Let's rely on BlindIndexSearch or standard MessageDigest if needed?
+                    // AesGcmEncryptionService.encryptDeterministic truncates the seed.
+                    // Passing the path bytes directly as seed maintains determinism.
+
+                    byte[] pathBytes = originalPath.getBytes(StandardCharsets.UTF_8);
+                    byte[] encryptedPathFn = encryptionService.encryptDeterministic(pathBytes, key, pathBytes, null);
+                    String encryptedPath = Base64.getEncoder().encodeToString(encryptedPathFn);
+
+                    // Create modified file metadata with encrypted path
+                    file = new FileMetadata(
+                            file.getId(),
+                            file.getSnapshotId(),
+                            encryptedPath,
+                            file.getSize(),
+                            file.getModifiedTime(),
+                            file.getFileHash(),
+                            file.getChunkHashes());
+                } catch (EncryptionException e) {
+                    throw new IOException("Failed to encrypt file path", e);
+                }
+            }
+        }
+
+        String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash, encryption_mode) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection connection = connectionManager.getConnection()) {
             // First verify that the snapshot exists
@@ -277,19 +353,30 @@ public final class SqliteMetadataService implements MetadataService {
                 }
             }
             try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                // Ensure chunks exist (important for FK constraints)
+                if (file.getChunkHashes() != null && !file.getChunkHashes().isEmpty()) {
+                    ensureChunksExist(connection, file.getChunkHashes());
+                }
+
                 stmt.setString(1, file.getId());
                 stmt.setString(2, file.getSnapshotId());
                 stmt.setString(3, file.getPath());
                 stmt.setLong(4, file.getSize());
                 stmt.setLong(5, file.getModifiedTime().toEpochMilli());
                 stmt.setString(6, file.getFileHash());
+                stmt.setString(7, encryptionEnabled ? "AES" : "NONE");
 
                 stmt.executeUpdate();
 
                 // Insert file chunks
                 insertFileChunks(connection, file);
 
-                logger.debug("Inserted file: {}", file.getPath());
+                // Insert file keywords for blind index search
+                if (encryptionEnabled && blindIndexSearch != null) {
+                    insertFileKeywords(connection, file.getId(), originalPath);
+                }
+
+                logger.debug("Inserted file: {} (Encrypted: {})", originalPath, encryptionEnabled);
                 return file.getId();
             }
 
@@ -310,12 +397,50 @@ public final class SqliteMetadataService implements MetadataService {
 
         List<String> insertedIds = new ArrayList<>();
 
+        // Prepare encryption context once
+        boolean encryptionEnabled = false;
+        byte[] key = null;
+        if (encryptionService != null && keySupplier != null) {
+            key = keySupplier.get();
+            if (key != null) {
+                encryptionEnabled = true;
+            }
+        }
+
         // 1. Prepare all chunk hashes from all files for bulk processing
         java.util.Set<String> allChunkHashes = new java.util.HashSet<>();
+        // Also map files to their processed (possibly encrypted) version and original
+        // path
+        List<FileMetadata> processedFiles = new ArrayList<>(files.size());
+        List<String> originalPaths = new ArrayList<>(files.size());
+
         for (FileMetadata file : files) {
             if (file.getChunkHashes() != null) {
                 allChunkHashes.addAll(file.getChunkHashes());
             }
+
+            originalPaths.add(file.getPath());
+            FileMetadata processedFile = file;
+
+            if (encryptionEnabled) {
+                try {
+                    byte[] pathBytes = file.getPath().getBytes(StandardCharsets.UTF_8);
+                    byte[] encryptedPathFn = encryptionService.encryptDeterministic(pathBytes, key, pathBytes, null);
+                    String encryptedPath = Base64.getEncoder().encodeToString(encryptedPathFn);
+
+                    processedFile = new FileMetadata(
+                            file.getId(),
+                            file.getSnapshotId(),
+                            encryptedPath,
+                            file.getSize(),
+                            file.getModifiedTime(),
+                            file.getFileHash(),
+                            file.getChunkHashes());
+                } catch (EncryptionException e) {
+                    throw new IOException("Failed to encrypt file path", e);
+                }
+            }
+            processedFiles.add(processedFile);
         }
 
         try (Connection connection = connectionManager.getConnection()) {
@@ -330,18 +455,19 @@ public final class SqliteMetadataService implements MetadataService {
                 }
 
                 // 3. Insert files
-                String fileSql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash) "
-                        + "VALUES (?, ?, ?, ?, ?, ?)";
+                String fileSql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash, encryption_mode) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?)";
 
                 try (PreparedStatement stmt = connection.prepareStatement(fileSql)) {
                     int batchCount = 0;
-                    for (FileMetadata file : files) {
+                    for (FileMetadata file : processedFiles) {
                         stmt.setString(1, file.getId());
                         stmt.setString(2, file.getSnapshotId());
                         stmt.setString(3, file.getPath());
                         stmt.setLong(4, file.getSize());
                         stmt.setLong(5, file.getModifiedTime().toEpochMilli());
                         stmt.setString(6, file.getFileHash());
+                        stmt.setString(7, encryptionEnabled ? "AES" : "NONE");
                         stmt.addBatch();
                         batchCount++;
                         insertedIds.add(file.getId());
@@ -362,7 +488,7 @@ public final class SqliteMetadataService implements MetadataService {
 
                 try (PreparedStatement stmt = connection.prepareStatement(chunkSql)) {
                     int batchCount = 0;
-                    for (FileMetadata file : files) {
+                    for (FileMetadata file : processedFiles) {
                         List<String> chunkHashes = file.getChunkHashes();
                         if (chunkHashes != null) {
                             for (int i = 0; i < chunkHashes.size(); i++) {
@@ -384,6 +510,11 @@ public final class SqliteMetadataService implements MetadataService {
                     if (batchCount > 0) {
                         stmt.executeBatch();
                     }
+                }
+
+                // 5. Insert file keywords if enabled
+                if (encryptionEnabled && blindIndexSearch != null) {
+                    insertFileKeywordsBatch(connection, insertedIds, originalPaths);
                 }
 
                 connection.commit();
@@ -408,7 +539,7 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("File ID cannot be null or empty");
         }
 
-        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash "
+        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash, encryption_mode "
                 + "FROM files WHERE id = ?";
 
         try (Connection connection = connectionManager.getConnection();
@@ -420,6 +551,21 @@ public final class SqliteMetadataService implements MetadataService {
                 if (rs.next()) {
                     List<String> chunkHashes = getFileChunks(connection, id);
                     FileMetadata file = mapRowToFileMetadata(rs, chunkHashes);
+
+                    // Decrypt path if needed
+                    String encryptionMode = rs.getString("encryption_mode");
+                    if ("AES".equals(encryptionMode)) {
+                        String decryptedPath = decryptPath(file.getPath(), encryptionMode);
+                        file = new FileMetadata(
+                                file.getId(),
+                                file.getSnapshotId(),
+                                decryptedPath,
+                                file.getSize(),
+                                file.getModifiedTime(),
+                                file.getFileHash(),
+                                file.getChunkHashes());
+                    }
+
                     logger.debug("Retrieved file: {}", file.getPath());
                     return Optional.of(file);
                 } else {
@@ -439,8 +585,10 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
         }
 
-        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash "
-                + "FROM files WHERE snapshot_id = ? ORDER BY path";
+        // We can't order by path in SQL if it's encrypted.
+        // We'll have to sort in Java if encryption is used.
+        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash, encryption_mode "
+                + "FROM files WHERE snapshot_id = ?";
 
         try (Connection connection = connectionManager.getConnection();
                 PreparedStatement stmt = connection.prepareStatement(sql)) {
@@ -452,8 +600,26 @@ public final class SqliteMetadataService implements MetadataService {
                 while (rs.next()) {
                     String fileId = rs.getString("id");
                     List<String> chunkHashes = getFileChunks(connection, fileId);
-                    files.add(mapRowToFileMetadata(rs, chunkHashes));
+                    FileMetadata file = mapRowToFileMetadata(rs, chunkHashes);
+
+                    // Decrypt path if needed
+                    String encryptionMode = rs.getString("encryption_mode");
+                    if ("AES".equals(encryptionMode)) {
+                        String decryptedPath = decryptPath(file.getPath(), encryptionMode);
+                        file = new FileMetadata(
+                                file.getId(),
+                                file.getSnapshotId(),
+                                decryptedPath,
+                                file.getSize(),
+                                file.getModifiedTime(),
+                                file.getFileHash(),
+                                file.getChunkHashes());
+                    }
+                    files.add(file);
                 }
+
+                // Sort by path in Java since SQL sort on encrypted paths is meaningless
+                files.sort((f1, f2) -> f1.getPath().compareToIgnoreCase(f2.getPath()));
 
                 logger.debug("Retrieved {} files for snapshot {}", files.size(), snapshotId);
                 return files;
@@ -716,45 +882,128 @@ public final class SqliteMetadataService implements MetadataService {
             throw new IllegalArgumentException("Search query cannot be null or empty");
         }
 
-        // Prepare the FTS query
-        // Escape special characters and wrap in quotes for exact phrase matching if
-        // needed,
-        // but for now, we'll assume the user provides a valid FTS5 query string OR
-        // simple terms.
-        // To be safe and support partial matches better with trigram, we can just pass
-        // the query.
-        // However, robust implementations often sanitizing.
-        // For this version, we pass the query directly to FTS5 MATCH operator.
+        // Prepare encryption context
+        boolean encryptionEnabled = (encryptionService != null && keySupplier != null && keySupplier.get() != null);
 
-        String sql = "SELECT f.id, f.snapshot_id, f.path, f.size, f.modified_time, f.file_hash "
-                + "FROM files f "
-                + "JOIN files_search fs ON f.id = fs.file_id "
-                + "WHERE fs.path MATCH ? "
-                + "ORDER BY rank "
-                + "LIMIT 100";
+        if (encryptionEnabled && blindIndexSearch != null) {
+            // Use Blind Index Search
+            // Tokenize query and search for matches
+            Set<String> searchTokens = blindIndexSearch.tokenizeAndHash(query);
+            if (searchTokens.isEmpty()) {
+                return new ArrayList<>();
+            }
 
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
+            // Build query: JOIN file_keywords. return distinct files.
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append(
+                    "SELECT DISTINCT f.id, f.snapshot_id, f.path, f.size, f.modified_time, f.file_hash, f.encryption_mode ");
+            sqlBuilder.append("FROM files f ");
+            sqlBuilder.append("JOIN file_keywords k ON f.id = k.file_id ");
+            sqlBuilder.append("WHERE k.keyword_hash IN (");
 
-            stmt.setString(1, query);
+            for (int i = 0; i < searchTokens.size(); i++) {
+                if (i > 0)
+                    sqlBuilder.append(",");
+                sqlBuilder.append("?");
+            }
+            sqlBuilder.append(") LIMIT 100");
 
-            try (ResultSet rs = stmt.executeQuery()) {
-                List<FileMetadata> files = new ArrayList<>();
-                while (rs.next()) {
-                    String fileId = rs.getString("id");
-                    // retrieving chunks might be expensive for just search results,
-                    // but FileMetadata requires it.
-                    // Optimisation: Lazily load chunks? Or just fetch them.
-                    // For < 100 results, fetching chunks is probably fine.
-                    List<String> chunkHashes = getFileChunks(connection, fileId);
-                    files.add(mapRowToFileMetadata(rs, chunkHashes));
+            List<String> tokenList = new ArrayList<>(searchTokens);
+
+            try (Connection connection = connectionManager.getConnection();
+                    PreparedStatement stmt = connection.prepareStatement(sqlBuilder.toString())) {
+
+                for (int i = 0; i < tokenList.size(); i++) {
+                    stmt.setString(i + 1, tokenList.get(i));
                 }
 
-                logger.debug("Search for '{}' returned {} results", query, files.size());
-                return files;
+                try (ResultSet rs = stmt.executeQuery()) {
+                    List<FileMetadata> files = new ArrayList<>();
+                    while (rs.next()) {
+                        String fileId = rs.getString("id");
+                        List<String> chunkHashes = getFileChunks(connection, fileId);
+                        FileMetadata file = mapRowToFileMetadata(rs, chunkHashes);
+
+                        // Decrypt path
+                        String encryptionMode = rs.getString("encryption_mode");
+                        if ("AES".equals(encryptionMode)) {
+                            String decryptedPath = decryptPath(file.getPath(), encryptionMode);
+                            file = new FileMetadata(
+                                    file.getId(),
+                                    file.getSnapshotId(),
+                                    decryptedPath,
+                                    file.getSize(),
+                                    file.getModifiedTime(),
+                                    file.getFileHash(),
+                                    file.getChunkHashes());
+                        }
+                        files.add(file);
+                    }
+                    logger.debug("Encrypted search for '{}' returned {} results", query, files.size());
+                    return files;
+                }
+            } catch (SQLException e) {
+                throw new IOException("Failed to search files (Blind Index)", e);
             }
-        } catch (SQLException e) {
-            throw new IOException("Failed to search files", e);
+
+        } else {
+            // Legacy FTS5 Search (Plaintext)
+            // Prepare the FTS query
+            // Escape special characters and wrap in quotes for exact phrase matching if
+            // needed,
+            // but for now, we'll assume the user provides a valid FTS5 query string OR
+            // simple terms.
+            // To be safe and support partial matches better with trigram, we can just pass
+            // the query.
+            // However, robust implementations often sanitizing.
+            // For this version, we pass the query directly to FTS5 MATCH operator.
+
+            String sql = "SELECT f.id, f.snapshot_id, f.path, f.size, f.modified_time, f.file_hash, f.encryption_mode "
+                    + "FROM files f "
+                    + "JOIN files_search fs ON f.id = fs.file_id "
+                    + "WHERE fs.path MATCH ? "
+                    + "ORDER BY rank "
+                    + "LIMIT 100";
+
+            try (Connection connection = connectionManager.getConnection();
+                    PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+                stmt.setString(1, query);
+
+                try (ResultSet rs = stmt.executeQuery()) {
+                    List<FileMetadata> files = new ArrayList<>();
+                    while (rs.next()) {
+                        String fileId = rs.getString("id");
+                        // retrieving chunks might be expensive for just search results,
+                        // but FileMetadata requires it.
+                        // Optimisation: Lazily load chunks? Or just fetch them.
+                        // For < 100 results, fetching chunks is probably fine.
+                        List<String> chunkHashes = getFileChunks(connection, fileId);
+                        FileMetadata file = mapRowToFileMetadata(rs, chunkHashes);
+
+                        // Handle decryption even in legacy mode (e.g. mixed content)
+                        String encryptionMode = rs.getString("encryption_mode");
+                        if ("AES".equals(encryptionMode)) {
+                            String decryptedPath = decryptPath(file.getPath(), encryptionMode);
+                            file = new FileMetadata(
+                                    file.getId(),
+                                    file.getSnapshotId(),
+                                    decryptedPath,
+                                    file.getSize(),
+                                    file.getModifiedTime(),
+                                    file.getFileHash(),
+                                    file.getChunkHashes());
+                        }
+
+                        files.add(file);
+                    }
+
+                    logger.debug("Search for '{}' returned {} results", query, files.size());
+                    return files;
+                }
+            } catch (SQLException e) {
+                throw new IOException("Failed to search files", e);
+            }
         }
     }
 
@@ -764,6 +1013,81 @@ public final class SqliteMetadataService implements MetadataService {
             connectionManager.close();
             closed = true;
             logger.info("Closed SQLite metadata service");
+        }
+    }
+
+    /**
+     * Inserts file keywords for blind index search.
+     */
+    private void insertFileKeywords(Connection connection, String fileId, String path) throws SQLException {
+        Set<String> keywords = blindIndexSearch.tokenizeAndHash(path);
+        if (keywords.isEmpty()) {
+            return;
+        }
+
+        String sql = "INSERT INTO file_keywords (file_id, keyword_hash) VALUES (?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            for (String keywordHash : keywords) {
+                stmt.setString(1, fileId);
+                stmt.setString(2, keywordHash);
+                stmt.addBatch();
+            }
+            stmt.executeBatch();
+        }
+    }
+
+    /**
+     * Inserts file keywords in batch.
+     */
+    private void insertFileKeywordsBatch(Connection connection, List<String> fileIds, List<String> paths)
+            throws SQLException {
+        String sql = "INSERT INTO file_keywords (file_id, keyword_hash) VALUES (?, ?)";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            int batchCount = 0;
+            for (int i = 0; i < fileIds.size(); i++) {
+                String fileId = fileIds.get(i);
+                String path = paths.get(i);
+
+                Set<String> keywords = blindIndexSearch.tokenizeAndHash(path);
+                for (String keywordHash : keywords) {
+                    stmt.setString(1, fileId);
+                    stmt.setString(2, keywordHash);
+                    stmt.addBatch();
+                    batchCount++;
+
+                    if (batchCount >= 500) {
+                        stmt.executeBatch();
+                        batchCount = 0;
+                    }
+                }
+            }
+            if (batchCount > 0) {
+                stmt.executeBatch();
+            }
+        }
+    }
+
+    /**
+     * Decrypts a path if it was encrypted.
+     */
+    private String decryptPath(String pathStr, String encryptionMode) {
+        if (!"AES".equals(encryptionMode) || encryptionService == null || keySupplier == null) {
+            return pathStr;
+        }
+
+        try {
+            byte[] key = keySupplier.get();
+            if (key == null) {
+                return pathStr; // Cannot decrypt
+            }
+
+            byte[] encryptedBytes = Base64.getDecoder().decode(pathStr);
+            byte[] decryptedBytes = encryptionService.decrypt(encryptedBytes, key);
+            return new String(decryptedBytes, StandardCharsets.UTF_8);
+
+        } catch (Exception e) {
+            logger.error("Failed to decrypt path: " + pathStr, e);
+            return pathStr + " (Decryption Failed)";
         }
     }
 

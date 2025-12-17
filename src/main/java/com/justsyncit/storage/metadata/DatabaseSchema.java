@@ -25,8 +25,7 @@ package com.justsyncit.storage.metadata;
 public final class DatabaseSchema {
 
         /** Current version of the database schema. */
-        /** Current version of the database schema. */
-        public static final int SCHEMA_VERSION = 3;
+        public static final int SCHEMA_VERSION = 4;
 
         /** Private constructor to prevent instantiation. */
         private DatabaseSchema() {
@@ -58,6 +57,7 @@ public final class DatabaseSchema {
                                                 + "size INTEGER NOT NULL,"
                                                 + "modified_time INTEGER NOT NULL,"
                                                 + "file_hash TEXT NOT NULL,"
+                                                + "encryption_mode TEXT DEFAULT 'NONE',"
                                                 + "FOREIGN KEY (snapshot_id) REFERENCES snapshots(id) ON DELETE CASCADE,"
                                                 + "UNIQUE(snapshot_id, path)"
                                                 + ")",
@@ -72,6 +72,13 @@ public final class DatabaseSchema {
                                                 + "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE,"
                                                 + "FOREIGN KEY (chunk_hash) REFERENCES chunks(hash) ON DELETE CASCADE,"
                                                 + "UNIQUE(file_id, chunk_order)"
+                                                + ")",
+
+                                // File keywords table - for encrypted search
+                                "CREATE TABLE IF NOT EXISTS file_keywords ("
+                                                + "file_id TEXT NOT NULL,"
+                                                + "keyword_hash TEXT NOT NULL,"
+                                                + "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE"
                                                 + ")",
 
                                 // Chunks table - metadata for stored chunks
@@ -94,10 +101,11 @@ public final class DatabaseSchema {
                                 "CREATE INDEX IF NOT EXISTS idx_file_chunks_file_id ON file_chunks(file_id)",
                                 "CREATE INDEX IF NOT EXISTS idx_file_chunks_chunk_hash ON file_chunks(chunk_hash)",
                                 "CREATE INDEX IF NOT EXISTS idx_chunks_reference_count ON chunks(reference_count)",
-                                "CREATE INDEX IF NOT EXISTS idx_chunks_reference_count ON chunks(reference_count)",
                                 "CREATE INDEX IF NOT EXISTS idx_chunks_last_accessed ON chunks(last_accessed)",
+                                "CREATE INDEX IF NOT EXISTS idx_file_keywords_hash ON file_keywords(keyword_hash)",
+                                "CREATE INDEX IF NOT EXISTS idx_file_keywords_file_id ON file_keywords(file_id)",
 
-                                // FTS5 Virtual Table for full-text search
+                                // FTS5 Virtual Table for full-text search (Legacy/Plaintext support)
                                 "CREATE VIRTUAL TABLE IF NOT EXISTS files_search USING fts5("
                                                 + "file_id UNINDEXED, " // Store ID but don't index it for search
                                                 + "path" // Index path

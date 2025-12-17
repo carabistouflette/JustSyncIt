@@ -124,6 +124,11 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
                 migrateToVersion3(connection);
                 currentVersion = 3;
             }
+            if (currentVersion < 4) {
+                // Migration from version 3 to 4
+                migrateToVersion4(connection);
+                currentVersion = 4;
+            }
         }
 
         logger.info("Database schema migration completed successfully");
@@ -234,6 +239,50 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
             // Update schema version to 3
             stmt.execute("UPDATE schema_version SET version = 3");
             logger.info("Successfully migrated database schema to version 3");
+        }
+    }
+
+    /**
+     * Migrates database schema from version 3 to 4.
+     * Adds encryption support columns and file keywords table.
+     *
+     * @param connection database connection
+     * @throws SQLException if migration fails
+     */
+    private void migrateToVersion4(Connection connection) throws SQLException {
+        logger.info("Migrating database schema from version 3 to 4");
+        try (Statement stmt = connection.createStatement()) {
+            // Add encryption_mode column to files table
+            logger.debug("Adding encryption_mode column to files table");
+            // Check if column exists first (idempotency check for partial migrations)
+            boolean colExists = false;
+            try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(files)")) {
+                while (rs.next()) {
+                    if ("encryption_mode".equals(rs.getString("name"))) {
+                        colExists = true;
+                        break;
+                    }
+                }
+            }
+            if (!colExists) {
+                stmt.execute("ALTER TABLE files ADD COLUMN encryption_mode TEXT DEFAULT 'NONE'");
+            }
+
+            // Create file_keywords table
+            logger.debug("Creating file_keywords table");
+            stmt.execute("CREATE TABLE IF NOT EXISTS file_keywords ("
+                    + "file_id TEXT NOT NULL,"
+                    + "keyword_hash TEXT NOT NULL,"
+                    + "FOREIGN KEY (file_id) REFERENCES files(id) ON DELETE CASCADE"
+                    + ")");
+
+            // Create indexes for file_keywords
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_keywords_hash ON file_keywords(keyword_hash)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_file_keywords_file_id ON file_keywords(file_id)");
+
+            // Update schema version to 4
+            stmt.execute("UPDATE schema_version SET version = 4");
+            logger.info("Successfully migrated database schema to version 4");
         }
     }
 
