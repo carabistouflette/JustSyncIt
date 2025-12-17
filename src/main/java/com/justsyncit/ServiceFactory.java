@@ -128,6 +128,7 @@ public class ServiceFactory {
         // Register commands
         registry.register(new HashCommand(blake3Service));
         registry.register(new VerifyCommand()); // Uses CommandContext for injection
+        registry.register(new com.justsyncit.command.DedupStatsCommand());
 
         return registry;
     }

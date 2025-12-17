@@ -18,6 +18,7 @@
 
 package com.justsyncit.scanner;
 
+import com.justsyncit.scanner.FileChunker.ChunkingResult;
 import java.nio.ByteBuffer;
 
 import java.nio.file.Path;
