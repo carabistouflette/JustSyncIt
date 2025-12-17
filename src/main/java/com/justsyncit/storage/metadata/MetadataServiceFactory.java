@@ -156,6 +156,47 @@ public final class MetadataServiceFactory {
     }
 
     /**
+     * Creates a SQLite-based metadata service with encryption support.
+     *
+     * @param databasePath      path to the SQLite database file
+     * @param encryptionService encryption service
+     * @param blindIndexSearch  blind index search utility
+     * @param keySupplier       key supplier
+     * @return a new MetadataService instance
+     * @throws IOException              if the service cannot be created
+     * @throws IllegalArgumentException if databasePath is null or empty
+     */
+    public static MetadataService createEncryptedFileBasedService(String databasePath,
+            com.justsyncit.network.encryption.EncryptionService encryptionService,
+            com.justsyncit.metadata.BlindIndexSearch blindIndexSearch,
+            java.util.function.Supplier<byte[]> keySupplier) throws IOException {
+        if (databasePath == null || databasePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("Database path cannot be null or empty");
+        }
+
+        // Ensure parent directory exists
+        Path dbPath = Paths.get(databasePath);
+        Path parentDir = dbPath.getParent();
+        if (parentDir != null && !Files.exists(parentDir)) {
+            try {
+                Files.createDirectories(parentDir);
+                logger.info("Created database directory: {}", parentDir);
+            } catch (IOException e) {
+                throw new IOException("Failed to create database directory: " + parentDir, e);
+            }
+        }
+
+        logger.info("Creating encrypted file-based metadata service with database: {}", databasePath);
+
+        DatabaseConnectionManager connectionManager = new SqliteConnectionManager(databasePath,
+                DEFAULT_MAX_CONNECTIONS);
+        SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
+
+        return new SqliteMetadataService(connectionManager, schemaMigrator, encryptionService, blindIndexSearch,
+                keySupplier);
+    }
+
+    /**
      * Creates a SQLite-based metadata service with default configuration.
      *
      * @return a new MetadataService instance with default configuration

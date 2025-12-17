@@ -117,6 +117,49 @@ public class ServiceFactory {
     }
 
     /**
+     * Creates an encryption service.
+     *
+     * @return configured encryption service
+     */
+    public com.justsyncit.network.encryption.EncryptionService createEncryptionService() {
+        return new com.justsyncit.network.encryption.AesGcmEncryptionService();
+    }
+
+    /**
+     * Creates an encrypted content store.
+     *
+     * @param delegate          the underlying content store
+     * @param encryptionService the encryption service
+     * @param keySupplier       supplier for the encryption key
+     * @param blake3Service     BLAKE3 service
+     * @return configured encrypted content store
+     */
+    public ContentStore createEncryptedContentStore(ContentStore delegate,
+            com.justsyncit.network.encryption.EncryptionService encryptionService,
+            java.util.function.Supplier<byte[]> keySupplier,
+            Blake3Service blake3Service) {
+        return new com.justsyncit.storage.EncryptedContentStore(delegate, encryptionService, keySupplier,
+                blake3Service);
+    }
+
+    /**
+     * Creates an encrypted metadata service.
+     *
+     * @param databasePath      path to database
+     * @param encryptionService encryption service
+     * @param keySupplier       key supplier
+     * @return configured metadata service
+     */
+    public MetadataService createEncryptedMetadataService(String databasePath,
+            com.justsyncit.network.encryption.EncryptionService encryptionService,
+            java.util.function.Supplier<byte[]> keySupplier) throws IOException {
+        com.justsyncit.metadata.BlindIndexSearch blindIndexSearch = new com.justsyncit.metadata.BlindIndexSearch(
+                keySupplier);
+        return MetadataServiceFactory.createEncryptedFileBasedService(databasePath, encryptionService, blindIndexSearch,
+                keySupplier);
+    }
+
+    /**
      * Creates a command registry with all commands.
      *
      * @param blake3Service BLAKE3 service for commands
