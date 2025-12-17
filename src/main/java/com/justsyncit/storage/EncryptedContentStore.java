@@ -124,6 +124,11 @@ public class EncryptedContentStore implements ContentStore {
     }
 
     @Override
+    public void deleteChunk(String hash) throws IOException {
+        delegate.deleteChunk(hash);
+    }
+
+    @Override
     public long getChunkCount() throws IOException {
         return delegate.getChunkCount();
     }

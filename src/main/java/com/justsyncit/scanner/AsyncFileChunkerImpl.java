@@ -267,6 +267,11 @@ public class AsyncFileChunkerImpl implements AsyncFileChunker {
     }
 
     @Override
+    public void deleteChunk(String hash) throws IOException {
+        throw new UnsupportedOperationException("Chunkers do not support deletion");
+    }
+
+    @Override
     public boolean isClosed() {
         return closed;
     }

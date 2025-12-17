@@ -130,10 +130,6 @@ public final class FilesystemContentStore extends AbstractContentStore {
         lock.writeLock().lock();
         try {
             // Double-check after acquiring write lock
-            if (chunkIndex.containsChunk(hash)) {
-                return hash;
-            }
-
             Path chunkPath;
             try {
                 chunkPath = pathGenerator.generatePath(storageDirectory, hash);
@@ -141,10 +137,12 @@ public final class FilesystemContentStore extends AbstractContentStore {
                 throw new IOException("Failed to generate path for chunk", e);
             }
 
-            // Write chunk to file
-            Files.write(chunkPath, data, StandardOpenOption.CREATE_NEW);
+            System.out.println("DEBUG: FilesystemContentStore - storing " + hash + " to " + chunkPath);
+            // Write chunk to file (overwrite if exists to handle repair/corruption cases)
+            Files.write(chunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE, StandardOpenOption.SYNC);
 
-            // Add to index
+            // Add to index (or update)
             chunkIndex.putChunk(hash, chunkPath);
 
             logger.debug("Stored chunk {} ({} bytes) at {}", hash, data.length, chunkPath);
@@ -181,6 +179,7 @@ public final class FilesystemContentStore extends AbstractContentStore {
                 return null;
             }
 
+            System.out.println("DEBUG: FilesystemContentStore - retrieve " + hash + " from " + chunkPath);
             if (!Files.exists(chunkPath)) {
                 logger.warn("Chunk {} found in index but file missing at {}", hash, chunkPath);
                 // Remove from index since file is missing
@@ -211,6 +210,19 @@ public final class FilesystemContentStore extends AbstractContentStore {
             return chunkIndex.containsChunk(hash);
         } finally {
             lock.readLock().unlock();
+        }
+    }
+
+    @Override
+    protected void doDeleteChunk(String hash) throws IOException {
+        // We already hold the write lock from AbstractContentStore.deleteChunk
+        // But we need to use write lock for index modification?
+        // AbstractContentStore SHOULD acquire write lock for deleteChunk! (Yes it does)
+
+        Path chunkPath = chunkIndex.getChunkPath(hash);
+        if (chunkPath != null) {
+            Files.deleteIfExists(chunkPath);
+            chunkIndex.removeChunk(hash);
         }
     }
 
@@ -305,5 +317,22 @@ public final class FilesystemContentStore extends AbstractContentStore {
      */
     public IntegrityVerifier getIntegrityVerifier() {
         return integrityVerifier;
+    }
+
+    /**
+     * Gets the path to a chunk file.
+     * Useful for integrity testing and low-level access.
+     *
+     * @param hash the chunk hash
+     * @return the path to the chunk file, or null if not indexed
+     * @throws IOException if index access fails
+     */
+    public Path getChunkPath(String hash) throws IOException {
+        lock.readLock().lock();
+        try {
+            return chunkIndex.getChunkPath(hash);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 }

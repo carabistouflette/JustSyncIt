@@ -286,8 +286,15 @@ public class FixedSizeFileChunker implements FileChunker {
 
     @Override
     public boolean existsChunk(String hash) throws IOException {
-        // This would integrate with ContentStore in a real implementation
-        throw new UnsupportedOperationException("existsChunk not implemented in FileChunker");
+        if (contentStore == null) {
+            throw new UnsupportedOperationException("Content store not initialized");
+        }
+        return contentStore.existsChunk(hash);
+    }
+
+    @Override
+    public void deleteChunk(String hash) throws IOException {
+        throw new UnsupportedOperationException("Deletion not supported by chunker");
     }
 
     @Override

@@ -27,7 +27,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * In-memory implementation of ContentStore for testing and development.
- * Follows Liskov Substitution Principle by maintaining the same contract as FilesystemContentStore.
+ * Follows Liskov Substitution Principle by maintaining the same contract as
+ * FilesystemContentStore.
  * All methods behave consistently with the interface contracts.
  */
 public final class MemoryContentStore extends AbstractContentStore {
@@ -94,6 +95,15 @@ public final class MemoryContentStore extends AbstractContentStore {
     }
 
     @Override
+    protected void doDeleteChunk(String hash) throws IOException {
+        if (chunkStorage.remove(hash) != null) {
+            logger.debug("Deleted chunk {} from memory", hash);
+        } else {
+            logger.debug("Attempted to delete non-existent chunk {} from memory", hash);
+        }
+    }
+
+    @Override
     protected long doGetChunkCount() throws IOException {
         return chunkStorage.size();
     }
@@ -140,8 +150,7 @@ public final class MemoryContentStore extends AbstractContentStore {
                 totalSize,
                 1L, // Simplified ratio - would need more tracking for accurate calculation
                 lastGcTime,
-                orphanedChunks
-        );
+                orphanedChunks);
     }
 
     @Override

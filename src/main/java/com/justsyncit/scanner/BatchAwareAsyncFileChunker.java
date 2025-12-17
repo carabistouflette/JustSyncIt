@@ -196,6 +196,11 @@ public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     }
 
     @Override
+    public void deleteChunk(String hash) throws java.io.IOException {
+        delegate.deleteChunk(hash);
+    }
+
+    @Override
     public boolean isClosed() {
         return delegate.isClosed();
     }

@@ -210,6 +210,11 @@ public final class SqliteContentStore extends AbstractContentStore {
     }
 
     @Override
+    protected void doDeleteChunk(String hash) throws IOException {
+        delegateStore.deleteChunk(hash);
+    }
+
+    @Override
     protected long doGetChunkCount() throws IOException {
         // Use metadata service for more accurate count
         try {

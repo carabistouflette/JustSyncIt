@@ -22,7 +22,8 @@ import java.io.IOException;
 
 /**
  * Interface for basic chunk storage operations.
- * Follows Interface Segregation Principle by focusing only on storage functionality.
+ * Follows Interface Segregation Principle by focusing only on storage
+ * functionality.
  */
 public interface ChunkStorage {
 
@@ -32,7 +33,7 @@ public interface ChunkStorage {
      *
      * @param data the chunk data to store
      * @return the hash of the stored chunk
-     * @throws IOException if an I/O error occurs during storage
+     * @throws IOException              if an I/O error occurs during storage
      * @throws IllegalArgumentException if data is null or empty
      */
     String storeChunk(byte[] data) throws IOException;
@@ -43,9 +44,10 @@ public interface ChunkStorage {
      *
      * @param hash the hash of the chunk to retrieve
      * @return the chunk data, or null if not found
-     * @throws IOException if an I/O error occurs during retrieval
-     * @throws StorageIntegrityException if the retrieved data fails integrity verification
-     * @throws IllegalArgumentException if hash is null or invalid
+     * @throws IOException               if an I/O error occurs during retrieval
+     * @throws StorageIntegrityException if the retrieved data fails integrity
+     *                                   verification
+     * @throws IllegalArgumentException  if hash is null or invalid
      */
     byte[] retrieveChunk(String hash) throws IOException, StorageIntegrityException;
 
@@ -54,8 +56,19 @@ public interface ChunkStorage {
      *
      * @param hash the hash to check
      * @return true if the chunk exists, false otherwise
-     * @throws IOException if an I/O error occurs during the check
+     * @throws IOException              if an I/O error occurs during the check
      * @throws IllegalArgumentException if hash is null or invalid
      */
     boolean existsChunk(String hash) throws IOException;
+
+    /**
+     * Deletes a chunk from storage.
+     * This operation is idempotent - if the chunk does not exist, it should
+     * succeed.
+     *
+     * @param hash the hash of the chunk to delete
+     * @throws IOException              if an I/O error occurs during deletion
+     * @throws IllegalArgumentException if hash is null or invalid
+     */
+    void deleteChunk(String hash) throws IOException;
 }

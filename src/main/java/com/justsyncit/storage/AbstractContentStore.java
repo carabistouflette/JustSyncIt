@@ -29,7 +29,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * Abstract base class for ContentStore implementations.
- * Provides common functionality for thread safety, state management, and statistics.
+ * Provides common functionality for thread safety, state management, and
+ * statistics.
  * Follows the Open/Closed Principle by allowing extension without modification.
  */
 public abstract class AbstractContentStore implements ContentStore {
@@ -134,20 +135,31 @@ public abstract class AbstractContentStore implements ContentStore {
      *
      * @param hash the hash of the chunk to retrieve
      * @return the chunk data, or null if not found
-     * @throws IOException if an I/O error occurs during retrieval
-     * @throws StorageIntegrityException if the retrieved data fails integrity verification
+     * @throws IOException               if an I/O error occurs during retrieval
+     * @throws StorageIntegrityException if the retrieved data fails integrity
+     *                                   verification
      */
     protected abstract byte[] doRetrieveChunk(String hash) throws IOException, StorageIntegrityException;
 
     /**
      * Template method for checking if a chunk exists.
-     * Subclasses must implement this method to provide specific existence check logic.
+     * Subclasses must implement this method to provide specific existence check
+     * logic.
      *
      * @param hash the hash to check
      * @return true if the chunk exists, false otherwise
      * @throws IOException if an I/O error occurs during the check
      */
     protected abstract boolean doExistsChunk(String hash) throws IOException;
+
+    /**
+     * Template method for deleting a chunk.
+     * Subclasses must implement this method to provide specific deletion logic.
+     *
+     * @param hash the hash of the chunk to delete
+     * @throws IOException if an I/O error occurs during deletion
+     */
+    protected abstract void doDeleteChunk(String hash) throws IOException;
 
     /**
      * Template method for getting the chunk count.
@@ -160,7 +172,8 @@ public abstract class AbstractContentStore implements ContentStore {
 
     /**
      * Template method for getting the total storage size.
-     * Subclasses must implement this method to provide specific size calculation logic.
+     * Subclasses must implement this method to provide specific size calculation
+     * logic.
      *
      * @return the total storage size
      * @throws IOException if an I/O error occurs
@@ -193,6 +206,19 @@ public abstract class AbstractContentStore implements ContentStore {
      * @throws IOException if an I/O error occurs during closing
      */
     protected abstract void doClose() throws IOException;
+
+    @Override
+    public final void deleteChunk(String hash) throws IOException {
+        validateNotClosed();
+        validateHash(hash);
+        lock.writeLock().lock();
+        try {
+            doDeleteChunk(hash);
+            logger.debug("Deleted chunk {}", hash);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
 
     /**
      * Validates that the store is not closed.

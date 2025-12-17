@@ -255,6 +255,11 @@ public class FastCDCFileChunker implements FileChunker {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public void deleteChunk(String hash) throws IOException {
+        throw new UnsupportedOperationException("Deletion not supported by chunker");
+    }
+
     public void close() {
         this.closed = true;
         this.executorService.shutdown();
