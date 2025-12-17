@@ -22,6 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -122,35 +125,72 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
             throw new SQLException("Connection manager is closed", e);
         }
 
+        Connection rawConnection;
         // For in-memory databases, use a single shared connection
         if (isInMemory) {
-            return getOrCreateSharedMemoryConnection(jdbcUrl);
-        }
-
-        Connection connection = connectionPool.poll();
-        if (connection != null && !connection.isClosed()) {
-            return connection;
-        }
-
-        // Create new connection if pool is empty
-        Connection newConn = DriverManager.getConnection(jdbcUrl);
-        // Enable foreign keys and performance optimizations for new connections
-        try (var stmt = newConn.createStatement()) {
-            stmt.execute("PRAGMA foreign_keys=ON");
-            if (isInMemory) {
-                // Use DELETE journal mode for in-memory/tests to avoid isolation issues
-                stmt.execute("PRAGMA journal_mode=DELETE");
-            } else {
-                // Use WAL journal mode for production for better concurrency
-                stmt.execute("PRAGMA journal_mode=WAL");
-                stmt.execute("PRAGMA busy_timeout=30000"); // 30 seconds timeout
+            rawConnection = getOrCreateSharedMemoryConnection(jdbcUrl);
+        } else {
+            rawConnection = connectionPool.poll();
+            if (rawConnection == null || rawConnection.isClosed()) {
+                // Create new connection if pool is empty
+                rawConnection = DriverManager.getConnection(jdbcUrl);
+                // Enable foreign keys and performance optimizations for new connections
+                try (var stmt = rawConnection.createStatement()) {
+                    stmt.execute("PRAGMA foreign_keys=ON");
+                    if (isInMemory) {
+                        // Use DELETE journal mode for in-memory/tests to avoid isolation issues
+                        stmt.execute("PRAGMA journal_mode=DELETE");
+                    } else {
+                        // Use WAL journal mode for production for better concurrency
+                        stmt.execute("PRAGMA journal_mode=WAL");
+                        stmt.execute("PRAGMA busy_timeout=30000"); // 30 seconds timeout
+                    }
+                    stmt.execute("PRAGMA synchronous=NORMAL");
+                    stmt.execute("PRAGMA cache_size=10000");
+                    stmt.execute("PRAGMA temp_store=MEMORY");
+                    stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
+                }
             }
-            stmt.execute("PRAGMA synchronous=NORMAL");
-            stmt.execute("PRAGMA cache_size=10000");
-            stmt.execute("PRAGMA temp_store=MEMORY");
-            stmt.execute("PRAGMA mmap_size=268435456"); // 256MB memory-mapped I/O
         }
-        return newConn;
+
+        return createConnectionProxy(rawConnection);
+    }
+
+    /**
+     * Creates a proxy for the connection that intercepts close() calls.
+     */
+    private Connection createConnectionProxy(Connection rawConnection) {
+        return (Connection) Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[] { Connection.class },
+                new ConnectionInvocationHandler(rawConnection));
+    }
+
+    /**
+     * Invocation handler for connection proxy.
+     */
+    private class ConnectionInvocationHandler implements InvocationHandler {
+        private final Connection original;
+
+        public ConnectionInvocationHandler(Connection original) {
+            this.original = original;
+        }
+
+        @Override
+        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+            if ("close".equals(method.getName())) {
+                closeConnection(original);
+                return null;
+            }
+            // Unwrap if checking for compatibility or other proprietary methods if needed
+            // But for standard JDBC, direct delegation is usually fine.
+            // Note: Exception handling might need unwrapping InvocationTargetException
+            try {
+                return method.invoke(original, args);
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                throw e.getTargetException();
+            }
+        }
     }
 
     @Override

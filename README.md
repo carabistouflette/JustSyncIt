@@ -15,11 +15,13 @@ Detailed documentation is available in the `docs/` directory:
 *   **[User Guide](docs/UserGuide.md)**: Installation, core workflows, and basic usage.
 *   **[Technical Architecture](docs/TechnicalArchitecture.md)**: Deep dive into FastCDC, Changed Block Tracking (CBT), and the Network Protocol.
 *   **[CLI Reference](docs/CLI_Reference.md)**: Comprehensive list of all commands and flags.
+*   **[Zero-Knowledge Encryption](docs/ZeroKnowledgeEncryption.md)**: Architecture and security model.
 
 ## Features
 
 *   **Fast Content-Defined Chunking (FastCDC)**: Efficient deduplication using Gear hashing and variable chunk sizes.
 *   **Changed Block Tracking (CBT)**: Instant incremental backups by tracking file changes in real-time.
+*   **Zero-Knowledge Encryption**: End-to-end client-side encryption ensures privacy.
 *   **Network Backups**: Secure transfers over TCP or QUIC protocols.
 *   **Integrity Verification**: End-to-end data validation using BLAKE3 hashes.
 *   **Snapshot Management**: Point-in-time recovery with minimal storage overhead.
