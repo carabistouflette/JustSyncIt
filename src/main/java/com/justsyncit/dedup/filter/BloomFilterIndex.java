@@ -43,7 +43,7 @@ public class BloomFilterIndex {
     public boolean mightContain(String item) {
         int[] hashFunctions = createHashes(item, numHashFunctions);
         for (int hash : hashFunctions) {
-            if (!bitSet.get(hash)) {
+            if (!bitSet.get(hash % size)) {
                 return false;
             }
         }

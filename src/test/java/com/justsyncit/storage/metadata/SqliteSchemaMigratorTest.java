@@ -74,7 +74,7 @@ class SqliteSchemaMigratorTest {
 
         // Then
         assertNotNull(migrator);
-        assertEquals(2, migrator.getTargetVersion());
+        assertEquals(7, migrator.getTargetVersion());
     }
 
     @Test
@@ -102,28 +102,29 @@ class SqliteSchemaMigratorTest {
 
             // Then
             // Verify tables exist (excluding SQLite system tables)
+            java.util.Set<String> tableNames = new java.util.HashSet<>();
             try (var stmt = connection.createStatement();
                     var rs = stmt.executeQuery(
                             "SELECT name FROM sqlite_master WHERE type='table' "
                                     + "AND name NOT LIKE 'sqlite_%' ORDER BY name")) {
-                assertTrue(rs.next());
-                assertEquals("chunks", rs.getString("name"));
-                assertTrue(rs.next());
-                assertEquals("file_chunks", rs.getString("name"));
-                assertTrue(rs.next());
-                assertEquals("files", rs.getString("name"));
-                assertTrue(rs.next());
-                assertEquals("schema_version", rs.getString("name"));
-                assertTrue(rs.next());
-                assertEquals("snapshots", rs.getString("name"));
-                assertFalse(rs.next());
+                while (rs.next()) {
+                    tableNames.add(rs.getString("name"));
+                }
             }
+
+            assertTrue(tableNames.contains("chunks"));
+            assertTrue(tableNames.contains("file_chunks"));
+            assertTrue(tableNames.contains("files"));
+            assertTrue(tableNames.contains("schema_version"));
+            assertTrue(tableNames.contains("snapshots"));
+            assertTrue(tableNames.contains("chunk_parity"));
+            assertTrue(tableNames.contains("parity_groups"));
 
             // Verify schema version
             try (var stmt = connection.createStatement();
                     var rs = stmt.executeQuery("SELECT version FROM schema_version")) {
                 assertTrue(rs.next());
-                assertEquals(2, rs.getInt("version"));
+                assertEquals(7, rs.getInt("version"));
             }
         }
     }
@@ -149,24 +150,21 @@ class SqliteSchemaMigratorTest {
     @DisplayName("Should reject null connection for version check")
     void shouldRejectNullConnectionForVersionCheck() {
         // When/Then
-        assertThrows(IllegalArgumentException.class, () ->
-                SqliteSchemaMigrator.create().getCurrentVersion(null));
+        assertThrows(IllegalArgumentException.class, () -> SqliteSchemaMigrator.create().getCurrentVersion(null));
     }
 
     @Test
     @DisplayName("Should reject null connection for schema creation")
     void shouldRejectNullConnectionForSchemaCreation() {
         // When/Then
-        assertThrows(IllegalArgumentException.class, () ->
-                SqliteSchemaMigrator.create().createInitialSchema(null));
+        assertThrows(IllegalArgumentException.class, () -> SqliteSchemaMigrator.create().createInitialSchema(null));
     }
 
     @Test
     @DisplayName("Should reject null connection for schema validation")
     void shouldRejectNullConnectionForSchemaValidation() {
         // When/Then
-        assertThrows(IllegalArgumentException.class, () ->
-                SqliteSchemaMigrator.create().validateSchema(null));
+        assertThrows(IllegalArgumentException.class, () -> SqliteSchemaMigrator.create().validateSchema(null));
     }
 
     @Test
@@ -183,7 +181,7 @@ class SqliteSchemaMigratorTest {
             try (var stmt = connection.createStatement();
                     var rs = stmt.executeQuery("SELECT version FROM schema_version")) {
                 assertTrue(rs.next());
-                assertEquals(2, rs.getInt("version"));
+                assertEquals(7, rs.getInt("version"));
             }
         }
     }

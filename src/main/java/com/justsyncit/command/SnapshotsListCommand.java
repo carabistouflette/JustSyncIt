@@ -110,7 +110,8 @@ public class SnapshotsListCommand implements Command {
                         System.err.println("Error: Unknown option: " + arg);
                         return false;
                     }
-                    break;
+                    System.err.println("Error: Unknown argument: " + arg);
+                    return false;
             }
         }
 

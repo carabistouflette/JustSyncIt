@@ -1013,6 +1013,11 @@ public final class AsyncTestUtils {
         }
 
         @Override
+        public void deleteChunk(String hash) {
+            throw new UnsupportedOperationException("Deletions not supported in mock");
+        }
+
+        @Override
         public CompletableFuture<ChunkingResult> chunkFile(Path file, ChunkingOptions options) {
             return chunkFileAsync(file, options);
         }

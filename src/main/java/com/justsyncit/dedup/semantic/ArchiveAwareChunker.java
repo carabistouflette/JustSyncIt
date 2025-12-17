@@ -188,8 +188,14 @@ public class ArchiveAwareChunker implements FileChunker {
         }
     }
 
+    @Override
     public boolean existsChunk(String hash) throws IOException {
         return delegate.existsChunk(hash);
+    }
+
+    @Override
+    public void deleteChunk(String hash) throws IOException {
+        delegate.deleteChunk(hash);
     }
 
     public void close() {

@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
  * Mock implementation of AsyncByteBufferPool for testing.
  * Provides simple in-memory buffer operations for performance testing.
  */
-public class MockAsyncByteBufferPool implements AsyncByteBufferPool, BufferPool {
+public class MockAsyncByteBufferPool implements AsyncByteBufferPool {
 
     @Override
     public CompletableFuture<ByteBuffer> acquireAsync(int size) {

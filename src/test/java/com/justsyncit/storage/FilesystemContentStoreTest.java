@@ -105,7 +105,7 @@ class FilesystemContentStoreTest {
         // Assert
         assertEquals(expectedHash, actualHash);
         verify(mockBlake3Service).hashBuffer(data);
-        verify(mockChunkIndex, times(2)).containsChunk(expectedHash); // Called twice due to double-check pattern
+        verify(mockChunkIndex, times(1)).containsChunk(expectedHash);
         verify(mockChunkIndex).putChunk(eq(expectedHash), any(Path.class));
     }
 

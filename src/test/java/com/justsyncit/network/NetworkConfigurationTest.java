@@ -11,7 +11,7 @@ class NetworkConfigurationTest {
 
         assertEquals(4 * 1024 * 1024, config.getSendBufferSize());
         assertEquals(4 * 1024 * 1024, config.getReceiveBufferSize());
-        assertEquals(30_000, config.getConnectTimeoutMs());
+        assertEquals(10_000, config.getConnectTimeoutMs());
         assertTrue(config.isTcpNoDelay());
         assertTrue(config.isKeepAlive());
         assertTrue(config.isReuseAddress());

@@ -183,6 +183,11 @@ public class MockAsyncFileChunker implements AsyncFileChunker {
     }
 
     @Override
+    public void deleteChunk(String hash) {
+        chunkHistory.remove(hash);
+    }
+
+    @Override
     public CompletableFuture<ChunkingResult> chunkFile(Path file, ChunkingOptions options) {
         return chunkFileAsync(file, options);
     }

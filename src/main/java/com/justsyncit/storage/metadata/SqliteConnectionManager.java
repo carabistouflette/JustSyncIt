@@ -178,10 +178,22 @@ public final class SqliteConnectionManager implements DatabaseConnectionManager 
 
         @Override
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            if ("close".equals(method.getName())) {
+            String methodName = method.getName();
+            if ("close".equals(methodName)) {
                 closeConnection(original);
                 return null;
             }
+            if ("equals".equals(methodName) && args.length == 1) {
+                return proxy == args[0];
+            }
+            if ("hashCode".equals(methodName) && (args == null || args.length == 0)) {
+                return System.identityHashCode(proxy);
+            }
+            if ("toString".equals(methodName) && (args == null || args.length == 0)) {
+                return "ProxyConnection@" + Integer.toHexString(System.identityHashCode(proxy)) +
+                        " wrapping " + original.toString();
+            }
+
             // Unwrap if checking for compatibility or other proprietary methods if needed
             // But for standard JDBC, direct delegation is usually fine.
             // Note: Exception handling might need unwrapping InvocationTargetException
