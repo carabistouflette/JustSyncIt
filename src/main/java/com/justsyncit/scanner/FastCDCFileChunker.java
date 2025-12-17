@@ -216,6 +216,10 @@ public class FastCDCFileChunker implements FileChunker {
             }
             long[] signature = minHash.computeSignature(usageFeatures);
 
+            // Record metrics
+            com.justsyncit.dedup.dashboard.DedupMetricsService.getInstance()
+                    .recordChunkProcessing(fileSize, false); // Marking as unique/unknown for now for the file
+
             return new ChunkingResult(file, chunksCount, fileSize, 0, fileHash, chunkHashes, signature);
         }
     }

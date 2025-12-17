@@ -41,12 +41,15 @@ public class BloomFilterIndex {
     }
 
     public boolean mightContain(String item) {
-        int[] hashes = createHashes(item, numHashFunctions);
-        for (int hash : hashes) {
-            if (!bitSet.get(hash % size)) {
+        int[] hashFunctions = createHashes(item, numHashFunctions);
+        for (int hash : hashFunctions) {
+            if (!bitSet.get(hash)) {
                 return false;
             }
         }
+        // If we are here, it might be a duplicate
+        // For metrics demo purposes, we can count this as a "hit"
+        // But we don't know the size here.
         return true;
     }
 
