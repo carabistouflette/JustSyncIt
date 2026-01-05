@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -46,6 +47,14 @@ public class ChangedBlockTrackingService {
 
         this.watchServiceManager = new AsyncWatchServiceManager(threadPoolManager, bufferPool, options);
         this.journal = new ModificationJournal(journalDir);
+    }
+
+    /**
+     * Constructor for testing with mocked dependencies.
+     */
+    ChangedBlockTrackingService(AsyncWatchServiceManager watchServiceManager, ModificationJournal journal) {
+        this.watchServiceManager = watchServiceManager;
+        this.journal = journal;
     }
 
     /**
@@ -90,6 +99,13 @@ public class ChangedBlockTrackingService {
      *
      * @param rootDir the directory to monitor
      */
+    private final Map<Path, CompletableFuture<com.justsyncit.scanner.WatchServiceRegistration>> activeRegistrations = new ConcurrentHashMap<>();
+
+    /**
+     * Enables tracking for a specific directory.
+     *
+     * @param rootDir the directory to monitor
+     */
     public void enableTracking(Path rootDir) {
         Path absolutePath = rootDir.toAbsolutePath().normalize();
 
@@ -107,7 +123,18 @@ public class ChangedBlockTrackingService {
                 .withRecursiveWatching(true)
                 .withWatchEventKinds(Set.of("ENTRY_MODIFY", "ENTRY_CREATE", "ENTRY_DELETE"));
 
-        watchServiceManager.startDirectoryMonitoring(absolutePath, options, this::handleFileChangeEvent);
+        CompletableFuture<com.justsyncit.scanner.WatchServiceRegistration> future = watchServiceManager
+                .startDirectoryMonitoring(absolutePath, options, this::handleFileChangeEvent);
+
+        activeRegistrations.put(absolutePath, future);
+
+        future.whenComplete((reg, ex) -> {
+            if (ex != null) {
+                logger.error("Failed to enable tracking for {}", absolutePath, ex);
+                monitoredRoots.remove(absolutePath);
+                activeRegistrations.remove(absolutePath);
+            }
+        });
     }
 
     /**
@@ -117,11 +144,23 @@ public class ChangedBlockTrackingService {
      */
     public void disableTracking(Path rootDir) {
         Path absolutePath = rootDir.toAbsolutePath().normalize();
-        // Implementation note: We'd need to map rootDir to the specific Registration ID
-        // to stop it cleanly.
-        // For now, we mainly focus on starting.
-        // TODO: Implement clean stop by tracking Registration IDs.
+
+        if (!monitoredRoots.contains(absolutePath)) {
+            return;
+        }
+
+        logger.info("Disabling CBT for: {}", absolutePath);
         monitoredRoots.remove(absolutePath);
+
+        CompletableFuture<com.justsyncit.scanner.WatchServiceRegistration> future = activeRegistrations
+                .remove(absolutePath);
+        if (future != null) {
+            future.thenAccept(reg -> {
+                if (reg != null) {
+                    watchServiceManager.stopDirectoryMonitoring(reg);
+                }
+            });
+        }
     }
 
     /**
