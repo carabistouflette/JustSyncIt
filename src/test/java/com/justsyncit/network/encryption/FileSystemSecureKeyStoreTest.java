@@ -43,7 +43,7 @@ class FileSystemSecureKeyStoreTest {
     @BeforeEach
     void setUp() throws EncryptionException {
         keystorePath = tempDir.resolve("test.p12");
-        password = "testPassword123".toCharArray();
+        password = java.util.UUID.randomUUID().toString().toCharArray();
         keyStore = new FileSystemSecureKeyStore(keystorePath, password);
     }
 

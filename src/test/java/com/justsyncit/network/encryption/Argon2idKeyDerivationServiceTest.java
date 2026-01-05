@@ -38,7 +38,7 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Same password and salt should produce same key")
     void testDeterministicKeyDerivation() throws EncryptionException {
-        char[] password = "mySecurePassword123!".toCharArray();
+        char[] password = java.util.UUID.randomUUID().toString().toCharArray();
         byte[] salt = kdService.generateSalt();
 
         byte[] key1 = kdService.deriveKey(password, salt, 32);
@@ -50,7 +50,7 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Different salt should produce different key")
     void testDifferentSaltProducesDifferentKey() throws EncryptionException {
-        char[] password = "samePassword".toCharArray();
+        char[] password = java.util.UUID.randomUUID().toString().toCharArray();
         byte[] salt1 = kdService.generateSalt();
         byte[] salt2 = kdService.generateSalt();
 
@@ -63,8 +63,8 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Different password should produce different key")
     void testDifferentPasswordProducesDifferentKey() throws EncryptionException {
-        char[] password1 = "password1".toCharArray();
-        char[] password2 = "password2".toCharArray();
+        char[] password1 = java.util.UUID.randomUUID().toString().toCharArray();
+        char[] password2 = java.util.UUID.randomUUID().toString().toCharArray();
         byte[] salt = kdService.generateSalt();
 
         byte[] key1 = kdService.deriveKey(password1, salt, 32);
@@ -76,7 +76,7 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Output length should match requested size")
     void testOutputLengthMatchesRequestedSize() throws EncryptionException {
-        char[] password = "test".toCharArray();
+        char[] password = java.util.UUID.randomUUID().toString().toCharArray();
         byte[] salt = kdService.generateSalt();
 
         byte[] key16 = kdService.deriveKey(password, salt, 16);
@@ -128,7 +128,7 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Null salt should throw exception")
     void testNullSaltThrows() {
-        char[] password = "test".toCharArray();
+        char[] password = java.util.UUID.randomUUID().toString().toCharArray();
 
         assertThrows(EncryptionException.class,
                 () -> kdService.deriveKey(password, null, 32));
@@ -137,7 +137,7 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Salt too short should throw exception")
     void testSaltTooShortThrows() {
-        char[] password = "test".toCharArray();
+        char[] password = java.util.UUID.randomUUID().toString().toCharArray();
         byte[] shortSalt = new byte[4];
 
         assertThrows(EncryptionException.class,
@@ -147,7 +147,7 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Invalid output length should throw exception")
     void testInvalidOutputLengthThrows() {
-        char[] password = "test".toCharArray();
+        char[] password = java.util.UUID.randomUUID().toString().toCharArray();
         byte[] salt = kdService.generateSalt();
 
         assertThrows(EncryptionException.class,
@@ -160,7 +160,7 @@ class Argon2idKeyDerivationServiceTest {
     @Test
     @DisplayName("Default derive method should return 32-byte key")
     void testDefaultDeriveReturns256BitKey() throws EncryptionException {
-        char[] password = "test".toCharArray();
+        char[] password = java.util.UUID.randomUUID().toString().toCharArray();
         byte[] salt = kdService.generateSalt();
 
         byte[] key = kdService.deriveKey(password, salt);
