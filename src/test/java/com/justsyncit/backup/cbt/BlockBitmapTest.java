@@ -3,8 +3,6 @@ package com.justsyncit.backup.cbt;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Arrays;
-
 class BlockBitmapTest {
 
     @Test
