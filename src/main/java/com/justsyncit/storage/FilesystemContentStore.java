@@ -29,6 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 /**
  * Filesystem-based implementation of ContentStore using Java NIO.
@@ -50,6 +52,8 @@ public final class FilesystemContentStore extends AbstractContentStore {
     private final IntegrityVerifier integrityVerifier;
     /** The path generator for chunk file paths. */
     private final ChunkPathGenerator pathGenerator;
+    /** Atomic counter for total size to avoid O(N) scans. */
+    private final AtomicLong totalSize;
 
     /**
      * Creates a new FilesystemContentStore.
@@ -70,7 +74,26 @@ public final class FilesystemContentStore extends AbstractContentStore {
 
         // Create storage directory if it doesn't exist
         Files.createDirectories(storageDirectory);
-        logger.info("Initialized filesystem content store at {}", storageDirectory);
+        this.totalSize = new AtomicLong(calculateInitialTotalSize(storageDirectory));
+        logger.info("Initialized filesystem content store at {}, total size: {} bytes", storageDirectory,
+                totalSize.get());
+    }
+
+    private long calculateInitialTotalSize(Path dir) {
+        try (Stream<Path> walk = Files.walk(dir)) {
+            return walk.filter(Files::isRegularFile)
+                    .mapToLong(p -> {
+                        try {
+                            return Files.size(p);
+                        } catch (IOException e) {
+                            return 0L;
+                        }
+                    })
+                    .sum();
+        } catch (IOException e) {
+            logger.warn("Failed to calculate initial total size", e);
+            return 0L;
+        }
     }
 
     /**
@@ -130,6 +153,10 @@ public final class FilesystemContentStore extends AbstractContentStore {
         lock.writeLock().lock();
         try {
             // Double-check after acquiring write lock
+            if (chunkIndex.containsChunk(hash)) {
+                return hash;
+            }
+
             Path chunkPath;
             try {
                 chunkPath = pathGenerator.generatePath(storageDirectory, hash);
@@ -142,6 +169,9 @@ public final class FilesystemContentStore extends AbstractContentStore {
             // Write chunk to file (overwrite if exists to handle repair/corruption cases)
             Files.write(chunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE, StandardOpenOption.SYNC);
+
+            // Update stats
+            totalSize.addAndGet(data.length);
 
             // Add to index (or update)
             chunkIndex.putChunk(hash, chunkPath);
@@ -218,13 +248,13 @@ public final class FilesystemContentStore extends AbstractContentStore {
     @Override
     protected void doDeleteChunk(String hash) throws IOException {
         // We already hold the write lock from AbstractContentStore.deleteChunk
-        // But we need to use write lock for index modification?
-        // AbstractContentStore SHOULD acquire write lock for deleteChunk! (Yes it does)
 
         Path chunkPath = chunkIndex.getChunkPath(hash);
         if (chunkPath != null) {
+            long size = Files.exists(chunkPath) ? Files.size(chunkPath) : 0L;
             Files.deleteIfExists(chunkPath);
             chunkIndex.removeChunk(hash);
+            totalSize.addAndGet(-size);
         }
     }
 
@@ -240,22 +270,7 @@ public final class FilesystemContentStore extends AbstractContentStore {
 
     @Override
     protected long doGetTotalSize() throws IOException {
-        lock.readLock().lock();
-        try {
-            Set<String> hashes = chunkIndex.getAllHashes();
-            long totalSize = 0;
-
-            for (String hash : hashes) {
-                Path chunkPath = chunkIndex.getChunkPath(hash);
-                if (chunkPath != null && Files.exists(chunkPath)) {
-                    totalSize += Files.size(chunkPath);
-                }
-            }
-
-            return totalSize;
-        } finally {
-            lock.readLock().unlock();
-        }
+        return totalSize.get();
     }
 
     @Override
@@ -270,8 +285,10 @@ public final class FilesystemContentStore extends AbstractContentStore {
                     Path chunkPath = chunkIndex.getChunkPath(hash);
                     if (chunkPath != null) {
                         try {
+                            long size = Files.exists(chunkPath) ? Files.size(chunkPath) : 0L;
                             Files.deleteIfExists(chunkPath);
                             chunkIndex.removeChunk(hash);
+                            totalSize.addAndGet(-size);
                             removedCount++;
                             logger.debug("Deleted orphaned chunk {}", hash);
                         } catch (IOException e) {
