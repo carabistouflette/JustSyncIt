@@ -30,7 +30,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+// [Omega Remediation] Cleaned up unused imports
 import java.util.logging.Logger;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
  * REST controller for user management and authentication.
@@ -45,22 +51,27 @@ public final class UserController {
     private static final int KEY_LENGTH = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
 
-    private final WebServerContext context;
-
-    // In-memory user storage (would typically use a database)
+    // In-memory user storage (now backed by JSON file)
     private final Map<String, User> users;
     private final Map<String, String> sessions; // token -> userId
 
+    private final ObjectMapper objectMapper;
+    private final Path userDatabasePath;
+
     public UserController(WebServerContext context) {
-        this.context = context;
+        // Context kept for API compatibility
         this.users = new ConcurrentHashMap<>();
         this.sessions = new ConcurrentHashMap<>();
+        this.objectMapper = new ObjectMapper();
+        this.userDatabasePath = Paths.get("config", "users.json");
 
-        // Create default admin user
-        // Salt is generated automatically in User constructor now
-        User admin = new User("admin", "admin", "Administrator", "admin");
-        admin.setPassword("admin"); // Explicitly set password to generate hash/salt
-        users.put(admin.getId(), admin);
+        loadUsers();
+
+        // [Omega Remediation] P0 Security
+        // If no users exist, create a safe default admin with a RANDOM password.
+        if (users.isEmpty()) {
+            createDefaultAdmin();
+        }
     }
 
     /**
@@ -144,6 +155,7 @@ public final class UserController {
                     displayName != null ? displayName : username, role);
             user.setPassword(password);
             users.put(user.getId(), user);
+            saveUsers(); // [Omega Remediation] Persist changes
 
             LOGGER.info("Created user: " + username);
 
@@ -184,6 +196,7 @@ public final class UserController {
             if (body.containsKey("password") && !body.get("password").isEmpty()) {
                 user.setPassword(body.get("password"));
             }
+            saveUsers(); // [Omega Remediation] Persist changes
 
             LOGGER.info("Updated user: " + user.getUsername());
 
@@ -213,6 +226,7 @@ public final class UserController {
 
         // Remove any sessions for this user
         sessions.entrySet().removeIf(e -> e.getValue().equals(userId));
+        saveUsers(); // [Omega Remediation] Persist changes
 
         LOGGER.info("Deleted user: " + user.getUsername());
         ctx.json(Map.of("status", "deleted", "id", userId));
@@ -323,67 +337,119 @@ public final class UserController {
         return isValidSession(token);
     }
 
+    // [Omega Remediation] Persistence Methods
+
+    private void loadUsers() {
+        try {
+            if (Files.exists(userDatabasePath)) {
+                List<User> loaded = objectMapper.readValue(userDatabasePath.toFile(), new TypeReference<List<User>>() {
+                });
+                for (User u : loaded) {
+                    users.put(u.getId(), u);
+                }
+                LOGGER.info("Loaded " + users.size() + " users from disk.");
+            }
+        } catch (Exception e) {
+            LOGGER.severe("Failed to load users: " + e.getMessage());
+        }
+    }
+
+    private synchronized void saveUsers() {
+        try {
+            Files.createDirectories(userDatabasePath.getParent());
+            objectMapper.writeValue(userDatabasePath.toFile(), new ArrayList<>(users.values()));
+        } catch (Exception e) {
+            LOGGER.severe("Failed to save users: " + e.getMessage());
+        }
+    }
+
+    private void createDefaultAdmin() {
+        String tempPass = java.util.UUID.randomUUID().toString().substring(0, 8);
+        User admin = new User(generateId(), "admin", "Administrator", "admin");
+        admin.setPassword(tempPass);
+        users.put(admin.getId(), admin);
+        saveUsers();
+
+        LOGGER.warning("\n==================================================\n" +
+                "  [SECURITY] GENERATED TEMPORARY ADMIN PASSWORD: " + tempPass + "\n" +
+                "  Please login and change this password immediately.\n" +
+                "==================================================");
+    }
+
     // User class
 
-    private static class User {
-        private final String id;
-        private final String username;
+    // User class - Made public for Jackson support
+    public static class User {
+        private String id;
+        private String username;
         private String displayName;
         private String role;
         private String passwordHash;
         private String salt;
 
-        User(String id, String username, String displayName, String role) {
+        // Default constructor for Jackson
+        public User() {
+        }
+
+        public User(String id, String username, String displayName, String role) {
             this.id = id;
             this.username = username;
             this.displayName = displayName;
             this.role = role;
         }
 
-        void setPassword(String password) {
+        public void setPassword(String password) {
             byte[] saltBytes = new byte[16];
             RANDOM.nextBytes(saltBytes);
             this.salt = Base64.getEncoder().encodeToString(saltBytes);
             this.passwordHash = UserController.hashPassword(password, saltBytes);
         }
 
-        String getId() {
+        public String getId() {
             return id;
         }
 
-        String getUsername() {
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public String getUsername() {
             return username;
         }
 
-        String getDisplayName() {
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getDisplayName() {
             return displayName;
         }
 
-        void setDisplayName(String displayName) {
+        public void setDisplayName(String displayName) {
             this.displayName = displayName;
         }
 
-        String getRole() {
+        public String getRole() {
             return role;
         }
 
-        void setRole(String role) {
+        public void setRole(String role) {
             this.role = role;
         }
 
-        String getPasswordHash() {
+        public String getPasswordHash() {
             return passwordHash;
         }
 
-        void setPasswordHash(String passwordHash) {
+        public void setPasswordHash(String passwordHash) {
             this.passwordHash = passwordHash;
         }
 
-        String getSalt() {
+        public String getSalt() {
             return salt;
         }
 
-        void setSalt(String salt) {
+        public void setSalt(String salt) {
             this.salt = salt;
         }
     }

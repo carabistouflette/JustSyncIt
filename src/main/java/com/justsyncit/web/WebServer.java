@@ -79,24 +79,18 @@ public final class WebServer {
             LOGGER.info("Starting web server on port " + port);
 
             app = Javalin.create(config -> {
-                // Enable CORS only in development mode (controlled by environment variable)
-                String devMode = System.getenv("JUSTSYNCIT_DEV_MODE");
-                if ("true".equalsIgnoreCase(devMode)) {
-                    String corsOrigins = System.getenv("JUSTSYNCIT_CORS_ORIGINS");
-                    if (corsOrigins == null || corsOrigins.isEmpty()) {
-                        corsOrigins = "http://localhost:5173,http://127.0.0.1:5173";
-                    }
-                    final String[] origins = corsOrigins.split(",");
+                // [Omega Remediation] Strict CORS
+                // Only enable CORS if explicitly requested via env var.
+                String corsOrigin = System.getenv("CORS_ALLOWED_ORIGIN");
+                if (corsOrigin != null && !corsOrigin.isBlank()) {
                     config.bundledPlugins.enableCors(cors -> {
                         cors.addRule(it -> {
-                            for (String origin : origins) {
-                                it.allowHost(origin.trim());
-                            }
+                            it.allowHost(corsOrigin.trim());
                         });
                     });
-                    LOGGER.info("CORS enabled for origins: " + corsOrigins);
+                    LOGGER.info("CORS enabled for origin: " + corsOrigin);
                 } else {
-                    LOGGER.info("CORS disabled (production mode). Set JUSTSYNCIT_DEV_MODE=true to enable.");
+                    LOGGER.info("CORS disabled (default secure). Set CORS_ALLOWED_ORIGIN to enable.");
                 }
 
                 // Serve static files from web-ui/dist
@@ -235,10 +229,18 @@ public final class WebServer {
                 // Validate token from query parameter
                 String token = ctx.queryParam("token");
                 if (token == null || token.isEmpty()) {
+                    // Try Header (Standard for some clients, difficult for Browsers)
+                    token = ctx.header("X-Auth-Token");
+                }
+
+                if (token == null || token.isEmpty()) {
                     LOGGER.warning("WebSocket connection rejected: missing token");
                     ctx.closeSession(4001, "Authentication required");
                     return;
                 }
+
+                // [Omega Remediation] Note: Query param auth is logged in access logs.
+                // Prefer X-Auth-Token header where possible.
 
                 // Validate token with UserController
                 if (!userController.validateToken(token)) {
