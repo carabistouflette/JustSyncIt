@@ -27,9 +27,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Implementation of ChunkPathGenerator that uses a two-level directory structure.
- * The first 2 characters of the hash become the subdirectory, and the rest become the filename.
- * This prevents too many files in a single directory and improves filesystem performance.
+ * Implementation of ChunkPathGenerator that uses a two-level directory
+ * structure.
+ * The first 2 characters of the hash become the subdirectory, and the rest
+ * become the filename.
+ * This prevents too many files in a single directory and improves filesystem
+ * performance.
  */
 public final class TwoLevelChunkPathGenerator implements ChunkPathGenerator {
 
@@ -47,13 +50,33 @@ public final class TwoLevelChunkPathGenerator implements ChunkPathGenerator {
     }
 
     @Override
+    public void validateHash(String hash) {
+        if (hash == null || hash.trim().isEmpty()) {
+            throw new IllegalArgumentException("Hash cannot be null or empty");
+        }
+        if (hash.length() < MIN_HASH_LENGTH) {
+            throw new IllegalArgumentException("Hash must be at least " + MIN_HASH_LENGTH + " characters long");
+        }
+        // SEC-001: Prevent Path Traversal
+        if (!hash.matches("^[a-zA-Z0-9]+$")) {
+            throw new IllegalArgumentException("Hash must be alphanumeric");
+        }
+    }
+
+    @Override
     public Path generatePath(Path storageDirectory, String hash) throws ServiceException {
         validateHash(hash);
 
         // Use first 2 characters as subdirectory, rest as filename
         String subDir = hash.substring(0, 2);
         String fileName = hash.substring(2);
-        Path chunkPath = storageDirectory.resolve(subDir).resolve(fileName);
+        Path chunkPath = storageDirectory.resolve(subDir).resolve(fileName).normalize();
+
+        // Final sanity check
+        if (!chunkPath.startsWith(storageDirectory)) {
+            throw new ServiceException("Generatd path escapes storage directory: " + chunkPath);
+        }
+
         Path parentDir = chunkPath.getParent();
 
         // Ensure parent directories exist
@@ -67,15 +90,5 @@ public final class TwoLevelChunkPathGenerator implements ChunkPathGenerator {
 
         logger.debug("Generated path {} for hash {}", chunkPath, hash);
         return chunkPath;
-    }
-
-    @Override
-    public void validateHash(String hash) {
-        if (hash == null || hash.trim().isEmpty()) {
-            throw new IllegalArgumentException("Hash cannot be null or empty");
-        }
-        if (hash.length() < MIN_HASH_LENGTH) {
-            throw new IllegalArgumentException("Hash must be at least " + MIN_HASH_LENGTH + " characters long");
-        }
     }
 }
