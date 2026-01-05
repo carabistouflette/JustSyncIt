@@ -133,8 +133,7 @@ public class ReedSolomonService {
             // Ideally we should increment ref count or have GC know about chunk_parity.
 
             String parityHash = chunkStore.storeChunk(parityData);
-            System.out.println(
-                    "DEBUG: createParityGroup - Created parity index " + (dataShards + i) + " hash " + parityHash);
+            logger.debug("Created parity index {} hash {}", dataShards + i, parityHash);
 
             // Register parity chunk in metadata
             ChunkMetadata parityMeta = new ChunkMetadata(
@@ -171,7 +170,7 @@ public class ReedSolomonService {
 
             Optional<ParityGroupMetadata> groupMeta = metadataService.getParityGroup(groupId);
             if (groupMeta.isEmpty()) {
-                System.out.println("DEBUG: repairChunk - group meta missing");
+                logger.warn("Parity group metadata missing for group {}", groupId);
                 return false;
             }
 
@@ -193,8 +192,7 @@ public class ReedSolomonService {
             for (ChunkParityEntry e : allEntries) {
                 int idx = e.getChunkIndex();
                 boolean isTarget = e.getChunkHash().equals(missingChunkHash);
-                System.out.println("DEBUG: repairChunk - processing index " + idx + " hash " + e.getChunkHash()
-                        + " isTarget=" + isTarget);
+                logger.trace("Processing index {} hash {} isTarget={}", idx, e.getChunkHash(), isTarget);
 
                 if (!isTarget) {
                     byte[] data;
@@ -203,8 +201,7 @@ public class ReedSolomonService {
                         if (data != null) {
                             System.arraycopy(data, 0, shards[idx], 0, data.length);
                             shardPresent[idx] = true;
-                            System.out
-                                    .println("DEBUG: repairChunk - Loaded " + data.length + " bytes for index " + idx);
+                            logger.trace("Loaded {} bytes for index {}", data.length, idx);
                         }
                     } catch (StorageIntegrityException ex) {
                         logger.warn("Sibling chunk {} is corrupt, treating as missing for repair.", e.getChunkHash());
@@ -217,7 +214,7 @@ public class ReedSolomonService {
                 if (p)
                     presentCount++;
 
-            System.out.println("DEBUG: repairChunk - present shards: " + presentCount + " needed: " + dataShards);
+            logger.debug("Present shards: {} needed: {}", presentCount, dataShards);
 
             if (presentCount < dataShards) {
                 logger.error("Not enough shards to recover chunk {}. Need {}, have {}.", missingChunkHash, dataShards,
@@ -248,16 +245,14 @@ public class ReedSolomonService {
             chunkStore.deleteChunk(missingChunkHash);
 
             String recoveredHash = chunkStore.storeChunk(recoveredData);
-            System.out.println("DEBUG: repairChunk - stored recovered data. Hash: " + recoveredHash + " Expected: "
-                    + missingChunkHash);
+            logger.debug("Stored recovered data. Hash: {} Expected: {}", recoveredHash, missingChunkHash);
 
             logger.info("Successfully repaired chunk {}", missingChunkHash);
             return true;
 
         } catch (Exception e) {
             logger.error("Failed to repair chunk " + missingChunkHash, e);
-            e.printStackTrace();
-            System.out.println("DEBUG: repairChunk - exception: " + e.getMessage());
+            // Stack trace logged above with logger.error
             return false;
         }
     }
