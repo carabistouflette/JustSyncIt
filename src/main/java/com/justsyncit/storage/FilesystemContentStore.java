@@ -137,7 +137,8 @@ public final class FilesystemContentStore extends AbstractContentStore {
                 throw new IOException("Failed to generate path for chunk", e);
             }
 
-            System.out.println("DEBUG: FilesystemContentStore - storing " + hash + " to " + chunkPath);
+            // [Omega Remediation] Removed System.out.println
+            logger.trace("Storing chunk {} to {}", hash, chunkPath);
             // Write chunk to file (overwrite if exists to handle repair/corruption cases)
             Files.write(chunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE, StandardOpenOption.SYNC);
@@ -179,7 +180,8 @@ public final class FilesystemContentStore extends AbstractContentStore {
                 return null;
             }
 
-            System.out.println("DEBUG: FilesystemContentStore - retrieve " + hash + " from " + chunkPath);
+            // [Omega Remediation] Removed System.out.println
+            logger.trace("Retrieving chunk {} from {}", hash, chunkPath);
             if (!Files.exists(chunkPath)) {
                 logger.warn("Chunk {} found in index but file missing at {}", hash, chunkPath);
                 // Remove from index since file is missing

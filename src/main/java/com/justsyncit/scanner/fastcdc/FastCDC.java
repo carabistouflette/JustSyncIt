@@ -18,24 +18,16 @@
 
 package com.justsyncit.scanner.fastcdc;
 
-// import jdk.incubator.vector.ByteVector;
-// import jdk.incubator.vector.VectorSpecies;
-// import jdk.incubator.vector.VectorOperators;
-
 /**
  * Implementation of the FastCDC (Fast Content-Defined Chunking) algorithm.
  * Uses Gear hashing and a normalized chunking approach.
- * Optimization: Uses Java Vector API (incubating) for SIMD acceleration.
  */
 public class FastCDC {
 
     // Gear hash table (randomly generated 64-bit integers)
     private static final long[] GEAR_TABLE = new long[256];
 
-    // Vector API species for SIMD operations - Optimization postponed until
-    // supported
-    // private static final VectorSpecies<Byte> SPECIES =
-    // ByteVector.SPECIES_PREFERRED;
+    // [Omega Remediation] Removed placeholder SIMD code.
 
     static {
         // Initialize Gear hash table with a deterministic seed for reproducibility
