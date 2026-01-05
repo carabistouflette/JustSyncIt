@@ -160,6 +160,8 @@ public class ClientConnection implements Connection {
     /** The current protocol header. */
     private ProtocolHeader currentHeader;
 
+    private static final int MAX_MESSAGE_SIZE = 16 * 1024 * 1024; // 16MB limit
+
     /**
      * Processes received data from socket channel.
      *
@@ -201,9 +203,14 @@ public class ClientConnection implements Connection {
                         throw new IOException("Invalid protocol header received from " + remoteAddress);
                     }
 
+                    int payloadLength = currentHeader.getPayloadLength();
+                    if (payloadLength > MAX_MESSAGE_SIZE) {
+                        throw new IOException("Message too large: " + payloadLength + " > " + MAX_MESSAGE_SIZE);
+                    }
+
                     expectedMessageSize = com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE
-                            + currentHeader.getPayloadLength();
-                    readBuffer = ByteBuffer.allocate(currentHeader.getPayloadLength());
+                            + payloadLength;
+                    readBuffer = ByteBuffer.allocate(payloadLength);
                     readingHeader = false;
 
                     // Reset for next header
