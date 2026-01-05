@@ -285,7 +285,7 @@ public abstract class E2ETestBase {
     }
 
     // Resource management
-    protected <T extends java.io.Closeable> T registerResource(T resource) {
+    protected <T> T registerResource(T resource) {
         resourcesToCleanup.add(new ResourceWrapper<>(resource));
         return resource;
     }
@@ -302,7 +302,6 @@ public abstract class E2ETestBase {
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public void close() throws IOException {
             try {
                 if (resource instanceof com.justsyncit.storage.ClosableResource) {
