@@ -313,9 +313,62 @@ public class Blake3FileHasher implements FileHasher {
     @Override
     public String hashFileRange(Path filePath, long offset, long length)
             throws IOException, IllegalArgumentException, SecurityException, HashingException {
-        // For simplicity, delegate to the main hashFile method
-        // A full implementation would need to implement range-based hashing
-        return hashFile(filePath);
+        validateFilePath(filePath);
+        if (offset < 0 || length < 0) {
+            throw new IllegalArgumentException("Offset and length must be non-negative");
+        }
+
+        lock.readLock().lock();
+        try {
+            long fileSize = Files.size(filePath);
+            if (offset + length > fileSize) {
+                throw new IllegalArgumentException("Range limits exceed file size");
+            }
+
+            try (InputStream is = Files.newInputStream(filePath)) {
+                long skipped = 0;
+                while (skipped < offset) {
+                    long s = is.skip(offset - skipped);
+                    if (s <= 0)
+                        throw new IOException("Failed to skip to offset");
+                    skipped += s;
+                }
+
+                InputStream limitedIs = new java.io.InputStream() {
+                    private long remaining = length;
+
+                    @Override
+                    public int read() throws IOException {
+                        if (remaining <= 0)
+                            return -1;
+                        int result = is.read();
+                        if (result >= 0)
+                            remaining--;
+                        return result;
+                    }
+
+                    @Override
+                    public int read(byte[] b, int off, int len) throws IOException {
+                        if (remaining <= 0)
+                            return -1;
+                        int maxRead = (int) Math.min(len, remaining);
+                        int read = is.read(b, off, maxRead);
+                        if (read >= 0)
+                            remaining -= read;
+                        return read;
+                    }
+
+                };
+
+                return streamHasher.hashStream(limitedIs);
+            }
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new HashingException("Failed to hash file range", e);
+        } finally {
+            lock.readLock().unlock();
+        }
     }
 
     @Override

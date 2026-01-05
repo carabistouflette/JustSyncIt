@@ -121,7 +121,8 @@ public class FastCDCFileChunker implements FileChunker {
                 buffer.clear();
                 long readPos = 0;
 
-                while (readPos < fileSize) {
+                boolean isEof = false;
+                while (readPos < fileSize && !isEof) {
                     // Read into buffer (compacted state assumed)
                     // If buffer is empty (position=0), read full.
                     // If buffer has residue, position is at end of residue.
@@ -131,10 +132,11 @@ public class FastCDCFileChunker implements FileChunker {
                         try {
                             Integer read = channel.read(buffer, readPos).get();
                             if (read == -1) {
-                                // EOF reached unexpectedly? Should be covered by readPos check
-                                break;
+                                // EOF reached unexpectedly (file smaller than reported size)
+                                isEof = true;
+                            } else {
+                                readPos += read;
                             }
-                            readPos += read;
                         } catch (Exception e) {
                             throw new IOException("Failed to read file", e);
                         }
@@ -150,7 +152,7 @@ public class FastCDCFileChunker implements FileChunker {
                         // Check if we have enough data to determine a chunk
                         // We need at least maxSize to define a chunk definitely,
                         // OR if we are at EOF, we take whatever is left.
-                        boolean atEOF = (readPos == fileSize);
+                        boolean atEOF = (readPos == fileSize) || isEof;
 
                         int chunkLen = fastCDC.nextChunk(buffer, offset, available);
 
@@ -202,6 +204,9 @@ public class FastCDCFileChunker implements FileChunker {
 
                 // Finalize file hash
                 fileHash = fileHasher.digest();
+
+                // Track actual size read
+                fileSize = readPos;
 
             } finally {
                 bufferPool.release(buffer);

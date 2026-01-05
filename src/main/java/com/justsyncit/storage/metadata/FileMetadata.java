@@ -54,8 +54,15 @@ public final class FileMetadata {
      * @param chunkHashes  list of chunk hashes that make up this file, in order
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
-    public FileMetadata(String id, String snapshotId, String path, long size,
-            Instant modifiedTime, String fileHash, List<String> chunkHashes) {
+    @com.fasterxml.jackson.annotation.JsonCreator
+    public FileMetadata(
+            @com.fasterxml.jackson.annotation.JsonProperty("id") String id,
+            @com.fasterxml.jackson.annotation.JsonProperty("snapshotId") String snapshotId,
+            @com.fasterxml.jackson.annotation.JsonProperty("path") String path,
+            @com.fasterxml.jackson.annotation.JsonProperty("size") long size,
+            @com.fasterxml.jackson.annotation.JsonProperty("modifiedTime") Instant modifiedTime,
+            @com.fasterxml.jackson.annotation.JsonProperty("fileHash") String fileHash,
+            @com.fasterxml.jackson.annotation.JsonProperty("chunkHashes") List<String> chunkHashes) {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("File ID cannot be null or empty");
         }
