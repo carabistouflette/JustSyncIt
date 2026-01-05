@@ -15,6 +15,11 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
+
+import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
+import org.bouncycastle.crypto.params.HKDFParameters;
+import org.bouncycastle.crypto.digests.SHA256Digest;
 
 /**
  * AES-256-GCM encryption service implementation.
@@ -83,9 +88,20 @@ public final class AesGcmEncryptionService implements EncryptionService {
             throw new EncryptionException("IV seed must be at least " + IV_SIZE_BYTES + " bytes");
         }
 
-        // Derive IV from seed (truncate to 12 bytes)
-        // Since seed is expected to be a cryptographic hash, truncation is safe
-        byte[] iv = Arrays.copyOf(ivSeed, IV_SIZE_BYTES);
+        // Derive IV from seed using HKDF (HMAC-based Key Derivation Function)
+        // This ensures cryptographically strong derivation and better distribution than
+        // simple truncation
+        HKDFBytesGenerator hkdf = new HKDFBytesGenerator(new SHA256Digest());
+        // Use the seed as IKM (Input Key Material).
+        // We use a constant info string to bind this to the specific context of IV
+        // generation.
+        // No salt is strictly required if the seed is already high entropy (which it
+        // should be),
+        // but passing null satisfies the API.
+        hkdf.init(new HKDFParameters(ivSeed, null, "JustSyncIt-AES-GCM-IV".getBytes(StandardCharsets.UTF_8)));
+
+        byte[] iv = new byte[IV_SIZE_BYTES];
+        hkdf.generateBytes(iv, 0, IV_SIZE_BYTES);
 
         return encryptInternal(plaintext, key, iv, associatedData);
     }
