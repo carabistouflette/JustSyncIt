@@ -50,10 +50,8 @@ public final class FilesystemChunkIndex implements ChunkIndex {
     /** Persistence handler for loading and saving the index. */
     private final IndexPersistence persistence;
 
-    /** Counter for pending changes since last save. */
-    private final java.util.concurrent.atomic.AtomicInteger pendingChanges;
-    /** Timestamp of the last index save. */
-    private volatile long lastSaveTime;
+    // [Omega Remediation] Removed async batching fields (pendingChanges,
+    // lastSaveTime) to enforce data safety.
 
     /**
      * Creates a new FilesystemChunkIndex.
@@ -66,8 +64,8 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         this.indexMap = new ConcurrentHashMap<>();
         this.lock = new ReentrantReadWriteLock();
         this.closed = false;
-        this.pendingChanges = new java.util.concurrent.atomic.AtomicInteger(0);
-        this.lastSaveTime = System.currentTimeMillis();
+        this.closed = false;
+        // [Omega Remediation] Removed async batching initialization
 
         // Ensure directories exist and load existing index if it exists
         persistence.ensureDirectoriesExist();
@@ -100,15 +98,13 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         try {
             indexMap.put(hash, filePath);
 
-            // Check if we need to save the index
-            int pending = pendingChanges.incrementAndGet();
-            long now = System.currentTimeMillis();
-            if (pending >= 1000 || (now - lastSaveTime) > 5000) {
-                persistence.saveIndex(indexMap);
-                pendingChanges.set(0);
-                lastSaveTime = now;
-                logger.debug("Saved index with {} pending changes", pending);
-            }
+            indexMap.put(hash, filePath);
+
+            // [Omega Remediation] P0 Data Loss Prevention
+            // Direct Synchronous Save. Performance penalized for Correctness.
+            persistence.saveIndex(indexMap);
+
+            logger.debug("Saved index (synchronous update)");
 
             logger.debug("Added chunk {} to index at path {}", hash, filePath);
         } finally {
@@ -151,15 +147,11 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         try {
             Path removed = indexMap.remove(hash);
             if (removed != null) {
-                // Check if we need to save the index
-                int pending = pendingChanges.incrementAndGet();
-                long now = System.currentTimeMillis();
-                if (pending >= 1000 || (now - lastSaveTime) > 5000) {
-                    persistence.saveIndex(indexMap);
-                    pendingChanges.set(0);
-                    lastSaveTime = now;
-                }
-                logger.debug("Removed chunk {} from index", hash);
+                // [Omega Remediation] P0 Data Loss Prevention
+                // Direct Synchronous Save.
+                persistence.saveIndex(indexMap);
+
+                logger.debug("Removed chunk {} from index (synchronous save)", hash);
                 return true;
             }
             return false;
@@ -216,8 +208,6 @@ public final class FilesystemChunkIndex implements ChunkIndex {
             if (!toRemove.isEmpty()) {
                 // Force save after bulk removal
                 persistence.saveIndex(indexMap);
-                pendingChanges.set(0);
-                lastSaveTime = System.currentTimeMillis();
                 logger.debug("Retained {} chunks, removed {} orphaned chunks",
                         activeHashes.size(), toRemove.size());
             }
