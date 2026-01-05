@@ -87,70 +87,93 @@ public class ReedSolomonService {
         // Our RS impl works on bytes, so any size is fine.
 
         // 2. Load data into buffers
-        // We use arrays for the RS codec
-        byte[][] shards = new byte[dataShards + parityShards][(int) maxSize];
-
-        for (int i = 0; i < dataChunkHashes.size(); i++) {
-            ChunkMetadata meta = metas.get(i);
-            byte[] data;
-            try {
-                data = chunkStore.retrieveChunk(meta.getHash()); // Assuming retrieving raw bytes
-            } catch (StorageIntegrityException e) {
-                throw new IOException("Cannot create parity group: source chunk is corrupt: " + meta.getHash(), e);
+        // [Omega Remediation] Use pooled buffers
+        byte[][] shards = new byte[dataShards + parityShards][];
+        try {
+            for (int i = 0; i < shards.length; i++) {
+                shards[i] = ShardBufferPool.getInstance().acquire();
             }
-            if (data == null) {
-                throw new IOException("Chunk data missing from store: " + meta.getHash());
+
+            for (int i = 0; i < dataChunkHashes.size(); i++) {
+                ChunkMetadata meta = metas.get(i);
+                byte[] data;
+                try {
+                    data = chunkStore.retrieveChunk(meta.getHash()); // Assuming retrieving raw bytes
+                } catch (StorageIntegrityException e) {
+                    throw new IOException("Cannot create parity group: source chunk is corrupt: " + meta.getHash(), e);
+                }
+                if (data == null) {
+                    throw new IOException("Chunk data missing from store: " + meta.getHash());
+                }
+                // Zero out the buffer first if we are reusing it (though system.arraycopy
+                // overwrites,
+                // padding needs to be 0 for RS).
+                // Since we don't zero out entire 1MB buffer, rely on max size passed to RS.
+                // RS only reads up to maxSize.
+                // But wait, if previous use filled 1MB, and now we use 64KB, the tail is dirty.
+                // Does RS look at tail? No, we pass maxSize.
+                // However, we must ensure padding within maxSize is 0.
+                // System.arraycopy(data, 0, shards[i], 0, data.length) copies data.
+                // If data.length < maxSize, we need to zero out from data.length to maxSize.
+                if (data.length < maxSize) {
+                    java.util.Arrays.fill(shards[i], data.length, (int) maxSize, (byte) 0);
+                }
+
+                System.arraycopy(data, 0, shards[i], 0, data.length);
             }
-            System.arraycopy(data, 0, shards[i], 0, data.length);
-            // Remaining bytes in shards[i] are already 0
+
+            // For parity shards (starting at dataShards), we also need to ensure they are
+            // clean up to maxSize
+            // because RS XORs into them?
+            // "encodeParity" treats first k shards as input, and writes to last m shards.
+            // It assumes last m shards are output buffers. It overwrites them.
+            // But good practice to be safe or check implementation.
+            // Backblaze RS: parity shards are overwritten.
+
+            // 3. Compute Parity
+            ReedSolomon rs = new ReedSolomon(dataShards, parityShards);
+            rs.encodeParity(shards, (int) maxSize);
+
+            // 4. Store Parity Chunks
+            String algoId = "RS-" + dataShards + "-" + parityShards;
+            long groupId = metadataService.createParityGroup(algoId);
+
+            // Register data chunks
+            for (int i = 0; i < dataChunkHashes.size(); i++) {
+                metadataService.addChunkToParityGroup(groupId, dataChunkHashes.get(i), i, false);
+            }
+
+            // Store and register parity chunks
+            for (int i = 0; i < parityShards; i++) {
+                byte[] parityData = shards[dataShards + i]; // Parity starts at index k
+                // We need to slice/copy only the relevant bytes for storage
+                byte[] dataToStore = new byte[(int) maxSize];
+                System.arraycopy(parityData, 0, dataToStore, 0, (int) maxSize);
+
+                String parityHash = chunkStore.storeChunk(dataToStore);
+                logger.debug("Created parity index {} hash {}", dataShards + i, parityHash);
+
+                // Register parity chunk in metadata
+                ChunkMetadata parityMeta = new ChunkMetadata(
+                        parityHash,
+                        dataToStore.length,
+                        java.time.Instant.now(),
+                        1, // Ref count 1 (referenced by parity group)
+                        java.time.Instant.now());
+                metadataService.upsertChunk(parityMeta);
+
+                metadataService.addChunkToParityGroup(groupId, parityHash, dataShards + i, true);
+            }
+
+            return groupId;
+        } finally {
+            // Return buffers to pool
+            for (byte[] shard : shards) {
+                if (shard != null) {
+                    ShardBufferPool.getInstance().release(shard);
+                }
+            }
         }
-
-        // 3. Compute Parity
-        ReedSolomon rs = new ReedSolomon(dataShards, parityShards);
-        rs.encodeParity(shards, (int) maxSize);
-
-        // 4. Store Parity Chunks
-        String algoId = "RS-" + dataShards + "-" + parityShards;
-        long groupId = metadataService.createParityGroup(algoId);
-
-        // Register data chunks
-        for (int i = 0; i < dataChunkHashes.size(); i++) {
-            metadataService.addChunkToParityGroup(groupId, dataChunkHashes.get(i), i, false);
-        }
-
-        // Store and register parity chunks
-        for (int i = 0; i < parityShards; i++) {
-            byte[] parityData = shards[dataShards + i]; // Parity starts at index k
-            // We store parity chunks as regular chunks?
-            // Yes, storing them allows deduplication if parity happens to be identical
-            // (unlikely but possible)
-            // and leverages existing storage mechanism.
-            // We need to calculate hash for parity chunk
-            // Wait, chunkStore.storeChunk calculates hash.
-
-            // NOTE: Store parity chunk. It returns a hash.
-            // In a real system, we might mark these as "system" chunks to avoid garbage
-            // collection if they are not referenced by a file.
-            // But here we rely on existing mechanisms. Parity chunks are referenced by
-            // chunk_parity table.
-            // Ideally we should increment ref count or have GC know about chunk_parity.
-
-            String parityHash = chunkStore.storeChunk(parityData);
-            logger.debug("Created parity index {} hash {}", dataShards + i, parityHash);
-
-            // Register parity chunk in metadata
-            ChunkMetadata parityMeta = new ChunkMetadata(
-                    parityHash,
-                    parityData.length,
-                    java.time.Instant.now(),
-                    1, // Ref count 1 (referenced by parity group)
-                    java.time.Instant.now());
-            metadataService.upsertChunk(parityMeta);
-
-            metadataService.addChunkToParityGroup(groupId, parityHash, dataShards + i, true);
-        }
-
-        return groupId;
     }
 
     /**
@@ -189,89 +212,111 @@ public class ReedSolomonService {
                 }
             }
 
-            byte[][] shards = new byte[dataShards + parityShards][(int) maxSize];
+            byte[][] shards = new byte[dataShards + parityShards][];
             boolean[] shardPresent = new boolean[dataShards + parityShards];
 
-            for (ChunkParityEntry e : allEntries) {
-                int idx = e.getChunkIndex();
-                boolean isTarget = e.getChunkHash().equals(missingChunkHash);
-                logger.trace("Processing index {} hash {} isTarget={}", idx, e.getChunkHash(), isTarget);
+            try {
+                for (int i = 0; i < shards.length; i++) {
+                    shards[i] = ShardBufferPool.getInstance().acquire();
+                }
 
-                if (!isTarget) {
-                    byte[] data;
-                    try {
-                        data = chunkStore.retrieveChunk(e.getChunkHash());
-                        if (data != null) {
-                            System.arraycopy(data, 0, shards[idx], 0, data.length);
-                            shardPresent[idx] = true;
-                            logger.trace("Loaded {} bytes for index {}", data.length, idx);
+                for (ChunkParityEntry e : allEntries) {
+                    int idx = e.getChunkIndex();
+                    boolean isTarget = e.getChunkHash().equals(missingChunkHash);
+                    logger.trace("Processing index {} hash {} isTarget={}", idx, e.getChunkHash(), isTarget);
+
+                    if (!isTarget) {
+                        byte[] data;
+                        try {
+                            data = chunkStore.retrieveChunk(e.getChunkHash());
+                            if (data != null) {
+                                // Zero out padding if reusing buffer
+                                if (data.length < maxSize) {
+                                    java.util.Arrays.fill(shards[idx], data.length, (int) maxSize, (byte) 0);
+                                }
+                                System.arraycopy(data, 0, shards[idx], 0, data.length);
+                                shardPresent[idx] = true;
+                                logger.trace("Loaded {} bytes for index {}", data.length, idx);
+                            }
+                        } catch (StorageIntegrityException ex) {
+                            logger.warn("Sibling chunk {} is corrupt, treating as missing for repair.",
+                                    e.getChunkHash());
                         }
-                    } catch (StorageIntegrityException ex) {
-                        logger.warn("Sibling chunk {} is corrupt, treating as missing for repair.", e.getChunkHash());
                     }
                 }
-            }
 
-            int presentCount = 0;
-            for (boolean p : shardPresent)
-                if (p)
-                    presentCount++;
+                int presentCount = 0;
+                for (boolean p : shardPresent)
+                    if (p)
+                        presentCount++;
 
-            logger.debug("Present shards: {} needed: {}", presentCount, dataShards);
+                logger.debug("Present shards: {} needed: {}", presentCount, dataShards);
 
-            if (presentCount < dataShards) {
-                logger.error("Not enough shards to recover chunk {}. Need {}, have {}.", missingChunkHash, dataShards,
-                        presentCount);
-                return false;
-            }
-
-            // 3. Decode
-            ReedSolomon rs = new ReedSolomon(dataShards, parityShards);
-            rs.decodeMissing(shards, shardPresent, (int) maxSize);
-
-            // 4. Verify & Save recovered chunk
-            int targetIdx = targetEntry.getChunkIndex();
-            byte[] recoveredData = shards[targetIdx];
-
-            Optional<ChunkMetadata> targetMeta = metadataService.getChunkMetadata(missingChunkHash);
-            if (targetMeta.isPresent()) {
-                int originalSize = (int) targetMeta.get().getSize();
-                if (originalSize < maxSize) {
-                    byte[] truncated = new byte[originalSize];
-                    System.arraycopy(recoveredData, 0, truncated, 0, originalSize);
-                    recoveredData = truncated;
+                if (presentCount < dataShards) {
+                    logger.error("Not enough shards to recover chunk {}. Need {}, have {}.", missingChunkHash,
+                            dataShards,
+                            presentCount);
+                    return false;
                 }
-            }
 
-            // [Omega Remediation] Validation Step
-            try {
-                if (!blake3Service.verify(recoveredData, missingChunkHash)) {
-                    logger.error("Healing verification failed! Recovered data hash DOES NOT match expected hash {}.",
+                // 3. Decode
+                ReedSolomon rs = new ReedSolomon(dataShards, parityShards);
+                rs.decodeMissing(shards, shardPresent, (int) maxSize);
+
+                // 4. Verify & Save recovered chunk
+                int targetIdx = targetEntry.getChunkIndex();
+                byte[] recoveredBuffer = shards[targetIdx];
+
+                // Extract actual data
+                byte[] recoveredData = new byte[(int) maxSize];
+                System.arraycopy(recoveredBuffer, 0, recoveredData, 0, (int) maxSize);
+
+                Optional<ChunkMetadata> targetMeta = metadataService.getChunkMetadata(missingChunkHash);
+                if (targetMeta.isPresent()) {
+                    int originalSize = (int) targetMeta.get().getSize();
+                    if (originalSize < maxSize) {
+                        byte[] truncated = new byte[originalSize];
+                        System.arraycopy(recoveredData, 0, truncated, 0, originalSize);
+                        recoveredData = truncated;
+                    }
+                }
+
+                // [Omega Remediation] Validation Step
+                try {
+                    if (!blake3Service.verify(recoveredData, missingChunkHash)) {
+                        logger.error(
+                                "Healing verification failed! Recovered data hash DOES NOT match expected hash {}.",
+                                missingChunkHash);
+                        return false;
+                    }
+                } catch (Exception e) {
+                    logger.error("Error during healing verification for {}", missingChunkHash, e);
+                    return false;
+                }
+
+                // Important: We must delete the corrupt chunk first to ensure we overwrite it,
+                // bypassing any deduplication checks in the content store.
+                // NOW SAFE: Verified that we have the CORRECT data.
+                chunkStore.deleteChunk(missingChunkHash);
+
+                String recoveredHash = chunkStore.storeChunk(recoveredData);
+                logger.debug("Stored recovered data. Hash: {} Expected: {}", recoveredHash, missingChunkHash);
+
+                if (!recoveredHash.equals(missingChunkHash)) {
+                    logger.error("Post-storage verification failed. Stored hash {} != Expected {}", recoveredHash,
                             missingChunkHash);
                     return false;
                 }
-            } catch (Exception e) {
-                logger.error("Error during healing verification for {}", missingChunkHash, e);
-                return false;
+
+                logger.info("Successfully repaired chunk {}", missingChunkHash);
+                return true;
+            } finally {
+                for (byte[] shard : shards) {
+                    if (shard != null) {
+                        ShardBufferPool.getInstance().release(shard);
+                    }
+                }
             }
-
-            // Important: We must delete the corrupt chunk first to ensure we overwrite it,
-            // bypassing any deduplication checks in the content store.
-            // NOW SAFE: Verified that we have the CORRECT data.
-            chunkStore.deleteChunk(missingChunkHash);
-
-            String recoveredHash = chunkStore.storeChunk(recoveredData);
-            logger.debug("Stored recovered data. Hash: {} Expected: {}", recoveredHash, missingChunkHash);
-
-            if (!recoveredHash.equals(missingChunkHash)) {
-                logger.error("Post-storage verification failed. Stored hash {} != Expected {}", recoveredHash,
-                        missingChunkHash);
-                return false;
-            }
-
-            logger.info("Successfully repaired chunk {}", missingChunkHash);
-            return true;
-
         } catch (Exception e) {
             logger.error("Failed to repair chunk " + missingChunkHash, e);
             // Stack trace logged above with logger.error
