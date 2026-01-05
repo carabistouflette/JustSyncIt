@@ -26,9 +26,9 @@ import io.javalin.http.Context;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
@@ -81,21 +81,53 @@ public final class UserController {
     /**
      * POST /api/users - Create a new user.
      */
-    @SuppressWarnings("unchecked")
     public void createUser(Context ctx) {
         try {
-            Map<String, String> body = ctx.bodyAsClass(Map.class);
+            Map<String, String> body;
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, String> parsed = ctx.bodyAsClass(Map.class);
+                body = parsed;
+            } catch (Exception e) {
+                ctx.status(400).json(ApiError.badRequest("Invalid JSON body", ctx.path()));
+                return;
+            }
+
             String username = body.get("username");
             String password = body.get("password");
             String displayName = body.get("displayName");
             String role = body.getOrDefault("role", "user");
 
+            // Validate username
             if (username == null || username.isEmpty()) {
                 ctx.status(400).json(ApiError.badRequest("username is required", ctx.path()));
                 return;
             }
+            if (username.length() > 255) {
+                ctx.status(400).json(ApiError.badRequest("username must be 255 characters or less", ctx.path()));
+                return;
+            }
+            if (!username.matches("^[a-zA-Z0-9_.-]+$")) {
+                ctx.status(400)
+                        .json(ApiError.badRequest(
+                                "username must contain only alphanumeric characters, underscores, dots, and hyphens",
+                                ctx.path()));
+                return;
+            }
+
+            // Validate password
             if (password == null || password.isEmpty()) {
                 ctx.status(400).json(ApiError.badRequest("password is required", ctx.path()));
+                return;
+            }
+            if (password.length() < 8) {
+                ctx.status(400).json(ApiError.badRequest("password must be at least 8 characters", ctx.path()));
+                return;
+            }
+
+            // Validate role (whitelist)
+            if (!Set.of("admin", "user", "viewer").contains(role)) {
+                ctx.status(400).json(ApiError.badRequest("role must be one of: admin, user, viewer", ctx.path()));
                 return;
             }
 
@@ -279,6 +311,16 @@ public final class UserController {
 
     public boolean isValidSession(String token) {
         return sessions.containsKey(token);
+    }
+
+    /**
+     * Validates a token for WebSocket authentication.
+     * 
+     * @param token the session token to validate
+     * @return true if the token is valid, false otherwise
+     */
+    public boolean validateToken(String token) {
+        return isValidSession(token);
     }
 
     // User class

@@ -110,8 +110,12 @@ public class ConfigController {
                         }
                         break;
                     default:
-                        // Allow other keys
-                        break;
+                        // Reject unknown config keys
+                        ctx.status(400).json(ApiError.badRequest(
+                                "Unknown configuration key: " + key
+                                        + ". Allowed keys: webPort, defaultChunkSize, compressionLevel",
+                                ctx.path()));
+                        return;
                 }
 
                 config.put(key, value);
