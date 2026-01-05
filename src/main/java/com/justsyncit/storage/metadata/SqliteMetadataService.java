@@ -178,7 +178,10 @@ public final class SqliteMetadataService implements MetadataService {
             stmt.setLong(3, now.toEpochMilli());
             stmt.setString(4, description);
 
-            stmt.executeUpdate();
+            int rows = stmt.executeUpdate();
+            if (rows == 0) {
+                throw new IOException("Failed to create snapshot, no rows affected.");
+            }
 
             Snapshot snapshot = new Snapshot(id, name, description, now, 0, 0);
             logger.debug("Created snapshot: {}", snapshot);
@@ -377,7 +380,10 @@ public final class SqliteMetadataService implements MetadataService {
                 stmt.setString(6, file.getFileHash());
                 stmt.setString(7, encryptionEnabled ? "AES" : "NONE");
 
-                stmt.executeUpdate();
+                int rows = stmt.executeUpdate();
+                if (rows == 0) {
+                    throw new IOException("Failed to insert file, no rows affected.");
+                }
 
                 // Insert file chunks
                 insertFileChunks(connection, file);
@@ -678,6 +684,7 @@ public final class SqliteMetadataService implements MetadataService {
                 List<FileMetadata> files = new ArrayList<>();
                 int skipped = 0;
                 int count = 0;
+                boolean hasPrefix = pathPrefix != null && !pathPrefix.isEmpty();
 
                 while (rs.next()) {
                     // Mapping first without chunks to check filter (optimization: don't fetch
@@ -686,14 +693,17 @@ public final class SqliteMetadataService implements MetadataService {
                     String id = rs.getString("id");
                     String rawPath = rs.getString("path");
                     String encryptionMode = rs.getString("encryption_mode");
+                    boolean isEncrypted = "AES".equals(encryptionMode);
 
                     String decryptedPath = rawPath;
-                    if ("AES".equals(encryptionMode)) {
+
+                    // Optimization: Only decrypt if we have a prefix to check
+                    if (hasPrefix && isEncrypted) {
                         decryptedPath = decryptPath(rawPath, encryptionMode);
                     }
 
                     // Filter
-                    if (pathPrefix != null && !pathPrefix.isEmpty()) {
+                    if (hasPrefix) {
                         if (!decryptedPath.startsWith(pathPrefix)) {
                             continue;
                         }
@@ -708,6 +718,11 @@ public final class SqliteMetadataService implements MetadataService {
                     // Pagination: Limit
                     if (count >= limit) {
                         break;
+                    }
+
+                    // If we haven't decrypted yet (because no prefix check was needed), do it now
+                    if (isEncrypted && decryptedPath == rawPath) { // (reference comparison ok if rawPath is string)
+                        decryptedPath = decryptPath(rawPath, encryptionMode);
                     }
 
                     // Fetch chunks only for the files we return
