@@ -27,7 +27,8 @@ import java.nio.file.Path;
 
 /**
  * Factory for creating ContentStore instances.
- * Follows Dependency Inversion Principle by depending on abstractions rather than concrete classes.
+ * Follows Dependency Inversion Principle by depending on abstractions rather
+ * than concrete classes.
  * Provides a clean interface for creating different types of content stores.
  */
 public final class ContentStoreFactory {
@@ -44,9 +45,9 @@ public final class ContentStoreFactory {
      * Creates a filesystem-based content store with default components.
      *
      * @param storageDirectory the directory to store chunks in
-     * @param blake3Service the BLAKE3 service for hashing
+     * @param blake3Service    the BLAKE3 service for hashing
      * @return a new ContentStore instance
-     * @throws IOException if the store cannot be created
+     * @throws IOException              if the store cannot be created
      * @throws IllegalArgumentException if any parameter is null
      */
     public static ContentStore createFilesystemStore(Path storageDirectory, Blake3Service blake3Service)
@@ -64,18 +65,18 @@ public final class ContentStoreFactory {
     /**
      * Creates a filesystem-based content store with custom components.
      *
-     * @param storageDirectory the directory to store chunks in
-     * @param chunkIndex the chunk index to use
+     * @param storageDirectory  the directory to store chunks in
+     * @param chunkIndex        the chunk index to use
      * @param integrityVerifier the integrity verifier to use
-     * @param pathGenerator the path generator to use
+     * @param pathGenerator     the path generator to use
      * @return a new ContentStore instance
-     * @throws IOException if the store cannot be created
+     * @throws IOException              if the store cannot be created
      * @throws IllegalArgumentException if any parameter is null
      */
     public static ContentStore createFilesystemStore(Path storageDirectory,
-                                             ChunkIndex chunkIndex,
-                                             IntegrityVerifier integrityVerifier,
-                                             ChunkPathGenerator pathGenerator)
+            ChunkIndex chunkIndex,
+            IntegrityVerifier integrityVerifier,
+            ChunkPathGenerator pathGenerator)
             throws IOException {
         validateParameters(storageDirectory, chunkIndex, integrityVerifier, pathGenerator);
 
@@ -123,7 +124,7 @@ public final class ContentStoreFactory {
      * Validates parameters for filesystem store creation.
      *
      * @param storageDirectory the storage directory
-     * @param blake3Service the BLAKE3 service
+     * @param blake3Service    the BLAKE3 service
      * @throws IllegalArgumentException if any parameter is null
      */
     private static void validateParameters(Path storageDirectory, Blake3Service blake3Service) {
@@ -138,16 +139,16 @@ public final class ContentStoreFactory {
     /**
      * Validates parameters for filesystem store creation with custom components.
      *
-     * @param storageDirectory the storage directory
-     * @param chunkIndex the chunk index
+     * @param storageDirectory  the storage directory
+     * @param chunkIndex        the chunk index
      * @param integrityVerifier the integrity verifier
-     * @param pathGenerator the path generator
+     * @param pathGenerator     the path generator
      * @throws IllegalArgumentException if any parameter is null
      */
     private static void validateParameters(Path storageDirectory,
-                                     ChunkIndex chunkIndex,
-                                     IntegrityVerifier integrityVerifier,
-                                     ChunkPathGenerator pathGenerator) {
+            ChunkIndex chunkIndex,
+            IntegrityVerifier integrityVerifier,
+            ChunkPathGenerator pathGenerator) {
         if (storageDirectory == null) {
             throw new IllegalArgumentException("Storage directory cannot be null");
         }
@@ -166,15 +167,15 @@ public final class ContentStoreFactory {
      * Creates a SQLite-enhanced content store with metadata management.
      *
      * @param storageDirectory directory to store chunks in
-     * @param metadataService metadata service for managing metadata
-     * @param blake3Service BLAKE3 service for hashing
+     * @param metadataService  metadata service for managing metadata
+     * @param blake3Service    BLAKE3 service for hashing
      * @return a new SqliteContentStore instance
-     * @throws IOException if store cannot be created
+     * @throws IOException              if store cannot be created
      * @throws IllegalArgumentException if any parameter is null
      */
     public static ContentStore createSqliteStore(String storageDirectory,
-                                            com.justsyncit.storage.metadata.MetadataService metadataService,
-                                            Blake3Service blake3Service) throws IOException {
+            com.justsyncit.storage.metadata.MetadataService metadataService,
+            Blake3Service blake3Service) throws IOException {
         if (storageDirectory == null || storageDirectory.trim().isEmpty()) {
             throw new IllegalArgumentException("Storage directory cannot be null or empty");
         }
@@ -191,19 +192,38 @@ public final class ContentStoreFactory {
     }
 
     /**
-     * Creates a SQLite-enhanced content store with metadata service and default storage directory.
+     * Creates a SQLite-enhanced content store with metadata service and default
+     * storage directory.
      *
      * @param metadataService metadata service for managing metadata
-     * @param blake3Service BLAKE3 service for hashing
+     * @param blake3Service   BLAKE3 service for hashing
      * @return a new SqliteContentStore instance
-     * @throws IOException if store cannot be created
+     * @throws IOException              if store cannot be created
      * @throws IllegalArgumentException if any parameter is null
      */
     public static ContentStore createDefaultSqliteStore(
-                                            com.justsyncit.storage.metadata.MetadataService metadataService,
-                                            Blake3Service blake3Service) throws IOException {
+            com.justsyncit.storage.metadata.MetadataService metadataService,
+            Blake3Service blake3Service) throws IOException {
         // Use default storage directory
         String defaultStorageDir = "storage/chunks";
         return createSqliteStore(defaultStorageDir, metadataService, blake3Service);
+    }
+
+    /**
+     * Creates a SQLite-enhanced content store with an existing delegate store.
+     *
+     * @param delegate        the underlying content store
+     * @param metadataService metadata service
+     * @return a new SqliteContentStore instance
+     */
+    public static ContentStore createSqliteStore(ContentStore delegate,
+            com.justsyncit.storage.metadata.MetadataService metadataService) {
+        if (delegate == null) {
+            throw new IllegalArgumentException("Delegate store cannot be null");
+        }
+        if (metadataService == null) {
+            throw new IllegalArgumentException("Metadata service cannot be null");
+        }
+        return new SqliteContentStore(delegate, metadataService);
     }
 }

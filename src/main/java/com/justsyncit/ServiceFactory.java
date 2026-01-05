@@ -62,6 +62,8 @@ import com.justsyncit.hash.HashingException;
  */
 public class ServiceFactory {
 
+    private ContentStore sharedContentStore;
+
     /**
      * Creates a fully configured JustSyncItApplicationRefactored.
      *
@@ -110,12 +112,15 @@ public class ServiceFactory {
      * @param blake3Service BLAKE3 service for hashing
      * @return configured content store
      */
-    public ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
-        java.nio.file.Path storageDir = java.nio.file.Paths.get("storage", "chunks");
-        java.nio.file.Path indexFile = java.nio.file.Paths.get("storage", "index.txt");
+    public synchronized ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
+        if (sharedContentStore == null) {
+            java.nio.file.Path storageDir = java.nio.file.Paths.get("storage", "chunks");
+            java.nio.file.Path indexFile = java.nio.file.Paths.get("storage", "index.txt");
 
-        FilesystemChunkIndex chunkIndex = FilesystemChunkIndex.create(storageDir, indexFile);
-        return FilesystemContentStore.create(storageDir, chunkIndex, blake3Service);
+            FilesystemChunkIndex chunkIndex = FilesystemChunkIndex.create(storageDir, indexFile);
+            sharedContentStore = FilesystemContentStore.create(storageDir, chunkIndex, blake3Service);
+        }
+        return sharedContentStore;
     }
 
     /**
@@ -420,9 +425,10 @@ public class ServiceFactory {
     public ContentStore createSqliteContentStore(Blake3Service blake3Service) throws ServiceException {
         try {
             MetadataService metadataService = createMetadataService();
-            // Create raw store
-            ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService,
-                    blake3Service);
+            // Create raw store using singleton
+            ContentStore fsStore = createContentStore(blake3Service);
+            ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createSqliteStore(fsStore,
+                    metadataService);
 
             // Wire up self-healing
             // Default policy: 4 data shards + 2 parity shards
@@ -656,8 +662,10 @@ public class ServiceFactory {
             // underlying resources (DB, FS)
 
             // 1. Raw Store (SqliteStore which wraps FilesystemStore)
-            ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createDefaultSqliteStore(metadataService,
-                    blake3Service);
+            // Use singleton FS store!
+            ContentStore fsStore = createContentStore(blake3Service);
+            ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createSqliteStore(fsStore,
+                    metadataService);
 
             // 2. RS Service (using raw store to avoid recursion)
             ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, blake3Service, 4, 2);

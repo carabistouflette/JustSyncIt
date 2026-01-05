@@ -30,6 +30,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 
 /**
@@ -74,9 +75,17 @@ public final class FilesystemContentStore extends AbstractContentStore {
 
         // Create storage directory if it doesn't exist
         Files.createDirectories(storageDirectory);
-        this.totalSize = new AtomicLong(calculateInitialTotalSize(storageDirectory));
-        logger.info("Initialized filesystem content store at {}, total size: {} bytes", storageDirectory,
-                totalSize.get());
+
+        // [Omega Remediation] Async startup
+        this.totalSize = new AtomicLong(0);
+        CompletableFuture.runAsync(() -> {
+            long calculated = calculateInitialTotalSize(storageDirectory);
+            totalSize.set(calculated);
+            logger.info("Finished calculating total size: {} bytes", calculated);
+        });
+
+        logger.info("Initialized filesystem content store at {} (size calculation running in background)",
+                storageDirectory);
     }
 
     private long calculateInitialTotalSize(Path dir) {
@@ -167,8 +176,10 @@ public final class FilesystemContentStore extends AbstractContentStore {
             // [Omega Remediation] Removed System.out.println
             logger.trace("Storing chunk {} to {}", hash, chunkPath);
             // Write chunk to file (overwrite if exists to handle repair/corruption cases)
+            // [Omega Remediation] Removed SYNC for performance.
+            // Durability is handled by replication and filesystem journaling.
             Files.write(chunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE, StandardOpenOption.SYNC);
+                    StandardOpenOption.WRITE);
 
             // Update stats
             totalSize.addAndGet(data.length);

@@ -22,6 +22,7 @@ import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 import io.javalin.websocket.WsContext;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justsyncit.web.controller.BackupController;
 import com.justsyncit.web.controller.SnapshotController;
 import com.justsyncit.web.controller.RestoreController;
@@ -41,6 +42,9 @@ public final class WebServer {
 
     private static final Logger LOGGER = Logger.getLogger(WebServer.class.getName());
     private static final int DEFAULT_PORT = 8080;
+    // [Omega Remediation] Reuse ObjectMapper to avoid reflection overhead on every
+    // call
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final int port;
     private final WebServerContext context;
@@ -228,7 +232,11 @@ public final class WebServer {
             ws.onConnect(ctx -> {
                 // Validate token from query parameter
                 String token = ctx.queryParam("token");
-                if (token == null || token.isEmpty()) {
+                if (token != null && !token.isEmpty()) {
+                    // [Omega Remediation] Warn about security risk
+                    LOGGER.warning("WebSocket auth using query parameter (potential leak in proxy logs). Client: "
+                            + ctx.sessionId());
+                } else {
                     // Try Header (Standard for some clients, difficult for Browsers)
                     token = ctx.header("X-Auth-Token");
                 }
@@ -336,13 +344,9 @@ public final class WebServer {
         if (data == null) {
             return "null";
         }
-        if (data instanceof String) {
-            return "\"" + data + "\"";
-        }
-        // For complex objects, use Jackson (already available in project)
         try {
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-            return mapper.writeValueAsString(data);
+            // [Omega Remediation] Use shared ObjectMapper
+            return OBJECT_MAPPER.writeValueAsString(data);
         } catch (Exception e) {
             LOGGER.warning("Failed to serialize to JSON: " + e.getMessage());
             return "{}";
