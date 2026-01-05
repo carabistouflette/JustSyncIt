@@ -182,8 +182,15 @@ public class BackupService {
                     }
                 }
 
+                // Check for total failure: no files processed but errors exist
+                int errorFiles = result.getErrorFiles();
+                if (result.getProcessedFiles() == 0 && errorFiles > 0) {
+                    LOGGER.error("Backup failed: processed 0 files with {} errors", errorFiles);
+                    return BackupResult.failure("Backup processed 0 files with " + errorFiles + " errors. Check logs.");
+                }
+
                 return BackupResult.success(snapshotId, result.getProcessedFiles(),
-                        result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
+                        result.getTotalBytes(), chunksCreated, errorFiles, options.isVerifyIntegrity());
 
             } catch (Exception e) {
                 LOGGER.error("Backup failed: {}", e.getMessage());
@@ -280,8 +287,15 @@ public class BackupService {
                     }
                 }
 
+                // Check for total failure: no files processed but errors exist
+                int errorFiles = result.getErrorFiles();
+                if (result.getProcessedFiles() == 0 && errorFiles > 0) {
+                    LOGGER.error("Backup failed: processed 0 files with {} errors", errorFiles);
+                    return BackupResult.failure("Backup processed 0 files with " + errorFiles + " errors. Check logs.");
+                }
+
                 return BackupResult.success(snapshotId, result.getProcessedFiles(),
-                        result.getTotalBytes(), chunksCreated, options.isVerifyIntegrity());
+                        result.getTotalBytes(), chunksCreated, errorFiles, options.isVerifyIntegrity());
 
             } catch (Exception e) {
                 LOGGER.error("Backup failed: {}", e.getMessage());
@@ -393,7 +407,7 @@ public class BackupService {
                     }
                 }
 
-                return BackupResult.success(snapshotId, processedCount, totalBytes, -1, false);
+                return BackupResult.success(snapshotId, processedCount, totalBytes, -1, 0, false);
 
             } catch (Exception e) {
                 LOGGER.error("Incremental backup failed", e);
@@ -429,8 +443,8 @@ public class BackupService {
         }
 
         public static BackupResult success(String snapshotId, int filesProcessed, long totalBytesProcessed,
-                int chunksCreated, boolean integrityVerified) {
-            return new BackupResult(snapshotId, filesProcessed, totalBytesProcessed, chunksCreated, 0,
+                int chunksCreated, int filesWithErrors, boolean integrityVerified) {
+            return new BackupResult(snapshotId, filesProcessed, totalBytesProcessed, chunksCreated, filesWithErrors,
                     integrityVerified, true, null);
         }
 

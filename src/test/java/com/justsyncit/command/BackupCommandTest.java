@@ -103,7 +103,7 @@ class BackupCommandTest {
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
     void testExecuteLocalBackup() throws Exception {
         // Mock successful backup
-        BackupService.BackupResult backupResult = BackupService.BackupResult.success("snap-1", 10, 1000, 5, true);
+        BackupService.BackupResult backupResult = BackupService.BackupResult.success("snap-1", 10, 1000L, 5, 0, true);
         when(backupService.backup(any(Path.class), any(BackupOptions.class)))
                 .thenReturn(CompletableFuture.completedFuture(backupResult));
 
