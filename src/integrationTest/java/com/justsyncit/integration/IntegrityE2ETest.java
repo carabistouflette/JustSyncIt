@@ -27,6 +27,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -174,10 +175,40 @@ public class IntegrityE2ETest extends E2ETestBase {
         List<FileChecksum> originalChecksums = calculateFileChecksums(sourceDir);
 
         // Perform backup
-        String snapshotId = performBackup("integrity-empty-snapshot", "Empty files integrity test");
+        // Perform backup manually to handle empty file assertions
+        // (E2ETestBase.performBackup expects > 0 bytes)
+        com.justsyncit.backup.BackupOptions backupOptions = new com.justsyncit.backup.BackupOptions.Builder()
+                .snapshotName("integrity-empty-snapshot")
+                .description("Empty files integrity test")
+                .verifyIntegrity(true)
+                .build();
 
-        // Perform restore
-        RestoreService.RestoreResult restoreResult = performRestore(snapshotId);
+        CompletableFuture<com.justsyncit.backup.BackupService.BackupResult> backupFuture = backupService
+                .backup(sourceDir, backupOptions);
+        com.justsyncit.backup.BackupService.BackupResult backupResult = backupFuture.get();
+
+        assertTrue(backupResult.isSuccess(), "Backup should succeed");
+        assertNotNull(backupResult.getSnapshotId(), "Snapshot ID should not be null");
+        assertTrue(backupResult.getFilesProcessed() > 0, "Should process at least one file");
+        assertEquals(0, backupResult.getTotalBytesProcessed(), "Should process 0 bytes for empty files");
+
+        String snapshotId = backupResult.getSnapshotId();
+
+        // Perform restore manually to handle empty file assertions
+        // (E2ETestBase.performRestore expects > 0 bytes)
+        com.justsyncit.restore.RestoreOptions restoreOptions = new com.justsyncit.restore.RestoreOptions.Builder()
+                .overwriteExisting(false)
+                .verifyIntegrity(true)
+                .build();
+
+        CompletableFuture<com.justsyncit.restore.RestoreService.RestoreResult> restoreFuture = restoreService
+                .restore(snapshotId, restoreDir, restoreOptions);
+        com.justsyncit.restore.RestoreService.RestoreResult restoreResult = restoreFuture.get();
+
+        assertTrue(restoreResult.isSuccess(), "Restore should succeed");
+        assertTrue(restoreResult.getFilesRestored() > 0, "Should restore at least one file");
+        assertEquals(0, restoreResult.getTotalBytesRestored(), "Should restore 0 bytes for empty files");
+        assertTrue(restoreResult.isIntegrityVerified(), "Integrity should be verified");
 
         // Calculate restored file checksums
         List<FileChecksum> restoredChecksums = calculateFileChecksums(restoreDir);

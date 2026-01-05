@@ -38,7 +38,7 @@ public class ServerStartCommand implements Command {
     private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ServerStartCommand.class);
 
     private static final int DEFAULT_PORT = 8080;
-    private static final int MIN_PORT = 1;
+    private static final int MIN_PORT = 0;
     private static final int MAX_PORT = 65535;
     private static final int STARTUP_TIMEOUT_MS = 5000;
 
