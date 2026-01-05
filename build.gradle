@@ -127,7 +127,7 @@ jacocoTestCoverageVerification.onlyIf = { !JavaVersion.current().isCompatibleWit
 dependencyCheck {
     failBuildOnCVSS = 10.0  // Set to 10.0 to effectively disable build failure on vulnerabilities
     failOnError = false  // Don't fail build on NVD data parsing errors
-    skip = true  // Skip dependency check entirely due to NVD API issues
+    skip = false  // Enable dependency check
     
     suppressionFile = "${rootDir}/config/dependency-check/suppressions.xml"
     
