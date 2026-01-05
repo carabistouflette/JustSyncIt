@@ -26,6 +26,7 @@ import com.justsyncit.network.connection.Connection;
 import com.justsyncit.network.connection.ConnectionManager;
 import com.justsyncit.network.transfer.FileTransferManager;
 import com.justsyncit.network.transfer.FileTransferResult;
+import com.justsyncit.network.transfer.ZeroCopyTransferHandler;
 import com.justsyncit.network.quic.adapter.QuicTransportAdapter;
 import com.justsyncit.network.quic.QuicServer;
 import com.justsyncit.network.quic.QuicClient;
@@ -72,8 +73,7 @@ public class NetworkServiceImpl implements NetworkService {
     private final ConnectionManager connectionManager;
     /** The file transfer manager. */
     private final FileTransferManager fileTransferManager;
-    /** The BLAKE3 service for checksums. */
-    private final Blake3Service blake3Service;
+    // [Omega Remediation] Removed unused blake3Service field
     /** Network statistics implementation. */
     private final NetworkStatisticsImpl statistics;
     /** List of network event listeners. */
@@ -89,6 +89,9 @@ public class NetworkServiceImpl implements NetworkService {
     private volatile TransportType defaultTransportType;
     /** Map of connection addresses to their transport types. */
     private final ConcurrentHashMap<InetSocketAddress, TransportType> connectionTransports;
+
+    /** Handler for zero-copy transfers. */
+    private final ZeroCopyTransferHandler zeroCopyTransferHandler;
 
     /**
      * Creates a new NetworkService implementation.
@@ -145,7 +148,9 @@ public class NetworkServiceImpl implements NetworkService {
         this.fileTransferManager = Objects.requireNonNull(fileTransferManager, "fileTransferManager cannot be null");
         this.fileTransferManager.setNetworkService(this);
         this.connectionManager = Objects.requireNonNull(connectionManager, "connectionManager cannot be null");
-        this.blake3Service = Objects.requireNonNull(blake3Service, "blake3Service cannot be null");
+
+        // [Omega Remediation] Removed field assignment, passed directly to
+        // zeroCopyTransferHandler
         this.quicTransport = Objects.requireNonNull(quicTransport, "quicTransport cannot be null");
         Objects.requireNonNull(quicConfiguration, "quicConfiguration cannot be null");
         this.defaultTransportType = Objects.requireNonNull(defaultTransportType, "defaultTransportType cannot be null");
@@ -153,6 +158,9 @@ public class NetworkServiceImpl implements NetworkService {
         this.listeners = new CopyOnWriteArrayList<>();
         this.running = new AtomicBoolean(false);
         this.connectionTransports = new ConcurrentHashMap<>();
+
+        // Initialize helpers
+        this.zeroCopyTransferHandler = new ZeroCopyTransferHandler(blake3Service);
 
         // Initialize QUIC server
         this.quicServer = new QuicServer(quicConfiguration);
@@ -575,113 +583,10 @@ public class NetworkServiceImpl implements NetworkService {
             }
             // Generate a unique message ID for this transfer
             int messageId = java.util.concurrent.ThreadLocalRandom.current().nextInt();
-            return sendFilePartInternal(connection, filePath, offset, length, messageId);
+
+            // [Omega Remediation] Delegated to specialized handler
+            return zeroCopyTransferHandler.sendFilePart(connection, filePath, offset, length, messageId);
         }
-    }
-
-    /**
-     * Sends a file part using zero-copy transfer and memory-mapped checksumming.
-     * Offloads blocking I/O and CPU operations to the thread pool.
-     */
-    private CompletableFuture<Void> sendFilePartInternal(Connection connection, Path filePath, long offset, long length,
-            int messageId) {
-        return CompletableFuture.supplyAsync(() -> {
-            // Open the file channel - we need it to stay open for the transfer
-            java.nio.channels.FileChannel fileChannel;
-            try {
-                fileChannel = java.nio.channels.FileChannel.open(filePath, java.nio.file.StandardOpenOption.READ);
-            } catch (IOException e) {
-                throw new java.util.concurrent.CompletionException(e);
-            }
-
-            try {
-                // 1. Calculate checksum using Memory-Mapped I/O
-                // This allows us to hash the file content without copying it into a heap array
-                // filling the integrity gap in zero-copy transfers.
-                String hash;
-                java.nio.MappedByteBuffer mappedBuffer = null;
-                try {
-                    mappedBuffer = fileChannel.map(java.nio.channels.FileChannel.MapMode.READ_ONLY, offset, length);
-                    // Use the injected BLAKE3 service to calculate the hash of the mapped buffer
-                    hash = blake3Service.hashBuffer(mappedBuffer);
-                } catch (IOException e) {
-                    logger.error("Failed to map file for checksumming: {}", filePath, e);
-                    // Fallback or fail? Fail for integrity.
-                    try {
-                        fileChannel.close();
-                    } catch (IOException ignored) {
-                    }
-                    throw new java.util.concurrent.CompletionException(e);
-                }
-
-                // 2. Prepare the ChunkDataMessage
-                long totalSize = Files.size(filePath);
-                com.justsyncit.network.protocol.ChunkDataMessage templateMsg = new com.justsyncit.network.protocol.ChunkDataMessage(
-                        filePath.toString(),
-                        offset,
-                        (int) length,
-                        totalSize,
-                        hash,
-                        new byte[0] // Empty data for the template
-                );
-
-                // 3. Serialize Header and adjust Payload Length
-                java.nio.ByteBuffer headerBuf = templateMsg.serialize();
-                // headerBuf is already flipped by serialize()
-                com.justsyncit.network.protocol.ProtocolHeader header = com.justsyncit.network.protocol.ProtocolHeader
-                        .deserialize(headerBuf);
-
-                int metadataSize = templateMsg.getPayloadSize() - 0; // -0 for empty data
-                int newPayloadLength = metadataSize + (int) length;
-
-                com.justsyncit.network.protocol.ProtocolHeader newHeader = new com.justsyncit.network.protocol.ProtocolHeader(
-                        header.getMagic(),
-                        header.getVersion(),
-                        header.getMessageType(),
-                        header.getFlags(),
-                        newPayloadLength,
-                        messageId // Ensure we keep the correct message ID
-                );
-
-                java.nio.ByteBuffer newHeaderBuf = newHeader.serialize();
-
-                headerBuf.position(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
-                int bodySize = headerBuf.remaining();
-
-                java.nio.ByteBuffer finalMetaBuffer = java.nio.ByteBuffer
-                        .allocate(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE + bodySize);
-                finalMetaBuffer.put(newHeaderBuf);
-                finalMetaBuffer.put(headerBuf);
-                finalMetaBuffer.flip();
-
-                // 4. Return the future for the actual sending (to be composed)
-                return connection.send(finalMetaBuffer)
-                        .thenCompose(v -> connection.sendFileRegion(fileChannel, offset, length))
-                        .whenComplete((v, ex) -> {
-                            // Close the file channel when the transfer is complete (or failed)
-                            try {
-                                fileChannel.close();
-                            } catch (IOException e) {
-                                logger.warn("Failed to close file channel for {}", filePath, e);
-                            }
-
-                            if (ex != null) {
-                                logger.error("Failed to send file part: {}", filePath, ex);
-                            } else {
-                                logger.debug("Sent file part: {} offset={} length={} hash={}", filePath, offset, length,
-                                        hash);
-                            }
-                        });
-
-            } catch (Exception e) {
-                try {
-                    fileChannel.close();
-                } catch (IOException closeEx) {
-                    // ignore
-                }
-                throw new java.util.concurrent.CompletionException(e);
-            }
-        }, com.justsyncit.scanner.ThreadPoolManager.getInstance().getIoThreadPool()).thenCompose(f -> f);
     }
 
     private Connection getConnection(InetSocketAddress remoteAddress) {
