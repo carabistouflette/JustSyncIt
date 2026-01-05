@@ -87,3 +87,6 @@ temp/
 
 # Only ignore top-level backup directories, not backup packages
 /backup/
+
+# Local configuration
+config/users.json
