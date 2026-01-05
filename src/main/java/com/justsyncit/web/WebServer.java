@@ -242,11 +242,11 @@ public final class WebServer {
 
     private void configureRoutes() {
         // Create controllers
+        ConfigController configController = new ConfigController(context);
+        FileBrowserController fileBrowserController = new FileBrowserController(configController);
         BackupController backupController = new BackupController(context, this);
         SnapshotController snapshotController = new SnapshotController(context);
         RestoreController restoreController = new RestoreController(context, this);
-        FileBrowserController fileBrowserController = new FileBrowserController();
-        ConfigController configController = new ConfigController(context);
         com.justsyncit.web.controller.SchedulerController schedulerController = new com.justsyncit.web.controller.SchedulerController(
                 context);
         // UserController is already initialized in start()

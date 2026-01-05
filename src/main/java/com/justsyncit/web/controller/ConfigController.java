@@ -32,7 +32,7 @@ import java.util.logging.Logger;
 /**
  * REST controller for configuration management.
  */
-public final class ConfigController {
+public class ConfigController {
 
     private static final Logger LOGGER = Logger.getLogger(ConfigController.class.getName());
 
@@ -165,5 +165,15 @@ public final class ConfigController {
             LOGGER.severe("Failed to add backup source: " + e.getMessage());
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
+    }
+
+    /**
+     * Gets the list of configured backup sources.
+     * Use method for internal access.
+     *
+     * @return list of backup source paths
+     */
+    public List<String> getBackupSourcesList() {
+        return new ArrayList<>(backupSources);
     }
 }

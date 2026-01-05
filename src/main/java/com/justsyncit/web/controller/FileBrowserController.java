@@ -22,6 +22,8 @@ import com.justsyncit.web.dto.ApiError;
 import com.justsyncit.web.dto.FileEntry;
 
 import io.javalin.http.Context;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -34,8 +36,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import java.util.stream.Stream;
 
 /**
@@ -46,11 +46,10 @@ public final class FileBrowserController {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileBrowserController.class);
     private static final int MAX_RESULTS = 1000;
 
-    private static final java.util.Set<String> FORBIDDEN_NAMES = java.util.Set.of(
-            ".ssh", ".aws", ".gnupg", ".kube", ".netrc", "credentials");
+    private final ConfigController configController;
 
-    public FileBrowserController() {
-        // No dependencies needed
+    public FileBrowserController(ConfigController configController) {
+        this.configController = configController;
     }
 
     /**
@@ -200,23 +199,23 @@ public final class FileBrowserController {
     }
 
     private boolean isPathAllowed(Path path) {
-        String pathStr = path.toString();
+        String pathStr = path.toAbsolutePath().normalize().toString();
+        List<String> allowedSources = configController.getBackupSourcesList();
 
-        // Block only truly sensitive virtual filesystems
-        if (pathStr.startsWith("/proc") || pathStr.startsWith("/sys") || pathStr.startsWith("/dev")
-                || pathStr.startsWith("/run")) {
-            return false;
+        // If no sources configured, default to user home only (safer default than root)
+        if (allowedSources.isEmpty()) {
+            String userHome = System.getProperty("user.home");
+            return pathStr.startsWith(userHome);
         }
 
-        // Block sensitive directories
-        for (Path part : path) {
-            if (FORBIDDEN_NAMES.contains(part.toString())) {
-                LOGGER.warn("Access denied to sensitive path: {}", path);
-                return false;
+        // Whitelist check
+        for (String source : allowedSources) {
+            if (pathStr.startsWith(source)) {
+                return true;
             }
         }
 
-        // Allow root and all other paths for browsing
-        return true;
+        LOGGER.warn("Access denied to path not in allowed sources: {}", path);
+        return false;
     }
 }
