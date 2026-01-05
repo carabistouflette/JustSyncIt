@@ -133,21 +133,9 @@ public final class SnapshotController {
                 return;
             }
 
-            List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId);
-
-            // Filter by path prefix if provided
-            if (pathPrefix != null && !pathPrefix.isEmpty()) {
-                files = files.stream()
-                        .filter(f -> f.getPath().startsWith(pathPrefix))
-                        .toList();
-            }
-
-            // Apply pagination
-            int total = files.size();
-            files = files.stream()
-                    .skip(offset)
-                    .limit(limit)
-                    .toList();
+            // Use efficient pagination from service
+            int total = metadataService.countFilesInSnapshot(snapshotId, pathPrefix);
+            List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId, pathPrefix, limit, offset);
 
             List<Map<String, Object>> fileList = new ArrayList<>();
             for (FileMetadata file : files) {

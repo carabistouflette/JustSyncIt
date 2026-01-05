@@ -590,33 +590,133 @@ public final class SqliteMetadataService implements MetadataService {
     }
 
     @Override
-    public List<FileMetadata> getFilesInSnapshot(String snapshotId) throws IOException {
+    public List<FileMetadata> getFilesInSnapshot(String snapshotId, String pathPrefix, int limit, int offset)
+            throws IOException {
         validateNotClosed();
         if (snapshotId == null || snapshotId.trim().isEmpty()) {
             throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
         }
 
-        // We can't order by path in SQL if it's encrypted.
-        // We'll have to sort in Java if encryption is used.
+        // Optimization: If encryption is not enabled, we can rely on SQL for filtering
+        // and pagination
+        // We check if encryptionService is configured. To be safer, we could check if
+        // ANY file in snapshot is encrypted,
+        // but that requires a query. As a heuristic, if encryptionService is null, we
+        // definitely use SQL.
+        // If it is not null, we assume we might need to decrypt, so we use the
+        // streaming approach to be correct.
+        // NOTE: We change the sort order behavior here. We rely on SQL 'ORDER BY path'
+        // which is stable.
+        // For encrypted files, this means sorting by encrypted path (random-looking),
+        // but it solves the OOM issue.
+
+        if (encryptionService == null) {
+            return getFilesInSnapshotSqlOptimized(snapshotId, pathPrefix, limit, offset);
+        } else {
+            return getFilesInSnapshotStreaming(snapshotId, pathPrefix, limit, offset);
+        }
+    }
+
+    private List<FileMetadata> getFilesInSnapshotSqlOptimized(String snapshotId, String pathPrefix, int limit,
+            int offset) throws IOException {
         String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash, encryption_mode "
                 + "FROM files WHERE snapshot_id = ?";
 
+        if (pathPrefix != null && !pathPrefix.isEmpty()) {
+            sql += " AND path LIKE ?";
+        }
+        sql += " ORDER BY path ASC LIMIT ? OFFSET ?";
+
         try (Connection connection = connectionManager.getConnection();
                 PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            int paramIndex = 1;
+            stmt.setString(paramIndex++, snapshotId);
+
+            if (pathPrefix != null && !pathPrefix.isEmpty()) {
+                // SQL LIKE wildcards need escaping? specific to SQLite?
+                // Assuming simple prefix for now. SQLite uses %
+                stmt.setString(paramIndex++, pathPrefix + "%");
+            }
+
+            stmt.setInt(paramIndex++, limit);
+            stmt.setInt(paramIndex++, offset);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                List<FileMetadata> files = new ArrayList<>();
+                while (rs.next()) {
+                    List<String> chunkHashes = getFileChunks(connection, rs.getString("id"));
+                    files.add(mapRowToFileMetadata(rs, chunkHashes));
+                }
+                logger.debug("Retrieved {} files (optimized) for snapshot {}", files.size(), snapshotId);
+                return files;
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get paginated files in snapshot (optimized)", e);
+        }
+    }
+
+    private List<FileMetadata> getFilesInSnapshotStreaming(String snapshotId, String pathPrefix, int limit, int offset)
+            throws IOException {
+        // Stream all files, decrypt, filter, skip, limit.
+        // Sort order: SQL 'ORDER BY path' (encrypted path order if encrypted)
+        String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash, encryption_mode "
+                + "FROM files WHERE snapshot_id = ? ORDER BY path ASC";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) { // No LIMIT/OFFSET here
+
+            // SQLite driver might need fetch size hint for streaming, though simple-sqlite
+            // often loads all in memory
+            // unless configured correctly. But with shared connection pool, we trust
+            // resources are managed.
+            // JustSyncIt uses a basic connection manager.
 
             stmt.setString(1, snapshotId);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 List<FileMetadata> files = new ArrayList<>();
+                int skipped = 0;
+                int count = 0;
+
                 while (rs.next()) {
-                    String fileId = rs.getString("id");
-                    List<String> chunkHashes = getFileChunks(connection, fileId);
+                    // Mapping first without chunks to check filter (optimization: don't fetch
+                    // chunks if filtered out)
+                    // But we need path to filter.
+                    String id = rs.getString("id");
+                    String rawPath = rs.getString("path");
+                    String encryptionMode = rs.getString("encryption_mode");
+
+                    String decryptedPath = rawPath;
+                    if ("AES".equals(encryptionMode)) {
+                        decryptedPath = decryptPath(rawPath, encryptionMode);
+                    }
+
+                    // Filter
+                    if (pathPrefix != null && !pathPrefix.isEmpty()) {
+                        if (!decryptedPath.startsWith(pathPrefix)) {
+                            continue;
+                        }
+                    }
+
+                    // Pagination: Skip
+                    if (skipped < offset) {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Pagination: Limit
+                    if (count >= limit) {
+                        break;
+                    }
+
+                    // Fetch chunks only for the files we return
+                    List<String> chunkHashes = getFileChunks(connection, id);
                     FileMetadata file = mapRowToFileMetadata(rs, chunkHashes);
 
-                    // Decrypt path if needed
-                    String encryptionMode = rs.getString("encryption_mode");
-                    if ("AES".equals(encryptionMode)) {
-                        String decryptedPath = decryptPath(file.getPath(), encryptionMode);
+                    // Re-construct with decrypted path if needed (mapRowToFileMetadata uses raw
+                    // path)
+                    if (!decryptedPath.equals(rawPath)) {
                         file = new FileMetadata(
                                 file.getId(),
                                 file.getSnapshotId(),
@@ -626,18 +726,100 @@ public final class SqliteMetadataService implements MetadataService {
                                 file.getFileHash(),
                                 file.getChunkHashes());
                     }
+
                     files.add(file);
+                    count++;
                 }
 
-                // Sort by path in Java since SQL sort on encrypted paths is meaningless
-                files.sort((f1, f2) -> f1.getPath().compareToIgnoreCase(f2.getPath()));
-
-                logger.debug("Retrieved {} files for snapshot {}", files.size(), snapshotId);
+                logger.debug("Retrieved {} files (streaming) for snapshot {}", files.size(), snapshotId);
                 return files;
             }
         } catch (SQLException e) {
-            throw new IOException("Failed to get files in snapshot", e);
+            throw new IOException("Failed to get paginated files in snapshot (streaming)", e);
         }
+    }
+
+    @Override
+    public int countFilesInSnapshot(String snapshotId, String pathPrefix) throws IOException {
+        validateNotClosed();
+        if (snapshotId == null || snapshotId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
+        }
+
+        if (encryptionService == null) {
+            return countFilesInSnapshotSqlOptimized(snapshotId, pathPrefix);
+        } else {
+            return countFilesInSnapshotStreaming(snapshotId, pathPrefix);
+        }
+    }
+
+    private int countFilesInSnapshotSqlOptimized(String snapshotId, String pathPrefix) throws IOException {
+        String sql = "SELECT COUNT(*) FROM files WHERE snapshot_id = ?";
+        if (pathPrefix != null && !pathPrefix.isEmpty()) {
+            sql += " AND path LIKE ?";
+        }
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            int paramIndex = 1;
+            stmt.setString(paramIndex++, snapshotId);
+
+            if (pathPrefix != null && !pathPrefix.isEmpty()) {
+                stmt.setString(paramIndex++, pathPrefix + "%");
+            }
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt(1);
+                }
+                return 0;
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to count files (optimized)", e);
+        }
+    }
+
+    private int countFilesInSnapshotStreaming(String snapshotId, String pathPrefix) throws IOException {
+        // If no prefix, simple count works even for encrypted (assuming we include all)
+        if (pathPrefix == null || pathPrefix.isEmpty()) {
+            return countFilesInSnapshotSqlOptimized(snapshotId, null);
+        }
+
+        // If prefix exists, we must stream and filter
+        String sql = "SELECT path, encryption_mode FROM files WHERE snapshot_id = ?";
+
+        try (Connection connection = connectionManager.getConnection();
+                PreparedStatement stmt = connection.prepareStatement(sql)) {
+
+            stmt.setString(1, snapshotId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                int count = 0;
+                while (rs.next()) {
+                    String rawPath = rs.getString("path");
+                    String encryptionMode = rs.getString("encryption_mode");
+
+                    String decryptedPath = rawPath;
+                    if ("AES".equals(encryptionMode)) {
+                        decryptedPath = decryptPath(rawPath, encryptionMode);
+                    }
+
+                    if (decryptedPath.startsWith(pathPrefix)) {
+                        count++;
+                    }
+                }
+                return count;
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to count files (streaming)", e);
+        }
+    }
+
+    @Override
+    public List<FileMetadata> getFilesInSnapshot(String snapshotId) throws IOException {
+        // Delegate to paginated with no limit (or max integer)
+        return getFilesInSnapshot(snapshotId, null, Integer.MAX_VALUE, 0);
     }
 
     @Override
