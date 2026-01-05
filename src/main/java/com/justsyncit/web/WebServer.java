@@ -79,12 +79,25 @@ public final class WebServer {
             LOGGER.info("Starting web server on port " + port);
 
             app = Javalin.create(config -> {
-                // Enable CORS for development (restricted to localhost)
-                config.bundledPlugins.enableCors(cors -> {
-                    cors.addRule(it -> {
-                        it.allowHost("http://localhost:5173", "http://127.0.0.1:5173");
+                // Enable CORS only in development mode (controlled by environment variable)
+                String devMode = System.getenv("JUSTSYNCIT_DEV_MODE");
+                if ("true".equalsIgnoreCase(devMode)) {
+                    String corsOrigins = System.getenv("JUSTSYNCIT_CORS_ORIGINS");
+                    if (corsOrigins == null || corsOrigins.isEmpty()) {
+                        corsOrigins = "http://localhost:5173,http://127.0.0.1:5173";
+                    }
+                    final String[] origins = corsOrigins.split(",");
+                    config.bundledPlugins.enableCors(cors -> {
+                        cors.addRule(it -> {
+                            for (String origin : origins) {
+                                it.allowHost(origin.trim());
+                            }
+                        });
                     });
-                });
+                    LOGGER.info("CORS enabled for origins: " + corsOrigins);
+                } else {
+                    LOGGER.info("CORS disabled (production mode). Set JUSTSYNCIT_DEV_MODE=true to enable.");
+                }
 
                 // Serve static files from web-ui/dist
                 config.staticFiles.add(staticFiles -> {
@@ -217,7 +230,23 @@ public final class WebServer {
 
     private void configureWebSocket() {
         app.ws("/ws", ws -> {
+            // Authenticate before WebSocket upgrade
             ws.onConnect(ctx -> {
+                // Validate token from query parameter
+                String token = ctx.queryParam("token");
+                if (token == null || token.isEmpty()) {
+                    LOGGER.warning("WebSocket connection rejected: missing token");
+                    ctx.closeSession(4001, "Authentication required");
+                    return;
+                }
+
+                // Validate token with UserController
+                if (!userController.validateToken(token)) {
+                    LOGGER.warning("WebSocket connection rejected: invalid token");
+                    ctx.closeSession(4003, "Invalid token");
+                    return;
+                }
+
                 String clientId = ctx.sessionId();
                 wsClients.put(clientId, ctx);
                 LOGGER.info("WebSocket client connected: " + clientId);
