@@ -28,13 +28,15 @@ public class ReedSolomonServiceTest {
 
     private StubMetadataService metadataService;
     private StubChunkStorage chunkStorage;
+    private StubBlake3Service blake3Service;
     private ReedSolomonService service;
 
     @BeforeEach
     public void setUp() {
         metadataService = new StubMetadataService();
         chunkStorage = new StubChunkStorage();
-        service = new ReedSolomonService(metadataService, chunkStorage, 2, 1);
+        blake3Service = new StubBlake3Service();
+        service = new ReedSolomonService(metadataService, chunkStorage, blake3Service, 2, 1);
     }
 
     @Test
@@ -123,6 +125,60 @@ public class ReedSolomonServiceTest {
         @Override
         public boolean existsChunk(String hash) {
             return store.containsKey(hash);
+        }
+
+    }
+
+    static class StubBlake3Service implements com.justsyncit.hash.Blake3Service {
+        @Override
+        public String hashFile(java.nio.file.Path filePath) {
+            return "mock";
+        }
+
+        @Override
+        public String hashBuffer(byte[] data) {
+            return "hash-" + Arrays.hashCode(data);
+        }
+
+        @Override
+        public String hashBuffer(byte[] data, int offset, int length) {
+            return "mock";
+        }
+
+        @Override
+        public String hashBuffer(java.nio.ByteBuffer buffer) {
+            return "mock";
+        }
+
+        @Override
+        public String hashStream(java.io.InputStream inputStream) {
+            return "mock";
+        }
+
+        @Override
+        public Blake3IncrementalHasher createIncrementalHasher() {
+            return null;
+        }
+
+        @Override
+        public Blake3IncrementalHasher createKeyedIncrementalHasher(byte[] key) {
+            return null;
+        }
+
+        @Override
+        public java.util.concurrent.CompletableFuture<List<String>> hashFilesParallel(
+                List<java.nio.file.Path> filePaths) {
+            return null;
+        }
+
+        @Override
+        public Blake3Info getInfo() {
+            return null;
+        }
+
+        @Override
+        public boolean verify(byte[] data, String expectedHash) {
+            return expectedHash.equals(hashBuffer(data));
         }
     }
 

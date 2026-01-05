@@ -426,7 +426,7 @@ public class ServiceFactory {
 
             // Wire up self-healing
             // Default policy: 4 data shards + 2 parity shards
-            ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, 4, 2);
+            ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, blake3Service, 4, 2);
 
             return new HealingContentStore(rawStore, rsService);
         } catch (IOException e) {
@@ -660,7 +660,7 @@ public class ServiceFactory {
                     blake3Service);
 
             // 2. RS Service (using raw store to avoid recursion)
-            ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, 4, 2);
+            ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, blake3Service, 4, 2);
 
             // 3. Healing Store (using raw store and RS service)
             HealingContentStore healingStore = new HealingContentStore(rawStore, rsService);

@@ -75,7 +75,7 @@ public class IntegrityE2ETest {
                 indexFile);
         rawStore = com.justsyncit.storage.FilesystemContentStore.create(storageDir, chunkIndex, blake3Service);
 
-        rsService = new ReedSolomonService(metadataService, rawStore, 4, 2);
+        rsService = new ReedSolomonService(metadataService, rawStore, blake3Service, 4, 2);
         healingStore = new HealingContentStore(rawStore, rsService);
         integrityCheckService = new IntegrityCheckService(healingStore, metadataService, rsService);
     }

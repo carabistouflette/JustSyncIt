@@ -25,6 +25,7 @@ public class ReedSolomonService {
 
     private final MetadataService metadataService;
     private final ChunkStorage chunkStore;
+    private final com.justsyncit.hash.Blake3Service blake3Service;
     private final int dataShards;
     private final int parityShards;
 
@@ -36,10 +37,12 @@ public class ReedSolomonService {
      * @param dataShards      number of data shards per group (k)
      * @param parityShards    number of parity shards per group (m)
      */
-    public ReedSolomonService(MetadataService metadataService, ChunkStorage chunkStore, int dataShards,
+    public ReedSolomonService(MetadataService metadataService, ChunkStorage chunkStore,
+            com.justsyncit.hash.Blake3Service blake3Service, int dataShards,
             int parityShards) {
         this.metadataService = metadataService;
         this.chunkStore = chunkStore;
+        this.blake3Service = blake3Service;
         this.dataShards = dataShards;
         this.parityShards = parityShards;
     }
@@ -226,7 +229,7 @@ public class ReedSolomonService {
             ReedSolomon rs = new ReedSolomon(dataShards, parityShards);
             rs.decodeMissing(shards, shardPresent, (int) maxSize);
 
-            // 4. Save recovered chunk
+            // 4. Verify & Save recovered chunk
             int targetIdx = targetEntry.getChunkIndex();
             byte[] recoveredData = shards[targetIdx];
 
@@ -240,12 +243,31 @@ public class ReedSolomonService {
                 }
             }
 
+            // [Omega Remediation] Validation Step
+            try {
+                if (!blake3Service.verify(recoveredData, missingChunkHash)) {
+                    logger.error("Healing verification failed! Recovered data hash DOES NOT match expected hash {}.",
+                            missingChunkHash);
+                    return false;
+                }
+            } catch (Exception e) {
+                logger.error("Error during healing verification for {}", missingChunkHash, e);
+                return false;
+            }
+
             // Important: We must delete the corrupt chunk first to ensure we overwrite it,
             // bypassing any deduplication checks in the content store.
+            // NOW SAFE: Verified that we have the CORRECT data.
             chunkStore.deleteChunk(missingChunkHash);
 
             String recoveredHash = chunkStore.storeChunk(recoveredData);
             logger.debug("Stored recovered data. Hash: {} Expected: {}", recoveredHash, missingChunkHash);
+
+            if (!recoveredHash.equals(missingChunkHash)) {
+                logger.error("Post-storage verification failed. Stored hash {} != Expected {}", recoveredHash,
+                        missingChunkHash);
+                return false;
+            }
 
             logger.info("Successfully repaired chunk {}", missingChunkHash);
             return true;
