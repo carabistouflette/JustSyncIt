@@ -22,6 +22,9 @@ import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 import io.javalin.websocket.WsContext;
 
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.justsyncit.web.controller.BackupController;
 import com.justsyncit.web.controller.SnapshotController;
@@ -42,8 +45,6 @@ public final class WebServer {
 
     private static final Logger LOGGER = Logger.getLogger(WebServer.class.getName());
     private static final int DEFAULT_PORT = 8080;
-    // [Omega Remediation] Reuse ObjectMapper to avoid reflection overhead on every
-    // call
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final int port;
@@ -83,7 +84,6 @@ public final class WebServer {
             LOGGER.info("Starting web server on port " + port);
 
             app = Javalin.create(config -> {
-                // [Omega Remediation] Strict CORS
                 // Only enable CORS if explicitly requested via env var.
                 String corsOrigin = System.getenv("CORS_ALLOWED_ORIGIN");
                 if (corsOrigin != null && !corsOrigin.isBlank()) {
@@ -110,6 +110,25 @@ public final class WebServer {
                     LOGGER.fine(String.format("%s %s - %.0fms",
                             ctx.method(), ctx.path(), executionTimeMs));
                 });
+
+                String keystorePath = System.getenv("SSL_KEYSTORE_PATH");
+                String keystorePass = System.getenv("SSL_KEYSTORE_PASSWORD");
+
+                if (keystorePath != null && !keystorePath.isBlank() && keystorePass != null) {
+                    LOGGER.info("Enabling HTTPS with keystore: " + keystorePath);
+                    config.jetty.modifyServer(server -> {
+                        // SSL Context
+                        SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
+                        sslContextFactory.setKeyStorePath(keystorePath);
+                        sslContextFactory.setKeyStorePassword(keystorePass);
+
+                        // SSL Connector
+                        ServerConnector sslConnector = new ServerConnector(server, sslContextFactory);
+                        sslConnector.setPort(port);
+                        server.addConnector(sslConnector);
+                    });
+                    LOGGER.info("HTTPS configured on port " + port);
+                }
             });
 
             // Initialize User Controller
@@ -131,7 +150,8 @@ public final class WebServer {
                 String authHeader = ctx.header("Authorization");
                 if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                     ctx.status(401)
-                            .json(java.util.Map.of("error", "Unauthorized", "message", "Missing or invalid or expired ticket"));
+                            .json(java.util.Map.of("error", "Unauthorized", "message",
+                                    "Missing or invalid or expired ticket"));
                     ctx.skipRemainingHandlers();
                     return;
                 }
@@ -145,7 +165,6 @@ public final class WebServer {
                 }
             });
 
-            // [Omega Remediation] SEC-103: Rate limiting for login endpoint
             java.util.concurrent.ConcurrentHashMap<String, long[]> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
             final int MAX_ATTEMPTS = 5;
             final long WINDOW_MS = 60_000; // 1 minute
@@ -177,7 +196,6 @@ public final class WebServer {
                 }
             });
 
-            // [Omega Remediation] SEC-012: Role-based access control
             // Admin-only endpoints
             app.before("/api/users/*", ctx -> {
                 if (ctx.method().toString().equals("OPTIONS"))
@@ -189,7 +207,6 @@ public final class WebServer {
                     return;
                 requireRole(ctx, "admin");
             });
-            // [Omega Remediation] SEC-105: Fixed path to match actual route
             app.before("/api/schedules/*", ctx -> {
                 if (ctx.method().toString().equals("OPTIONS"))
                     return;
@@ -200,8 +217,6 @@ public final class WebServer {
                     return;
                 requireRole(ctx, "admin", "user");
             });
-            // [Omega Remediation] SEC-106: Add role restrictions to previously unprotected
-            // endpoints
             app.before("/api/backup/*", ctx -> {
                 if (ctx.method().toString().equals("OPTIONS"))
                     return;
@@ -336,7 +351,6 @@ public final class WebServer {
                 // Validate token from query parameter
                 String token = ctx.queryParam("token");
                 if (token != null && !token.isEmpty()) {
-                    // [Omega Remediation] Warn about security risk
                     LOGGER.warning("WebSocket auth using query parameter (potential leak in proxy logs). Client: "
                             + ctx.sessionId());
                 } else {
@@ -350,10 +364,7 @@ public final class WebServer {
                     return;
                 }
 
-                // [Omega Remediation] Note: Query param auth is logged in access logs.
                 // Prefer X-Auth-Token header where possible.
-
-                // [Omega Remediation v2] SEC-C02: Use one-time ticket instead of session token
                 if (userController.validateAndConsumeTicket(token) == null) {
                     LOGGER.warning("WebSocket connection rejected: invalid or expired ticket");
                     ctx.closeSession(4003, "Invalid token");
@@ -443,7 +454,6 @@ public final class WebServer {
         });
     }
 
-    // [Omega Remediation] SEC-012: Role-based access control helper
     private void requireRole(io.javalin.http.Context ctx, String... allowedRoles) {
         String authHeader = ctx.header("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -477,7 +487,6 @@ public final class WebServer {
             return "null";
         }
         try {
-            // [Omega Remediation] Use shared ObjectMapper
             return OBJECT_MAPPER.writeValueAsString(data);
         } catch (Exception e) {
             LOGGER.warning("Failed to serialize to JSON: " + e.getMessage());

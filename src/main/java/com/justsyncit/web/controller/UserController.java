@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-// [Omega Remediation] Cleaned up unused imports
 import java.util.logging.Logger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,26 +46,21 @@ public final class UserController {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // PBKDF2 constants
-    // [Omega Remediation] SEC-001: OWASP 2024 recommends 600k iterations for
     // PBKDF2-SHA256
     private static final int ITERATIONS = 600000;
     private static final int KEY_LENGTH = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
 
-    // [Omega Remediation] SEC-003: Allowed roles whitelist
     private static final java.util.Set<String> ALLOWED_ROLES = java.util.Set.of("admin", "user", "viewer");
 
-    // [Omega Remediation v2] SEC-C03: Session expiry (24 hours)
     private static final long SESSION_TTL_MS = 24 * 60 * 60 * 1000L;
 
     // In-memory user storage (now backed by JSON file)
     private final Map<String, User> users;
     private final Map<String, SessionInfo> sessions; // token -> SessionInfo with expiry
 
-    // [Omega Remediation] SEC-002: Short-lived WebSocket tickets (30 second expiry)
     private final Map<String, TicketInfo> wsTickets;
 
-    // [Omega Remediation v2] SEC-C03: Session with timestamp for expiry
     private static class SessionInfo {
         final String userId;
         final long createdAt;
@@ -98,13 +92,12 @@ public final class UserController {
         // Context kept for API compatibility
         this.users = new ConcurrentHashMap<>();
         this.sessions = new ConcurrentHashMap<>();
-        this.wsTickets = new ConcurrentHashMap<>(); // [Omega Remediation] SEC-002
+        this.wsTickets = new ConcurrentHashMap<>();
         this.objectMapper = new ObjectMapper();
         this.userDatabasePath = Paths.get("config", "users.json");
 
         loadUsers();
 
-        // [Omega Remediation] P0 Security
         // If no users exist, create a safe default admin with a RANDOM password.
         if (users.isEmpty()) {
             createDefaultAdmin();
@@ -192,7 +185,7 @@ public final class UserController {
                     displayName != null ? displayName : username, role);
             user.setPassword(password);
             users.put(user.getId(), user);
-            saveUsers(); // [Omega Remediation] Persist changes
+            saveUsers();
 
             LOGGER.info("Created user: " + username);
 
@@ -226,7 +219,6 @@ public final class UserController {
 
             if (body.containsKey("displayName")) {
                 String displayName = body.get("displayName");
-                // [Omega Remediation v2] SEC-H03: Validate displayName length
                 if (displayName != null && displayName.length() > 255) {
                     ctx.status(400).json(ApiError.badRequest(
                             "displayName must be 255 characters or less", ctx.path()));
@@ -236,7 +228,6 @@ public final class UserController {
             }
             if (body.containsKey("role")) {
                 String newRole = body.get("role");
-                // [Omega Remediation] SEC-003: Validate role against whitelist
                 if (!ALLOWED_ROLES.contains(newRole)) {
                     ctx.status(400).json(ApiError.badRequest(
                             "Invalid role. Allowed roles: " + ALLOWED_ROLES, ctx.path()));
@@ -247,7 +238,7 @@ public final class UserController {
             if (body.containsKey("password") && !body.get("password").isEmpty()) {
                 user.setPassword(body.get("password"));
             }
-            saveUsers(); // [Omega Remediation] Persist changes
+            saveUsers();
 
             LOGGER.info("Updated user: " + user.getUsername());
 
@@ -277,7 +268,7 @@ public final class UserController {
 
         // Remove any sessions for this user
         sessions.entrySet().removeIf(e -> e.getValue().equals(userId));
-        saveUsers(); // [Omega Remediation] Persist changes
+        saveUsers();
 
         LOGGER.info("Deleted user: " + user.getUsername());
         ctx.json(Map.of("status", "deleted", "id", userId));
@@ -344,7 +335,6 @@ public final class UserController {
 
     // Helper methods
 
-    // [Omega Remediation v2] SEC-H02: Use 16-byte IDs to avoid collision risk
     private String generateId() {
         byte[] bytes = new byte[16];
         RANDOM.nextBytes(bytes);
@@ -369,8 +359,6 @@ public final class UserController {
         }
     }
 
-    // [Omega Remediation] SEC-101: Constant-time comparison to prevent timing
-    // attacks
     private static boolean verifyPassword(String password, String storedHash, String storedSalt) {
         byte[] salt = Base64.getDecoder().decode(storedSalt);
         String newHash = hashPassword(password, salt);
@@ -380,7 +368,6 @@ public final class UserController {
                 storedHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
-    // [Omega Remediation v2] SEC-C03: Check session expiry
     public boolean isValidSession(String token) {
         SessionInfo session = sessions.get(token);
         if (session == null) {
@@ -393,7 +380,6 @@ public final class UserController {
         return true;
     }
 
-    // [Omega Remediation] SEC-012: Role-based access control helper methods
     public String getUserIdForSession(String token) {
         SessionInfo session = sessions.get(token);
         if (session == null || session.isExpired()) {
@@ -409,7 +395,6 @@ public final class UserController {
         return user != null ? user.getRole() : null;
     }
 
-    // [Omega Remediation] SEC-002: WebSocket ticket-based authentication
     // Tickets are short-lived (30 seconds) and can only be used once
     private static final long WS_TICKET_EXPIRY_MS = 30_000;
 
@@ -463,8 +448,6 @@ public final class UserController {
         return isValidSession(token);
     }
 
-    // [Omega Remediation] Persistence Methods
-
     private void loadUsers() {
         try {
             if (Files.exists(userDatabasePath)) {
@@ -489,7 +472,6 @@ public final class UserController {
         }
     }
 
-    // [Omega Remediation] SEC-102: Write password to secure file instead of logging
     private void createDefaultAdmin() {
         String tempPass = java.util.UUID.randomUUID().toString().substring(0, 8);
         User admin = new User(generateId(), "admin", "Administrator", "admin");
@@ -515,7 +497,6 @@ public final class UserController {
                     "  Please read the file and change this password immediately.\n" +
                     "==================================================");
         } catch (java.io.IOException e) {
-            // [Omega Remediation v2] SEC-C04: Never log passwords or hints
             LOGGER.severe("CRITICAL: Failed to write admin password file. " +
                     "Application cannot start securely. Error: " + e.getMessage());
             throw new RuntimeException("Failed to create admin password file. " +

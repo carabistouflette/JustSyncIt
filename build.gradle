@@ -125,13 +125,12 @@ jacocoTestCoverageVerification.onlyIf = { !JavaVersion.current().isCompatibleWit
 
 // OWASP Dependency Check configuration
 dependencyCheck {
-    failBuildOnCVSS = 7.0  // [Omega Remediation] Fail on High severity vulnerabilities
-    failOnError = true     // [Omega Remediation] Fail build on errors
+    failBuildOnCVSS = 7.0
+    failOnError = true
     skip = false  // Enable dependency check
     
     suppressionFile = "${rootDir}/config/dependency-check/suppressions.xml"
     
-    // [Omega Remediation] Enable updates to ensure recent vulnerabilities are caught
     autoUpdate = true
     
     // Configure analyzer

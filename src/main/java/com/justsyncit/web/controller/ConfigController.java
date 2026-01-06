@@ -40,7 +40,6 @@ import java.util.logging.Logger;
 public class ConfigController {
 
     private static final Logger LOGGER = Logger.getLogger(ConfigController.class.getName());
-    // [Omega Remediation] PERF-101: Config persistence
     private static final Path CONFIG_FILE = Paths.get("config", "app-config.json");
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -132,7 +131,6 @@ public class ConfigController {
                 config.put(key, value);
             }
 
-            // [Omega Remediation] PERF-101: Persist config after update
             saveConfig();
 
             LOGGER.info("Configuration updated: " + updates.keySet());
@@ -172,7 +170,7 @@ public class ConfigController {
             }
 
             backupSources.add(path);
-            saveConfig(); // [Omega Remediation v2] PERF-H04: Persist backup sources
+            saveConfig();
             LOGGER.info("Added backup source: " + path);
 
             ctx.status(201).json(Map.of(
@@ -196,7 +194,6 @@ public class ConfigController {
         return new ArrayList<>(backupSources);
     }
 
-    // [Omega Remediation] PERF-101: Persist configuration to disk
     private void saveConfig() {
         try {
             Files.createDirectories(CONFIG_FILE.getParent());

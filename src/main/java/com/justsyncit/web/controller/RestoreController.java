@@ -76,7 +76,6 @@ public final class RestoreController {
 
             Path targetPath = Paths.get(request.getTargetPath()).toAbsolutePath().normalize();
 
-            // [Omega Remediation] SEC-010: Validate target path against allowed sources
             if (!isPathAllowed(targetPath)) {
                 ctx.status(403).json(ApiError.of(403, "Forbidden",
                         "Restore target path is not in allowed directories", ctx.path()));
@@ -329,7 +328,6 @@ public final class RestoreController {
         }
     }
 
-    // [Omega Remediation] SEC-010: Path validation to prevent arbitrary file write
     private boolean isPathAllowed(Path path) {
         String pathStr = path.toAbsolutePath().normalize().toString();
         List<String> allowedSources = configController.getBackupSourcesList();
