@@ -490,17 +490,37 @@ public final class UserController {
             LOGGER.info(
                     "Default admin account created with password from JUSTSYNCIT_ADMIN_PASSWORD environment variable");
         } else {
-            // Print to console for first-time setup - this is intentional user feedback
-            System.out.println("\n==================================================");
-            System.out.println("  [SECURITY] Default Admin Account Created");
-            System.out.println("  Username: admin");
-            System.out.println("  Password: " + tempPass);
-            System.out.println();
-            System.out.println("  IMPORTANT: Change this password immediately!");
-            System.out.println("  Alternatively, set JUSTSYNCIT_ADMIN_PASSWORD env var");
-            System.out.println("  before first startup to use your own password.");
-            System.out.println("==================================================\n");
-            LOGGER.warn("Default admin account created with auto-generated password (printed to console)");
+            // Write password to a secure file instead of console (LOG-001 fix)
+            java.nio.file.Path passwordFile = java.nio.file.Path.of("admin-password.txt");
+            try {
+                java.nio.file.Files.writeString(passwordFile,
+                        "JustSyncIt Admin Credentials\n" +
+                                "============================\n" +
+                                "Username: admin\n" +
+                                "Password: " + tempPass + "\n\n" +
+                                "IMPORTANT: Delete this file after reading!\n" +
+                                "Set JUSTSYNCIT_ADMIN_PASSWORD env var before startup to avoid this file.\n",
+                        java.nio.file.StandardOpenOption.CREATE,
+                        java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+
+                // Try to set file permissions to owner-only (Unix systems)
+                try {
+                    java.nio.file.Files.setPosixFilePermissions(passwordFile,
+                            java.util.Set.of(java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                                    java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
+                } catch (UnsupportedOperationException e) {
+                    // Windows - permissions work differently
+                    LOGGER.debug("POSIX permissions not supported on this OS");
+                }
+
+                LOGGER.warn("Default admin account created. Password written to: {}",
+                        passwordFile.toAbsolutePath());
+                LOGGER.warn("DELETE THIS FILE AFTER READING THE PASSWORD!");
+            } catch (java.io.IOException e) {
+                // Fallback: log that password was generated but don't reveal it
+                LOGGER.error("Failed to write password file. Admin password was generated but cannot be retrieved. " +
+                        "Delete the database and set JUSTSYNCIT_ADMIN_PASSWORD env var before restarting.", e);
+            }
         }
     }
 }
