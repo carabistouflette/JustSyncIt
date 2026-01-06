@@ -90,3 +90,4 @@ temp/
 
 # Local configuration
 config/users.json
+config/auth.db
