@@ -175,9 +175,19 @@ public class BackupService {
                 return BackupResult.success(snapshotId, result.getProcessedFiles(),
                         result.getTotalBytes(), chunksCreated, errorFiles, options.isVerifyIntegrity());
 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.error("Backup interrupted", e);
+                throw new RuntimeException("Backup was interrupted", e);
+            } catch (java.io.IOException e) {
+                LOGGER.error("Backup failed due to IO error: {}", e.getMessage(), e);
+                throw new RuntimeException("IO error during backup: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                LOGGER.error("Backup failed: {}", e.getMessage(), e);
+                throw e;
             } catch (Exception e) {
-                LOGGER.error("Backup failed: {}", e.getMessage());
-                throw new RuntimeException(e);
+                LOGGER.error("Backup failed unexpectedly: {}", e.getMessage(), e);
+                throw new RuntimeException("Unexpected error during backup", e);
             }
         });
     }
@@ -280,9 +290,19 @@ public class BackupService {
                 return BackupResult.success(snapshotId, result.getProcessedFiles(),
                         result.getTotalBytes(), chunksCreated, errorFiles, options.isVerifyIntegrity());
 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.error("Backup interrupted", e);
+                throw new RuntimeException("Backup was interrupted", e);
+            } catch (java.io.IOException e) {
+                LOGGER.error("Backup failed due to IO error: {}", e.getMessage(), e);
+                throw new RuntimeException("IO error during backup: " + e.getMessage(), e);
+            } catch (RuntimeException e) {
+                LOGGER.error("Backup failed: {}", e.getMessage(), e);
+                throw e;
             } catch (Exception e) {
-                LOGGER.error("Backup failed: {}", e.getMessage());
-                throw new RuntimeException(e);
+                LOGGER.error("Backup failed unexpectedly: {}", e.getMessage(), e);
+                throw new RuntimeException("Unexpected error during backup", e);
             }
         });
     }

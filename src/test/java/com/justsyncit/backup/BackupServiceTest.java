@@ -42,9 +42,10 @@ class BackupServiceTest {
         CompletableFuture<BackupService.BackupResult> future = backupService.backup(null, options);
 
         ExecutionException exception = assertThrows(ExecutionException.class, future::get);
-        assertTrue(exception.getCause() instanceof RuntimeException);
-        assertTrue(exception.getCause().getCause() instanceof IllegalArgumentException);
-        assertEquals("Source directory cannot be null", exception.getCause().getCause().getMessage());
+        // IllegalArgumentException extends RuntimeException, so it's rethrown directly
+        // without double-wrapping after the exception handling improvements
+        assertTrue(exception.getCause() instanceof IllegalArgumentException);
+        assertEquals("Source directory cannot be null", exception.getCause().getMessage());
     }
 
     /*
