@@ -471,7 +471,11 @@ public final class UserController {
     }
 
     private void createDefaultAdmin() {
-        String tempPass = java.util.UUID.randomUUID().toString();
+        // Check for password from environment variable first
+        String envPassword = System.getenv("JUSTSYNCIT_ADMIN_PASSWORD");
+        boolean passwordFromEnv = envPassword != null && !envPassword.isBlank();
+
+        String tempPass = passwordFromEnv ? envPassword : java.util.UUID.randomUUID().toString();
         User admin = new User(generateId(), "admin", "Administrator", "admin");
         admin.setPassword(tempPass);
 
@@ -479,18 +483,24 @@ public final class UserController {
             authStore.createUser(admin);
         } catch (Exception e) {
             LOGGER.error("Failed to create default admin", e);
-            // This is critical, we might want to panic
             return;
         }
 
-        LOGGER.warn("\n==================================================\n" +
-                "  [SECURITY] Default Admin Account Created\n" +
-                "  Username: admin\n" +
-                "  Password: [GENERATED_AND_HIDDEN]\n" +
-                "  \n" +
-                "  ACTION REQUIRED: The password has been generated but NOT printed for security.\n" +
-                "  You MUST reset it using the 'JUSTSYNCIT_ADMIN_PASSWORD' env var\n" +
-                "  or via the Admin Console if you have an alternative access method.\n" +
-                "==================================================");
+        if (passwordFromEnv) {
+            LOGGER.info(
+                    "Default admin account created with password from JUSTSYNCIT_ADMIN_PASSWORD environment variable");
+        } else {
+            // Print to console for first-time setup - this is intentional user feedback
+            System.out.println("\n==================================================");
+            System.out.println("  [SECURITY] Default Admin Account Created");
+            System.out.println("  Username: admin");
+            System.out.println("  Password: " + tempPass);
+            System.out.println();
+            System.out.println("  IMPORTANT: Change this password immediately!");
+            System.out.println("  Alternatively, set JUSTSYNCIT_ADMIN_PASSWORD env var");
+            System.out.println("  before first startup to use your own password.");
+            System.out.println("==================================================\n");
+            LOGGER.warn("Default admin account created with auto-generated password (printed to console)");
+        }
     }
 }
