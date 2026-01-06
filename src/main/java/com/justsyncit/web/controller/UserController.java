@@ -313,8 +313,16 @@ public final class UserController {
 
             LOGGER.info("User logged in: " + username);
 
+            // Set HttpOnly cookie for XSS protection
+            boolean isSecure = ctx.scheme().equals("https");
+            String cookieFlags = "; HttpOnly; SameSite=Strict; Path=/";
+            if (isSecure) {
+                cookieFlags += "; Secure";
+            }
+            ctx.header("Set-Cookie", "session=" + token + cookieFlags);
+
             ctx.json(Map.of(
-                    "token", token,
+                    "token", token, // Keep for backward compat, prefer cookie
                     "user", Map.of(
                             "id", user.getId(),
                             "username", user.getUsername(),
@@ -332,10 +340,24 @@ public final class UserController {
      */
     public void logout(Context ctx) {
         String authHeader = ctx.header("Authorization");
+        String token = null;
+
+        // Try Bearer token first
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
+            token = authHeader.substring(7);
+        }
+
+        // Also check cookie
+        if (token == null) {
+            token = ctx.cookie("session");
+        }
+
+        if (token != null) {
             sessions.remove(token);
         }
+
+        // Clear the session cookie
+        ctx.header("Set-Cookie", "session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0");
         ctx.json(Map.of("status", "logged_out"));
     }
 

@@ -149,16 +149,25 @@ public final class WebServer {
                     return;
                 }
 
+                // Try Authorization header first, then cookie fallback
                 String authHeader = ctx.header("Authorization");
-                if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                String token = null;
+
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    token = authHeader.substring(7);
+                } else {
+                    // Fallback to HttpOnly session cookie
+                    token = ctx.cookie("session");
+                }
+
+                if (token == null || token.isEmpty()) {
                     ctx.status(401)
                             .json(java.util.Map.of("error", "Unauthorized", "message",
-                                    "Missing or invalid or expired ticket"));
+                                    "Missing authentication"));
                     ctx.skipRemainingHandlers();
                     return;
                 }
 
-                String token = authHeader.substring(7);
                 if (!userController.isValidSession(token)) {
                     ctx.status(401)
                             .json(java.util.Map.of("error", "Unauthorized", "message", "Invalid or expired token"));
