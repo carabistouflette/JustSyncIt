@@ -307,6 +307,9 @@ public final class UserController {
                 return;
             }
 
+            // Auto-migrate legacy PBKDF2 users to Argon2id
+            migrateToArgon2(user, password);
+
             // Generate session token with timestamp for expiry
             String token = generateToken();
             sessions.put(token, new SessionInfo(user.getId(), System.currentTimeMillis()));
@@ -406,8 +409,6 @@ public final class UserController {
             try {
                 byte[] calculatedHash = argon2Service.deriveKey(password.toCharArray(), salt, 32);
                 String calculatedHashStr = Base64.getEncoder().encodeToString(calculatedHash);
-                // Constant time comparison roughly (Strings might vary, but MessageDigest is
-                // safer)
                 return java.security.MessageDigest.isEqual(
                         calculatedHashStr.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         rawHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -416,11 +417,25 @@ public final class UserController {
                 return false;
             }
         } else {
-            // Legacy PBKDF2 verification
+            // Legacy PBKDF2 verification - DEPRECATED, will migrate on success
+            LOGGER.warning("PBKDF2 legacy hash detected - will migrate to Argon2id on successful auth");
             String newHash = hashPasswordPBKDF2(password, salt);
             return java.security.MessageDigest.isEqual(
                     newHash.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                     storedHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+    }
+
+    /**
+     * Migrates a user from PBKDF2 to Argon2id hash.
+     * Called after successful login with legacy hash.
+     */
+    private void migrateToArgon2(User user, String plainPassword) {
+        if (!user.getPasswordHash().startsWith(ARGON2_PREFIX)) {
+            LOGGER.info("Migrating user " + user.getUsername() + " from PBKDF2 to Argon2id");
+            user.setPassword(plainPassword); // Re-hashes with Argon2id
+            saveUsers();
+            LOGGER.info("User " + user.getUsername() + " migrated to Argon2id successfully");
         }
     }
 
