@@ -30,8 +30,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.CompletableFuture;
-import java.util.stream.Stream;
 
 /**
  * Filesystem-based implementation of ContentStore using Java NIO.
@@ -97,12 +95,12 @@ public final class FilesystemContentStore extends AbstractContentStore {
     }
 
     private void startAsyncSizeCalculation() {
-        CompletableFuture.runAsync(() -> {
-            long calculated = calculateInitialTotalSize(storageDirectory);
-            totalSize.set(calculated);
-            saveTotalSize(); // Persist it for next time
-            logger.info("Finished calculating total size: {} bytes", calculated);
-        });
+        // [PERF-001] Do NOT walk the filesystem on startup. It is too expensive.
+        // If size.dat is missing, we initialize to 0 and accept the inaccuracy until
+        // stats are rebuilt or updated.
+        logger.warn("Total size unknown (size.dat missing). Initializing to 0 to avoid expensive filesystem scan.");
+        totalSize.set(0);
+        saveTotalSize();
     }
 
     private void saveTotalSize() {
@@ -112,23 +110,6 @@ public final class FilesystemContentStore extends AbstractContentStore {
                     StandardOpenOption.WRITE);
         } catch (IOException e) {
             logger.warn("Failed to save total size persistence", e);
-        }
-    }
-
-    private long calculateInitialTotalSize(Path dir) {
-        try (Stream<Path> walk = Files.walk(dir)) {
-            return walk.filter(Files::isRegularFile)
-                    .mapToLong(p -> {
-                        try {
-                            return Files.size(p);
-                        } catch (IOException e) {
-                            return 0L;
-                        }
-                    })
-                    .sum();
-        } catch (IOException e) {
-            logger.warn("Failed to calculate initial total size", e);
-            return 0L;
         }
     }
 
