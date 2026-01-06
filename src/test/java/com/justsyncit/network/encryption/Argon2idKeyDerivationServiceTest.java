@@ -185,12 +185,13 @@ class Argon2idKeyDerivationServiceTest {
     }
 
     @Test
-    @DisplayName("Default constructor should set standard parameters")
+    @DisplayName("Default constructor should set OWASP-compliant parameters")
     void testDefaultConstructorParameters() {
         Argon2idKeyDerivationService standard = new Argon2idKeyDerivationService();
 
-        assertEquals(512, standard.getMemoryKb());
-        assertEquals(3, standard.getIterations());
-        assertEquals(4, standard.getParallelism());
+        // OWASP 2024 recommended minimums
+        assertEquals(46_080, standard.getMemoryKb(), "Memory should be 45 MiB (OWASP minimum)");
+        assertEquals(1, standard.getIterations(), "Iterations should be 1 with high memory");
+        assertEquals(4, standard.getParallelism(), "Parallelism should be 4");
     }
 }

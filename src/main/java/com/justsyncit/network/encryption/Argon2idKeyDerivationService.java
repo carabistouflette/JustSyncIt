@@ -29,18 +29,23 @@ import java.util.Arrays;
  * </ul>
  * 
  * <p>
- * Default parameters:
+ * Default parameters follow OWASP recommendations (2024):
  * <ul>
- * <li>Memory: 512 KB (can be increased for higher security)</li>
- * <li>Iterations: 3</li>
+ * <li>Memory: 46,080 KB (45 MiB) - OWASP minimum for Argon2id</li>
+ * <li>Iterations: 1 (higher memory compensates for fewer iterations)</li>
  * <li>Parallelism: 4 lanes</li>
- * <li>Salt: 16 bytes</li>
+ * <li>Salt: 16 bytes (128-bit)</li>
  * </ul>
+ * 
+ * @see <a href=
+ *      "https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP
+ *      Password Storage</a>
  */
 public final class Argon2idKeyDerivationService implements KeyDerivationService {
 
-    private static final int DEFAULT_MEMORY_KB = 512; // 512 KB memory cost
-    private static final int DEFAULT_ITERATIONS = 3; // 3 iterations
+    // OWASP 2024 recommended minimum parameters for Argon2id
+    private static final int DEFAULT_MEMORY_KB = 46_080; // 45 MiB - OWASP minimum
+    private static final int DEFAULT_ITERATIONS = 1; // 1 iteration with high memory
     private static final int DEFAULT_PARALLELISM = 4; // 4 parallel lanes
     private static final int SALT_SIZE_BYTES = 16; // 128-bit salt
 
@@ -158,10 +163,17 @@ public final class Argon2idKeyDerivationService implements KeyDerivationService 
      * Converts char array to byte array using UTF-8 encoding.
      */
     private byte[] toBytes(char[] chars) {
-        StringBuilder sb = new StringBuilder(chars.length);
-        for (char c : chars) {
-            sb.append(c);
+        if (chars == null)
+            return null;
+        java.nio.CharBuffer charBuffer = java.nio.CharBuffer.wrap(chars);
+        java.nio.ByteBuffer byteBuffer = java.nio.charset.StandardCharsets.UTF_8.encode(charBuffer);
+        byte[] bytes = new byte[byteBuffer.remaining()];
+        byteBuffer.get(bytes);
+        // Clear the ByteBuffer (it might effectively be a wrapper or copy, but good
+        // practice)
+        if (byteBuffer.hasArray()) {
+            java.util.Arrays.fill(byteBuffer.array(), (byte) 0);
         }
-        return sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return bytes;
     }
 }
