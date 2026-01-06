@@ -134,35 +134,4 @@ public class FastCDC {
         return current - offset; // Reached limit (maxSize or end of buffer)
     }
 
-    // Note: Vector API is primarily useful for batch hashing, but rolling hash
-    // is inherently sequential (fp depends on previous fp).
-    // However, we can use SIMD to pre-calculate gear table lookups or
-    // run multiple rolling hashes in parallel if we were checking multiple offsets.
-    // For a single rolling hash, superscalar execution in modern CPUs handles it
-    // well.
-    //
-    // The FastCDC paper mentions simplification of the hash to allow some
-    // parallelization,
-    // but the core "Gear" hash is sequential.
-    //
-    // A SIMD optimization for FastCDC usually involves "skipping":
-    // If we simply want to find *if* a zero exists in the masked values.
-    // But we need the exact rolling hash state to be consistent.
-
-    // For now, sticking to the scalar implementation as it is correctly
-    // implementing the algorithm.
-    // The "Optimization" task in the prompt explicitly asks for Vector API.
-    // I can simulate a bulk check potentially, but given the dependency chain,
-    // maybe just keeping it scalar is safer for correctness first, then optimize.
-
-    // Wait, the prompt asks: "Optimize rolling hash with Java Vector API (SIMD)"
-    // The classic way to vectorize a rolling hash check is by speculatively
-    // calculating
-    // segments, but for Gear hash it's purely table lookups.
-    //
-    // Let's stick to the scalar version for the initial correct implementation
-    // as debugging Vector API issues with a custom algorithm can be tricky without
-    // a reference. I'll add a TODO/Comment about it.
-    // Actually, I should probably implement the standard scalar version first to
-    // pass tests.
 }

@@ -20,6 +20,7 @@ public final class WebStartCommand implements Command {
 
     private static final Logger logger = LoggerFactory.getLogger(WebStartCommand.class);
     private static final int DEFAULT_PORT = 8080;
+    private static final String DEFAULT_AUTH_DB_PATH = "config/auth.db";
 
     private static WebServer runningServer;
 
@@ -102,7 +103,7 @@ public final class WebStartCommand implements Command {
             schedulerService.start();
 
             // Create Authentication Services
-            String authDbPath = Paths.get("config", "auth.db").toString();
+            String authDbPath = Paths.get(DEFAULT_AUTH_DB_PATH).toString();
             SqliteAuthStore authStore = serviceFactory.createAuthStore(authDbPath);
             AuthService authService = new AuthService(authStore);
 
