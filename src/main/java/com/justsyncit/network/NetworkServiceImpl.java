@@ -90,7 +90,6 @@ public class NetworkServiceImpl implements NetworkService {
 
     /** Handler for secure transfers. */
     private final com.justsyncit.network.transfer.SecureTransferHandler secureTransferHandler;
-    private final com.justsyncit.network.encryption.EncryptionService encryptionService;
     private final byte[] clusterKey;
 
     /**
@@ -171,7 +170,7 @@ public class NetworkServiceImpl implements NetworkService {
         this.quicTransport = Objects.requireNonNull(quicTransport, "quicTransport cannot be null");
         Objects.requireNonNull(quicConfiguration, "quicConfiguration cannot be null");
         this.defaultTransportType = Objects.requireNonNull(defaultTransportType, "defaultTransportType cannot be null");
-        this.encryptionService = Objects.requireNonNull(encryptionService, "encryptionService cannot be null");
+        Objects.requireNonNull(encryptionService, "encryptionService cannot be null");
         this.clusterKey = Objects.requireNonNull(clusterKey, "clusterKey cannot be null");
         if (clusterKey.length != 32) {
             throw new IllegalArgumentException("Cluster key must be 32 bytes");
