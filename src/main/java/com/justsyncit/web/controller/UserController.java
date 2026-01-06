@@ -569,29 +569,14 @@ public final class UserController {
         users.put(admin.getId(), admin);
         saveUsers();
 
-        // Write password to secure file instead of logging to console
-        try {
-            java.nio.file.Path passwordFile = java.nio.file.Paths.get("config", ".admin-password");
-            java.nio.file.Files.createDirectories(passwordFile.getParent());
-            java.nio.file.Files.writeString(passwordFile, tempPass,
-                    java.nio.file.StandardOpenOption.CREATE,
-                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
-            // Set restrictive permissions (owner read/write only)
-            passwordFile.toFile().setReadable(false, false);
-            passwordFile.toFile().setReadable(true, true);
-            passwordFile.toFile().setWritable(false, false);
-            passwordFile.toFile().setWritable(true, true);
-
-            LOGGER.warn("\n==================================================\n" +
-                    "  [SECURITY] Admin password written to: config/.admin-password\n" +
-                    "  Please read the file and change this password immediately.\n" +
-                    "==================================================");
-        } catch (java.io.IOException e) {
-            LOGGER.error("CRITICAL: Failed to write admin password file. " +
-                    "Application cannot start securely. Error: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to create admin password file. " +
-                    "Ensure config directory is writable.", e);
-        }
+        // [SEC-001] Security Fix: Log password to console ONLY, do NOT write to disk.
+        // This prevents credential leakage in the filesystem.
+        LOGGER.warn("\n==================================================\n" +
+                "  [SECURITY] Default Admin Account Created\n" +
+                "  Username: admin\n" +
+                "  Password: {}\n" +
+                "  Please change this password immediately on login.\n" +
+                "==================================================", tempPass);
     }
 
     // User class
