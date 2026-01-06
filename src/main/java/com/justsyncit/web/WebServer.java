@@ -18,7 +18,8 @@ import com.justsyncit.web.controller.UserController;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.logging.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Embedded web server for the JustSyncIt management interface.
@@ -26,7 +27,7 @@ import java.util.logging.Logger;
  */
 public final class WebServer {
 
-    private static final Logger LOGGER = Logger.getLogger(WebServer.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(WebServer.class);
     private static final int DEFAULT_PORT = 8080;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -65,7 +66,7 @@ public final class WebServer {
      */
     public void start() {
         if (running.compareAndSet(false, true)) {
-            LOGGER.info("Starting web server on port " + port);
+            LOGGER.info("Starting web server on port {}", port);
 
             app = Javalin.create(config -> {
                 // Only enable CORS if explicitly requested via env var.
@@ -76,7 +77,7 @@ public final class WebServer {
                             it.allowHost(corsOrigin.trim());
                         });
                     });
-                    LOGGER.info("CORS enabled for origin: " + corsOrigin);
+                    LOGGER.info("CORS enabled for origin: {}", corsOrigin);
                 } else {
                     LOGGER.info("CORS disabled (default secure). Set CORS_ALLOWED_ORIGIN to enable.");
                 }
@@ -91,15 +92,14 @@ public final class WebServer {
 
                 // Enable request logging
                 config.requestLogger.http((ctx, executionTimeMs) -> {
-                    LOGGER.fine(String.format("%s %s - %.0fms",
-                            ctx.method(), ctx.path(), executionTimeMs));
+                    LOGGER.debug("{} {} - {}ms", ctx.method(), ctx.path(), Math.round(executionTimeMs));
                 });
 
                 String keystorePath = System.getenv("SSL_KEYSTORE_PATH");
                 String keystorePass = System.getenv("SSL_KEYSTORE_PASSWORD");
 
                 if (keystorePath != null && !keystorePath.isBlank() && keystorePass != null) {
-                    LOGGER.info("Enabling HTTPS with keystore: " + keystorePath);
+                    LOGGER.info("Enabling HTTPS with keystore: {}", keystorePath);
                     config.jetty.modifyServer(server -> {
                         // SSL Context
                         SslContextFactory.Server sslContextFactory = new SslContextFactory.Server();
@@ -111,7 +111,7 @@ public final class WebServer {
                         sslConnector.setPort(port);
                         server.addConnector(sslConnector);
                     });
-                    LOGGER.info("HTTPS configured on port " + port);
+                    LOGGER.info("HTTPS configured on port {}", port);
                 }
             });
 
@@ -184,7 +184,7 @@ public final class WebServer {
                         userController.cleanup();
                     }
                 } catch (Exception e) {
-                    LOGGER.warning("Session cleanup failed: " + e.getMessage());
+                    LOGGER.warn("Session cleanup failed: {}", e.getMessage());
                 }
             }, 1, 1, java.util.concurrent.TimeUnit.MINUTES);
 
@@ -278,9 +278,9 @@ public final class WebServer {
             });
 
             app.start(port);
-            LOGGER.info("Web server started successfully at http://localhost:" + port);
+            LOGGER.info("Web server started successfully at http://localhost:{}", port);
         } else {
-            LOGGER.warning("Web server is already running");
+            LOGGER.warn("Web server is already running");
         }
     }
 
@@ -343,7 +343,7 @@ public final class WebServer {
             try {
                 ws.send(message);
             } catch (Exception e) {
-                LOGGER.warning("Failed to broadcast to client: " + e.getMessage());
+                LOGGER.warn("Failed to broadcast to client: {}", e.getMessage());
             }
         });
     }
@@ -361,18 +361,18 @@ public final class WebServer {
                 if (token != null && !token.isEmpty()) {
                     // Validate header token immediately
                     if (userController.validateAndConsumeTicket(token) == null) {
-                        LOGGER.warning("WebSocket connection rejected: invalid or expired ticket");
+                        LOGGER.warn("WebSocket connection rejected: invalid or expired ticket");
                         ctx.closeSession(4003, "Invalid token");
                         return;
                     }
                     String clientId = ctx.sessionId();
                     wsClients.put(clientId, ctx);
-                    LOGGER.info("WebSocket client connected (header auth): " + clientId);
+                    LOGGER.info("WebSocket client connected (header auth): {}", clientId);
                 } else {
                     // No header - require first message authentication
                     // Mark as pending and set timeout
                     pendingAuth.put(ctx.sessionId(), System.currentTimeMillis());
-                    LOGGER.fine("WebSocket client pending auth: " + ctx.sessionId());
+                    LOGGER.debug("WebSocket client pending auth: {}", ctx.sessionId());
                 }
             });
 
@@ -383,7 +383,7 @@ public final class WebServer {
                 if (pendingAuth.containsKey(clientId)) {
                     long connectTime = pendingAuth.remove(clientId);
                     if (System.currentTimeMillis() - connectTime > AUTH_TIMEOUT_MS) {
-                        LOGGER.warning("WebSocket auth timeout: " + clientId);
+                        LOGGER.warn("WebSocket auth timeout: {}", clientId);
                         ctx.closeSession(4002, "Authentication timeout");
                         return;
                     }
@@ -399,15 +399,15 @@ public final class WebServer {
                         String ticket = authMsg.path("ticket").asText();
                         if (ticket == null || ticket.isEmpty() ||
                                 userController.validateAndConsumeTicket(ticket) == null) {
-                            LOGGER.warning("WebSocket auth failed: invalid ticket");
+                            LOGGER.warn("WebSocket auth failed: invalid ticket");
                             ctx.closeSession(4003, "Invalid token");
                             return;
                         }
                         wsClients.put(clientId, ctx);
                         ctx.send("{\"type\":\"auth_success\"}");
-                        LOGGER.info("WebSocket client authenticated (message auth): " + clientId);
+                        LOGGER.info("WebSocket client authenticated (message auth): {}", clientId);
                     } catch (Exception e) {
-                        LOGGER.warning("WebSocket auth parsing error: " + e.getMessage());
+                        LOGGER.warn("WebSocket auth parsing error: {}", e.getMessage());
                         ctx.closeSession(4001, "Invalid auth message format");
                     }
                     return;
@@ -420,18 +420,18 @@ public final class WebServer {
                 }
 
                 // Normal message - log or forward to handlers
-                LOGGER.fine("WebSocket message from " + clientId + ": " + ctx.message());
+                LOGGER.debug("WebSocket message from {}: {}", clientId, ctx.message());
             });
 
             ws.onClose(ctx -> {
                 String clientId = ctx.sessionId();
                 wsClients.remove(clientId);
                 pendingAuth.remove(clientId); // Clean up pending auth on disconnect
-                LOGGER.info("WebSocket client disconnected: " + clientId);
+                LOGGER.info("WebSocket client disconnected: {}", clientId);
             });
 
             ws.onError(ctx -> {
-                LOGGER.warning("WebSocket error: " + ctx.error());
+                LOGGER.warn("WebSocket error: {}", ctx.error());
             });
         });
     }
@@ -532,7 +532,7 @@ public final class WebServer {
         try {
             return OBJECT_MAPPER.writeValueAsString(data);
         } catch (Exception e) {
-            LOGGER.warning("Failed to serialize to JSON: " + e.getMessage());
+            LOGGER.warn("Failed to serialize to JSON: {}", e.getMessage());
             return "{}";
         }
     }
