@@ -21,8 +21,13 @@ package com.justsyncit.web.controller;
 import com.justsyncit.web.WebServerContext;
 import com.justsyncit.web.dto.ApiError;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.javalin.http.Context;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -35,10 +40,13 @@ import java.util.logging.Logger;
 public class ConfigController {
 
     private static final Logger LOGGER = Logger.getLogger(ConfigController.class.getName());
+    // [Omega Remediation] PERF-101: Config persistence
+    private static final Path CONFIG_FILE = Paths.get("config", "app-config.json");
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final WebServerContext context;
 
-    // In-memory config storage (would typically persist to file)
+    // Config storage - now persisted to disk
     private final Map<String, Object> config;
     private final List<String> backupSources;
 
@@ -55,6 +63,9 @@ public class ConfigController {
         config.put("encryptionEnabled", false);
         config.put("maxConcurrentBackups", 1);
         config.put("retentionDays", 30);
+
+        // Load saved config (overwrites defaults if file exists)
+        loadConfig();
     }
 
     /**
@@ -121,6 +132,9 @@ public class ConfigController {
                 config.put(key, value);
             }
 
+            // [Omega Remediation] PERF-101: Persist config after update
+            saveConfig();
+
             LOGGER.info("Configuration updated: " + updates.keySet());
             ctx.json(Map.of("status", "updated", "config", config));
 
@@ -179,5 +193,46 @@ public class ConfigController {
      */
     public List<String> getBackupSourcesList() {
         return new ArrayList<>(backupSources);
+    }
+
+    // [Omega Remediation] PERF-101: Persist configuration to disk
+    private void saveConfig() {
+        try {
+            Files.createDirectories(CONFIG_FILE.getParent());
+            Map<String, Object> fullConfig = new HashMap<>(config);
+            fullConfig.put("backupSources", backupSources);
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(CONFIG_FILE.toFile(), fullConfig);
+            LOGGER.info("Configuration saved to " + CONFIG_FILE);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to save configuration: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void loadConfig() {
+        if (!Files.exists(CONFIG_FILE)) {
+            LOGGER.info("No existing config file found, using defaults.");
+            return;
+        }
+        try {
+            Map<String, Object> loaded = objectMapper.readValue(CONFIG_FILE.toFile(),
+                    new TypeReference<Map<String, Object>>() {
+                    });
+            config.putAll(loaded);
+
+            // Extract backup sources if present
+            Object sources = config.remove("backupSources");
+            if (sources instanceof List) {
+                backupSources.clear();
+                for (Object src : (List<?>) sources) {
+                    if (src instanceof String) {
+                        backupSources.add((String) src);
+                    }
+                }
+            }
+            LOGGER.info("Configuration loaded from " + CONFIG_FILE);
+        } catch (Exception e) {
+            LOGGER.severe("Failed to load configuration: " + e.getMessage());
+        }
     }
 }
