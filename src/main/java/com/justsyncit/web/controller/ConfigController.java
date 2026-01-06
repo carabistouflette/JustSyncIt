@@ -163,19 +163,68 @@ public class ConfigController {
                 return;
             }
 
-            if (backupSources.contains(path)) {
-                ctx.status(409).json(ApiError.of(409, "Conflict",
-                        "Backup source already exists: " + path, ctx.path()));
+            // SEC-007: Comprehensive path validation
+            Path sourcePath;
+            try {
+                sourcePath = Paths.get(path).toAbsolutePath().normalize();
+            } catch (java.nio.file.InvalidPathException e) {
+                ctx.status(400).json(ApiError.badRequest("Invalid path format: " + e.getMessage(), ctx.path()));
                 return;
             }
 
-            backupSources.add(path);
+            // Check for null bytes (path traversal attack vector)
+            if (path.contains("\0")) {
+                LOGGER.warning("Path traversal attempt detected: null byte in path");
+                ctx.status(400).json(ApiError.badRequest("Invalid path: contains invalid characters", ctx.path()));
+                return;
+            }
+
+            // Ensure path is absolute (no relative paths allowed)
+            if (!sourcePath.isAbsolute()) {
+                ctx.status(400).json(ApiError.badRequest("Path must be absolute", ctx.path()));
+                return;
+            }
+
+            // Ensure path doesn't escape allowed directories (path traversal check)
+            String normalizedPath = sourcePath.toString();
+            if (!normalizedPath.equals(path) && path.contains("..")) {
+                LOGGER.warning("Path traversal attempt detected: " + path + " -> " + normalizedPath);
+                ctx.status(400).json(ApiError.badRequest("Path traversal not allowed", ctx.path()));
+                return;
+            }
+
+            // Validate path exists and is a directory
+            if (!Files.exists(sourcePath)) {
+                ctx.status(400).json(ApiError.badRequest("Path does not exist: " + normalizedPath, ctx.path()));
+                return;
+            }
+
+            if (!Files.isDirectory(sourcePath)) {
+                ctx.status(400).json(ApiError.badRequest("Path is not a directory: " + normalizedPath, ctx.path()));
+                return;
+            }
+
+            if (!Files.isReadable(sourcePath)) {
+                ctx.status(400).json(ApiError.badRequest("Path is not readable: " + normalizedPath, ctx.path()));
+                return;
+            }
+
+            // Use normalized path for storage
+            String canonicalPath = normalizedPath;
+
+            if (backupSources.contains(canonicalPath)) {
+                ctx.status(409).json(ApiError.of(409, "Conflict",
+                        "Backup source already exists: " + canonicalPath, ctx.path()));
+                return;
+            }
+
+            backupSources.add(canonicalPath);
             saveConfig();
-            LOGGER.info("Added backup source: " + path);
+            LOGGER.info("Added backup source: " + canonicalPath);
 
             ctx.status(201).json(Map.of(
                     "status", "created",
-                    "path", path,
+                    "path", canonicalPath,
                     "sources", backupSources));
 
         } catch (Exception e) {
