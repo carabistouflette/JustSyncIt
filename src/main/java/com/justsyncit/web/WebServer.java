@@ -131,7 +131,7 @@ public final class WebServer {
                 String authHeader = ctx.header("Authorization");
                 if (authHeader == null || !authHeader.startsWith("Bearer ")) {
                     ctx.status(401)
-                            .json(java.util.Map.of("error", "Unauthorized", "message", "Missing or invalid token"));
+                            .json(java.util.Map.of("error", "Unauthorized", "message", "Missing or invalid or expired ticket"));
                     ctx.skipRemainingHandlers();
                     return;
                 }
@@ -353,9 +353,9 @@ public final class WebServer {
                 // [Omega Remediation] Note: Query param auth is logged in access logs.
                 // Prefer X-Auth-Token header where possible.
 
-                // Validate token with UserController
-                if (!userController.validateToken(token)) {
-                    LOGGER.warning("WebSocket connection rejected: invalid token");
+                // [Omega Remediation v2] SEC-C02: Use one-time ticket instead of session token
+                if (userController.validateAndConsumeTicket(token) == null) {
+                    LOGGER.warning("WebSocket connection rejected: invalid or expired ticket");
                     ctx.closeSession(4003, "Invalid token");
                     return;
                 }

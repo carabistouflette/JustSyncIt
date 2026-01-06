@@ -56,12 +56,30 @@ public final class UserController {
     // [Omega Remediation] SEC-003: Allowed roles whitelist
     private static final java.util.Set<String> ALLOWED_ROLES = java.util.Set.of("admin", "user", "viewer");
 
+    // [Omega Remediation v2] SEC-C03: Session expiry (24 hours)
+    private static final long SESSION_TTL_MS = 24 * 60 * 60 * 1000L;
+
     // In-memory user storage (now backed by JSON file)
     private final Map<String, User> users;
-    private final Map<String, String> sessions; // token -> userId
+    private final Map<String, SessionInfo> sessions; // token -> SessionInfo with expiry
 
     // [Omega Remediation] SEC-002: Short-lived WebSocket tickets (30 second expiry)
     private final Map<String, TicketInfo> wsTickets;
+
+    // [Omega Remediation v2] SEC-C03: Session with timestamp for expiry
+    private static class SessionInfo {
+        final String userId;
+        final long createdAt;
+
+        SessionInfo(String userId, long createdAt) {
+            this.userId = userId;
+            this.createdAt = createdAt;
+        }
+
+        boolean isExpired() {
+            return System.currentTimeMillis() - createdAt > SESSION_TTL_MS;
+        }
+    }
 
     private static class TicketInfo {
         final String userId;
@@ -207,7 +225,14 @@ public final class UserController {
             Map<String, String> body = ctx.bodyAsClass(Map.class);
 
             if (body.containsKey("displayName")) {
-                user.setDisplayName(body.get("displayName"));
+                String displayName = body.get("displayName");
+                // [Omega Remediation v2] SEC-H03: Validate displayName length
+                if (displayName != null && displayName.length() > 255) {
+                    ctx.status(400).json(ApiError.badRequest(
+                            "displayName must be 255 characters or less", ctx.path()));
+                    return;
+                }
+                user.setDisplayName(displayName);
             }
             if (body.containsKey("role")) {
                 String newRole = body.get("role");
@@ -285,9 +310,9 @@ public final class UserController {
                 return;
             }
 
-            // Generate session token
+            // Generate session token with timestamp for expiry
             String token = generateToken();
-            sessions.put(token, user.getId());
+            sessions.put(token, new SessionInfo(user.getId(), System.currentTimeMillis()));
 
             LOGGER.info("User logged in: " + username);
 
@@ -319,8 +344,9 @@ public final class UserController {
 
     // Helper methods
 
+    // [Omega Remediation v2] SEC-H02: Use 16-byte IDs to avoid collision risk
     private String generateId() {
-        byte[] bytes = new byte[8];
+        byte[] bytes = new byte[16];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
@@ -354,13 +380,26 @@ public final class UserController {
                 storedHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
+    // [Omega Remediation v2] SEC-C03: Check session expiry
     public boolean isValidSession(String token) {
-        return sessions.containsKey(token);
+        SessionInfo session = sessions.get(token);
+        if (session == null) {
+            return false;
+        }
+        if (session.isExpired()) {
+            sessions.remove(token); // Cleanup expired session
+            return false;
+        }
+        return true;
     }
 
     // [Omega Remediation] SEC-012: Role-based access control helper methods
     public String getUserIdForSession(String token) {
-        return sessions.get(token);
+        SessionInfo session = sessions.get(token);
+        if (session == null || session.isExpired()) {
+            return null;
+        }
+        return session.userId;
     }
 
     public String getUserRole(String userId) {
@@ -383,12 +422,12 @@ public final class UserController {
      * @return the one-time WebSocket ticket, or null if session is invalid
      */
     public String createWsTicket(String sessionToken) {
-        String userId = sessions.get(sessionToken);
-        if (userId == null) {
+        SessionInfo session = sessions.get(sessionToken);
+        if (session == null || session.isExpired()) {
             return null;
         }
         String ticket = generateToken();
-        wsTickets.put(ticket, new TicketInfo(userId, System.currentTimeMillis()));
+        wsTickets.put(ticket, new TicketInfo(session.userId, System.currentTimeMillis()));
         return ticket;
     }
 
@@ -476,9 +515,11 @@ public final class UserController {
                     "  Please read the file and change this password immediately.\n" +
                     "==================================================");
         } catch (java.io.IOException e) {
-            LOGGER.severe("Failed to write admin password file: " + e.getMessage());
-            // Fallback: log partial password hint only
-            LOGGER.warning("Admin password starts with: " + tempPass.substring(0, 2) + "***");
+            // [Omega Remediation v2] SEC-C04: Never log passwords or hints
+            LOGGER.severe("CRITICAL: Failed to write admin password file. " +
+                    "Application cannot start securely. Error: " + e.getMessage());
+            throw new RuntimeException("Failed to create admin password file. " +
+                    "Ensure config directory is writable.", e);
         }
     }
 
