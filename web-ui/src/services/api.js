@@ -5,18 +5,10 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 const api = axios.create({
     baseURL: API_BASE,
     timeout: 30000,
+    withCredentials: true, // Enable HttpOnly session cookie authentication
     headers: {
         'Content-Type': 'application/json'
     }
-})
-
-// Add auth token to requests
-api.interceptors.request.use(config => {
-    const token = localStorage.getItem('auth_token')
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
 })
 
 // Handle errors globally
@@ -24,7 +16,7 @@ api.interceptors.response.use(
     response => response,
     error => {
         if (error.response?.status === 401) {
-            localStorage.removeItem('auth_token')
+            // Session cookie is expired/invalid, redirect to login
             window.location.href = '/login'
         }
         return Promise.reject(error)
