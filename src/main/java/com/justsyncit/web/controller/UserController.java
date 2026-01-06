@@ -34,17 +34,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.security.SecureRandom;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.justsyncit.network.encryption.Argon2idKeyDerivationService;
@@ -219,7 +211,6 @@ public final class UserController {
     /**
      * PUT /api/users/{id} - Update a user.
      */
-    @SuppressWarnings("unchecked")
     public void updateUser(Context ctx) {
         try {
             String userId = ctx.pathParam("id");
@@ -294,7 +285,6 @@ public final class UserController {
     /**
      * POST /api/auth/login - User login.
      */
-    @SuppressWarnings("unchecked")
     public void login(Context ctx) {
         try {
             LoginRequest request = ctx.bodyAsClass(LoginRequest.class);
@@ -386,16 +376,6 @@ public final class UserController {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private String hashPassword(String password, byte[] salt) {
-        // Default to Argon2id for new hashes
-        try {
-            byte[] hash = argon2Service.deriveKey(password.toCharArray(), salt, 32);
-            return ARGON2_PREFIX + Base64.getEncoder().encodeToString(hash);
-        } catch (EncryptionException e) {
-            throw new RuntimeException("Error hashing password with Argon2id", e);
-        }
     }
 
     private static String hashPasswordPBKDF2(String password, byte[] salt) {
