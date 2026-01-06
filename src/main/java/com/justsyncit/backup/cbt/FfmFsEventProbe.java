@@ -1,7 +1,7 @@
 package com.justsyncit.backup.cbt;
 
-import java.lang.foreign.*;
-import java.lang.invoke.MethodHandle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Experimental probe for Foreign Function & Memory API (Project Panama)
@@ -11,14 +11,16 @@ import java.lang.invoke.MethodHandle;
  */
 public class FfmFsEventProbe {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(FfmFsEventProbe.class);
+
     public static void main(String[] args) {
-        System.out.println("Investigating FFM for FS events...");
+        LOGGER.info("Investigating FFM for FS events...");
 
         String os = System.getProperty("os.name").toLowerCase();
         if (os.contains("linux")) {
             probeLinuxInotify();
         } else {
-            System.out.println("OS not supported for this probe: " + os);
+            LOGGER.info("OS not supported for this probe: {}", os);
         }
     }
 
@@ -31,8 +33,8 @@ public class FfmFsEventProbe {
         // 2. Look up 'inotify_add_watch'
         // 3. Setup MemorySegment for reading events
 
-        System.out.println(
+        LOGGER.debug(
                 "FFM/JNI integration for inotify is feasible but requires native library loading configuration.");
-        System.out.println("Current status: Placeholder for future optimization.");
+        LOGGER.debug("Current status: Placeholder for future optimization.");
     }
 }
