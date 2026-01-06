@@ -145,6 +145,38 @@ public final class WebServer {
                 }
             });
 
+            // [Omega Remediation] SEC-103: Rate limiting for login endpoint
+            java.util.concurrent.ConcurrentHashMap<String, long[]> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
+            final int MAX_ATTEMPTS = 5;
+            final long WINDOW_MS = 60_000; // 1 minute
+
+            app.before("/api/auth/login", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+
+                String clientIp = ctx.ip();
+                long now = System.currentTimeMillis();
+
+                loginAttempts.compute(clientIp, (ip, record) -> {
+                    if (record == null) {
+                        return new long[] { 1, now }; // [count, windowStart]
+                    }
+                    if (now - record[1] > WINDOW_MS) {
+                        return new long[] { 1, now }; // Reset window
+                    }
+                    record[0]++;
+                    return record;
+                });
+
+                long[] record = loginAttempts.get(clientIp);
+                if (record != null && record[0] > MAX_ATTEMPTS && (now - record[1]) <= WINDOW_MS) {
+                    ctx.status(429).json(java.util.Map.of(
+                            "error", "Too Many Requests",
+                            "message", "Rate limit exceeded. Try again in 1 minute."));
+                    ctx.skipRemainingHandlers();
+                }
+            });
+
             // [Omega Remediation] SEC-012: Role-based access control
             // Admin-only endpoints
             app.before("/api/users/*", ctx -> {
@@ -157,11 +189,63 @@ public final class WebServer {
                     return;
                 requireRole(ctx, "admin");
             });
-            // Admin and user endpoints
-            app.before("/api/scheduler/*", ctx -> {
+            // [Omega Remediation] SEC-105: Fixed path to match actual route
+            app.before("/api/schedules/*", ctx -> {
                 if (ctx.method().toString().equals("OPTIONS"))
                     return;
                 requireRole(ctx, "admin", "user");
+            });
+            app.before("/api/schedules", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user");
+            });
+            // [Omega Remediation] SEC-106: Add role restrictions to previously unprotected
+            // endpoints
+            app.before("/api/backup/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user");
+            });
+            app.before("/api/backup", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user");
+            });
+            app.before("/api/restore/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user");
+            });
+            app.before("/api/restore", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user");
+            });
+            app.before("/api/snapshots/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                // DELETE requires admin/user, GET allows viewer too
+                if (ctx.method().toString().equals("DELETE")) {
+                    requireRole(ctx, "admin", "user");
+                } else {
+                    requireRole(ctx, "admin", "user", "viewer");
+                }
+            });
+            app.before("/api/snapshots", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user", "viewer");
+            });
+            app.before("/api/files/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user", "viewer");
+            });
+            app.before("/api/files", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user", "viewer");
             });
 
             // Configure WebSocket
