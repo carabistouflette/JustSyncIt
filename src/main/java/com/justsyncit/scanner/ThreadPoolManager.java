@@ -302,15 +302,13 @@ public class ThreadPoolManager {
                 }
             }, getThreadPool(type));
         } catch (RejectedExecutionException e) {
-            // Retry with caller runs policy
-            logger.warn("Task rejected from pool {}, retrying with caller runs", type);
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    return task.call();
-                } catch (Exception ex) {
-                    throw new RuntimeException("Task execution failed", ex);
-                }
-            }, CompletableFuture.delayedExecutor(0, TimeUnit.MILLISECONDS));
+            // [CON-002] Fix: Enforce backpressure. Do NOT retry with unbounded
+            // delayedExecutor.
+            // Fail fast so the caller knows the system is overloaded.
+            logger.warn("Task rejected from pool {}: {}", type, e.getMessage());
+            // Return a failed future to allow caller to handle backoff/failure
+            return CompletableFuture.failedFuture(
+                    new RejectedExecutionException("Task rejected from " + type + " pool: " + e.getMessage()));
         }
     }
 
