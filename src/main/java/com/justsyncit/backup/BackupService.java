@@ -170,8 +170,9 @@ public class BackupService {
                         // Reload all files from metadata to ensure we have the full list (though
                         // result.getProcessedFiles() is partial? No, full for full backup)
                         // result.getProcessedFiles() might be enough for full backup, but safer to read
+                        // result.getProcessedFiles() might be enough for full backup, but safer to read
                         // from DB for consistency
-                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId);
+                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId, false);
                         MerkleNode root = tree.build(allFiles);
                         persistMerkleTree(root);
                         metadataService.setSnapshotRoot(snapshotId, root.getHash());
@@ -398,9 +399,10 @@ public class BackupService {
                     try {
                         LOGGER.info("Building Merkle Tree for incremental snapshot: {}", snapshotId);
                         MerkleTree tree = new MerkleTree(blake3Service);
-                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId); // This will now
-                                                                                                      // return merged
-                                                                                                      // list
+                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId, false); // This
+                                                                                                             // will now
+                        // return merged
+                        // list
                         MerkleNode root = tree.build(allFiles);
                         persistMerkleTree(root);
                         metadataService.setSnapshotRoot(snapshotId, root.getHash());

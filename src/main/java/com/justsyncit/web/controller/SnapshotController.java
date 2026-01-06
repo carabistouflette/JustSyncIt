@@ -133,9 +133,9 @@ public final class SnapshotController {
                 return;
             }
 
-            // Use efficient pagination from service
+            // Use efficient pagination from service, excluding chunks for UI display
             int total = metadataService.countFilesInSnapshot(snapshotId, pathPrefix);
-            List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId, pathPrefix, limit, offset);
+            List<FileMetadata> files = metadataService.getFilesInSnapshot(snapshotId, pathPrefix, limit, offset, false);
 
             List<Map<String, Object>> fileList = new ArrayList<>();
             for (FileMetadata file : files) {

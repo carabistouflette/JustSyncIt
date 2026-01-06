@@ -483,8 +483,36 @@ public final class SqliteMetadataService implements MetadataService {
     }
 
     @Override
+    public List<FileMetadata> getFilesInSnapshot(String snapshotId, boolean includeChunks) throws IOException {
+        validateNotClosed();
+        if (snapshotId == null || snapshotId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
+        }
+
+        // Optimization: If encryption is not enabled, we can rely on SQL for filtering
+        // and pagination (limit=-1 means no limit)
+        if (encryptionService == null) {
+            return getFilesInSnapshotSqlOptimized(snapshotId, null, -1, -1, includeChunks);
+        } else {
+            return getFilesInSnapshotStreaming(snapshotId, null, -1, -1, includeChunks);
+        }
+    }
+
+    @Override
+    public List<FileMetadata> getFilesInSnapshot(String snapshotId) throws IOException {
+        return getFilesInSnapshot(snapshotId, true);
+    }
+
+    @Override
     public List<FileMetadata> getFilesInSnapshot(String snapshotId, String pathPrefix, int limit, int offset)
             throws IOException {
+        // Delegate to new method with includeChunks=true for backward compatibility
+        return getFilesInSnapshot(snapshotId, pathPrefix, limit, offset, true);
+    }
+
+    @Override
+    public List<FileMetadata> getFilesInSnapshot(String snapshotId, String pathPrefix, int limit, int offset,
+            boolean includeChunks) throws IOException {
         validateNotClosed();
         if (snapshotId == null || snapshotId.trim().isEmpty()) {
             throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
@@ -589,14 +617,14 @@ public final class SqliteMetadataService implements MetadataService {
         // but it solves the OOM issue.
 
         if (encryptionService == null) {
-            return getFilesInSnapshotSqlOptimized(snapshotId, pathPrefix, limit, offset);
+            return getFilesInSnapshotSqlOptimized(snapshotId, pathPrefix, limit, offset, includeChunks);
         } else {
-            return getFilesInSnapshotStreaming(snapshotId, pathPrefix, limit, offset);
+            return getFilesInSnapshotStreaming(snapshotId, pathPrefix, limit, offset, includeChunks);
         }
     }
 
     private List<FileMetadata> getFilesInSnapshotSqlOptimized(String snapshotId, String pathPrefix, int limit,
-            int offset) throws IOException {
+            int offset, boolean includeChunks) throws IOException {
         String sql = "SELECT id, snapshot_id, path, size, modified_time, file_hash, encryption_mode "
                 + "FROM files WHERE snapshot_id = ?";
 
@@ -623,7 +651,10 @@ public final class SqliteMetadataService implements MetadataService {
             try (ResultSet rs = stmt.executeQuery()) {
                 List<FileMetadata> files = new ArrayList<>();
                 while (rs.next()) {
-                    List<String> chunkHashes = getFileChunks(connection, rs.getString("id"));
+                    List<String> chunkHashes = null;
+                    if (includeChunks) {
+                        chunkHashes = getFileChunks(connection, rs.getString("id"));
+                    }
                     files.add(mapRowToFileMetadata(rs, chunkHashes));
                 }
                 logger.debug("Retrieved {} files (optimized) for snapshot {}", files.size(), snapshotId);
@@ -634,7 +665,8 @@ public final class SqliteMetadataService implements MetadataService {
         }
     }
 
-    private List<FileMetadata> getFilesInSnapshotStreaming(String snapshotId, String pathPrefix, int limit, int offset)
+    private List<FileMetadata> getFilesInSnapshotStreaming(String snapshotId, String pathPrefix, int limit, int offset,
+            boolean includeChunks)
             throws IOException {
         // Stream all files, decrypt, filter, skip, limit.
         // Sort order: SQL 'ORDER BY path' (encrypted path order if encrypted)
@@ -689,7 +721,7 @@ public final class SqliteMetadataService implements MetadataService {
                     }
 
                     // Pagination: Limit
-                    if (count >= limit) {
+                    if (limit != -1 && count >= limit) {
                         break;
                     }
 
@@ -698,8 +730,11 @@ public final class SqliteMetadataService implements MetadataService {
                         decryptedPath = decryptPath(rawPath, encryptionMode);
                     }
 
-                    // Fetch chunks only for the files we return
-                    List<String> chunkHashes = getFileChunks(connection, id);
+                    // Fetch chunks only for the files we return, if requested
+                    List<String> chunkHashes = null;
+                    if (includeChunks) {
+                        chunkHashes = getFileChunks(connection, id);
+                    }
                     FileMetadata file = mapRowToFileMetadata(rs, chunkHashes);
 
                     // Re-construct with decrypted path if needed (mapRowToFileMetadata uses raw
@@ -805,11 +840,8 @@ public final class SqliteMetadataService implements MetadataService {
         }
     }
 
-    @Override
-    public List<FileMetadata> getFilesInSnapshot(String snapshotId) throws IOException {
-        // Delegate to paginated with no limit (or max integer)
-        return getFilesInSnapshot(snapshotId, null, Integer.MAX_VALUE, 0);
-    }
+    // countFilesInSnapshotStreaming implementation ends here.
+    // getFilesInSnapshot(String snapshotId) duplicate removed.
 
     @Override
     public void updateFile(FileMetadata file) throws IOException {

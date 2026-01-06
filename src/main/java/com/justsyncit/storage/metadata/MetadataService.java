@@ -140,13 +140,27 @@ public interface MetadataService extends ClosableResource {
 
         /**
          * Gets all files in a snapshot.
+         * Default implementation includes chunks for backward compatibility.
          *
          * @param snapshotId the snapshot ID
          * @return list of files in the snapshot
          * @throws IOException              if an error occurs during retrieval
          * @throws IllegalArgumentException if snapshotId is null or empty
          */
-        List<FileMetadata> getFilesInSnapshot(String snapshotId) throws IOException;
+        default List<FileMetadata> getFilesInSnapshot(String snapshotId) throws IOException {
+                return getFilesInSnapshot(snapshotId, true);
+        }
+
+        /**
+         * Gets all files in a snapshot, optionally excluding chunks for performance.
+         *
+         * @param snapshotId    the snapshot ID
+         * @param includeChunks whether to include chunk metadata
+         * @return list of files in the snapshot
+         * @throws IOException              if an error occurs during retrieval
+         * @throws IllegalArgumentException if snapshotId is null or empty
+         */
+        List<FileMetadata> getFilesInSnapshot(String snapshotId, boolean includeChunks) throws IOException;
 
         /**
          * Gets a page of files in a snapshot, optionally filtered by path prefix.
@@ -160,8 +174,26 @@ public interface MetadataService extends ClosableResource {
          */
         default List<FileMetadata> getFilesInSnapshot(String snapshotId, String pathPrefix, int limit, int offset)
                         throws IOException {
+                return getFilesInSnapshot(snapshotId, pathPrefix, limit, offset, true);
+        }
+
+        /**
+         * Gets a page of files in a snapshot, optionally filtered by path prefix and
+         * optionally excluding chunks.
+         * 
+         * @param snapshotId    the snapshot ID
+         * @param pathPrefix    optional path prefix filter (can be null or empty)
+         * @param limit         maximum number of files to return
+         * @param offset        number of files to skip
+         * @param includeChunks whether to include chunk metadata
+         * @return filtered and paginated list of files
+         * @throws IOException if retrieval fails
+         */
+        default List<FileMetadata> getFilesInSnapshot(String snapshotId, String pathPrefix, int limit, int offset,
+                        boolean includeChunks)
+                        throws IOException {
                 // Default implementation for backward compatibility (inefficient but safe)
-                List<FileMetadata> all = getFilesInSnapshot(snapshotId);
+                List<FileMetadata> all = getFilesInSnapshot(snapshotId, includeChunks);
                 java.util.stream.Stream<FileMetadata> stream = all.stream();
 
                 if (pathPrefix != null && !pathPrefix.isEmpty()) {

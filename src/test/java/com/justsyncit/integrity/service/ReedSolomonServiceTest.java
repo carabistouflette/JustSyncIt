@@ -287,6 +287,11 @@ public class ReedSolomonServiceTest {
         }
 
         @Override
+        public List<FileMetadata> getFilesInSnapshot(String id, boolean includeChunks) {
+            return null;
+        }
+
+        @Override
         public void updateFile(FileMetadata f) {
         }
 
