@@ -43,16 +43,17 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
         try (Statement stmt = connection.createStatement()) {
             String tableCheckQuery = "SELECT name FROM sqlite_master WHERE type='table' "
                     + "AND name='schema_version'";
-            ResultSet rs = stmt.executeQuery(tableCheckQuery);
-            if (!rs.next()) {
-                logger.debug("Schema version table not found, assuming version 0");
-                return 0;
+            try (ResultSet rs = stmt.executeQuery(tableCheckQuery)) {
+                if (!rs.next()) {
+                    logger.debug("Schema version table not found, assuming version 0");
+                    return 0;
+                }
             }
         }
 
         // Table exists, query the version
-        try (Statement stmt = connection.createStatement()) {
-            ResultSet rs = stmt.executeQuery(DatabaseSchema.getVersionQuery());
+        try (Statement stmt = connection.createStatement();
+                ResultSet rs = stmt.executeQuery(DatabaseSchema.getVersionQuery())) {
             if (rs.next()) {
                 int version = rs.getInt("version");
                 logger.debug("Current database schema version: {}", version);
@@ -243,21 +244,18 @@ public final class SqliteSchemaMigrator implements SchemaMigrator {
         }
 
         // Check that all required tables exist
-        try (Statement stmt = connection.createStatement()) {
-            String tableQuery = "SELECT name FROM sqlite_master WHERE type='table'";
-            ResultSet rs = stmt.executeQuery(tableQuery);
+        try (Statement stmt = connection.createStatement();
+                ResultSet rs = stmt.executeQuery("SELECT name FROM sqlite_master WHERE type='table'")) {
+
+            java.util.Set<String> foundTables = new java.util.HashSet<>();
+            while (rs.next()) {
+                foundTables.add(rs.getString("name"));
+            }
 
             String[] requiredTables = { "snapshots", "files", "file_chunks", "chunks", "schema_version",
                     "files_search", "parity_groups", "chunk_parity" };
             for (String table : requiredTables) {
-                boolean found = false;
-                while (rs.next()) {
-                    if (table.equals(rs.getString("name"))) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
+                if (!foundTables.contains(table)) {
                     logger.warn("Required table '{}' not found in schema", table);
                     return false;
                 }
