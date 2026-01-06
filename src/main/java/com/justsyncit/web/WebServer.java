@@ -33,6 +33,7 @@ import com.justsyncit.web.controller.FileBrowserController;
 import com.justsyncit.web.controller.ConfigController;
 import com.justsyncit.web.controller.UserController;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Logger;
@@ -53,6 +54,7 @@ public final class WebServer {
     private final ConcurrentHashMap<String, WsContext> wsClients;
     private Javalin app;
     private UserController userController;
+    private java.util.concurrent.ScheduledExecutorService rateLimiterCleanup;
 
     /**
      * Creates a new web server with default port.
@@ -196,13 +198,38 @@ public final class WebServer {
                 }
             });
 
+            rateLimiterCleanup = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+            rateLimiterCleanup.scheduleAtFixedRate(() -> {
+                try {
+                    long now = System.currentTimeMillis();
+                    loginAttempts.entrySet().removeIf(entry -> now - entry.getValue()[1] > WINDOW_MS);
+                    // Also clean up user sessions while we are at it
+                    if (userController != null) {
+                        userController.cleanup();
+                    }
+                } catch (Exception e) {
+                    LOGGER.warning("Rate limiter cleanup failed: " + e.getMessage());
+                }
+            }, 1, 1, java.util.concurrent.TimeUnit.MINUTES);
+
             // Admin-only endpoints
             app.before("/api/users/*", ctx -> {
                 if (ctx.method().toString().equals("OPTIONS"))
                     return;
                 requireRole(ctx, "admin");
             });
+            app.before("/api/users", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin");
+            });
+
             app.before("/api/config/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin");
+            });
+            app.before("/api/config", ctx -> {
                 if (ctx.method().toString().equals("OPTIONS"))
                     return;
                 requireRole(ctx, "admin");
@@ -276,9 +303,7 @@ public final class WebServer {
 
             app.start(port);
             LOGGER.info("Web server started successfully at http://localhost:" + port);
-        } else
-
-        {
+        } else {
             LOGGER.warning("Web server is already running");
         }
     }
@@ -292,6 +317,9 @@ public final class WebServer {
             if (app != null) {
                 app.stop();
                 app = null;
+            }
+            if (rateLimiterCleanup != null) {
+                rateLimiterCleanup.shutdownNow();
             }
             wsClients.clear();
             LOGGER.info("Web server stopped");
@@ -345,46 +373,85 @@ public final class WebServer {
     }
 
     private void configureWebSocket() {
+        // Track clients pending authentication (connected but not yet authenticated)
+        Map<String, Long> pendingAuth = new java.util.concurrent.ConcurrentHashMap<>();
+        final long AUTH_TIMEOUT_MS = 5000; // 5 seconds to authenticate
+
         app.ws("/ws", ws -> {
-            // Authenticate before WebSocket upgrade
             ws.onConnect(ctx -> {
-                // Validate token from query parameter
-                String token = ctx.queryParam("token");
+                // Try Header first (preferred method for non-browser clients)
+                String token = ctx.header("X-Auth-Token");
+
                 if (token != null && !token.isEmpty()) {
-                    LOGGER.warning("WebSocket auth using query parameter (potential leak in proxy logs). Client: "
-                            + ctx.sessionId());
+                    // Validate header token immediately
+                    if (userController.validateAndConsumeTicket(token) == null) {
+                        LOGGER.warning("WebSocket connection rejected: invalid or expired ticket");
+                        ctx.closeSession(4003, "Invalid token");
+                        return;
+                    }
+                    String clientId = ctx.sessionId();
+                    wsClients.put(clientId, ctx);
+                    LOGGER.info("WebSocket client connected (header auth): " + clientId);
                 } else {
-                    // Try Header (Standard for some clients, difficult for Browsers)
-                    token = ctx.header("X-Auth-Token");
+                    // No header - require first message authentication
+                    // Mark as pending and set timeout
+                    pendingAuth.put(ctx.sessionId(), System.currentTimeMillis());
+                    LOGGER.fine("WebSocket client pending auth: " + ctx.sessionId());
                 }
+            });
 
-                if (token == null || token.isEmpty()) {
-                    LOGGER.warning("WebSocket connection rejected: missing token");
-                    ctx.closeSession(4001, "Authentication required");
-                    return;
-                }
-
-                // Prefer X-Auth-Token header where possible.
-                if (userController.validateAndConsumeTicket(token) == null) {
-                    LOGGER.warning("WebSocket connection rejected: invalid or expired ticket");
-                    ctx.closeSession(4003, "Invalid token");
-                    return;
-                }
-
+            ws.onMessage(ctx -> {
                 String clientId = ctx.sessionId();
-                wsClients.put(clientId, ctx);
-                LOGGER.info("WebSocket client connected: " + clientId);
+
+                // Check if client is pending authentication
+                if (pendingAuth.containsKey(clientId)) {
+                    long connectTime = pendingAuth.remove(clientId);
+                    if (System.currentTimeMillis() - connectTime > AUTH_TIMEOUT_MS) {
+                        LOGGER.warning("WebSocket auth timeout: " + clientId);
+                        ctx.closeSession(4002, "Authentication timeout");
+                        return;
+                    }
+
+                    // First message must be auth: {"type":"auth","ticket":"..."}
+                    try {
+                        String message = ctx.message();
+                        var authMsg = OBJECT_MAPPER.readTree(message);
+                        if (!"auth".equals(authMsg.path("type").asText())) {
+                            ctx.closeSession(4001, "First message must be authentication");
+                            return;
+                        }
+                        String ticket = authMsg.path("ticket").asText();
+                        if (ticket == null || ticket.isEmpty() ||
+                                userController.validateAndConsumeTicket(ticket) == null) {
+                            LOGGER.warning("WebSocket auth failed: invalid ticket");
+                            ctx.closeSession(4003, "Invalid token");
+                            return;
+                        }
+                        wsClients.put(clientId, ctx);
+                        ctx.send("{\"type\":\"auth_success\"}");
+                        LOGGER.info("WebSocket client authenticated (message auth): " + clientId);
+                    } catch (Exception e) {
+                        LOGGER.warning("WebSocket auth parsing error: " + e.getMessage());
+                        ctx.closeSession(4001, "Invalid auth message format");
+                    }
+                    return;
+                }
+
+                // Normal message handling for authenticated clients
+                if (!wsClients.containsKey(clientId)) {
+                    ctx.closeSession(4001, "Not authenticated");
+                    return;
+                }
+
+                // Normal message - log or forward to handlers
+                LOGGER.fine("WebSocket message from " + clientId + ": " + ctx.message());
             });
 
             ws.onClose(ctx -> {
                 String clientId = ctx.sessionId();
                 wsClients.remove(clientId);
+                pendingAuth.remove(clientId); // Clean up pending auth on disconnect
                 LOGGER.info("WebSocket client disconnected: " + clientId);
-            });
-
-            ws.onMessage(ctx -> {
-                LOGGER.fine("WebSocket message received: " + ctx.message());
-                // Handle incoming messages if needed
             });
 
             ws.onError(ctx -> {
