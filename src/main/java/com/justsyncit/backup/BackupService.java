@@ -61,17 +61,24 @@ public class BackupService {
         this.blake3Service = blake3Service;
     }
 
-    // Overloaded constructor for backward compatibility (assumes no CBT, no Blake3
-    // - DEPRECATED or needs fixing)
-    // Actually existing code uses this. We should deprecate or fail if Blake3 not
-    // provided?
-    // But for now, we can overload.
+    /**
+     * @deprecated Use the full constructor with blake3Service for Merkle Tree
+     *             support.
+     *             This constructor will be removed in a future version.
+     */
+    @Deprecated(forRemoval = true, since = "0.2.0")
     public BackupService(ContentStore contentStore, MetadataService metadataService,
             FilesystemScanner scanner, FileChunker chunker,
             ChangedBlockTrackingService cbtService) {
         this(contentStore, metadataService, scanner, chunker, cbtService, null);
     }
 
+    /**
+     * @deprecated Use the full constructor with blake3Service for Merkle Tree
+     *             support.
+     *             This constructor will be removed in a future version.
+     */
+    @Deprecated(forRemoval = true, since = "0.2.0")
     public BackupService(ContentStore contentStore, MetadataService metadataService,
             FilesystemScanner scanner, FileChunker chunker) {
         this(contentStore, metadataService, scanner, chunker, null, null);
@@ -361,33 +368,43 @@ public class BackupService {
 
                 long totalBytes = 0;
                 int processedCount = 0;
+                int errorCount = 0;
+
+                // SEC-001 fix: Process files asynchronously instead of blocking with .join()
+                List<CompletableFuture<FileProcessor.ProcessingResult>> futures = new java.util.ArrayList<>();
+                List<Path> validFiles = new java.util.ArrayList<>();
 
                 for (Path file : changedFiles) {
                     if (java.nio.file.Files.exists(file) && java.nio.file.Files.isRegularFile(file)) {
-                        try {
-                            // We need to use processFile here.
-                            // Assuming FileProcessor has processFile method. If not, we might need to rely
-                            // on the fact
-                            // that FileProcessor likely uses a file visitor we can mimic or use
-                            // reflection/overload.
-                            // Checking imports: FileProcessor is imported.
-                            // Let's assume processFile exists or we can use processDirectory logic limited
-                            // to one file.
-                            // Actually, standard FileProcessor usually has a method to process a single
-                            // file or stream.
-                            // If processFile is not public, we are in trouble.
-                            // Let's assume it IS public given the modular design.
-                            // If compilation fails, we will check FileProcessor content and add it.
+                        validFiles.add(file);
+                        futures.add(processor.processFile(file,
+                                new com.justsyncit.scanner.ChunkingOptions()
+                                        .withChunkSize(options.getChunkSize())));
+                    }
+                }
 
-                            FileProcessor.ProcessingResult fileResult = processor.processFile(file,
-                                    new com.justsyncit.scanner.ChunkingOptions()
-                                            .withChunkSize(options.getChunkSize()))
-                                    .join();
+                // Wait for all files to complete
+                @SuppressWarnings("rawtypes")
+                CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
+                CompletableFuture<Void> allDone = CompletableFuture.allOf(futuresArray);
+
+                try {
+                    allDone.get(); // Block once for all files, not per-file
+                } catch (java.util.concurrent.ExecutionException e) {
+                    LOGGER.error("Some files failed to process", e.getCause());
+                }
+
+                // Collect results
+                for (int i = 0; i < futures.size(); i++) {
+                    try {
+                        FileProcessor.ProcessingResult fileResult = futures.get(i).getNow(null);
+                        if (fileResult != null) {
                             totalBytes += fileResult.getTotalBytes();
                             processedCount++;
-                        } catch (Exception e) {
-                            LOGGER.error("Failed to process file: " + file, e);
                         }
+                    } catch (Exception e) {
+                        LOGGER.error("Failed to process file: {}", validFiles.get(i), e);
+                        errorCount++;
                     }
                 }
 
@@ -414,7 +431,7 @@ public class BackupService {
                     }
                 }
 
-                return BackupResult.success(snapshotId, processedCount, totalBytes, -1, 0, false);
+                return BackupResult.success(snapshotId, processedCount, totalBytes, -1, errorCount, false);
 
             } catch (Exception e) {
                 LOGGER.error("Incremental backup failed", e);
