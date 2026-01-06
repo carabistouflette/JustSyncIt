@@ -1,10 +1,11 @@
 package com.justsyncit.web.controller;
 
-import com.justsyncit.web.WebServerContext;
+import com.justsyncit.web.model.User;
+import com.justsyncit.web.service.AuthService;
+import com.justsyncit.web.service.SqliteAuthStore;
 import com.justsyncit.web.dto.UserRequests.CreateUserRequest;
 import com.justsyncit.web.dto.UserRequests.UserResponse;
 import io.javalin.http.Context;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,60 +13,46 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Comparator;
-import java.util.stream.Stream;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserControllerTest {
 
     @Mock
-    private WebServerContext webServerContext;
+    private SqliteAuthStore authStore;
+
+    @Mock
+    private AuthService authService;
 
     @Mock
     private Context ctx;
 
     private UserController userController;
-    private final Path configDir = Paths.get("config");
 
     @BeforeEach
     void setUp() throws Exception {
-        cleanConfig();
-        // The constructor creates default admin if empty, which writes to
-        // config/.admin-password
-        userController = new UserController(webServerContext);
-    }
+        // Prevent default admin creation by simulating existing users
+        when(authStore.listUsers())
+                .thenReturn(java.util.Collections.singletonList(new User("admin", "admin", "Admin", "admin")));
+        userController = new UserController(authStore, authService);
 
-    @AfterEach
-    void tearDown() throws Exception {
-        cleanConfig();
-    }
-
-    private void cleanConfig() throws IOException {
-        if (Files.exists(configDir)) {
-            try (Stream<Path> walk = Files.walk(configDir)) {
-                walk.sorted(Comparator.reverseOrder())
-                        .map(Path::toFile)
-                        .forEach(File::delete);
-            }
-        }
+        // Clear invocations from constructor to ensure tests start fresh
+        clearInvocations(authStore);
     }
 
     @Test
-    void createUser_ValidRequest_ShouldCreateUser() {
+    void createUser_ValidRequest_ShouldCreateUser() throws Exception {
         // Arrange
         CreateUserRequest request = new CreateUserRequest("newuser", "password123", "New User", "user");
         when(ctx.bodyAsClass(CreateUserRequest.class)).thenReturn(request);
         when(ctx.status(anyInt())).thenReturn(ctx);
+        when(authStore.getUserByUsername("newuser")).thenReturn(Optional.empty());
 
         // Act
         userController.createUser(ctx);
@@ -75,6 +62,8 @@ class UserControllerTest {
         ArgumentCaptor<UserResponse> responseCaptor = ArgumentCaptor.forClass(UserResponse.class);
         verify(ctx).json(responseCaptor.capture());
 
+        verify(authStore).createUser(any(User.class));
+
         UserResponse response = responseCaptor.getValue();
         assertEquals("newuser", response.username());
         assertEquals("New User", response.displayName());
@@ -83,25 +72,22 @@ class UserControllerTest {
     }
 
     @Test
-    void createUser_DuplicateUsername_ShouldReturn409() {
+    void createUser_DuplicateUsername_ShouldReturn409() throws Exception {
         // Arrange
-        // Create user first
-        CreateUserRequest request1 = new CreateUserRequest("dupuser", "password123", "User 1", "user");
-        when(ctx.bodyAsClass(CreateUserRequest.class)).thenReturn(request1);
+        CreateUserRequest request = new CreateUserRequest("dupuser", "password123", "User 1", "user");
+        when(ctx.bodyAsClass(CreateUserRequest.class)).thenReturn(request);
         when(ctx.status(anyInt())).thenReturn(ctx);
-        userController.createUser(ctx);
 
-        // Try creating duplicate
-        reset(ctx);
-        CreateUserRequest request2 = new CreateUserRequest("dupuser", "password123", "User 2", "user");
-        when(ctx.bodyAsClass(CreateUserRequest.class)).thenReturn(request2);
-        when(ctx.status(anyInt())).thenReturn(ctx);
+        // Simulate existing user
+        when(authStore.getUserByUsername("dupuser"))
+                .thenReturn(Optional.of(new User("id", "dupuser", "User 1", "user")));
 
         // Act
         userController.createUser(ctx);
 
         // Assert
-        // Assert
         verify(ctx).status(409);
+        // Verify we NEVER called createUser on store
+        verify(authStore, never()).createUser(any(User.class));
     }
 }
