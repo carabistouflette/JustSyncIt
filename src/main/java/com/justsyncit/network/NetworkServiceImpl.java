@@ -489,22 +489,25 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
             ContentStore contentStore, TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
+            // [Omega Remediation] PERF-001: Check file size before loading into memory
+            // For large files, recommend TCP transport which uses streaming
+            long fileSize = Files.size(filePath);
+            final long MAX_QUIC_FILE_SIZE = 100 * 1024 * 1024; // 100 MB limit
+            if (fileSize > MAX_QUIC_FILE_SIZE) {
+                logger.warn("File {} is {} bytes, exceeding QUIC limit of {} bytes. Use TCP for large files.",
+                        filePath, fileSize, MAX_QUIC_FILE_SIZE);
+                return CompletableFuture.failedFuture(new IOException(
+                        "File too large for QUIC transport (" + fileSize / (1024 * 1024) + " MB). " +
+                                "Use TCP transport for files over 100 MB to avoid OOM."));
+            }
+
             // For QUIC, we need to read the file data and send it via the QUIC transport
             byte[] fileData = Files.readAllBytes(filePath);
             return quicTransport.sendFile(filePath, remoteAddress, fileData).thenCompose(v -> {
                 // Update statistics with bytes sent for file transfer
-                try {
-                    long fileSize = Files.size(filePath);
-                    statistics.incrementBytesSent(fileSize);
-                    statistics.incrementMessagesSent(); // Count
-                                                        // file
-                                                        // transfer
-                                                        // as
-                                                        // a
-                                                        // message
-                } catch (IOException e) {
-                    logger.warn("Could not update bytes sent statistics for file transfer", e);
-                }
+                // [Omega Remediation] Use fileData.length since we already have the data
+                statistics.incrementBytesSent(fileData.length);
+                statistics.incrementMessagesSent();
                 logger.debug("File sent via QUIC: {} to {}", filePath, remoteAddress);
                 long now = System.currentTimeMillis();
                 return CompletableFuture.completedFuture(FileTransferResult.success("unknown", filePath, remoteAddress,
@@ -867,10 +870,6 @@ public class NetworkServiceImpl implements NetworkService {
 
         public void incrementMessagesSent() {
             messagesSent.incrementAndGet();
-        }
-
-        public void incrementMessagesReceived() {
-            messagesReceived.incrementAndGet();
         }
 
         @Override
