@@ -1,5 +1,6 @@
 package com.justsyncit.backup;
 
+import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.scanner.FileChunker;
 import com.justsyncit.scanner.FilesystemScanner;
 import com.justsyncit.storage.ContentStore;
@@ -28,12 +29,15 @@ class BackupServiceTest {
     private FilesystemScanner scanner;
     @Mock
     private FileChunker chunker;
+    @Mock
+    private Blake3Service blake3Service;
 
     private BackupService backupService;
 
     @BeforeEach
     void setUp() {
-        backupService = new BackupService(contentStore, metadataService, scanner, chunker);
+        // Use non-deprecated constructor with blake3Service for Merkle Tree support
+        backupService = new BackupService(contentStore, metadataService, scanner, chunker, null, blake3Service);
     }
 
     @Test

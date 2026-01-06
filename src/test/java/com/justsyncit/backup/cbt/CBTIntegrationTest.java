@@ -72,8 +72,8 @@ class CBTIntegrationTest {
         cbtService = new ChangedBlockTrackingService(threadPoolManager, bufferPool, journalDir);
         cbtService.start();
 
-        // BackupService with CBT
-        backupService = new BackupService(contentStore, metadataService, scanner, chunker, cbtService);
+        // BackupService with CBT - use non-deprecated constructor with blake3Service
+        backupService = new BackupService(contentStore, metadataService, scanner, chunker, cbtService, blake3Service);
     }
 
     @AfterEach
