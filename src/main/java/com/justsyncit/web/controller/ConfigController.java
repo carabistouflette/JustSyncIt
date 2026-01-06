@@ -32,14 +32,16 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Logger;
+import com.justsyncit.web.dto.ConfigRequests.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * REST controller for configuration management.
  */
 public class ConfigController {
 
-    private static final Logger LOGGER = Logger.getLogger(ConfigController.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(ConfigController.class);
     private static final Path CONFIG_FILE = Paths.get("config", "app-config.json");
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -77,67 +79,72 @@ public class ConfigController {
     /**
      * PUT /api/config - Update configuration.
      */
-    @SuppressWarnings("unchecked")
     public void updateConfig(Context ctx) {
         try {
-            Map<String, Object> updates = ctx.bodyAsClass(Map.class);
+            UpdateConfigRequest request = ctx.bodyAsClass(UpdateConfigRequest.class);
+            Map<String, Object> updates = new HashMap<>();
 
             // Validate and apply updates
-            for (Map.Entry<String, Object> entry : updates.entrySet()) {
-                String key = entry.getKey();
-                Object value = entry.getValue();
-
-                // Validate specific config keys
-                switch (key) {
-                    case "webPort":
-                        if (value instanceof Number) {
-                            int port = ((Number) value).intValue();
-                            if (port < 1 || port > 65535) {
-                                ctx.status(400).json(ApiError.badRequest(
-                                        "webPort must be between 1 and 65535", ctx.path()));
-                                return;
-                            }
-                        }
-                        break;
-                    case "defaultChunkSize":
-                        if (value instanceof Number) {
-                            long size = ((Number) value).longValue();
-                            if (size < 1024 || size > 64 * 1024 * 1024) {
-                                ctx.status(400).json(ApiError.badRequest(
-                                        "defaultChunkSize must be between 1KB and 64MB", ctx.path()));
-                                return;
-                            }
-                        }
-                        break;
-                    case "compressionLevel":
-                        if (value instanceof Number) {
-                            int level = ((Number) value).intValue();
-                            if (level < 1 || level > 22) {
-                                ctx.status(400).json(ApiError.badRequest(
-                                        "compressionLevel must be between 1 and 22", ctx.path()));
-                                return;
-                            }
-                        }
-                        break;
-                    default:
-                        // Reject unknown config keys
-                        ctx.status(400).json(ApiError.badRequest(
-                                "Unknown configuration key: " + key
-                                        + ". Allowed keys: webPort, defaultChunkSize, compressionLevel",
-                                ctx.path()));
-                        return;
+            if (request.webPort() != null) {
+                int port = request.webPort();
+                if (port < 1 || port > 65535) {
+                    ctx.status(400).json(ApiError.badRequest(
+                            "webPort must be between 1 and 65535", ctx.path()));
+                    return;
                 }
+                config.put("webPort", port);
+                updates.put("webPort", port);
+            }
 
-                config.put(key, value);
+            if (request.defaultChunkSize() != null) {
+                long size = request.defaultChunkSize();
+                if (size < 1024 || size > 64 * 1024 * 1024) {
+                    ctx.status(400).json(ApiError.badRequest(
+                            "defaultChunkSize must be between 1KB and 64MB", ctx.path()));
+                    return;
+                }
+                config.put("defaultChunkSize", size);
+                updates.put("defaultChunkSize", size);
+            }
+
+            if (request.compressionLevel() != null) {
+                int level = request.compressionLevel();
+                if (level < 1 || level > 22) {
+                    ctx.status(400).json(ApiError.badRequest(
+                            "compressionLevel must be between 1 and 22", ctx.path()));
+                    return;
+                }
+                config.put("compressionLevel", level);
+                updates.put("compressionLevel", level);
+            }
+
+            if (request.compressionEnabled() != null) {
+                config.put("compressionEnabled", request.compressionEnabled());
+                updates.put("compressionEnabled", request.compressionEnabled());
+            }
+
+            if (request.encryptionEnabled() != null) {
+                config.put("encryptionEnabled", request.encryptionEnabled());
+                updates.put("encryptionEnabled", request.encryptionEnabled());
+            }
+
+            if (request.maxConcurrentBackups() != null) {
+                config.put("maxConcurrentBackups", request.maxConcurrentBackups());
+                updates.put("maxConcurrentBackups", request.maxConcurrentBackups());
+            }
+
+            if (request.retentionDays() != null) {
+                config.put("retentionDays", request.retentionDays());
+                updates.put("retentionDays", request.retentionDays());
             }
 
             saveConfig();
 
-            LOGGER.info("Configuration updated: " + updates.keySet());
+            LOGGER.info("Configuration updated: {}", updates.keySet());
             ctx.json(Map.of("status", "updated", "config", config));
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to update config: " + e.getMessage());
+            LOGGER.error("Failed to update config: {}", e.getMessage(), e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -152,18 +159,16 @@ public class ConfigController {
     /**
      * POST /api/config/backup-sources - Add a backup source.
      */
-    @SuppressWarnings("unchecked")
     public void addBackupSource(Context ctx) {
         try {
-            Map<String, String> body = ctx.bodyAsClass(Map.class);
-            String path = body.get("path");
+            AddBackupSourceRequest request = ctx.bodyAsClass(AddBackupSourceRequest.class);
+            String path = request.path();
 
             if (path == null || path.isEmpty()) {
                 ctx.status(400).json(ApiError.badRequest("path is required", ctx.path()));
                 return;
             }
 
-            // SEC-007: Comprehensive path validation
             Path sourcePath;
             try {
                 sourcePath = Paths.get(path).toAbsolutePath().normalize();
@@ -174,7 +179,7 @@ public class ConfigController {
 
             // Check for null bytes (path traversal attack vector)
             if (path.contains("\0")) {
-                LOGGER.warning("Path traversal attempt detected: null byte in path");
+                LOGGER.warn("Path traversal attempt detected: null byte in path");
                 ctx.status(400).json(ApiError.badRequest("Invalid path: contains invalid characters", ctx.path()));
                 return;
             }
@@ -188,7 +193,7 @@ public class ConfigController {
             // Ensure path doesn't escape allowed directories (path traversal check)
             String normalizedPath = sourcePath.toString();
             if (!normalizedPath.equals(path) && path.contains("..")) {
-                LOGGER.warning("Path traversal attempt detected: " + path + " -> " + normalizedPath);
+                LOGGER.warn("Path traversal attempt detected: {} -> {}", path, normalizedPath);
                 ctx.status(400).json(ApiError.badRequest("Path traversal not allowed", ctx.path()));
                 return;
             }
@@ -220,7 +225,7 @@ public class ConfigController {
 
             backupSources.add(canonicalPath);
             saveConfig();
-            LOGGER.info("Added backup source: " + canonicalPath);
+            LOGGER.info("Added backup source: {}", canonicalPath);
 
             ctx.status(201).json(Map.of(
                     "status", "created",
@@ -228,7 +233,7 @@ public class ConfigController {
                     "sources", backupSources));
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to add backup source: " + e.getMessage());
+            LOGGER.error("Failed to add backup source: {}", e.getMessage(), e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -249,9 +254,9 @@ public class ConfigController {
             Map<String, Object> fullConfig = new HashMap<>(config);
             fullConfig.put("backupSources", backupSources);
             objectMapper.writerWithDefaultPrettyPrinter().writeValue(CONFIG_FILE.toFile(), fullConfig);
-            LOGGER.info("Configuration saved to " + CONFIG_FILE);
+            LOGGER.info("Configuration saved to {}", CONFIG_FILE);
         } catch (Exception e) {
-            LOGGER.severe("Failed to save configuration: " + e.getMessage());
+            LOGGER.error("Failed to save configuration: {}", e.getMessage(), e);
         }
     }
 
@@ -277,9 +282,9 @@ public class ConfigController {
                     }
                 }
             }
-            LOGGER.info("Configuration loaded from " + CONFIG_FILE);
+            LOGGER.info("Configuration loaded from {}", CONFIG_FILE);
         } catch (Exception e) {
-            LOGGER.severe("Failed to load configuration: " + e.getMessage());
+            LOGGER.error("Failed to load configuration: {}", e.getMessage(), e);
         }
     }
 }

@@ -23,14 +23,25 @@ import com.justsyncit.web.dto.ApiError;
 
 import io.javalin.http.Context;
 
-import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Base64;
+import com.justsyncit.web.dto.UserRequests.*;
+import com.justsyncit.web.dto.UserRequests;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.security.SecureRandom;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -44,7 +55,7 @@ import com.justsyncit.network.encryption.EncryptionException;
  */
 public final class UserController {
 
-    private static final Logger LOGGER = Logger.getLogger(UserController.class.getName());
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserController.class);
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // PBKDF2 constants
@@ -130,20 +141,18 @@ public final class UserController {
      */
     public void createUser(Context ctx) {
         try {
-            Map<String, String> body;
+            CreateUserRequest request;
             try {
-                @SuppressWarnings("unchecked")
-                Map<String, String> parsed = ctx.bodyAsClass(Map.class);
-                body = parsed;
+                request = ctx.bodyAsClass(CreateUserRequest.class);
             } catch (Exception e) {
                 ctx.status(400).json(ApiError.badRequest("Invalid JSON body", ctx.path()));
                 return;
             }
 
-            String username = body.get("username");
-            String password = body.get("password");
-            String displayName = body.get("displayName");
-            String role = body.getOrDefault("role", "user");
+            String username = request.username();
+            String password = request.password();
+            String displayName = request.displayName();
+            String role = request.role() != null ? request.role() : "user";
 
             // Validate username
             if (username == null || username.isEmpty()) {
@@ -193,16 +202,16 @@ public final class UserController {
             users.put(user.getId(), user);
             saveUsers();
 
-            LOGGER.info("Created user: " + username);
+            LOGGER.info("Created user: {}", username);
 
-            ctx.status(201).json(Map.of(
-                    "id", user.getId(),
-                    "username", user.getUsername(),
-                    "displayName", user.getDisplayName(),
-                    "role", user.getRole()));
+            ctx.status(201).json(new UserRequests.UserResponse(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getDisplayName(),
+                    user.getRole()));
 
         } catch (Exception e) {
-            LOGGER.severe("Failed to create user: " + e.getMessage());
+            LOGGER.error("Failed to create user: {}", e.getMessage(), e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -221,19 +230,19 @@ public final class UserController {
                 return;
             }
 
-            Map<String, String> body = ctx.bodyAsClass(Map.class);
+            UpdateUserRequest request = ctx.bodyAsClass(UpdateUserRequest.class);
 
-            if (body.containsKey("displayName")) {
-                String displayName = body.get("displayName");
-                if (displayName != null && displayName.length() > 255) {
+            if (request.displayName() != null) {
+                String displayName = request.displayName();
+                if (displayName.length() > 255) {
                     ctx.status(400).json(ApiError.badRequest(
                             "displayName must be 255 characters or less", ctx.path()));
                     return;
                 }
                 user.setDisplayName(displayName);
             }
-            if (body.containsKey("role")) {
-                String newRole = body.get("role");
+            if (request.role() != null) {
+                String newRole = request.role();
                 if (!ALLOWED_ROLES.contains(newRole)) {
                     ctx.status(400).json(ApiError.badRequest(
                             "Invalid role. Allowed roles: " + ALLOWED_ROLES, ctx.path()));
@@ -241,21 +250,23 @@ public final class UserController {
                 }
                 user.setRole(newRole);
             }
-            if (body.containsKey("password") && !body.get("password").isEmpty()) {
-                user.setPassword(body.get("password"));
+            if (request.password() != null && !request.password().isEmpty()) {
+                user.setPassword(request.password());
             }
             saveUsers();
 
-            LOGGER.info("Updated user: " + user.getUsername());
+            LOGGER.info("Updated user: {}", user.getUsername());
 
-            ctx.json(Map.of(
-                    "id", user.getId(),
-                    "username", user.getUsername(),
-                    "displayName", user.getDisplayName(),
-                    "role", user.getRole()));
+            ctx.json(new UserRequests.UserResponse(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getDisplayName(),
+                    user.getRole()));
 
-        } catch (Exception e) {
-            LOGGER.severe("Failed to update user: " + e.getMessage());
+        } catch (
+
+        Exception e) {
+            LOGGER.error("Failed to update user: {}", e.getMessage(), e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -276,7 +287,7 @@ public final class UserController {
         sessions.entrySet().removeIf(e -> e.getValue().equals(userId));
         saveUsers();
 
-        LOGGER.info("Deleted user: " + user.getUsername());
+        LOGGER.info("Deleted user: {}", user.getUsername());
         ctx.json(Map.of("status", "deleted", "id", userId));
     }
 
@@ -286,9 +297,9 @@ public final class UserController {
     @SuppressWarnings("unchecked")
     public void login(Context ctx) {
         try {
-            Map<String, String> body = ctx.bodyAsClass(Map.class);
-            String username = body.get("username");
-            String password = body.get("password");
+            LoginRequest request = ctx.bodyAsClass(LoginRequest.class);
+            String username = request.username();
+            String password = request.password();
 
             if (username == null || password == null) {
                 ctx.status(400).json(ApiError.badRequest("username and password are required", ctx.path()));
@@ -314,7 +325,7 @@ public final class UserController {
             String token = generateToken();
             sessions.put(token, new SessionInfo(user.getId(), System.currentTimeMillis()));
 
-            LOGGER.info("User logged in: " + username);
+            LOGGER.info("User logged in: {}", username);
 
             // Set HttpOnly cookie for XSS protection
             boolean isSecure = ctx.scheme().equals("https");
@@ -325,15 +336,14 @@ public final class UserController {
             ctx.header("Set-Cookie", "session=" + token + cookieFlags);
 
             ctx.json(Map.of(
-                    "token", token, // Keep for backward compat, prefer cookie
-                    "user", Map.of(
-                            "id", user.getId(),
-                            "username", user.getUsername(),
-                            "displayName", user.getDisplayName(),
-                            "role", user.getRole())));
+                    "user", new UserRequests.UserResponse(
+                            user.getId(),
+                            user.getUsername(),
+                            user.getDisplayName(),
+                            user.getRole())));
 
         } catch (Exception e) {
-            LOGGER.severe("Login failed: " + e.getMessage());
+            LOGGER.error("Login failed: {}", e.getMessage(), e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
     }
@@ -413,12 +423,12 @@ public final class UserController {
                         calculatedHashStr.getBytes(java.nio.charset.StandardCharsets.UTF_8),
                         rawHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             } catch (EncryptionException e) {
-                LOGGER.severe("Argon2 verify failed: " + e.getMessage());
+                LOGGER.error("Argon2 verify failed: {}", e.getMessage(), e);
                 return false;
             }
         } else {
             // Legacy PBKDF2 verification - DEPRECATED, will migrate on success
-            LOGGER.warning("PBKDF2 legacy hash detected - will migrate to Argon2id on successful auth");
+            LOGGER.warn("PBKDF2 legacy hash detected - will migrate to Argon2id on successful auth");
             String newHash = hashPasswordPBKDF2(password, salt);
             return java.security.MessageDigest.isEqual(
                     newHash.getBytes(java.nio.charset.StandardCharsets.UTF_8),
@@ -432,10 +442,10 @@ public final class UserController {
      */
     private void migrateToArgon2(User user, String plainPassword) {
         if (!user.getPasswordHash().startsWith(ARGON2_PREFIX)) {
-            LOGGER.info("Migrating user " + user.getUsername() + " from PBKDF2 to Argon2id");
+            LOGGER.info("Migrating user {} from PBKDF2 to Argon2id", user.getUsername());
             user.setPassword(plainPassword); // Re-hashes with Argon2id
             saveUsers();
-            LOGGER.info("User " + user.getUsername() + " migrated to Argon2id successfully");
+            LOGGER.info("User {} migrated to Argon2id successfully", user.getUsername());
         }
     }
 
@@ -503,7 +513,7 @@ public final class UserController {
         }
         // Check if ticket has expired
         if (System.currentTimeMillis() - info.createdAt > WS_TICKET_EXPIRY_MS) {
-            LOGGER.warning("WebSocket ticket expired");
+            LOGGER.warn("WebSocket ticket expired");
             return null;
         }
         return info.userId;
@@ -536,10 +546,10 @@ public final class UserController {
                 for (User u : loaded) {
                     users.put(u.getId(), u);
                 }
-                LOGGER.info("Loaded " + users.size() + " users from disk.");
+                LOGGER.info("Loaded {} users from disk.", users.size());
             }
         } catch (Exception e) {
-            LOGGER.severe("Failed to load users: " + e.getMessage());
+            LOGGER.error("Failed to load users: {}", e.getMessage(), e);
         }
     }
 
@@ -548,7 +558,7 @@ public final class UserController {
             Files.createDirectories(userDatabasePath.getParent());
             objectMapper.writeValue(userDatabasePath.toFile(), new ArrayList<>(users.values()));
         } catch (Exception e) {
-            LOGGER.severe("Failed to save users: " + e.getMessage());
+            LOGGER.error("Failed to save users: {}", e.getMessage(), e);
         }
     }
 
@@ -572,13 +582,13 @@ public final class UserController {
             passwordFile.toFile().setWritable(false, false);
             passwordFile.toFile().setWritable(true, true);
 
-            LOGGER.warning("\n==================================================\n" +
+            LOGGER.warn("\n==================================================\n" +
                     "  [SECURITY] Admin password written to: config/.admin-password\n" +
                     "  Please read the file and change this password immediately.\n" +
                     "==================================================");
         } catch (java.io.IOException e) {
-            LOGGER.severe("CRITICAL: Failed to write admin password file. " +
-                    "Application cannot start securely. Error: " + e.getMessage());
+            LOGGER.error("CRITICAL: Failed to write admin password file. " +
+                    "Application cannot start securely. Error: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to create admin password file. " +
                     "Ensure config directory is writable.", e);
         }
@@ -588,6 +598,8 @@ public final class UserController {
 
     // User class - Made public for Jackson support
     public static class User {
+        private static final Argon2idKeyDerivationService SHARED_ARGON2_SERVICE = new Argon2idKeyDerivationService();
+
         private String id;
         private String username;
         private String displayName;
@@ -607,39 +619,11 @@ public final class UserController {
         }
 
         public void setPassword(String password) {
-            // This is a bit tricky because User is static inner class but needs access to
-            // UserController's argon2 service or static methods.
-            // But hashPassword is now instance method in UserController to use
-            // argon2Service.
-            // We should refactor User to NOT set password itself, or make hashPassword
-            // static but accepting service.
-            // Or just instantiate service here temporarily? Not efficient.
-            // Actually, UserController.hashPassword was static, now it uses instance field
-            // argon2Service.
-            // So User.setPassword cannot call it easily unless we pass instance.
-            // Refactor: Logic should be in UserController.createUser/updateUser, NOT User
-            // class.
-            // But User class is used for JSON deserialization too.
-            // Existing code calls user.setPassword(password).
-            // QUICK FIX: Instantiate service here (overhead is lowish for Argon2 config
-            // object)
-            // or better: change setPassword to take hash/salt, and do logic in Controller.
-            // But existing calls in Controller use user.setPassword(raw).
-
-            // Let's use a static helper for now that creates key derivation service if
-            // needed,
-            // or revert hashPassword to static and pass service?
-            // User class is static, so it cannot access UserController instance.
-
-            // Re-design: usage is `user.setPassword(password)`.
-            // We'll change it to `setPassword(String password)` using a new private default
-            // service instance.
-
-            Argon2idKeyDerivationService service = new Argon2idKeyDerivationService();
-            byte[] saltBytes = service.generateSalt();
+            // [SEC-002] Use shared service instance instead of creating new one
+            byte[] saltBytes = SHARED_ARGON2_SERVICE.generateSalt();
             this.salt = Base64.getEncoder().encodeToString(saltBytes);
             try {
-                byte[] hash = service.deriveKey(password.toCharArray(), saltBytes, 32);
+                byte[] hash = SHARED_ARGON2_SERVICE.deriveKey(password.toCharArray(), saltBytes, 32);
                 this.passwordHash = ARGON2_PREFIX + Base64.getEncoder().encodeToString(hash);
             } catch (EncryptionException e) {
                 throw new RuntimeException(e);
