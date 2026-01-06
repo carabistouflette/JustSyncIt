@@ -343,10 +343,15 @@ public final class UserController {
         }
     }
 
+    // [Omega Remediation] SEC-101: Constant-time comparison to prevent timing
+    // attacks
     private static boolean verifyPassword(String password, String storedHash, String storedSalt) {
         byte[] salt = Base64.getDecoder().decode(storedSalt);
         String newHash = hashPassword(password, salt);
-        return newHash.equals(storedHash);
+        // Use constant-time comparison to prevent timing attacks
+        return java.security.MessageDigest.isEqual(
+                newHash.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                storedHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     public boolean isValidSession(String token) {
@@ -445,6 +450,7 @@ public final class UserController {
         }
     }
 
+    // [Omega Remediation] SEC-102: Write password to secure file instead of logging
     private void createDefaultAdmin() {
         String tempPass = java.util.UUID.randomUUID().toString().substring(0, 8);
         User admin = new User(generateId(), "admin", "Administrator", "admin");
@@ -452,10 +458,28 @@ public final class UserController {
         users.put(admin.getId(), admin);
         saveUsers();
 
-        LOGGER.warning("\n==================================================\n" +
-                "  [SECURITY] GENERATED TEMPORARY ADMIN PASSWORD: " + tempPass + "\n" +
-                "  Please login and change this password immediately.\n" +
-                "==================================================");
+        // Write password to secure file instead of logging to console
+        try {
+            java.nio.file.Path passwordFile = java.nio.file.Paths.get("config", ".admin-password");
+            java.nio.file.Files.createDirectories(passwordFile.getParent());
+            java.nio.file.Files.writeString(passwordFile, tempPass,
+                    java.nio.file.StandardOpenOption.CREATE,
+                    java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+            // Set restrictive permissions (owner read/write only)
+            passwordFile.toFile().setReadable(false, false);
+            passwordFile.toFile().setReadable(true, true);
+            passwordFile.toFile().setWritable(false, false);
+            passwordFile.toFile().setWritable(true, true);
+
+            LOGGER.warning("\n==================================================\n" +
+                    "  [SECURITY] Admin password written to: config/.admin-password\n" +
+                    "  Please read the file and change this password immediately.\n" +
+                    "==================================================");
+        } catch (java.io.IOException e) {
+            LOGGER.severe("Failed to write admin password file: " + e.getMessage());
+            // Fallback: log partial password hint only
+            LOGGER.warning("Admin password starts with: " + tempPass.substring(0, 2) + "***");
+        }
     }
 
     // User class
