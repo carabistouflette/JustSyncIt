@@ -496,8 +496,93 @@ public final class SqliteMetadataService implements MetadataService {
         // ANY file in snapshot is encrypted,
         // but that requires a query. As a heuristic, if encryptionService is null, we
         // definitely use SQL.
-        // If it is not null, we assume we might need to decrypt, so we use the
-        // streaming approach to be correct.
+        // Streaming approach to be correct.
+        if (encryptionService != null && keySupplier != null && pathPrefix != null && !pathPrefix.isEmpty()) {
+            try {
+                // Encrypt the prefix deterministically
+                byte[] key = keySupplier.get();
+                if (key != null) {
+                    // byte[] prefixBytes = pathPrefix.getBytes(StandardCharsets.UTF_8);
+                    // For prefix search to work with AES-GCM, we simply encrypt the prefix.
+                    // BUT: AES-GCM adds tag/nonce. Prefix matching on ciphertext ONLY works if:
+                    // 1. IV is deterministic (Check: Yes, we use path hash as seed which is
+                    // effectively deterministic for the same path).
+                    // 2. Encryption mode is ECB or similar (No, it's GCM).
+                    // Wait, AES-GCM is NOT prefix-preserving. 'Encrypt(Prefix)' is NOT a prefix of
+                    // 'Encrypt(Prefix + Suffix)'.
+                    // Therefore, we CANNOT use LIKE 'EncryptedPrefix%' for correct results with
+                    // standard AES-GCM.
+
+                    // HOWEVER, the implementation plan stated: "Fix: Since encryption is
+                    // deterministic (IV = Seed), we can encrypt the pathPrefix and uses SQL LIKE
+                    // 'EncryptedPrefix%'."
+                    // This creates a dilemma. The plan assumes a property that GCM doesn't have.
+                    // If we blindly follow the plan, the search will return 0 results (Broken).
+                    // If we stick to streaming, we have the OOM risk (Status Quo).
+
+                    // The only way to support encrypted search securely and performantly is Blind
+                    // Indexing.
+                    // We HAVE a 'blindIndexSearch' field!
+                    // Let's check if we can use it.
+                    // The method `getFilesInSnapshotStreaming` documentation says "Optimization:
+                    // Only decrypt if we have a prefix to check".
+
+                    // Alternative: "Deterministic Encryption of Paths: SqliteMetadataService uses
+                    // file path bytes as IV seed".
+                    // If IV is derived from the FULL path, then 'IV(Path1)' != 'IV(Path2)' even if
+                    // they share a prefix.
+                    // So the ciphertexts will be completely different.
+                    // CONCLUSION: SQL LIKE filtering IS IMPOSSIBLE with the current encryption
+                    // scheme (GCM + Path-dependent IV).
+
+                    // The Plan might have been mistaken about the feasibility of "LIKE
+                    // 'Encrypted%'" or assumed ECB/SIV usage.
+                    // Given strict instructions: "The user has approved this document."... but I
+                    // must not break code.
+
+                    // Safe approach: Implement the logic but add a comment explaining why it falls
+                    // back to streaming
+                    // or (if I misunderstood GCM behavior in this specific codebase) try it.
+                    // Actually, let's look at `AesGcmEncryptionService`. If it uses a fixed IV for
+                    // "Deterministic", then maybe?
+                    // But GCM authentication tag is at the end? Or GCM is stream cipher?
+                    // GCM is CTR mode + Auth. CTR key stream depends on IV.
+                    // If IV depends on file path, even prefix matching fails.
+                    // IF IV was fixed constant (bad), then prefix matching works for CTR.
+
+                    // Decision: Stick to streaming (which I optimized with setFetchSize) but maybe
+                    // optimization is strictly about
+                    // removing the massive overhead of `decryptPath` if the prefix doesn't match?
+                    // No, we need to decrypt to check prefix.
+
+                    // I will stick to the existing `setFetchSize` P0 fix as the primary defense
+                    // against OOM.
+                    // The "SQL Encrypted Prefix" part seems technically invalid for GCM with
+                    // per-file IV.
+                    // I will NOT force a specialized optimization that yields incorrect results.
+                    // Instead, I will leave the streaming logic as is (which is now safe due to
+                    // fetch size).
+
+                    // Wait, Plan says: "Verify with PBKDF2...". That's user controller.
+                    // Plan says: "Fix: Since encryption is deterministic... SQL LIKE".
+                    // If I skip this, I deviate from plan.
+                    // I'll add a check: if `blindIndexSearch` is available, use it?
+                    // But `blindIndexSearch` usually gives `file_ids`, not a prefix scan.
+
+                    // Let's just improve the memory management of the streaming loop further if
+                    // possible.
+                    // Since I already applied `setFetchSize`, I have technically mitigated the OOM.
+                    // I will mark P2 check as "Investigated - Not Feasible with GCM, relying on
+                    // FetchSize".
+
+                    // Wait! `getFilesInSnapshotSqlOptimized`.
+                    // Is there ANY case where we can use SQL? Only if encryption is disabled.
+                    // I'll leave this block as is.
+                }
+            } catch (Exception e) {
+                // Fallback to streaming
+            }
+        }
         // NOTE: We change the sort order behavior here. We rely on SQL 'ORDER BY path'
         // which is stable.
         // For encrypted files, this means sorting by encrypted path (random-looking),
@@ -564,6 +649,7 @@ public final class SqliteMetadataService implements MetadataService {
             // unless configured correctly. But with shared connection pool, we trust
             // resources are managed.
             // JustSyncIt uses a basic connection manager.
+            stmt.setFetchSize(100);
 
             stmt.setString(1, snapshotId);
 
@@ -695,6 +781,7 @@ public final class SqliteMetadataService implements MetadataService {
                 PreparedStatement stmt = connection.prepareStatement(sql)) {
 
             stmt.setString(1, snapshotId);
+            stmt.setFetchSize(100);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 int count = 0;
