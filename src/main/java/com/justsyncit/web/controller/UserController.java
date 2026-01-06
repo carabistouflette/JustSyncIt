@@ -1,25 +1,8 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.web.controller;
 
-import com.justsyncit.web.WebServerContext;
 import com.justsyncit.web.model.User;
+import com.justsyncit.web.service.AuthService;
+import com.justsyncit.web.service.SqliteAuthStore;
 import com.justsyncit.web.dto.ApiError;
 import io.javalin.http.Context;
 
@@ -27,18 +10,14 @@ import com.justsyncit.web.dto.UserRequests.*;
 import com.justsyncit.web.dto.UserRequests;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Optional;
 import java.security.SecureRandom;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.justsyncit.network.encryption.Argon2idKeyDerivationService;
 import com.justsyncit.network.encryption.EncryptionException;
 
@@ -61,11 +40,10 @@ public final class UserController {
 
     private static final java.util.Set<String> ALLOWED_ROLES = java.util.Set.of("admin", "user", "viewer");
 
-    private final com.justsyncit.web.service.AuthService authService;
+    private final AuthService authService;
+    private final SqliteAuthStore authStore;
 
-    // In-memory user storage (now backed by JSON file)
-    private final Map<String, User> users;
-    // sessions handled by authService
+    // sessions are now in DB via authService/authStore
     private final Map<String, TicketInfo> wsTickets;
 
     private static class TicketInfo {
@@ -78,23 +56,19 @@ public final class UserController {
         }
     }
 
-    private final ObjectMapper objectMapper;
-    private final Path userDatabasePath;
-
-    public UserController(WebServerContext context) {
-        // Context kept for API compatibility
-        this.users = new ConcurrentHashMap<>();
-        this.authService = new com.justsyncit.web.service.AuthService(Paths.get("config"));
+    public UserController(SqliteAuthStore authStore, AuthService authService) {
+        this.authStore = authStore;
+        this.authService = authService;
         this.wsTickets = new ConcurrentHashMap<>();
-        this.objectMapper = new ObjectMapper();
-        this.userDatabasePath = Paths.get("config", "users.json");
         this.argon2Service = new Argon2idKeyDerivationService();
 
-        loadUsers();
-
-        // If no users exist, create a safe default admin with a RANDOM password.
-        if (users.isEmpty()) {
-            createDefaultAdmin();
+        // Check/Create Default Admin
+        try {
+            if (authStore.listUsers().isEmpty()) {
+                createDefaultAdmin();
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to check or create default admin", e);
         }
     }
 
@@ -102,15 +76,21 @@ public final class UserController {
      * GET /api/users - List all users.
      */
     public void listUsers(Context ctx) {
-        List<Map<String, Object>> userList = new ArrayList<>();
-        for (User user : users.values()) {
-            userList.add(Map.of(
-                    "id", user.getId(),
-                    "username", user.getUsername(),
-                    "displayName", user.getDisplayName(),
-                    "role", user.getRole()));
+        try {
+            List<User> users = authStore.listUsers();
+            List<Map<String, Object>> userList = new ArrayList<>();
+            for (User user : users) {
+                userList.add(Map.of(
+                        "id", user.getId(),
+                        "username", user.getUsername(),
+                        "displayName", user.getDisplayName(),
+                        "role", user.getRole()));
+            }
+            ctx.json(Map.of("users", userList));
+        } catch (Exception e) {
+            LOGGER.error("Failed to list users", e);
+            ctx.status(500).json(ApiError.internalError("Failed to list users", ctx.path()));
         }
-        ctx.json(Map.of("users", userList));
     }
 
     /**
@@ -165,9 +145,7 @@ public final class UserController {
             }
 
             // Check for duplicate username
-            boolean exists = users.values().stream()
-                    .anyMatch(u -> u.getUsername().equals(username));
-            if (exists) {
+            if (authStore.getUserByUsername(username).isPresent()) {
                 ctx.status(409).json(ApiError.of(409, "Conflict",
                         "User already exists: " + username, ctx.path()));
                 return;
@@ -176,8 +154,8 @@ public final class UserController {
             User user = new User(generateId(), username,
                     displayName != null ? displayName : username, role);
             user.setPassword(password);
-            users.put(user.getId(), user);
-            saveUsers();
+
+            authStore.createUser(user);
 
             LOGGER.info("Created user: {}", username);
 
@@ -199,12 +177,13 @@ public final class UserController {
     public void updateUser(Context ctx) {
         try {
             String userId = ctx.pathParam("id");
-            User user = users.get(userId);
+            Optional<User> userOpt = authStore.getUserById(userId);
 
-            if (user == null) {
+            if (userOpt.isEmpty()) {
                 ctx.status(404).json(ApiError.notFound("User not found: " + userId, ctx.path()));
                 return;
             }
+            User user = userOpt.get();
 
             UpdateUserRequest request = ctx.bodyAsClass(UpdateUserRequest.class);
 
@@ -229,7 +208,8 @@ public final class UserController {
             if (request.password() != null && !request.password().isEmpty()) {
                 user.setPassword(request.password());
             }
-            saveUsers();
+
+            authStore.updateUser(user);
 
             LOGGER.info("Updated user: {}", user.getUsername());
 
@@ -239,9 +219,7 @@ public final class UserController {
                     user.getDisplayName(),
                     user.getRole()));
 
-        } catch (
-
-        Exception e) {
+        } catch (Exception e) {
             LOGGER.error("Failed to update user: {}", e.getMessage(), e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
@@ -252,21 +230,22 @@ public final class UserController {
      */
     public void deleteUser(Context ctx) {
         String userId = ctx.pathParam("id");
-        User user = users.remove(userId);
+        try {
+            Optional<User> userOpt = authStore.getUserById(userId);
+            if (userOpt.isEmpty()) {
+                ctx.status(404).json(ApiError.notFound("User not found: " + userId, ctx.path()));
+                return;
+            }
+            User user = userOpt.get();
 
-        if (user == null) {
-            ctx.status(404).json(ApiError.notFound("User not found: " + userId, ctx.path()));
-            return;
+            authStore.deleteUser(userId);
+
+            LOGGER.info("Deleted user: {}", user.getUsername());
+            ctx.json(Map.of("status", "deleted", "id", userId));
+        } catch (Exception e) {
+            LOGGER.error("Failed to delete user", e);
+            ctx.status(500).json(ApiError.internalError("Failed to delete user", ctx.path()));
         }
-
-        // Invalidate any sessions for this user is complex without reverse lookup,
-        // skipping for now as explicit logout isn't required by spec
-        // But we should try if possible. AuthService doesn't support getSessionsByUser
-        // yet.
-        saveUsers();
-
-        LOGGER.info("Deleted user: {}", user.getUsername());
-        ctx.json(Map.of("status", "deleted", "id", userId));
     }
 
     /**
@@ -284,10 +263,10 @@ public final class UserController {
             }
 
             // Find user by username
-            User user = users.values().stream()
-                    .filter(u -> u.getUsername().equals(username))
-                    .findFirst()
-                    .orElse(null);
+            Optional<User> userOpt = authStore.getUserByUsername(username);
+
+            // Defensive check + Verify
+            User user = userOpt.orElse(null);
 
             if (user == null || !verifyPassword(password, user.getPasswordHash(), user.getSalt())) {
                 ctx.status(401).json(ApiError.of(401, "Unauthorized",
@@ -410,8 +389,12 @@ public final class UserController {
         if (!user.getPasswordHash().startsWith(ARGON2_PREFIX)) {
             LOGGER.info("Migrating user {} from PBKDF2 to Argon2id", user.getUsername());
             user.setPassword(plainPassword); // Re-hashes with Argon2id
-            saveUsers();
-            LOGGER.info("User {} migrated to Argon2id successfully", user.getUsername());
+            try {
+                authStore.updateUser(user);
+                LOGGER.info("User {} migrated to Argon2id successfully", user.getUsername());
+            } catch (Exception e) {
+                LOGGER.error("Failed to migrate user password", e);
+            }
         }
     }
 
@@ -427,8 +410,13 @@ public final class UserController {
     public String getUserRole(String userId) {
         if (userId == null)
             return null;
-        User user = users.get(userId);
-        return user != null ? user.getRole() : null;
+        try {
+            Optional<User> user = authStore.getUserById(userId);
+            return user.map(User::getRole).orElse(null);
+        } catch (Exception e) {
+            LOGGER.error("Error getting user role", e);
+            return null;
+        }
     }
 
     // Tickets are short-lived (30 seconds) and can only be used once
@@ -436,11 +424,6 @@ public final class UserController {
 
     /**
      * Creates a short-lived ticket for WebSocket authentication.
-     * Client should call this, then immediately connect to WebSocket with the
-     * ticket.
-     * 
-     * @param sessionToken the user's session token
-     * @return the one-time WebSocket ticket, or null if session is invalid
      */
     public String createWsTicket(String sessionToken) {
         var session = authService.getSession(sessionToken);
@@ -454,9 +437,6 @@ public final class UserController {
 
     /**
      * Validates and consumes a WebSocket ticket (one-time use).
-     * 
-     * @param ticket the one-time ticket
-     * @return the userId if valid, null otherwise
      */
     public String validateAndConsumeTicket(String ticket) {
         if (ticket == null) {
@@ -476,9 +456,6 @@ public final class UserController {
 
     /**
      * Validates a token for WebSocket authentication.
-     * 
-     * @param token the session token to validate
-     * @return true if the token is valid, false otherwise
      */
     public boolean validateToken(String token) {
         return isValidSession(token);
@@ -493,47 +470,27 @@ public final class UserController {
         wsTickets.entrySet().removeIf(entry -> now - entry.getValue().createdAt > WS_TICKET_EXPIRY_MS);
     }
 
-    private void loadUsers() {
-        try {
-            if (Files.exists(userDatabasePath)) {
-                List<User> loaded = objectMapper.readValue(userDatabasePath.toFile(), new TypeReference<List<User>>() {
-                });
-                for (User u : loaded) {
-                    users.put(u.getId(), u);
-                }
-                LOGGER.info("Loaded {} users from disk.", users.size());
-            }
-        } catch (Exception e) {
-            LOGGER.error("Failed to load users: {}", e.getMessage(), e);
-        }
-    }
-
-    private synchronized void saveUsers() {
-        try {
-            Files.createDirectories(userDatabasePath.getParent());
-            objectMapper.writeValue(userDatabasePath.toFile(), new ArrayList<>(users.values()));
-        } catch (Exception e) {
-            LOGGER.error("Failed to save users: {}", e.getMessage(), e);
-        }
-    }
-
     private void createDefaultAdmin() {
         String tempPass = java.util.UUID.randomUUID().toString();
         User admin = new User(generateId(), "admin", "Administrator", "admin");
         admin.setPassword(tempPass);
-        users.put(admin.getId(), admin);
-        saveUsers();
+
+        try {
+            authStore.createUser(admin);
+        } catch (Exception e) {
+            LOGGER.error("Failed to create default admin", e);
+            // This is critical, we might want to panic
+            return;
+        }
 
         // [SEC-001] Security Fix: Log password to console ONLY, do NOT write to disk.
-        // This prevents credential leakage in the filesystem.
         LOGGER.warn("\n==================================================\n" +
                 "  [SECURITY] Default Admin Account Created\n" +
                 "  Username: admin\n" +
-                "  Password: {}\n" +
-                "  Please change this password immediately on login.\n" +
-                "==================================================", tempPass);
+                "  Password: [HIDDEN_FOR_SECURITY]\n" +
+                "  Please check container output during first startup locally if you need this,\n" +
+                "  OR reset via admin tools.\n" +
+                "==================================================");
+        System.out.println("SETUP: Admin password is: " + tempPass);
     }
-
-    // User class
-
 }
