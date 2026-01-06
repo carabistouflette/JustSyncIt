@@ -22,39 +22,15 @@ import com.justsyncit.command.CommandRegistry;
 import com.justsyncit.command.HashCommand;
 import com.justsyncit.command.VerifyCommand;
 import com.justsyncit.network.command.NetworkCommand;
-import com.justsyncit.hash.Blake3BufferHasher;
-import com.justsyncit.hash.Blake3FileHasher;
-import com.justsyncit.hash.Blake3IncrementalHasherFactory;
 import com.justsyncit.hash.Blake3Service;
-import com.justsyncit.hash.Blake3ServiceImpl;
-import com.justsyncit.hash.Blake3StreamHasher;
-import com.justsyncit.hash.BufferHasher;
-import com.justsyncit.hash.FileHasher;
-import com.justsyncit.hash.HashAlgorithm;
-import com.justsyncit.hash.IncrementalHasherFactory;
-import com.justsyncit.hash.Sha256HashAlgorithm;
-import com.justsyncit.hash.StreamHasher;
-import com.justsyncit.simd.SimdDetectionService;
-import com.justsyncit.simd.SimdDetectionServiceImpl;
+import com.justsyncit.hash.HashingException;
 import com.justsyncit.network.NetworkService;
-import com.justsyncit.network.NetworkServiceImpl;
-import com.justsyncit.network.client.TcpClient;
-import com.justsyncit.network.server.TcpServer;
-import com.justsyncit.network.connection.ConnectionManager;
-import com.justsyncit.network.connection.ConnectionManagerImpl;
-import com.justsyncit.network.transfer.FileTransferManager;
-import com.justsyncit.network.transfer.FileTransferManagerImpl;
 import com.justsyncit.storage.ContentStore;
-import com.justsyncit.storage.FilesystemChunkIndex;
-import com.justsyncit.storage.FilesystemContentStore;
 import com.justsyncit.storage.HealingContentStore;
 import com.justsyncit.integrity.service.ReedSolomonService;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.metadata.MetadataServiceFactory;
-
 import java.io.IOException;
-
-import com.justsyncit.hash.HashingException;
 
 /**
  * Factory for creating application services and dependencies.
@@ -62,7 +38,15 @@ import com.justsyncit.hash.HashingException;
  */
 public class ServiceFactory {
 
-    private ContentStore sharedContentStore;
+    private final com.justsyncit.modules.SecurityModule securityModule;
+    private final com.justsyncit.modules.NetworkModule networkModule;
+    private final com.justsyncit.modules.StorageModule storageModule;
+
+    public ServiceFactory() {
+        this.securityModule = new com.justsyncit.modules.SecurityModule();
+        this.networkModule = new com.justsyncit.modules.NetworkModule(securityModule);
+        this.storageModule = new com.justsyncit.modules.StorageModule();
+    }
 
     /**
      * Creates a fully configured JustSyncItApplicationRefactored.
@@ -85,25 +69,7 @@ public class ServiceFactory {
      * @throws ServiceException if service creation fails
      */
     public Blake3Service createBlake3Service() throws ServiceException {
-        try {
-            // Create separate HashAlgorithm instances for each service to ensure thread
-            // safety
-            HashAlgorithm bufferHasherAlgorithm = Sha256HashAlgorithm.create();
-            HashAlgorithm incrementalHasherAlgorithm = Sha256HashAlgorithm.create();
-
-            BufferHasher bufferHasher = new Blake3BufferHasher(bufferHasherAlgorithm);
-            IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(
-                    incrementalHasherAlgorithm);
-            StreamHasher streamHasher = new Blake3StreamHasher(incrementalHasherFactory);
-            FileHasher fileHasher = new Blake3FileHasher(streamHasher, bufferHasher);
-            SimdDetectionService simdDetectionService = new SimdDetectionServiceImpl();
-
-            return new Blake3ServiceImpl(
-                    fileHasher, bufferHasher, streamHasher,
-                    incrementalHasherFactory, simdDetectionService);
-        } catch (HashingException e) {
-            throw new ServiceException("Failed to create BLAKE3 service", e);
-        }
+        return securityModule.createBlake3Service();
     }
 
     /**
@@ -113,14 +79,7 @@ public class ServiceFactory {
      * @return configured content store
      */
     public synchronized ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
-        if (sharedContentStore == null) {
-            java.nio.file.Path storageDir = java.nio.file.Paths.get("storage", "chunks");
-            java.nio.file.Path indexFile = java.nio.file.Paths.get("storage", "index.txt");
-
-            FilesystemChunkIndex chunkIndex = FilesystemChunkIndex.create(storageDir, indexFile);
-            sharedContentStore = FilesystemContentStore.create(storageDir, chunkIndex, blake3Service);
-        }
-        return sharedContentStore;
+        return storageModule.createContentStore(blake3Service);
     }
 
     /**
@@ -129,7 +88,7 @@ public class ServiceFactory {
      * @return configured encryption service
      */
     public com.justsyncit.network.encryption.EncryptionService createEncryptionService() {
-        return new com.justsyncit.network.encryption.AesGcmEncryptionService();
+        return securityModule.createEncryptionService();
     }
 
     /**
@@ -199,11 +158,6 @@ public class ServiceFactory {
     }
 
     /**
-     * Creates a network service with all dependencies.
-     *
-     * @return configured network service
-     */
-    /**
      * Creates a network service with a new BLAKE3 service.
      * Maintained for backward compatibility and tests.
      *
@@ -220,17 +174,7 @@ public class ServiceFactory {
      * @return configured network service
      */
     public NetworkService createNetworkService(Blake3Service blake3Service) {
-        com.justsyncit.network.NetworkConfiguration configuration = new com.justsyncit.network.NetworkConfiguration();
-        TcpServer tcpServer = new TcpServer(configuration);
-        TcpClient tcpClient = new TcpClient(configuration);
-        ConnectionManager connectionManager = new ConnectionManagerImpl();
-        FileTransferManagerImpl fileTransferManager = new FileTransferManagerImpl();
-        fileTransferManager.setBlake3Service(blake3Service);
-        // Inject dependencies for DIP
-        fileTransferManager.setTransferPipelineFactory(
-                new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory());
-
-        return new NetworkServiceImpl(tcpServer, tcpClient, connectionManager, fileTransferManager, blake3Service);
+        return networkModule.createNetworkService(blake3Service);
     }
 
     /**
@@ -423,21 +367,7 @@ public class ServiceFactory {
      * @throws ServiceException if store creation fails
      */
     public ContentStore createSqliteContentStore(Blake3Service blake3Service) throws ServiceException {
-        try {
-            MetadataService metadataService = createMetadataService();
-            // Create raw store using singleton
-            ContentStore fsStore = createContentStore(blake3Service);
-            ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createSqliteStore(fsStore,
-                    metadataService);
-
-            // Wire up self-healing
-            // Default policy: 4 data shards + 2 parity shards
-            ReedSolomonService rsService = new ReedSolomonService(metadataService, rawStore, blake3Service, 4, 2);
-
-            return new HealingContentStore(rawStore, rsService);
-        } catch (IOException e) {
-            throw new ServiceException("Failed to create SQLite content store", e);
-        }
+        return storageModule.createSqliteContentStore(blake3Service);
     }
 
     /**

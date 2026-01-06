@@ -26,7 +26,6 @@ import com.justsyncit.network.connection.Connection;
 import com.justsyncit.network.connection.ConnectionManager;
 import com.justsyncit.network.transfer.FileTransferManager;
 import com.justsyncit.network.transfer.FileTransferResult;
-import com.justsyncit.network.transfer.ZeroCopyTransferHandler;
 import com.justsyncit.network.quic.adapter.QuicTransportAdapter;
 import com.justsyncit.network.quic.QuicServer;
 import com.justsyncit.network.quic.QuicClient;
@@ -73,7 +72,6 @@ public class NetworkServiceImpl implements NetworkService {
     private final ConnectionManager connectionManager;
     /** The file transfer manager. */
     private final FileTransferManager fileTransferManager;
-    // [Omega Remediation] Removed unused blake3Service field
     /** Network statistics implementation. */
     private final NetworkStatisticsImpl statistics;
     /** List of network event listeners. */
@@ -90,8 +88,10 @@ public class NetworkServiceImpl implements NetworkService {
     /** Map of connection addresses to their transport types. */
     private final ConcurrentHashMap<InetSocketAddress, TransportType> connectionTransports;
 
-    /** Handler for zero-copy transfers. */
-    private final ZeroCopyTransferHandler zeroCopyTransferHandler;
+    /** Handler for secure transfers. */
+    private final com.justsyncit.network.transfer.SecureTransferHandler secureTransferHandler;
+    private final com.justsyncit.network.encryption.EncryptionService encryptionService;
+    private final byte[] clusterKey;
 
     /**
      * Creates a new NetworkService implementation.
@@ -123,7 +123,9 @@ public class NetworkServiceImpl implements NetworkService {
             FileTransferManager fileTransferManager, Blake3Service blake3Service, QuicConfiguration quicConfiguration,
             TransportType defaultTransportType) {
         this(tcpServer, tcpClient, fileTransferManager, connectionManager, blake3Service,
-                new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType);
+                new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType,
+                new com.justsyncit.network.encryption.AesGcmEncryptionService(), new byte[32]); // Default insecure for
+                                                                                                // legacy constructors
     }
 
     /**
@@ -138,29 +140,37 @@ public class NetworkServiceImpl implements NetworkService {
      * @param quicTransport        the QUIC transport implementation
      * @param quicConfiguration    the QUIC configuration
      * @param defaultTransportType the default transport type for new connections
+     * @param encryptionService    the encryption service
+     * @param clusterKey           the cluster key for encryption
      */
     @SuppressWarnings("this-escape")
     public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient, FileTransferManager fileTransferManager,
             ConnectionManager connectionManager, Blake3Service blake3Service, QuicTransport quicTransport,
-            QuicConfiguration quicConfiguration, TransportType defaultTransportType) {
+            QuicConfiguration quicConfiguration, TransportType defaultTransportType,
+            com.justsyncit.network.encryption.EncryptionService encryptionService, byte[] clusterKey) {
         this.tcpServer = Objects.requireNonNull(tcpServer, "tcpServer cannot be null");
         this.tcpClient = Objects.requireNonNull(tcpClient, "tcpClient cannot be null");
         this.fileTransferManager = Objects.requireNonNull(fileTransferManager, "fileTransferManager cannot be null");
         this.fileTransferManager.setNetworkService(this);
         this.connectionManager = Objects.requireNonNull(connectionManager, "connectionManager cannot be null");
 
-        // [Omega Remediation] Removed field assignment, passed directly to
-        // zeroCopyTransferHandler
         this.quicTransport = Objects.requireNonNull(quicTransport, "quicTransport cannot be null");
         Objects.requireNonNull(quicConfiguration, "quicConfiguration cannot be null");
         this.defaultTransportType = Objects.requireNonNull(defaultTransportType, "defaultTransportType cannot be null");
+        this.encryptionService = Objects.requireNonNull(encryptionService, "encryptionService cannot be null");
+        this.clusterKey = Objects.requireNonNull(clusterKey, "clusterKey cannot be null");
+        if (clusterKey.length != 32) {
+            throw new IllegalArgumentException("Cluster key must be 32 bytes");
+        }
+
         this.statistics = new NetworkStatisticsImpl();
         this.listeners = new CopyOnWriteArrayList<>();
         this.running = new AtomicBoolean(false);
         this.connectionTransports = new ConcurrentHashMap<>();
 
         // Initialize helpers
-        this.zeroCopyTransferHandler = new ZeroCopyTransferHandler(blake3Service);
+        this.secureTransferHandler = new com.justsyncit.network.transfer.SecureTransferHandler(blake3Service,
+                encryptionService);
 
         // Initialize QUIC server
         this.quicServer = new QuicServer(quicConfiguration);
@@ -489,7 +499,6 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
             ContentStore contentStore, TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
-            // [Omega Remediation] PERF-001: Check file size before loading into memory
             // For large files, recommend TCP transport which uses streaming
             long fileSize = Files.size(filePath);
             final long MAX_QUIC_FILE_SIZE = 100 * 1024 * 1024; // 100 MB limit
@@ -505,7 +514,6 @@ public class NetworkServiceImpl implements NetworkService {
             byte[] fileData = Files.readAllBytes(filePath);
             return quicTransport.sendFile(filePath, remoteAddress, fileData).thenCompose(v -> {
                 // Update statistics with bytes sent for file transfer
-                // [Omega Remediation] Use fileData.length since we already have the data
                 statistics.incrementBytesSent(fileData.length);
                 statistics.incrementMessagesSent();
                 logger.debug("File sent via QUIC: {} to {}", filePath, remoteAddress);
@@ -587,8 +595,7 @@ public class NetworkServiceImpl implements NetworkService {
             // Generate a unique message ID for this transfer
             int messageId = java.util.concurrent.ThreadLocalRandom.current().nextInt();
 
-            // [Omega Remediation] Delegated to specialized handler
-            return zeroCopyTransferHandler.sendFilePart(connection, filePath, offset, length, messageId);
+            return secureTransferHandler.sendFilePart(connection, filePath, offset, length, messageId, clusterKey);
         }
     }
 
