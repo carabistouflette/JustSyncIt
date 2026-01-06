@@ -483,14 +483,14 @@ public final class UserController {
             return;
         }
 
-        // [SEC-001] Security Fix: Log password to console ONLY, do NOT write to disk.
         LOGGER.warn("\n==================================================\n" +
                 "  [SECURITY] Default Admin Account Created\n" +
                 "  Username: admin\n" +
-                "  Password: [HIDDEN_FOR_SECURITY]\n" +
-                "  Please check container output during first startup locally if you need this,\n" +
-                "  OR reset via admin tools.\n" +
+                "  Password: [GENERATED_AND_HIDDEN]\n" +
+                "  \n" +
+                "  ACTION REQUIRED: The password has been generated but NOT printed for security.\n" +
+                "  You MUST reset it using the 'JUSTSYNCIT_ADMIN_PASSWORD' env var\n" +
+                "  or via the Admin Console if you have an alternative access method.\n" +
                 "==================================================");
-        System.out.println("SETUP: Admin password is: " + tempPass);
     }
 }

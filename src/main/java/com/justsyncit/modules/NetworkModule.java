@@ -47,20 +47,9 @@ public class NetworkModule {
                 throw new IllegalStateException("Invalid JUSTSYNCIT_CLUSTER_KEY: " + e.getMessage(), e);
             }
         } else {
-            // Allow explicit opt-in for insecure mode in development/testing ONLY
-            String allowInsecure = System.getenv("JUSTSYNCIT_ALLOW_INSECURE");
-            if ("true".equalsIgnoreCase(allowInsecure)) {
-                clusterKey = new byte[32];
-                java.security.SecureRandom random = new java.security.SecureRandom();
-                random.nextBytes(clusterKey); // At least use random bytes, not zeros
-                System.err.println("[SECURITY WARNING] Running with randomly generated ephemeral cluster key.");
-                System.err.println("[SECURITY WARNING] Network encryption will NOT be interoperable across restarts!");
-                System.err.println("[SECURITY WARNING] Set JUSTSYNCIT_CLUSTER_KEY for production use.");
-            } else {
-                throw new IllegalStateException(
-                        "JUSTSYNCIT_CLUSTER_KEY environment variable is required for secure network operation. " +
-                                "Generate one with: openssl rand -base64 32 | tr -d '\\n' && echo");
-            }
+            throw new IllegalStateException(
+                    "JUSTSYNCIT_CLUSTER_KEY environment variable is required for secure network operation. " +
+                            "Generate one with: openssl rand -base64 32 | tr -d '\\n' && echo");
         }
 
         return new NetworkServiceImpl(tcpServer, tcpClient, fileTransferManager, connectionManager, blake3Service,
