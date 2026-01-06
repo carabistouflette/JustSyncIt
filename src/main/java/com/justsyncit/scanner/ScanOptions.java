@@ -17,11 +17,6 @@ public class ScanOptions {
     private PathMatcher excludePattern;
     /** Strategy for handling symbolic links. */
     private SymlinkStrategy symlinkStrategy = SymlinkStrategy.SKIP;
-    /**
-     * Whether to follow symbolic links (deprecated, use symlinkStrategy instead).
-     */
-    @Deprecated
-    private boolean followLinks = false;
     /** Maximum depth for recursive scanning. */
     private int maxDepth = DEFAULT_MAX_DEPTH;
     /** Whether to detect and handle sparse files. */
@@ -49,7 +44,6 @@ public class ScanOptions {
         this.includePattern = other.includePattern;
         this.excludePattern = other.excludePattern;
         this.symlinkStrategy = other.symlinkStrategy;
-        this.followLinks = other.followLinks;
         this.maxDepth = other.maxDepth;
         this.detectSparseFiles = other.detectSparseFiles;
         this.includeHiddenFiles = other.includeHiddenFiles;
@@ -87,20 +81,6 @@ public class ScanOptions {
      */
     public ScanOptions withSymlinkStrategy(SymlinkStrategy symlinkStrategy) {
         this.symlinkStrategy = symlinkStrategy;
-        return this;
-    }
-
-    /**
-     * Sets whether to follow symbolic links.
-     *
-     * @param followLinks whether to follow links
-     * @return this builder for method chaining
-     * @deprecated Use withSymlinkStrategy() instead
-     */
-    @Deprecated
-    public ScanOptions withFollowLinks(boolean followLinks) {
-        this.followLinks = followLinks;
-        this.symlinkStrategy = followLinks ? SymlinkStrategy.FOLLOW : SymlinkStrategy.SKIP;
         return this;
     }
 
@@ -180,11 +160,6 @@ public class ScanOptions {
 
     public SymlinkStrategy getSymlinkStrategy() {
         return symlinkStrategy;
-    }
-
-    @Deprecated
-    public boolean isFollowLinks() {
-        return followLinks;
     }
 
     public int getMaxDepth() {

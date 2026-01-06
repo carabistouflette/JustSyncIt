@@ -771,12 +771,11 @@ public final class AsyncTestDataProvider {
                 }
             }
 
-            @SuppressWarnings("deprecation")
             public ScanOptions getScanOptions() {
                 return new ScanOptions()
                         .withIncludeHiddenFiles(includeHiddenFiles)
                         .withMaxDepth(includeSubdirectories ? Integer.MAX_VALUE : 1)
-                        .withFollowLinks(false);
+                        .withSymlinkStrategy(SymlinkStrategy.SKIP);
             }
 
             public void validate(ScanResult result) {
