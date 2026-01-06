@@ -38,7 +38,6 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 /**
@@ -97,11 +96,11 @@ class SnapshotsInfoCommandTest {
     @Test
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     void testExecuteWithMissingArgs() {
-        boolean result = command.execute(new String[] { "info" }, context);
+        boolean result = command.execute(new String[] {}, context);
         assertFalse(result);
 
         String error = errorStream.toString();
-        assertTrue(error.contains("Error: Missing subcommand 'info' or snapshot ID"));
+        assertTrue(error.contains("Error: Missing snapshot ID"));
     }
 
     @Test
@@ -112,8 +111,10 @@ class SnapshotsInfoCommandTest {
                 Instant.now(), 10, 1024);
 
         when(metadataService.getSnapshot(snapshotId)).thenReturn(Optional.of(snapshot));
+        // Command fetches files by default for stats
+        when(metadataService.getFilesInSnapshot(snapshotId)).thenReturn(java.util.Collections.emptyList());
 
-        boolean result = command.execute(new String[] { "info", snapshotId }, context);
+        boolean result = command.execute(new String[] { snapshotId }, context);
         assertTrue(result);
 
         String output = outputStream.toString();
@@ -128,7 +129,7 @@ class SnapshotsInfoCommandTest {
         String snapshotId = "invalid-snap";
         when(metadataService.getSnapshot(snapshotId)).thenReturn(Optional.empty());
 
-        boolean result = command.execute(new String[] { "info", snapshotId }, context);
+        boolean result = command.execute(new String[] { snapshotId }, context);
         assertFalse(result);
 
         String error = errorStream.toString();
@@ -141,7 +142,7 @@ class SnapshotsInfoCommandTest {
         String snapshotId = "error-snap";
         when(metadataService.getSnapshot(snapshotId)).thenThrow(new IOException("Disk error"));
 
-        boolean result = command.execute(new String[] { "info", snapshotId }, context);
+        boolean result = command.execute(new String[] { snapshotId }, context);
         assertFalse(result);
 
         String error = errorStream.toString();

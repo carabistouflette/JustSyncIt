@@ -32,8 +32,7 @@ import java.io.InputStream;
 import java.util.Locale;
 
 /**
- * Refactored main application class that follows SOLID principles.
- * This class focuses only on application lifecycle and command orchestration.
+ * Main application class handling lifecycle and command orchestration.
  */
 public class JustSyncItApplication {
 

@@ -33,8 +33,7 @@ import com.justsyncit.storage.metadata.MetadataServiceFactory;
 import java.io.IOException;
 
 /**
- * Factory for creating application services and dependencies.
- * Follows Dependency Inversion Principle by providing abstractions.
+ * Factory for creating application services and managing dependencies.
  */
 public class ServiceFactory {
 
@@ -592,7 +591,8 @@ public class ServiceFactory {
             // underlying resources (DB, FS)
 
             // 1. Raw Store (SqliteStore which wraps FilesystemStore)
-            // Use singleton FS store!
+            // Reuse the existing filesystem store to ensure singleton access to the
+            // underlying storage
             ContentStore fsStore = createContentStore(blake3Service);
             ContentStore rawStore = com.justsyncit.storage.ContentStoreFactory.createSqliteStore(fsStore,
                     metadataService);
