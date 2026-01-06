@@ -13,7 +13,8 @@ import io.javalin.http.Context;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
+
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -37,7 +38,7 @@ public final class BackupController {
         this.context = context;
         this.webServer = webServer;
         this.currentBackup = new AtomicReference<>();
-        this.backupHistory = new ArrayList<>();
+        this.backupHistory = new CopyOnWriteArrayList<>();
     }
 
     /**
