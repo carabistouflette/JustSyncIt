@@ -124,8 +124,22 @@ public class NetworkServiceImpl implements NetworkService {
             TransportType defaultTransportType) {
         this(tcpServer, tcpClient, fileTransferManager, connectionManager, blake3Service,
                 new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType,
-                new com.justsyncit.network.encryption.AesGcmEncryptionService(), new byte[32]); // Default insecure for
-                                                                                                // legacy constructors
+                new com.justsyncit.network.encryption.AesGcmEncryptionService(), generateInsecureTestKey()); // TEST
+                                                                                                             // ONLY -
+                                                                                                             // generates
+                                                                                                             // random
+                                                                                                             // key
+    }
+
+    /**
+     * Generates a random ephemeral key for testing purposes only.
+     * This key is NOT persisted and will differ on every invocation,
+     * making it unsuitable for production where nodes must share the same key.
+     */
+    private static byte[] generateInsecureTestKey() {
+        byte[] key = new byte[32];
+        new java.security.SecureRandom().nextBytes(key);
+        return key;
     }
 
     /**
@@ -499,33 +513,30 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<FileTransferResult> sendFile(Path filePath, InetSocketAddress remoteAddress,
             ContentStore contentStore, TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
-            // For large files, recommend TCP transport which uses streaming
+            // For QUIC, send the file in chunks to avoid OOM
+            // We reuse the sendFilePart logic which sends chunks as ChunkDataMessages
             long fileSize = Files.size(filePath);
-            final long MAX_QUIC_FILE_SIZE = 100 * 1024 * 1024; // 100 MB limit
-            if (fileSize > MAX_QUIC_FILE_SIZE) {
-                logger.warn("File {} is {} bytes, exceeding QUIC limit of {} bytes. Use TCP for large files.",
-                        filePath, fileSize, MAX_QUIC_FILE_SIZE);
-                return CompletableFuture.failedFuture(new IOException(
-                        "File too large for QUIC transport (" + fileSize / (1024 * 1024) + " MB). " +
-                                "Use TCP transport for files over 100 MB to avoid OOM."));
-            }
+            long chunkSize = 1024 * 1024; // 1 MB chunks
 
-            // For QUIC, we need to read the file data and send it via the QUIC transport
-            byte[] fileData = Files.readAllBytes(filePath);
-            return quicTransport.sendFile(filePath, remoteAddress, fileData).thenCompose(v -> {
-                // Update statistics with bytes sent for file transfer
-                statistics.incrementBytesSent(fileData.length);
-                statistics.incrementMessagesSent();
-                logger.debug("File sent via QUIC: {} to {}", filePath, remoteAddress);
-                long now = System.currentTimeMillis();
-                return CompletableFuture.completedFuture(FileTransferResult.success("unknown", filePath, remoteAddress,
-                        fileData.length, fileData.length, now, now));
-            }).exceptionally(throwable -> {
-                logger.error("Failed to send file via QUIC: {} to {}", filePath, remoteAddress, throwable);
-                long now = System.currentTimeMillis();
-                return FileTransferResult.failure("unknown", filePath, remoteAddress, throwable.getMessage(), 0, now,
-                        now);
-            });
+            // Limit concurrency to prevent creating too many futures at once for massive
+            // files
+            // Simple approach: Sequential chaining for reliability, or Batched.
+            // Given sendFilePart is async, simple chaining is safest for resource usage.
+
+            return sendFileChunksSequentially(filePath, remoteAddress, 0, fileSize, chunkSize, transportType)
+                    .thenApply(v -> {
+                        statistics.incrementMessagesSent();
+                        logger.debug("File sent via QUIC (chunked): {} to {}", filePath, remoteAddress);
+                        long now = System.currentTimeMillis();
+                        return FileTransferResult.success("unknown", filePath, remoteAddress,
+                                fileSize, fileSize, now, now);
+                    }).exceptionally(throwable -> {
+                        logger.error("Failed to send file via QUIC: {} to {}", filePath, remoteAddress, throwable);
+                        long now = System.currentTimeMillis();
+                        return FileTransferResult.failure("unknown", filePath, remoteAddress, throwable.getMessage(), 0,
+                                now,
+                                now);
+                    });
         } else {
             return fileTransferManager.sendFile(filePath, remoteAddress, contentStore).thenApply(result -> {
                 // Update statistics with bytes sent for file transfer
@@ -558,6 +569,22 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<Void> sendFilePart(Path filePath, long offset, long length,
             InetSocketAddress remoteAddress) throws IOException {
         return sendFilePart(filePath, offset, length, remoteAddress, defaultTransportType);
+    }
+
+    private CompletableFuture<Void> sendFileChunksSequentially(Path filePath, InetSocketAddress remoteAddress,
+            long offset, long totalSize, long chunkSize, TransportType transportType) {
+        if (offset >= totalSize) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        long length = Math.min(chunkSize, totalSize - offset);
+        try {
+            return sendFilePart(filePath, offset, length, remoteAddress, transportType)
+                    .thenCompose(v -> sendFileChunksSequentially(filePath, remoteAddress, offset + length, totalSize,
+                            chunkSize, transportType));
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     @Override
