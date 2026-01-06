@@ -104,16 +104,10 @@ public class ReedSolomonService {
                 if (data == null) {
                     throw new IOException("Chunk data missing from store: " + meta.getHash());
                 }
-                // Zero out the buffer first if we are reusing it (though system.arraycopy
-                // overwrites,
-                // padding needs to be 0 for RS).
-                // Since we don't zero out entire 1MB buffer, rely on max size passed to RS.
-                // RS only reads up to maxSize.
-                // But wait, if previous use filled 1MB, and now we use 64KB, the tail is dirty.
-                // Does RS look at tail? No, we pass maxSize.
-                // However, we must ensure padding within maxSize is 0.
-                // System.arraycopy(data, 0, shards[i], 0, data.length) copies data.
-                // If data.length < maxSize, we need to zero out from data.length to maxSize.
+                // Zero out the buffer first if we are reusing it.
+                // We must ensure that any bytes between data.length and maxSize are 0,
+                // as correct Reed-Solomon encoding depends on this padding being effectively
+                // "null".
                 if (data.length < maxSize) {
                     java.util.Arrays.fill(shards[i], data.length, (int) maxSize, (byte) 0);
                 }
@@ -121,13 +115,11 @@ public class ReedSolomonService {
                 System.arraycopy(data, 0, shards[i], 0, data.length);
             }
 
-            // For parity shards (starting at dataShards), we also need to ensure they are
-            // clean up to maxSize
-            // because RS XORs into them?
-            // "encodeParity" treats first k shards as input, and writes to last m shards.
-            // It assumes last m shards are output buffers. It overwrites them.
-            // But good practice to be safe or check implementation.
-            // Backblaze RS: parity shards are overwritten.
+            // For parity shards (starting at dataShards), the RS encoder will overwrite
+            // them.
+            // We do not need to pre-clean them as long as we treat them as write-only
+            // output.
+            // (Backblaze RS implementation overwrites output shards).
 
             // 3. Compute Parity
             ReedSolomon rs = new ReedSolomon(dataShards, parityShards);
