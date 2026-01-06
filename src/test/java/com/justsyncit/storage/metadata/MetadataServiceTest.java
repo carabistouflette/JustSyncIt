@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage.metadata;
 
 import org.junit.jupiter.api.AfterEach;
@@ -106,16 +88,14 @@ class MetadataServiceTest {
         @DisplayName("Should reject null snapshot name")
         void shouldRejectNullSnapshotName() {
             // When/Then
-            assertThrows(IllegalArgumentException.class, () ->
-                    metadataService.createSnapshot(null, "description"));
+            assertThrows(IllegalArgumentException.class, () -> metadataService.createSnapshot(null, "description"));
         }
 
         @Test
         @DisplayName("Should reject empty snapshot name")
         void shouldRejectEmptySnapshotName() {
             // When/Then
-            assertThrows(IllegalArgumentException.class, () ->
-                    metadataService.createSnapshot("", "description"));
+            assertThrows(IllegalArgumentException.class, () -> metadataService.createSnapshot("", "description"));
         }
 
         @Test
@@ -224,8 +204,7 @@ class MetadataServiceTest {
         @DisplayName("Should reject null file metadata")
         void shouldRejectNullFileMetadata() {
             // When/Then
-            assertThrows(IllegalArgumentException.class, () ->
-                    metadataService.insertFile(null));
+            assertThrows(IllegalArgumentException.class, () -> metadataService.insertFile(null));
         }
 
         @Test
@@ -390,16 +369,14 @@ class MetadataServiceTest {
         @DisplayName("Should reject null chunk hash for access recording")
         void shouldRejectNullChunkHashForAccessRecording() {
             // When/Then
-            assertThrows(IllegalArgumentException.class, () ->
-                    metadataService.recordChunkAccess(null));
+            assertThrows(IllegalArgumentException.class, () -> metadataService.recordChunkAccess(null));
         }
 
         @Test
         @DisplayName("Should reject empty chunk hash for access recording")
         void shouldRejectEmptyChunkHashForAccessRecording() {
             // When/Then
-            assertThrows(IllegalArgumentException.class, () ->
-                    metadataService.recordChunkAccess(""));
+            assertThrows(IllegalArgumentException.class, () -> metadataService.recordChunkAccess(""));
         }
 
         @Test
@@ -426,8 +403,7 @@ class MetadataServiceTest {
         @DisplayName("Should reject null chunk metadata")
         void shouldRejectNullChunkMetadata() {
             // When/Then
-            assertThrows(IllegalArgumentException.class, () ->
-                    metadataService.upsertChunk(null));
+            assertThrows(IllegalArgumentException.class, () -> metadataService.upsertChunk(null));
         }
 
         @Test
@@ -558,8 +534,7 @@ class MetadataServiceTest {
             metadataService.close();
 
             // When/Then
-            assertThrows(IOException.class, () ->
-                    metadataService.createSnapshot("test", "description"));
+            assertThrows(IOException.class, () -> metadataService.createSnapshot("test", "description"));
         }
     }
 }

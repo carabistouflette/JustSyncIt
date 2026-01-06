@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -41,7 +23,7 @@ public abstract class AbstractProtocolMessage implements ProtocolMessage {
      * Creates a new protocol message with the specified type and flags.
      *
      * @param messageType the message type
-     * @param flags the message flags
+     * @param flags       the message flags
      */
     protected AbstractProtocolMessage(MessageType messageType, byte flags) {
         this.messageType = Objects.requireNonNull(messageType, "messageType cannot be null");
@@ -59,11 +41,12 @@ public abstract class AbstractProtocolMessage implements ProtocolMessage {
     }
 
     /**
-     * Creates a new protocol message with the specified type, flags, and message ID.
+     * Creates a new protocol message with the specified type, flags, and message
+     * ID.
      *
      * @param messageType the message type
-     * @param flags the message flags
-     * @param messageId the message ID
+     * @param flags       the message flags
+     * @param messageId   the message ID
      */
     protected AbstractProtocolMessage(MessageType messageType, byte flags, int messageId) {
         this.messageType = Objects.requireNonNull(messageType, "messageType cannot be null");
@@ -114,14 +97,14 @@ public abstract class AbstractProtocolMessage implements ProtocolMessage {
     @Override
     public String toString() {
         return String.format("%s{type=%s, flags=0x%02X, id=%d}",
-                           getClass().getSimpleName(), messageType, flags, messageId);
+                getClass().getSimpleName(), messageType, flags, messageId);
     }
 
     /**
      * Utility method to write a string to a byte buffer with length prefix.
      *
      * @param buffer the byte buffer to write to
-     * @param str the string to write
+     * @param str    the string to write
      */
     protected static void writeString(ByteBuffer buffer, String str) {
         Objects.requireNonNull(buffer, "buffer cannot be null");
@@ -152,7 +135,8 @@ public abstract class AbstractProtocolMessage implements ProtocolMessage {
     }
 
     /**
-     * Utility method to calculate the size of a string when encoded with length prefix.
+     * Utility method to calculate the size of a string when encoded with length
+     * prefix.
      *
      * @param str the string to calculate size for
      * @return the encoded size in bytes

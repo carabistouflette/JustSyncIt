@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic;
 
 import java.security.KeyPair;
@@ -45,13 +27,11 @@ public class QuicTlsConfiguration {
     public static final List<String> DEFAULT_CIPHER_SUITES = Collections.unmodifiableList(Arrays.asList(
             "TLS_AES_256_GCM_SHA384",
             "TLS_AES_128_GCM_SHA256",
-            "TLS_CHACHA20_POLY1305_SHA256"
-    ));
+            "TLS_CHACHA20_POLY1305_SHA256"));
 
     /** Default application layer protocols. */
     public static final List<String> DEFAULT_APPLICATION_PROTOCOLS = Collections.unmodifiableList(Arrays.asList(
-            "justsyncit/1.0"
-    ));
+            "justsyncit/1.0"));
 
     /** Default session timeout. */
     public static final Duration DEFAULT_SESSION_TIMEOUT = Duration.ofHours(1);
@@ -270,14 +250,15 @@ public class QuicTlsConfiguration {
             try {
                 certificate = certificateProvider.generateSelfSignedCertificate(keyPair);
             } catch (CertificateGenerationException e) {
-                // Certificate generation failed - create a configuration without certificates for development
+                // Certificate generation failed - create a configuration without certificates
+                // for development
                 // In production, this should be replaced with proper certificates
                 return builder()
-                    .verifyPeer(false) // Disable peer verification for development
-                    .serverCertificates(Collections.emptyList())
-                    .serverPrivateKey(keyPair.getPrivate())
-                    .trustedCertificates(Collections.emptyList())
-                    .build();
+                        .verifyPeer(false) // Disable peer verification for development
+                        .serverCertificates(Collections.emptyList())
+                        .serverPrivateKey(keyPair.getPrivate())
+                        .trustedCertificates(Collections.emptyList())
+                        .build();
             }
 
             // Handle the case where certificate generation returns null
@@ -285,18 +266,18 @@ public class QuicTlsConfiguration {
                 // Create a configuration without certificates for development
                 // In production, this should be replaced with proper certificates
                 return builder()
-                    .verifyPeer(false) // Disable peer verification for development
-                    .serverCertificates(Collections.emptyList())
-                    .serverPrivateKey(keyPair.getPrivate())
-                    .trustedCertificates(Collections.emptyList())
-                    .build();
+                        .verifyPeer(false) // Disable peer verification for development
+                        .serverCertificates(Collections.emptyList())
+                        .serverPrivateKey(keyPair.getPrivate())
+                        .trustedCertificates(Collections.emptyList())
+                        .build();
             }
 
             return builder()
-                .serverCertificates(Arrays.asList(certificate))
-                .serverPrivateKey(keyPair.getPrivate())
-                .trustedCertificates(Arrays.asList(certificate))
-                .build();
+                    .serverCertificates(Arrays.asList(certificate))
+                    .serverPrivateKey(keyPair.getPrivate())
+                    .trustedCertificates(Arrays.asList(certificate))
+                    .build();
         } catch (CertificateGenerationException e) {
             throw new IllegalStateException("Failed to create default TLS configuration", e);
         }

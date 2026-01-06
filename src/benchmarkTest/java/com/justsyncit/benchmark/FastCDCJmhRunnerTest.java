@@ -1,4 +1,3 @@
-
 package com.justsyncit.benchmark;
 
 import org.junit.jupiter.api.Tag;

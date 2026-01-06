@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -41,9 +23,9 @@ public class ChunkAckMessage extends AbstractProtocolMessage {
     /**
      * Creates a new chunk acknowledgment message for successful receipt.
      *
-     * @param filePath the file path
+     * @param filePath    the file path
      * @param chunkOffset the chunk offset
-     * @param chunkSize the chunk size
+     * @param chunkSize   the chunk size
      */
     public ChunkAckMessage(String filePath, long chunkOffset, int chunkSize) {
         this(filePath, chunkOffset, chunkSize, true, null);
@@ -52,9 +34,9 @@ public class ChunkAckMessage extends AbstractProtocolMessage {
     /**
      * Creates a new chunk acknowledgment message for failed verification.
      *
-     * @param filePath the file path
-     * @param chunkOffset the chunk offset
-     * @param chunkSize the chunk size
+     * @param filePath     the file path
+     * @param chunkOffset  the chunk offset
+     * @param chunkSize    the chunk size
      * @param errorMessage the error message
      */
     public ChunkAckMessage(String filePath, long chunkOffset, int chunkSize, String errorMessage) {
@@ -64,14 +46,14 @@ public class ChunkAckMessage extends AbstractProtocolMessage {
     /**
      * Creates a new chunk acknowledgment message.
      *
-     * @param filePath the file path
-     * @param chunkOffset the chunk offset
-     * @param chunkSize the chunk size
+     * @param filePath      the file path
+     * @param chunkOffset   the chunk offset
+     * @param chunkSize     the chunk size
      * @param checksumValid whether the checksum is valid
-     * @param errorMessage the error message (null if successful)
+     * @param errorMessage  the error message (null if successful)
      */
     private ChunkAckMessage(String filePath, long chunkOffset, int chunkSize,
-                           boolean checksumValid, String errorMessage) {
+            boolean checksumValid, String errorMessage) {
         super(MessageType.CHUNK_ACK, ProtocolConstants.Flags.RESPONSE);
         this.filePath = Objects.requireNonNull(filePath, "filePath cannot be null");
         this.chunkOffset = chunkOffset;
@@ -83,7 +65,7 @@ public class ChunkAckMessage extends AbstractProtocolMessage {
     /**
      * Creates a chunk acknowledgment message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized chunk acknowledgment message
      */
@@ -102,15 +84,15 @@ public class ChunkAckMessage extends AbstractProtocolMessage {
     /**
      * Creates a chunk acknowledgment message with specified message ID.
      *
-     * @param filePath the file path
-     * @param chunkOffset the chunk offset
-     * @param chunkSize the chunk size
+     * @param filePath      the file path
+     * @param chunkOffset   the chunk offset
+     * @param chunkSize     the chunk size
      * @param checksumValid whether the checksum is valid
-     * @param errorMessage the error message
-     * @param messageId the message ID
+     * @param errorMessage  the error message
+     * @param messageId     the message ID
      */
     private ChunkAckMessage(String filePath, long chunkOffset, int chunkSize,
-                           boolean checksumValid, String errorMessage, int messageId) {
+            boolean checksumValid, String errorMessage, int messageId) {
         super(MessageType.CHUNK_ACK, ProtocolConstants.Flags.RESPONSE, messageId);
         this.filePath = filePath;
         this.chunkOffset = chunkOffset;
@@ -232,6 +214,6 @@ public class ChunkAckMessage extends AbstractProtocolMessage {
     @Override
     public String toString() {
         return String.format("ChunkAckMessage{path='%s', offset=%d, size=%d, checksumValid=%s, error='%s', %s}",
-                           filePath, chunkOffset, chunkSize, checksumValid, errorMessage, super.toString());
+                filePath, chunkOffset, chunkSize, checksumValid, errorMessage, super.toString());
     }
 }

@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.hash;
 
 import org.slf4j.Logger;
@@ -26,8 +8,10 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Thread-safe buffer hashing implementation using BLAKE3 algorithm.
- * Follows Single Responsibility Principle by focusing only on buffer operations.
- * This implementation ensures thread safety through synchronization and provides
+ * Follows Single Responsibility Principle by focusing only on buffer
+ * operations.
+ * This implementation ensures thread safety through synchronization and
+ * provides
  * additional validation and error handling.
  */
 
@@ -100,7 +84,8 @@ public class Blake3BufferHasher implements BufferHasher {
             }
         }
         if (length > MAX_BUFFER_SIZE) {
-            throw new IllegalArgumentException("Buffer size exceeds maximum allowed size of " + MAX_BUFFER_SIZE + " bytes");
+            throw new IllegalArgumentException(
+                    "Buffer size exceeds maximum allowed size of " + MAX_BUFFER_SIZE + " bytes");
         }
 
         logger.trace("Hashing buffer of {} bytes (offset: {}, length: {})", data.length, offset, length);

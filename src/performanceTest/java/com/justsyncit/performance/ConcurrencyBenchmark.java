@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.performance;
 
 import com.justsyncit.ServiceFactory;
@@ -112,7 +94,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkConcurrentBackups() throws Exception {
         // Test concurrent backup operations
-        int[] concurrencyLevels = {1, 2, 4, 8, 16};
+        int[] concurrencyLevels = { 1, 2, 4, 8, 16 };
         int datasetSizeMB = 25; // Per concurrent operation
 
         for (int concurrency : concurrencyLevels) {
@@ -127,7 +109,7 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<BackupService.BackupResult>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = {0 };
+            final long[] totalSizeRef = { 0 };
 
             for (int i = 0; i < concurrency; i++) {
                 final int index = i;
@@ -205,7 +187,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkConcurrentRestores() throws Exception {
         // Test concurrent restore operations
-        int[] concurrencyLevels = {1, 2, 4, 8 };
+        int[] concurrencyLevels = { 1, 2, 4, 8 };
         int datasetSizeMB = 20; // Per concurrent operation
 
         for (int concurrency : concurrencyLevels) {
@@ -236,7 +218,7 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<RestoreService.RestoreResult>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = {0 };
+            final long[] totalSizeRef = { 0 };
 
             for (int i = 0; i < concurrency; i++) {
                 final String snapshotId = snapshotIds.get(i);
@@ -319,7 +301,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMixedConcurrentOperations() throws Exception {
         // Test mixed concurrent backup and restore operations
-        int[] concurrencyLevels = {2, 4, 8 };
+        int[] concurrencyLevels = { 2, 4, 8 };
         int operationCount = 10; // Total operations per test
         int datasetSizeMB = 15;
 
@@ -351,9 +333,9 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<Object>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = {0 };
-            final int[] backupCountRef = {0 };
-            final int[] restoreCountRef = {0 };
+            final long[] totalSizeRef = { 0 };
+            final int[] backupCountRef = { 0 };
+            final int[] restoreCountRef = { 0 };
 
             for (int i = 0; i < operationCount; i++) {
                 final boolean isBackup = i % 2 == 0;
@@ -464,7 +446,7 @@ public class ConcurrencyBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkResourceContention() throws Exception {
         // Test performance under resource contention scenarios
-        int[] concurrencyLevels = {4, 8, 16, 32 };
+        int[] concurrencyLevels = { 4, 8, 16, 32 };
         int datasetSizeMB = 10;
 
         for (int concurrency : concurrencyLevels) {
@@ -479,7 +461,7 @@ public class ConcurrencyBenchmark {
             List<CompletableFuture<BackupService.BackupResult>> futures = new ArrayList<>();
 
             long startTime = System.currentTimeMillis();
-            final long[] totalSizeRef = {0 };
+            final long[] totalSizeRef = { 0 };
 
             for (int i = 0; i < concurrency; i++) {
                 final int index = i;

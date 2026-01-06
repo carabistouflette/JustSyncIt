@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage.metadata;
 
 import org.slf4j.Logger;
@@ -28,7 +10,8 @@ import java.sql.SQLException;
 /**
  * SQLite implementation of Transaction.
  * Provides transaction management for SQLite database operations.
- * Follows Single Responsibility Principle by focusing only on transaction control.
+ * Follows Single Responsibility Principle by focusing only on transaction
+ * control.
  */
 public final class SqliteTransaction implements Transaction {
 
@@ -45,7 +28,7 @@ public final class SqliteTransaction implements Transaction {
     /**
      * Creates a new SqliteTransaction.
      *
-     * @param connection the database connection for this transaction
+     * @param connection        the database connection for this transaction
      * @param connectionManager the connection manager to return the connection to
      * @throws IllegalArgumentException if any parameter is null
      */
@@ -60,7 +43,7 @@ public final class SqliteTransaction implements Transaction {
         // Make defensive copies to prevent external modification
         this.connection = java.util.Objects.requireNonNull(connection, "Connection cannot be null");
         this.connectionManager = java.util.Objects.requireNonNull(
-            connectionManager, "Connection manager cannot be null");
+                connectionManager, "Connection manager cannot be null");
         this.active = true;
     }
 

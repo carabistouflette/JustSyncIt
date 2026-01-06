@@ -1,28 +1,11 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage.metadata;
 
 import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Represents a backup snapshot containing metadata about the backup point in time.
+ * Represents a backup snapshot containing metadata about the backup point in
+ * time.
  */
 public final class Snapshot {
 
@@ -42,16 +25,16 @@ public final class Snapshot {
     /**
      * Creates a new Snapshot instance.
      *
-     * @param id unique identifier for the snapshot
-     * @param name human-readable name for the snapshot
+     * @param id          unique identifier for the snapshot
+     * @param name        human-readable name for the snapshot
      * @param description description of the snapshot
-     * @param createdAt timestamp when the snapshot was created
-     * @param totalFiles total number of files in the snapshot
-     * @param totalSize total size of all files in the snapshot
+     * @param createdAt   timestamp when the snapshot was created
+     * @param totalFiles  total number of files in the snapshot
+     * @param totalSize   total size of all files in the snapshot
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
     public Snapshot(String id, String name, String description, Instant createdAt,
-                   long totalFiles, long totalSize) {
+            long totalFiles, long totalSize) {
         if (id == null || id.trim().isEmpty()) {
             throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
         }

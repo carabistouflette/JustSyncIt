@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic;
 
 import com.justsyncit.network.protocol.ProtocolMessage;
@@ -125,7 +107,8 @@ public class QuicClientTest {
 
         quicClient.start().get(5, TimeUnit.SECONDS);
 
-        // Simulate connection (in real implementation, this would be triggered by actual QUIC events)
+        // Simulate connection (in real implementation, this would be triggered by
+        // actual QUIC events)
         // For now, we just verify the listener is registered
         assertNotNull(quicClient, "Client should be initialized");
     }
@@ -246,8 +229,7 @@ public class QuicClientTest {
     @Timeout(value = 5, unit = TimeUnit.SECONDS)
     @DisplayName("Client should validate null listeners")
     void testNullListenerValidation() {
-        assertThrows(NullPointerException.class, () ->
-                quicClient.addEventListener(null),
+        assertThrows(NullPointerException.class, () -> quicClient.addEventListener(null),
                 "Adding null listener should throw exception");
     }
 

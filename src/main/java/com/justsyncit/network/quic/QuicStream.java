@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic;
 
 import com.justsyncit.network.protocol.ProtocolMessage;
@@ -33,8 +15,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Represents a QUIC stream for data transfer.
- * Provides message sending/receiving capabilities and stream lifecycle management.
- * Supports both bidirectional and unidirectional streams as per QUIC specification.
+ * Provides message sending/receiving capabilities and stream lifecycle
+ * management.
+ * Supports both bidirectional and unidirectional streams as per QUIC
+ * specification.
  */
 public class QuicStream {
 
@@ -65,8 +49,8 @@ public class QuicStream {
     /**
      * Creates a new QUIC stream.
      *
-     * @param streamId stream ID
-     * @param connection parent connection
+     * @param streamId      stream ID
+     * @param connection    parent connection
      * @param bidirectional whether this is a bidirectional stream
      */
     public QuicStream(long streamId, QuicConnection connection, boolean bidirectional) {
@@ -185,8 +169,7 @@ public class QuicStream {
 
         if (!bidirectional && !locallyInitiated) {
             return CompletableFuture.failedFuture(
-                new IOException("Cannot send on remotely initiated unidirectional stream")
-            );
+                    new IOException("Cannot send on remotely initiated unidirectional stream"));
         }
 
         return CompletableFuture.runAsync(() -> {
@@ -202,8 +185,8 @@ public class QuicStream {
                 updateLastActivityTime();
 
                 logger.debug("Sent message {} on stream {} to {}",
-                           message.getMessageType(), streamId,
-                           connectionWrapper.getRemoteAddress());
+                        message.getMessageType(), streamId,
+                        connectionWrapper.getRemoteAddress());
 
                 notifyMessageSent(message);
             } catch (Exception e) {
@@ -248,8 +231,8 @@ public class QuicStream {
         updateLastActivityTime();
 
         logger.debug("Received message {} on stream {} from {}",
-                   message.getMessageType(), streamId,
-                   connectionWrapper.getRemoteAddress());
+                message.getMessageType(), streamId,
+                connectionWrapper.getRemoteAddress());
 
         notifyMessageReceived(message);
     }
@@ -274,8 +257,8 @@ public class QuicStream {
         updateLastActivityTime();
 
         logger.debug("Received {} bytes on stream {} from {}",
-                   data.remaining(), streamId,
-                   connectionWrapper.getRemoteAddress());
+                data.remaining(), streamId,
+                connectionWrapper.getRemoteAddress());
 
         notifyDataReceived(data);
     }

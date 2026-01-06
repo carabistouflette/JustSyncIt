@@ -1,6 +1,5 @@
 package com.justsyncit.storage.snapshot;
 
-import com.justsyncit.storage.metadata.FileMetadata;
 import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.util.Arrays;

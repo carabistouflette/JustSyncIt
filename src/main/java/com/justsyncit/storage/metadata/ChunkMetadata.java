@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage.metadata;
 
 import java.time.Instant;
@@ -40,15 +22,15 @@ public final class ChunkMetadata {
     /**
      * Creates a new ChunkMetadata instance.
      *
-     * @param hash BLAKE3 hash of the chunk content
-     * @param size size of the chunk in bytes
-     * @param firstSeen timestamp when the chunk was first stored
+     * @param hash           BLAKE3 hash of the chunk content
+     * @param size           size of the chunk in bytes
+     * @param firstSeen      timestamp when the chunk was first stored
      * @param referenceCount number of files that reference this chunk
-     * @param lastAccessed timestamp of the last access to this chunk
+     * @param lastAccessed   timestamp of the last access to this chunk
      * @throws IllegalArgumentException if any parameter is null or invalid
      */
     public ChunkMetadata(String hash, long size, Instant firstSeen,
-                       long referenceCount, Instant lastAccessed) {
+            long referenceCount, Instant lastAccessed) {
         if (hash == null || hash.trim().isEmpty()) {
             throw new IllegalArgumentException("Chunk hash cannot be null or empty");
         }

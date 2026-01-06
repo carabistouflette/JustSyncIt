@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -43,13 +25,13 @@ public class TransferCompleteMessage extends AbstractProtocolMessage {
     /**
      * Creates a new transfer complete message for successful transfer.
      *
-     * @param filePath the file path
+     * @param filePath              the file path
      * @param totalBytesTransferred the total bytes transferred
-     * @param totalFileSize the total file size
-     * @param finalBlake3Hash the final BLAKE3 hash
+     * @param totalFileSize         the total file size
+     * @param finalBlake3Hash       the final BLAKE3 hash
      */
     public TransferCompleteMessage(String filePath, long totalBytesTransferred,
-                                 long totalFileSize, String finalBlake3Hash) {
+            long totalFileSize, String finalBlake3Hash) {
         super(MessageType.TRANSFER_COMPLETE, ProtocolConstants.Flags.RESPONSE);
         this.filePath = Objects.requireNonNull(filePath, "filePath cannot be null");
         this.totalBytesTransferred = totalBytesTransferred;
@@ -62,13 +44,13 @@ public class TransferCompleteMessage extends AbstractProtocolMessage {
     /**
      * Creates a new transfer complete message for failed transfer.
      *
-     * @param filePath the file path
+     * @param filePath              the file path
      * @param totalBytesTransferred the total bytes transferred
-     * @param totalFileSize the total file size
-     * @param errorMessage the error message
+     * @param totalFileSize         the total file size
+     * @param errorMessage          the error message
      */
     public TransferCompleteMessage(String filePath, long totalBytesTransferred,
-                                 long totalFileSize, String errorMessage, boolean isFailure) {
+            long totalFileSize, String errorMessage, boolean isFailure) {
         super(MessageType.TRANSFER_COMPLETE, ProtocolConstants.Flags.RESPONSE);
         this.filePath = Objects.requireNonNull(filePath, "filePath cannot be null");
         this.totalBytesTransferred = totalBytesTransferred;
@@ -81,7 +63,7 @@ public class TransferCompleteMessage extends AbstractProtocolMessage {
     /**
      * Creates a transfer complete message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized transfer complete message
      */
@@ -96,23 +78,23 @@ public class TransferCompleteMessage extends AbstractProtocolMessage {
         String errorMessage = verificationSuccessful ? "" : readString(buffer);
 
         return new TransferCompleteMessage(filePath, totalBytesTransferred, totalFileSize,
-                                        finalBlake3Hash, verificationSuccessful, errorMessage, messageId);
+                finalBlake3Hash, verificationSuccessful, errorMessage, messageId);
     }
 
     /**
      * Creates a transfer complete message with specified message ID.
      *
-     * @param filePath the file path
-     * @param totalBytesTransferred the total bytes transferred
-     * @param totalFileSize the total file size
-     * @param finalBlake3Hash the final BLAKE3 hash
+     * @param filePath               the file path
+     * @param totalBytesTransferred  the total bytes transferred
+     * @param totalFileSize          the total file size
+     * @param finalBlake3Hash        the final BLAKE3 hash
      * @param verificationSuccessful whether verification was successful
-     * @param errorMessage the error message
-     * @param messageId the message ID
+     * @param errorMessage           the error message
+     * @param messageId              the message ID
      */
     private TransferCompleteMessage(String filePath, long totalBytesTransferred, long totalFileSize,
-                               String finalBlake3Hash, boolean verificationSuccessful, String errorMessage,
-                               int messageId) {
+            String finalBlake3Hash, boolean verificationSuccessful, String errorMessage,
+            int messageId) {
         super(MessageType.TRANSFER_COMPLETE, ProtocolConstants.Flags.RESPONSE, messageId);
         this.filePath = filePath;
         this.totalBytesTransferred = totalBytesTransferred;
@@ -236,8 +218,8 @@ public class TransferCompleteMessage extends AbstractProtocolMessage {
                 && totalFileSize > 0
                 && totalFileSize <= ProtocolConstants.MAX_FILE_SIZE
                 && (verificationSuccessful
-                    ? (finalBlake3Hash != null && finalBlake3Hash.length() == 64)
-                    : errorMessage.length() <= 1024);
+                        ? (finalBlake3Hash != null && finalBlake3Hash.length() == 64)
+                        : errorMessage.length() <= 1024);
     }
 
     @Override
@@ -264,14 +246,14 @@ public class TransferCompleteMessage extends AbstractProtocolMessage {
     @Override
     public int hashCode() {
         return Objects.hash(super.hashCode(), filePath, totalBytesTransferred, totalFileSize,
-                          finalBlake3Hash, verificationSuccessful, errorMessage);
+                finalBlake3Hash, verificationSuccessful, errorMessage);
     }
 
     @Override
     public String toString() {
         return String.format("TransferCompleteMessage{path='%s', transferred=%d, total=%d, verified=%s, "
-                           + "hash='%s', error='%s', %s}",
-                           filePath, totalBytesTransferred, totalFileSize, verificationSuccessful,
-                           finalBlake3Hash, errorMessage, super.toString());
+                + "hash='%s', error='%s', %s}",
+                filePath, totalBytesTransferred, totalFileSize, verificationSuccessful,
+                finalBlake3Hash, errorMessage, super.toString());
     }
 }

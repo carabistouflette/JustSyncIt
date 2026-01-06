@@ -14,9 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
-package com.justsyncit.integration;
+ */ com.justsyncit.integration;
 
 import com.justsyncit.scanner.OptimizedAsyncByteBufferPool;
 import org.junit.jupiter.api.BeforeEach;

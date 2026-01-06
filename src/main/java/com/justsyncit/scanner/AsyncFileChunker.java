@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.scanner;
 
 import java.nio.file.Path;
@@ -24,33 +6,38 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Interface for asynchronous file chunking operations.
  * Extends FileChunker to maintain compatibility with existing synchronous APIs.
- * Follows Interface Segregation Principle by providing focused async chunking operations.
- * Implements both CompletionHandler pattern and CompletableFuture pattern for flexibility.
+ * Follows Interface Segregation Principle by providing focused async chunking
+ * operations.
+ * Implements both CompletionHandler pattern and CompletableFuture pattern for
+ * flexibility.
  */
 public interface AsyncFileChunker extends FileChunker {
 
     /**
-     * Asynchronously chunks a file into fixed-size pieces using CompletionHandler pattern.
+     * Asynchronously chunks a file into fixed-size pieces using CompletionHandler
+     * pattern.
      * This method provides non-blocking file operations with callback notification.
      *
-     * @param file the file to chunk
+     * @param file    the file to chunk
      * @param options the chunking options
      * @param handler the completion handler to notify when chunking is complete
      * @throws IllegalArgumentException if file is null, invalid, or handler is null
-     * @throws IllegalStateException if the chunker has been closed
+     * @throws IllegalStateException    if the chunker has been closed
      */
     void chunkFileAsync(Path file, ChunkingOptions options,
-                      CompletionHandler<ChunkingResult, Exception> handler);
+            CompletionHandler<ChunkingResult, Exception> handler);
 
     /**
-     * Asynchronously chunks a file into fixed-size pieces using CompletableFuture pattern.
-     * This method provides non-blocking file operations with future-based composition.
+     * Asynchronously chunks a file into fixed-size pieces using CompletableFuture
+     * pattern.
+     * This method provides non-blocking file operations with future-based
+     * composition.
      *
-     * @param file the file to chunk
+     * @param file    the file to chunk
      * @param options the chunking options
      * @return a CompletableFuture that completes with the chunking result
      * @throws IllegalArgumentException if file is null or invalid
-     * @throws IllegalStateException if the chunker has been closed
+     * @throws IllegalStateException    if the chunker has been closed
      */
     CompletableFuture<ChunkingResult> chunkFileAsync(Path file, ChunkingOptions options);
 
@@ -114,7 +101,8 @@ public interface AsyncFileChunker extends FileChunker {
     /**
      * Closes the chunker and releases all resources asynchronously.
      *
-     * @return a CompletableFuture that completes when all resources have been released
+     * @return a CompletableFuture that completes when all resources have been
+     *         released
      */
     CompletableFuture<Void> closeAsync();
 

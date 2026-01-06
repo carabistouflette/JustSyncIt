@@ -1,8 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- */
-
 package com.justsyncit.scanner;
 
 import org.junit.jupiter.api.AfterEach;

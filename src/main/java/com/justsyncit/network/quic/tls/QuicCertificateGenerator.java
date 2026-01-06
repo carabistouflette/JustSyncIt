@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic.tls;
 
 import java.security.KeyPair;
@@ -30,7 +12,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Utility class for generating self-signed certificates for QUIC TLS connections.
+ * Utility class for generating self-signed certificates for QUIC TLS
+ * connections.
  * Provides methods to generate key pairs and X.509 certificates suitable for
  * TLS 1.3 with QUIC.
  *
@@ -123,8 +106,10 @@ public final class QuicCertificateGenerator {
     }
 
     /**
-     * Generates a certificate chain with a self-signed root certificate and leaf certificate.
-     * This is useful for testing scenarios where you need a proper certificate chain.
+     * Generates a certificate chain with a self-signed root certificate and leaf
+     * certificate.
+     * This is useful for testing scenarios where you need a proper certificate
+     * chain.
      *
      * @param leafKeyPair the key pair for the leaf certificate
      * @return an array containing the leaf certificate and root certificate

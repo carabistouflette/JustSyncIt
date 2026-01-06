@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.hash;
 
 import com.justsyncit.simd.SimdInfo;
@@ -36,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Comprehensive unit tests for Blake3Service using official BLAKE3 test vectors.
+ * Comprehensive unit tests for Blake3Service using official BLAKE3 test
+ * vectors.
  */
 class Blake3ServiceTest {
 
@@ -63,7 +46,7 @@ class Blake3ServiceTest {
 
     @Test
     void testHashSingleByte() throws HashingException {
-        byte[] singleByte = {(byte) 0xff};
+        byte[] singleByte = { (byte) 0xff };
         String hash = blake3Service.hashBuffer(singleByte);
 
         // Verify we get a consistent hash for single byte

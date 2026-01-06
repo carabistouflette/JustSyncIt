@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.hash;
 
 /**
@@ -23,8 +5,10 @@ package com.justsyncit.hash;
  * Follows Single Responsibility Principle by specifically handling
  * hashing-related errors with proper categorization and context.
  *
- * <p>This exception is thread-safe and immutable, making it safe to use
- * across multiple threads without additional synchronization.</p>
+ * <p>
+ * This exception is thread-safe and immutable, making it safe to use
+ * across multiple threads without additional synchronization.
+ * </p>
  */
 public class HashingException extends RuntimeException {
 
@@ -82,7 +66,8 @@ public class HashingException extends RuntimeException {
     }
 
     /**
-     * Creates a new HashingException with the specified detail message and error code.
+     * Creates a new HashingException with the specified detail message and error
+     * code.
      *
      * @param message   the detail message
      * @param errorCode the specific error code
@@ -120,7 +105,8 @@ public class HashingException extends RuntimeException {
      * @param message          the detail message
      * @param errorCode        the specific error code
      * @param hashAlgorithm    the hashing algorithm being used (may be null)
-     * @param operationContext the context of the operation that failed (may be null)
+     * @param operationContext the context of the operation that failed (may be
+     *                         null)
      */
     public HashingException(String message, ErrorCode errorCode, String hashAlgorithm, String operationContext) {
         this(message, errorCode, hashAlgorithm, operationContext, null);
@@ -133,11 +119,12 @@ public class HashingException extends RuntimeException {
      * @param message          the detail message
      * @param errorCode        the specific error code
      * @param hashAlgorithm    the hashing algorithm being used (may be null)
-     * @param operationContext the context of the operation that failed (may be null)
+     * @param operationContext the context of the operation that failed (may be
+     *                         null)
      * @param cause            the cause of this exception (may be null)
      */
     public HashingException(String message, ErrorCode errorCode, String hashAlgorithm,
-                           String operationContext, Throwable cause) {
+            String operationContext, Throwable cause) {
         super(message, cause);
         this.errorCode = errorCode != null ? errorCode : ErrorCode.UNKNOWN;
         this.hashAlgorithm = hashAlgorithm;

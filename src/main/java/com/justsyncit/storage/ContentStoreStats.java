@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage;
 
 import java.time.Instant;
@@ -40,14 +22,14 @@ public class ContentStoreStats {
     /**
      * Creates a new ContentStoreStats instance.
      *
-     * @param totalChunks the total number of chunks stored
-     * @param totalSizeBytes the total storage size in bytes
+     * @param totalChunks        the total number of chunks stored
+     * @param totalSizeBytes     the total storage size in bytes
      * @param deduplicationRatio the deduplication ratio (stored/unique)
-     * @param lastGcTime the timestamp of the last garbage collection
-     * @param orphanedChunks the number of orphaned chunks
+     * @param lastGcTime         the timestamp of the last garbage collection
+     * @param orphanedChunks     the number of orphaned chunks
      */
     public ContentStoreStats(long totalChunks, long totalSizeBytes, long deduplicationRatio,
-                           Instant lastGcTime, long orphanedChunks) {
+            Instant lastGcTime, long orphanedChunks) {
         this.totalChunks = totalChunks;
         this.totalSizeBytes = totalSizeBytes;
         this.deduplicationRatio = deduplicationRatio;
@@ -75,7 +57,8 @@ public class ContentStoreStats {
 
     /**
      * Gets the deduplication ratio.
-     * A value of 1.0 means no deduplication, higher values indicate more deduplication.
+     * A value of 1.0 means no deduplication, higher values indicate more
+     * deduplication.
      *
      * @return the deduplication ratio
      */

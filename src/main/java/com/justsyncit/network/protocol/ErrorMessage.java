@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -35,7 +17,7 @@ public class ErrorMessage extends AbstractProtocolMessage {
     /**
      * Creates a new error message.
      *
-     * @param errorCode the error code
+     * @param errorCode    the error code
      * @param errorMessage the error message (can be null or empty)
      */
     public ErrorMessage(int errorCode, String errorMessage) {
@@ -56,7 +38,7 @@ public class ErrorMessage extends AbstractProtocolMessage {
     /**
      * Creates an error message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized error message
      */
@@ -72,9 +54,9 @@ public class ErrorMessage extends AbstractProtocolMessage {
     /**
      * Creates an error message with specified message ID.
      *
-     * @param errorCode the error code
+     * @param errorCode    the error code
      * @param errorMessage the error message
-     * @param messageId the message ID
+     * @param messageId    the message ID
      */
     private ErrorMessage(int errorCode, String errorMessage, int messageId) {
         super(MessageType.ERROR, ProtocolConstants.Flags.RESPONSE, messageId);
@@ -174,6 +156,6 @@ public class ErrorMessage extends AbstractProtocolMessage {
     @Override
     public String toString() {
         return String.format("ErrorMessage{code=%d, description='%s', message='%s', %s}",
-                           errorCode, getErrorDescription(), errorMessage, super.toString());
+                errorCode, getErrorDescription(), errorMessage, super.toString());
     }
 }

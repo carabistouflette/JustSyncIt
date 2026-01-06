@@ -1,23 +1,4 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
-
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -36,7 +17,8 @@ public final class MessageFactory {
     /**
      * Deserializes a complete protocol message from a byte buffer.
      *
-     * @param buffer the byte buffer containing the complete message (header + payload)
+     * @param buffer the byte buffer containing the complete message (header +
+     *               payload)
      * @return the deserialized protocol message
      * @throws IllegalArgumentException if the message is invalid or unsupported
      */
@@ -89,7 +71,7 @@ public final class MessageFactory {
     /**
      * Creates a protocol message from header and payload.
      *
-     * @param header the protocol header
+     * @param header        the protocol header
      * @param payloadBuffer the payload buffer
      * @return the deserialized protocol message
      * @throws IllegalArgumentException if the message type is unsupported
@@ -104,9 +86,9 @@ public final class MessageFactory {
     /**
      * Creates a protocol message of the specified type from payload data.
      *
-     * @param messageType the message type
+     * @param messageType   the message type
      * @param payloadBuffer the payload buffer
-     * @param messageId the message ID
+     * @param messageId     the message ID
      * @return the deserialized protocol message
      * @throws IllegalArgumentException if the message type is unsupported
      */
@@ -116,8 +98,7 @@ public final class MessageFactory {
                 messageType,
                 (byte) 0,
                 messageId,
-                payloadBuffer.remaining()
-        );
+                payloadBuffer.remaining());
 
         switch (messageType) {
             case HANDSHAKE:
@@ -159,7 +140,7 @@ public final class MessageFactory {
      * Creates a simple message with no payload.
      *
      * @param messageType the message type
-     * @param messageId the message ID
+     * @param messageId   the message ID
      * @return the protocol message
      */
     public static ProtocolMessage createSimpleMessage(MessageType messageType, int messageId) {

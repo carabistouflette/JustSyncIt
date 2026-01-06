@@ -1,36 +1,28 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.hash;
 
 import java.nio.ByteBuffer;
 
 /**
  * Interface for buffer hashing operations.
- * Follows Interface Segregation Principle by focusing only on buffer operations.
+ * Follows Interface Segregation Principle by focusing only on buffer
+ * operations.
  *
- * <p>Implementations of this interface should be thread-safe unless otherwise documented.
- * The interface provides both simple and advanced hashing methods to accommodate
- * different use cases, from small buffers to large data streams.</p>
+ * <p>
+ * Implementations of this interface should be thread-safe unless otherwise
+ * documented.
+ * The interface provides both simple and advanced hashing methods to
+ * accommodate
+ * different use cases, from small buffers to large data streams.
+ * </p>
  *
- * <p><strong>Security Note:</strong> Implementations should use cryptographically secure
- * hash algorithms for security-sensitive applications. The interface itself does not
- * guarantee cryptographic properties - consult the specific implementation documentation.</p>
+ * <p>
+ * <strong>Security Note:</strong> Implementations should use cryptographically
+ * secure
+ * hash algorithms for security-sensitive applications. The interface itself
+ * does not
+ * guarantee cryptographic properties - consult the specific implementation
+ * documentation.
+ * </p>
  */
 public interface BufferHasher {
 
@@ -47,12 +39,13 @@ public interface BufferHasher {
      * Hashes a portion of a byte array using the specified offset and length.
      * This method provides more granular control over which bytes to hash.
      *
-     * @param data the byte array to hash
+     * @param data   the byte array to hash
      * @param offset the starting offset in the data array
      * @param length the number of bytes to hash
      * @return the hash as a hexadecimal string
-     * @throws IllegalArgumentException if parameters are invalid (null data, invalid offset/length)
-     * @throws HashingException if hashing fails
+     * @throws IllegalArgumentException if parameters are invalid (null data,
+     *                                  invalid offset/length)
+     * @throws HashingException         if hashing fails
      */
     String hashBuffer(byte[] data, int offset, int length) throws HashingException;
 
@@ -63,7 +56,7 @@ public interface BufferHasher {
      * @param buffer the ByteBuffer containing data to hash
      * @return the hash as a hexadecimal string
      * @throws IllegalArgumentException if buffer is null
-     * @throws HashingException if hashing fails
+     * @throws HashingException         if hashing fails
      */
     default String hashBuffer(ByteBuffer buffer) throws HashingException {
         if (buffer == null) {
@@ -90,7 +83,7 @@ public interface BufferHasher {
      * @param buffers array of byte arrays to hash
      * @return array of hash strings, one for each input buffer
      * @throws IllegalArgumentException if buffers array or any element is null
-     * @throws HashingException if hashing fails
+     * @throws HashingException         if hashing fails
      */
     default String[] hashBuffers(byte[][] buffers) throws HashingException {
         if (buffers == null) {
@@ -119,9 +112,11 @@ public interface BufferHasher {
     int getHashLength();
 
     /**
-     * Gets the length of the hash produced by this algorithm in hexadecimal characters.
+     * Gets the length of the hash produced by this algorithm in hexadecimal
+     * characters.
      *
-     * @return the hash length in hexadecimal characters (typically 2x the byte length)
+     * @return the hash length in hexadecimal characters (typically 2x the byte
+     *         length)
      */
     default int getHashHexLength() {
         return getHashLength() * 2;
@@ -129,7 +124,8 @@ public interface BufferHasher {
 
     /**
      * Indicates whether this implementation is thread-safe.
-     * The default implementation assumes thread-safety, but specific implementations
+     * The default implementation assumes thread-safety, but specific
+     * implementations
      * may override this if they are not thread-safe.
      *
      * @return true if the implementation is thread-safe, false otherwise

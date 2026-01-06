@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic;
 
 import com.justsyncit.network.protocol.ProtocolMessage;
@@ -34,8 +16,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Represents a QUIC connection between client and server.
- * Provides stream management, message sending, and connection lifecycle management.
- * Supports both bidirectional and unidirectional streams for concurrent data transfer.
+ * Provides stream management, message sending, and connection lifecycle
+ * management.
+ * Supports both bidirectional and unidirectional streams for concurrent data
+ * transfer.
  */
 public class QuicConnection {
 
@@ -70,7 +54,7 @@ public class QuicConnection {
      *
      * @param remoteAddress the remote address
      * @param configuration the QUIC configuration
-     * @param isClient whether this is a client-side connection
+     * @param isClient      whether this is a client-side connection
      */
     public QuicConnection(InetSocketAddress remoteAddress, QuicConfiguration configuration, boolean isClient) {
         this.remoteAddress = remoteAddress;
@@ -172,8 +156,8 @@ public class QuicConnection {
      */
     public int getActiveStreamCount() {
         return (int) streams.values().stream()
-            .filter(QuicStream::isActive)
-            .count();
+                .filter(QuicStream::isActive)
+                .count();
     }
 
     /**
@@ -257,13 +241,13 @@ public class QuicConnection {
         }
 
         return createStream(true)
-            .thenCompose(stream -> stream.sendMessage(message));
+                .thenCompose(stream -> stream.sendMessage(message));
     }
 
     /**
      * Sends a message over an existing stream.
      *
-     * @param message the message to send
+     * @param message  the message to send
      * @param streamId the stream ID to use
      * @return a CompletableFuture that completes when the message is sent
      */
@@ -273,14 +257,14 @@ public class QuicConnection {
             return stream.sendMessage(message);
         } else {
             return CompletableFuture.failedFuture(
-                new IOException("Stream " + streamId + " not found"));
+                    new IOException("Stream " + streamId + " not found"));
         }
     }
 
     /**
      * Handles a received message on a specific stream.
      *
-     * @param message the received message
+     * @param message  the received message
      * @param streamId the stream ID
      */
     public void handleReceivedMessage(ProtocolMessage message, long streamId) {
@@ -335,16 +319,16 @@ public class QuicConnection {
                     .toArray(CompletableFuture[]::new);
 
             return CompletableFuture.allOf(closeFutures)
-                .thenRun(() -> {
-                    streams.clear();
-                    notifyConnectionClosed(null);
-                    logger.info("QUIC connection to {} closed", remoteAddress);
-                })
-                .exceptionally(throwable -> {
-                    logger.error("Error closing connection to {}", remoteAddress, throwable);
-                    notifyConnectionClosed(throwable);
-                    return null;
-                });
+                    .thenRun(() -> {
+                        streams.clear();
+                        notifyConnectionClosed(null);
+                        logger.info("QUIC connection to {} closed", remoteAddress);
+                    })
+                    .exceptionally(throwable -> {
+                        logger.error("Error closing connection to {}", remoteAddress, throwable);
+                        notifyConnectionClosed(throwable);
+                        return null;
+                    });
         } else {
             return CompletableFuture.completedFuture(null);
         }
@@ -425,14 +409,14 @@ public class QuicConnection {
          * Called when a stream is closed.
          *
          * @param streamId the stream ID
-         * @param cause the reason for closure (null if normal)
+         * @param cause    the reason for closure (null if normal)
          */
         void onStreamClosed(long streamId, Throwable cause);
 
         /**
          * Called when a message is received.
          *
-         * @param message the received message
+         * @param message  the received message
          * @param streamId the stream ID
          */
         void onMessageReceived(ProtocolMessage message, long streamId);

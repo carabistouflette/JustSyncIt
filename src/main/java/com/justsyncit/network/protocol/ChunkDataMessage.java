@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -44,15 +26,15 @@ public class ChunkDataMessage extends AbstractProtocolMessage {
     /**
      * Creates a new chunk data message.
      *
-     * @param filePath the file path
-     * @param chunkOffset the offset of this chunk in the file
-     * @param chunkSize the size of this chunk
+     * @param filePath      the file path
+     * @param chunkOffset   the offset of this chunk in the file
+     * @param chunkSize     the size of this chunk
      * @param totalFileSize the total file size
-     * @param chunkHash the BLAKE3 hash of this chunk
-     * @param chunkData the chunk data
+     * @param chunkHash     the BLAKE3 hash of this chunk
+     * @param chunkData     the chunk data
      */
     public ChunkDataMessage(String filePath, long chunkOffset, int chunkSize, long totalFileSize,
-                           String chunkHash, byte[] chunkData) {
+            String chunkHash, byte[] chunkData) {
         super(MessageType.CHUNK_DATA, ProtocolConstants.Flags.ACK_REQUIRED);
         this.filePath = Objects.requireNonNull(filePath, "filePath cannot be null");
         this.chunkOffset = chunkOffset;
@@ -65,7 +47,7 @@ public class ChunkDataMessage extends AbstractProtocolMessage {
     /**
      * Creates a chunk data message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized chunk data message
      */
@@ -87,16 +69,16 @@ public class ChunkDataMessage extends AbstractProtocolMessage {
     /**
      * Creates a chunk data message with specified message ID.
      *
-     * @param filePath the file path
-     * @param chunkOffset the offset of this chunk in the file
-     * @param chunkSize the size of this chunk
+     * @param filePath      the file path
+     * @param chunkOffset   the offset of this chunk in the file
+     * @param chunkSize     the size of this chunk
      * @param totalFileSize the total file size
-     * @param chunkHash the BLAKE3 hash of this chunk
-     * @param chunkData the chunk data
-     * @param messageId the message ID
+     * @param chunkHash     the BLAKE3 hash of this chunk
+     * @param chunkData     the chunk data
+     * @param messageId     the message ID
      */
     private ChunkDataMessage(String filePath, long chunkOffset, int chunkSize, long totalFileSize,
-                            String chunkHash, byte[] chunkData, int messageId) {
+            String chunkHash, byte[] chunkData, int messageId) {
         super(MessageType.CHUNK_DATA, ProtocolConstants.Flags.ACK_REQUIRED, messageId);
         this.filePath = filePath;
         this.chunkOffset = chunkOffset;
@@ -188,7 +170,8 @@ public class ChunkDataMessage extends AbstractProtocolMessage {
     @Override
     public int getPayloadSize() {
         return calculateStringSize(filePath) + 8 + 4 + 8 + calculateStringSize(chunkHash) + chunkData.length;
-        // filePath + chunkOffset(8) + chunkSize(4) + totalFileSize(8) + chunkHash + chunkData
+        // filePath + chunkOffset(8) + chunkSize(4) + totalFileSize(8) + chunkHash +
+        // chunkData
     }
 
     @Override
@@ -238,8 +221,8 @@ public class ChunkDataMessage extends AbstractProtocolMessage {
     @Override
     public String toString() {
         return String.format("ChunkDataMessage{path='%s', offset=%d, size=%d, totalSize=%d, hash='%s', "
-                           + "dataLength=%d, %s}",
-                           filePath, chunkOffset, chunkSize, totalFileSize, chunkHash,
-                           chunkData.length, super.toString());
+                + "dataLength=%d, %s}",
+                filePath, chunkOffset, chunkSize, totalFileSize, chunkHash,
+                chunkData.length, super.toString());
     }
 }

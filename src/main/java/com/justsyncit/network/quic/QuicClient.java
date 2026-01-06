@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic;
 
 import com.justsyncit.network.protocol.ProtocolMessage;
@@ -144,9 +126,11 @@ public class QuicClient {
                 }
 
                 // Simulate connection attempt - in real implementation this would use Kwik
-                // For testing purposes, we'll simulate connection failures for certain conditions
+                // For testing purposes, we'll simulate connection failures for certain
+                // conditions
                 // This helps test the error handling path
-                // Check for both test ports (9999 for integration tests, 9998 for packet loss tests)
+                // Check for both test ports (9999 for integration tests, 9998 for packet loss
+                // tests)
                 if ((address.getPort() == 9999 || address.getPort() == 9998) && !simulateServerRunning) {
                     throw new IOException("Connection refused: No server listening on port " + address.getPort());
                 }
@@ -190,11 +174,11 @@ public class QuicClient {
         QuicConnection connection = connections.get(address);
         if (connection != null) {
             return connection.close()
-                .thenRun(() -> {
-                    connections.remove(address);
-                    logger.info("Disconnected from QUIC server: {}", address);
-                    notifyDisconnected(address, null);
-                });
+                    .thenRun(() -> {
+                        connections.remove(address);
+                        logger.info("Disconnected from QUIC server: {}", address);
+                        notifyDisconnected(address, null);
+                    });
         } else {
             return CompletableFuture.completedFuture(null);
         }
@@ -203,7 +187,7 @@ public class QuicClient {
     /**
      * Sends a message to a specific server.
      *
-     * @param message the message to send
+     * @param message       the message to send
      * @param serverAddress the server address
      * @return a CompletableFuture that completes when the message is sent
      */
@@ -213,8 +197,7 @@ public class QuicClient {
             return connection.sendMessage(message);
         } else {
             return CompletableFuture.failedFuture(
-                new IOException("Not connected to QUIC server: " + serverAddress)
-            );
+                    new IOException("Not connected to QUIC server: " + serverAddress));
         }
     }
 
@@ -231,8 +214,7 @@ public class QuicClient {
             return connection.createStream(bidirectional);
         } else {
             return CompletableFuture.failedFuture(
-                new IOException("Not connected to QUIC server: " + serverAddress)
-            );
+                    new IOException("Not connected to QUIC server: " + serverAddress));
         }
     }
 
@@ -254,8 +236,8 @@ public class QuicClient {
      */
     public int getActiveConnectionCount() {
         return (int) connections.values().stream()
-            .filter(QuicConnection::isActive)
-            .count();
+                .filter(QuicConnection::isActive)
+                .count();
     }
 
     /**
@@ -332,7 +314,6 @@ public class QuicClient {
         }
     }
 
-
     /**
      * Sets the simulated server running state for testing purposes.
      * In a real implementation, this would not be needed as the QUIC library
@@ -353,7 +334,7 @@ public class QuicClient {
          * Called when connected to server.
          *
          * @param serverAddress the server address
-         * @param connection the established connection
+         * @param connection    the established connection
          */
         void onConnected(InetSocketAddress serverAddress, QuicConnection connection);
 
@@ -361,7 +342,7 @@ public class QuicClient {
          * Called when disconnected from server.
          *
          * @param serverAddress the server address
-         * @param cause the reason for disconnection (null if normal)
+         * @param cause         the reason for disconnection (null if normal)
          */
         void onDisconnected(InetSocketAddress serverAddress, Throwable cause);
 
@@ -369,14 +350,14 @@ public class QuicClient {
          * Called when a message is received from server.
          *
          * @param serverAddress the server address
-         * @param message the received message
+         * @param message       the received message
          */
         void onMessageReceived(InetSocketAddress serverAddress, ProtocolMessage message);
 
         /**
          * Called when an error occurs.
          *
-         * @param error the error that occurred
+         * @param error   the error that occurred
          * @param context the context in which the error occurred
          */
         void onError(Throwable error, String context);

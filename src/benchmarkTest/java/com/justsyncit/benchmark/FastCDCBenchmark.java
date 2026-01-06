@@ -1,4 +1,3 @@
-
 package com.justsyncit.benchmark;
 
 import com.justsyncit.hash.Blake3Service;

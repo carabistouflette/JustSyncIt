@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.performance;
 
 import com.justsyncit.ServiceFactory;
@@ -104,7 +86,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPerfectDeduplication() throws Exception {
         // Test with identical files (perfect deduplication scenario)
-        int[] duplicateCounts = {10, 50, 100, 500};
+        int[] duplicateCounts = { 10, 50, 100, 500 };
         int fileSizeKB = 100; // 100KB per file
 
         for (int duplicateCount : duplicateCounts) {
@@ -177,7 +159,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkPartialDeduplication() throws Exception {
         // Test with files having partial duplication
-        int[] fileCounts = {50, 100, 200};
+        int[] fileCounts = { 50, 100, 200 };
         int duplicateRatio = 50; // 50% of content is duplicated
         int fileSizeKB = 100;
 
@@ -257,7 +239,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkNoDeduplication() throws Exception {
         // Test with completely unique files (no deduplication)
-        int[] fileCounts = {50, 100, 200};
+        int[] fileCounts = { 50, 100, 200 };
         int fileSizeKB = 100;
 
         for (int fileCount : fileCounts) {
@@ -326,7 +308,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkChunkSizeImpact() throws Exception {
         // Test impact of chunk size on deduplication efficiency
-        int[] chunkSizes = {32 * 1024, 64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024}; // 32KB to 1MB
+        int[] chunkSizes = { 32 * 1024, 64 * 1024, 128 * 1024, 256 * 1024, 1024 * 1024 }; // 32KB to 1MB
         int duplicateRatio = 30; // 30% duplication
 
         for (int chunkSize : chunkSizes) {
@@ -390,7 +372,7 @@ public class DeduplicationBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkDeduplicationOverhead() throws Exception {
         // Test performance overhead of deduplication processing
-        int[] fileCounts = {50, 100, 200, 500};
+        int[] fileCounts = { 50, 100, 200, 500 };
         int fileSizeKB = 50;
 
         for (int fileCount : fileCounts) {
@@ -476,7 +458,7 @@ public class DeduplicationBenchmark {
     void benchmarkIncrementalDeduplication() throws Exception {
         // Test deduplication efficiency in incremental backups
         int initialSizeMB = 50;
-        int[] changePercentages = {5, 10, 20, 30}; // Percentage of files changed
+        int[] changePercentages = { 5, 10, 20, 30 }; // Percentage of files changed
 
         for (int changePercent : changePercentages) {
             PerformanceMetrics metrics = new PerformanceMetrics(

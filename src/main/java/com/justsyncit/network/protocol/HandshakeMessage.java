@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -38,8 +20,8 @@ public class HandshakeMessage extends AbstractProtocolMessage {
      * Creates a new handshake message.
      *
      * @param protocolVersion the protocol version
-     * @param clientId the client identifier
-     * @param capabilities the client capabilities bitmask
+     * @param clientId        the client identifier
+     * @param capabilities    the client capabilities bitmask
      */
     public HandshakeMessage(short protocolVersion, String clientId, int capabilities) {
         super(MessageType.HANDSHAKE);
@@ -51,7 +33,7 @@ public class HandshakeMessage extends AbstractProtocolMessage {
     /**
      * Creates a new handshake message with default protocol version.
      *
-     * @param clientId the client identifier
+     * @param clientId     the client identifier
      * @param capabilities the client capabilities bitmask
      */
     public HandshakeMessage(String clientId, int capabilities) {
@@ -61,7 +43,7 @@ public class HandshakeMessage extends AbstractProtocolMessage {
     /**
      * Creates a handshake message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized handshake message
      */
@@ -79,9 +61,9 @@ public class HandshakeMessage extends AbstractProtocolMessage {
      * Creates a handshake message from serialized data with specified message ID.
      *
      * @param protocolVersion the protocol version
-     * @param clientId the client identifier
-     * @param capabilities the client capabilities bitmask
-     * @param messageId the message ID
+     * @param clientId        the client identifier
+     * @param capabilities    the client capabilities bitmask
+     * @param messageId       the message ID
      */
     private HandshakeMessage(short protocolVersion, String clientId, int capabilities, int messageId) {
         super(MessageType.HANDSHAKE, ProtocolConstants.Flags.NONE, messageId);
@@ -169,6 +151,6 @@ public class HandshakeMessage extends AbstractProtocolMessage {
     @Override
     public String toString() {
         return String.format("HandshakeMessage{version=%d, clientId='%s', capabilities=0x%08X, %s}",
-                           protocolVersion, clientId, capabilities, super.toString());
+                protocolVersion, clientId, capabilities, super.toString());
     }
 }

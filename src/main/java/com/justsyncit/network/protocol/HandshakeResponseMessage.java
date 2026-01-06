@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -40,9 +22,9 @@ public class HandshakeResponseMessage extends AbstractProtocolMessage {
      * Creates a new handshake response message.
      *
      * @param protocolVersion the accepted protocol version
-     * @param serverId the server identifier
-     * @param capabilities the server capabilities bitmask
-     * @param maxChunkSize the maximum chunk size supported
+     * @param serverId        the server identifier
+     * @param capabilities    the server capabilities bitmask
+     * @param maxChunkSize    the maximum chunk size supported
      */
     public HandshakeResponseMessage(short protocolVersion, String serverId, int capabilities, int maxChunkSize) {
         super(MessageType.HANDSHAKE_RESPONSE, ProtocolConstants.Flags.RESPONSE);
@@ -55,7 +37,7 @@ public class HandshakeResponseMessage extends AbstractProtocolMessage {
     /**
      * Creates a handshake response message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized handshake response message
      */
@@ -74,13 +56,13 @@ public class HandshakeResponseMessage extends AbstractProtocolMessage {
      * Creates a handshake response message with specified message ID.
      *
      * @param protocolVersion the accepted protocol version
-     * @param serverId the server identifier
-     * @param capabilities the server capabilities bitmask
-     * @param maxChunkSize the maximum chunk size supported
-     * @param messageId the message ID
+     * @param serverId        the server identifier
+     * @param capabilities    the server capabilities bitmask
+     * @param maxChunkSize    the maximum chunk size supported
+     * @param messageId       the message ID
      */
     private HandshakeResponseMessage(short protocolVersion, String serverId, int capabilities,
-                                 int maxChunkSize, int messageId) {
+            int maxChunkSize, int messageId) {
         super(MessageType.HANDSHAKE_RESPONSE, ProtocolConstants.Flags.RESPONSE, messageId);
         this.protocolVersion = protocolVersion;
         this.serverId = serverId;
@@ -179,7 +161,7 @@ public class HandshakeResponseMessage extends AbstractProtocolMessage {
     @Override
     public String toString() {
         return String.format("HandshakeResponseMessage{version=%d, serverId='%s', capabilities=0x%08X, "
-                           + "maxChunkSize=%d, %s}",
-                           protocolVersion, serverId, capabilities, maxChunkSize, super.toString());
+                + "maxChunkSize=%d, %s}",
+                protocolVersion, serverId, capabilities, maxChunkSize, super.toString());
     }
 }

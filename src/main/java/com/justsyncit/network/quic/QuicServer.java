@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic;
 
 import com.justsyncit.network.protocol.ProtocolMessage;
@@ -134,7 +116,7 @@ public class QuicServer {
     /**
      * Sends a message to a specific client.
      *
-     * @param message message to send
+     * @param message       message to send
      * @param clientAddress client address
      * @return a CompletableFuture that completes when the message is sent
      */
@@ -144,8 +126,7 @@ public class QuicServer {
             return connection.sendMessage(message);
         } else {
             return CompletableFuture.failedFuture(
-                new IOException("Client not connected: " + clientAddress)
-            );
+                    new IOException("Client not connected: " + clientAddress));
         }
     }
 
@@ -153,7 +134,8 @@ public class QuicServer {
      * Broadcasts a message to all connected clients.
      *
      * @param message message to broadcast
-     * @return a CompletableFuture that completes when the message is sent to all clients
+     * @return a CompletableFuture that completes when the message is sent to all
+     *         clients
      */
     public CompletableFuture<Void> broadcastMessage(ProtocolMessage message) {
         if (clients.isEmpty()) {
@@ -165,12 +147,12 @@ public class QuicServer {
                 .toArray(CompletableFuture[]::new);
 
         return CompletableFuture.allOf(sendFutures)
-            .thenRun(() -> logger.debug("Broadcasted message {} to {} clients",
-                    message.getMessageType(), clients.size()))
-            .exceptionally(throwable -> {
-                logger.error("Failed to broadcast message", throwable);
-                return null;
-            });
+                .thenRun(() -> logger.debug("Broadcasted message {} to {} clients",
+                        message.getMessageType(), clients.size()))
+                .exceptionally(throwable -> {
+                    logger.error("Failed to broadcast message", throwable);
+                    return null;
+                });
     }
 
     /**
@@ -278,7 +260,7 @@ public class QuicServer {
          * Called when a client connects.
          *
          * @param clientAddress client address
-         * @param connection established connection
+         * @param connection    established connection
          */
         void onClientConnected(InetSocketAddress clientAddress, QuicConnection connection);
 
@@ -286,7 +268,7 @@ public class QuicServer {
          * Called when a client disconnects.
          *
          * @param clientAddress client address
-         * @param cause reason for disconnection (null if normal)
+         * @param cause         reason for disconnection (null if normal)
          */
         void onClientDisconnected(InetSocketAddress clientAddress, Throwable cause);
 
@@ -294,8 +276,8 @@ public class QuicServer {
          * Called when a message is received from a client.
          *
          * @param clientAddress client address
-         * @param message received message
-         * @param streamId stream ID
+         * @param message       received message
+         * @param streamId      stream ID
          */
         void onMessageReceived(InetSocketAddress clientAddress, ProtocolMessage message, long streamId);
 
@@ -303,7 +285,7 @@ public class QuicServer {
          * Called when a new stream is created for a client.
          *
          * @param clientAddress client address
-         * @param stream created stream
+         * @param stream        created stream
          */
         void onStreamCreated(InetSocketAddress clientAddress, QuicStream stream);
 
@@ -311,15 +293,15 @@ public class QuicServer {
          * Called when a stream is closed for a client.
          *
          * @param clientAddress client address
-         * @param streamId stream ID
-         * @param cause reason for closure (null if normal)
+         * @param streamId      stream ID
+         * @param cause         reason for closure (null if normal)
          */
         void onStreamClosed(InetSocketAddress clientAddress, long streamId, Throwable cause);
 
         /**
          * Called when an error occurs.
          *
-         * @param error error that occurred
+         * @param error   error that occurred
          * @param context context in which the error occurred
          */
         void onError(Throwable error, String context);

@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage;
 
 import java.io.IOException;
@@ -31,9 +13,9 @@ public interface ChunkIndex {
     /**
      * Adds or updates a chunk entry in the index.
      *
-     * @param hash the chunk hash
+     * @param hash     the chunk hash
      * @param filePath the path where the chunk is stored
-     * @throws IOException if an I/O error occurs
+     * @throws IOException              if an I/O error occurs
      * @throws IllegalArgumentException if hash or filePath is null
      */
     void putChunk(String hash, Path filePath) throws IOException;
@@ -43,7 +25,7 @@ public interface ChunkIndex {
      *
      * @param hash the chunk hash
      * @return the file path, or null if not found
-     * @throws IOException if an I/O error occurs
+     * @throws IOException              if an I/O error occurs
      * @throws IllegalArgumentException if hash is null
      */
     Path getChunkPath(String hash) throws IOException;
@@ -53,7 +35,7 @@ public interface ChunkIndex {
      *
      * @param hash the chunk hash
      * @return true if the chunk exists, false otherwise
-     * @throws IOException if an I/O error occurs
+     * @throws IOException              if an I/O error occurs
      * @throws IllegalArgumentException if hash is null
      */
     boolean containsChunk(String hash) throws IOException;
@@ -63,7 +45,7 @@ public interface ChunkIndex {
      *
      * @param hash the chunk hash to remove
      * @return true if the chunk was removed, false if it didn't exist
-     * @throws IOException if an I/O error occurs
+     * @throws IOException              if an I/O error occurs
      * @throws IllegalArgumentException if hash is null
      */
     boolean removeChunk(String hash) throws IOException;

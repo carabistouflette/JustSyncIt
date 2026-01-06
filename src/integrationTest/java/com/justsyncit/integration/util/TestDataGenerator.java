@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.integration.util;
 
 import java.io.IOException;
@@ -98,7 +80,8 @@ public class TestDataGenerator {
     }
 
     /**
-     * Creates a dataset with files containing special characters and various encodings.
+     * Creates a dataset with files containing special characters and various
+     * encodings.
      *
      * @param baseDir base directory for test data
      * @throws IOException if file creation fails
@@ -129,8 +112,8 @@ public class TestDataGenerator {
     /**
      * Creates a dataset for performance testing with various file sizes.
      *
-     * @param baseDir base directory for test data
-     * @param fileCount number of files to create
+     * @param baseDir     base directory for test data
+     * @param fileCount   number of files to create
      * @param maxFileSize maximum file size in bytes
      * @throws IOException if file creation fails
      */

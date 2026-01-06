@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.performance;
 
 import com.justsyncit.ServiceFactory;
@@ -126,7 +108,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicSmallFiles() throws Exception {
         // Test TCP vs QUIC with small files
-        int[] fileCounts = {10, 50, 100, 500};
+        int[] fileCounts = { 10, 50, 100, 500 };
         int fileSizeKB = 10; // 10KB files
 
         for (int fileCount : fileCounts) {
@@ -157,7 +139,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicLargeFiles() throws Exception {
         // Test TCP vs QUIC with large files
-        int[] fileSizesMB = {1, 5, 10, 50}; // MB
+        int[] fileSizesMB = { 1, 5, 10, 50 }; // MB
         int fileCount = 5;
 
         for (int fileSizeMB : fileSizesMB) {
@@ -188,7 +170,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicMixedWorkload() throws Exception {
         // Test TCP vs QUIC with mixed file sizes
-        int[] datasetSizesMB = {10, 50, 100, 250};
+        int[] datasetSizesMB = { 10, 50, 100, 250 };
 
         for (int sizeMB : datasetSizesMB) {
             // Test TCP
@@ -218,7 +200,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicLatencySensitivity() throws Exception {
         // Test TCP vs QUIC under different latency conditions
-        int[] latencyMs = {0, 50, 100, 200, 500};
+        int[] latencyMs = { 0, 50, 100, 200, 500 };
         int datasetSizeMB = 50;
 
         for (int latency : latencyMs) {
@@ -249,7 +231,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicPacketLoss() throws Exception {
         // Test TCP vs QUIC under packet loss conditions
-        double[] packetLossPercent = {0.0, 0.1, 0.5, 1.0, 2.0};
+        double[] packetLossPercent = { 0.0, 0.1, 0.5, 1.0, 2.0 };
         int datasetSizeMB = 50;
 
         for (double packetLoss : packetLossPercent) {
@@ -280,7 +262,7 @@ public class NetworkBenchmark extends E2ETestBase {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkTcpVsQuicConcurrentConnections() throws Exception {
         // Test TCP vs QUIC with concurrent connections
-        int[] connectionCounts = {1, 2, 4, 8};
+        int[] connectionCounts = { 1, 2, 4, 8 };
         int datasetSizeMB = 25; // Per connection
 
         for (int connections : connectionCounts) {

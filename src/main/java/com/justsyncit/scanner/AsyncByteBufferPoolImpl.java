@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.scanner;
 
 import org.slf4j.Logger;
@@ -33,7 +15,8 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * Implementation of AsyncByteBufferPool with non-blocking operations.
  * Uses direct ByteBuffers for optimal I/O performance.
- * Follows Single Responsibility Principle by focusing only on async buffer management.
+ * Follows Single Responsibility Principle by focusing only on async buffer
+ * management.
  */
 public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
 
@@ -78,15 +61,15 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
      * Creates a new AsyncByteBufferPoolImpl with specified settings.
      *
      * @param defaultBufferSize default buffer size
-     * @param maxBuffers maximum number of buffers
+     * @param maxBuffers        maximum number of buffers
      * @return a new AsyncByteBufferPoolImpl with specified settings
      * @throws IllegalArgumentException if parameters are invalid
      */
     public static AsyncByteBufferPoolImpl create(int defaultBufferSize, int maxBuffers) {
         if (defaultBufferSize < MIN_BUFFER_SIZE || defaultBufferSize > MAX_BUFFER_SIZE) {
             throw new IllegalArgumentException(
-                String.format("Buffer size must be between %d and %d bytes",
-                    MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
+                    String.format("Buffer size must be between %d and %d bytes",
+                            MIN_BUFFER_SIZE, MAX_BUFFER_SIZE));
         }
         if (maxBuffers <= 0) {
             throw new IllegalArgumentException("Max buffers must be positive");
@@ -115,7 +98,7 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
         }
 
         logger.debug("Created AsyncByteBufferPoolImpl with default size {} and max {} buffers, pre-allocated {}",
-                    defaultBufferSize, maxBuffers, initialBuffers);
+                defaultBufferSize, maxBuffers, initialBuffers);
     }
 
     @Override
@@ -268,7 +251,8 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
             if (buffer.capacity() >= size) {
                 buffersInUse.incrementAndGet();
                 buffer.clear();
-                logger.debug("Acquired existing buffer of size {} for request {} after {} attempts", buffer.capacity(), size, attempts);
+                logger.debug("Acquired existing buffer of size {} for request {} after {} attempts", buffer.capacity(),
+                        size, attempts);
                 return buffer;
             }
             // Buffer is too small, put it back and try another
@@ -278,7 +262,8 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
         }
 
         if (attempts >= 10) {
-            logger.error("Too many attempts ({}) to find suitable buffer, available count: {}", attempts, availableBuffers.size());
+            logger.error("Too many attempts ({}) to find suitable buffer, available count: {}", attempts,
+                    availableBuffers.size());
         }
 
         // No suitable buffer found, allocate a new one
@@ -424,9 +409,10 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
     }
 
     /**
-     * Helper method to shutdown executor service with proper error handling and logging.
+     * Helper method to shutdown executor service with proper error handling and
+     * logging.
      *
-     * @param executor the executor service to shutdown
+     * @param executor     the executor service to shutdown
      * @param executorName name for logging purposes
      */
     private void shutdownExecutorService(ExecutorService executor, String executorName) {

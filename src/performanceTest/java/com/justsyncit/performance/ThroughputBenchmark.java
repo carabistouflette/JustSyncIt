@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.performance;
 
 import com.justsyncit.ServiceFactory;
@@ -92,7 +74,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkSmallDatasetThroughput() throws Exception {
         // Test with small dataset (1-100 MB)
-        int[] datasetSizes = {1, 10, 50, 100 }; // MB
+        int[] datasetSizes = { 1, 10, 50, 100 }; // MB
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Small Dataset Backup - " + sizeMB + "MB");
@@ -142,7 +124,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkMediumDatasetThroughput() throws Exception {
         // Test with medium dataset (100 MB - 1 GB)
-        int[] datasetSizes = {100, 250, 500, 1024 }; // MB
+        int[] datasetSizes = { 100, 250, 500, 1024 }; // MB
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Medium Dataset Backup - " + sizeMB + "MB");
@@ -192,7 +174,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkLargeDatasetThroughput() throws Exception {
         // Test with large dataset (1-10 GB) - smaller sizes for testing
-        int[] datasetSizes = {1024, 2048 }; // MB (1GB, 2GB for testing)
+        int[] datasetSizes = { 1024, 2048 }; // MB (1GB, 2GB for testing)
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Large Dataset Backup - " + sizeMB + "MB");
@@ -242,7 +224,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkRestoreThroughput() throws Exception {
         // Test restore throughput with various dataset sizes
-        int[] datasetSizes = {10, 100, 500 }; // MB
+        int[] datasetSizes = { 10, 100, 500 }; // MB
 
         for (int sizeMB : datasetSizes) {
             PerformanceMetrics metrics = new PerformanceMetrics("Restore Throughput - " + sizeMB + "MB");
@@ -301,7 +283,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkChunkSizeThroughputImpact() throws Exception {
         // Test impact of different chunk sizes on throughput
-        int[] chunkSizes = {64 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024 }; // 64KB, 256KB, 1MB, 4MB
+        int[] chunkSizes = { 64 * 1024, 256 * 1024, 1024 * 1024, 4 * 1024 * 1024 }; // 64KB, 256KB, 1MB, 4MB
         int datasetSize = 100; // MB
 
         for (int chunkSize : chunkSizes) {
@@ -350,7 +332,7 @@ public class ThroughputBenchmark {
     @Timeout(value = 5, unit = TimeUnit.MINUTES)
     void benchmarkIntegrityVerificationThroughputImpact() throws Exception {
         // Test impact of integrity verification on throughput
-        boolean[] verificationOptions = {false, true };
+        boolean[] verificationOptions = { false, true };
         int datasetSize = 100; // MB
 
         for (boolean verifyIntegrity : verificationOptions) {

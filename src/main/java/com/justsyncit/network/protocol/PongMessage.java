@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.protocol;
 
 import java.nio.ByteBuffer;
@@ -46,7 +28,7 @@ public class PongMessage extends AbstractProtocolMessage {
      * Creates a new pong message with specified message ID.
      *
      * @param originalTimestamp the original ping timestamp
-     * @param messageId the message ID
+     * @param messageId         the message ID
      */
     public PongMessage(long originalTimestamp, int messageId) {
         super(MessageType.PONG, ProtocolConstants.Flags.RESPONSE, messageId);
@@ -57,7 +39,7 @@ public class PongMessage extends AbstractProtocolMessage {
     /**
      * Creates a pong message from serialized data.
      *
-     * @param buffer the byte buffer containing the serialized message
+     * @param buffer    the byte buffer containing the serialized message
      * @param messageId the message ID
      * @return the deserialized pong message
      */
@@ -72,7 +54,7 @@ public class PongMessage extends AbstractProtocolMessage {
      *
      * @param originalTimestamp the original ping timestamp
      * @param responseTimestamp the response timestamp
-     * @param messageId the message ID
+     * @param messageId         the message ID
      */
     private PongMessage(long originalTimestamp, long responseTimestamp, int messageId) {
         super(MessageType.PONG, ProtocolConstants.Flags.RESPONSE, messageId);
@@ -151,6 +133,6 @@ public class PongMessage extends AbstractProtocolMessage {
     @Override
     public String toString() {
         return String.format("PongMessage{original=%d, response=%d, rtt=%d, %s}",
-                           originalTimestamp, responseTimestamp, getRoundTripTime(), super.toString());
+                originalTimestamp, responseTimestamp, getRoundTripTime(), super.toString());
     }
 }

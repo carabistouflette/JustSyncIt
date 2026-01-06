@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.integration;
 
 import com.justsyncit.storage.ContentStoreStats;
@@ -374,8 +356,8 @@ public class PerformanceE2ETest extends E2ETestBase {
     @Timeout(value = 4, unit = TimeUnit.MINUTES)
     void testScalabilityPerformance() throws Exception {
         // Test scalability with increasing dataset sizes
-        int[] fileCounts = {10, 50, 100};
-        int[] maxFileSizes = {50 * 1024, 100 * 1024, 200 * 1024 }; // 50KB, 100KB, 200KB
+        int[] fileCounts = { 10, 50, 100 };
+        int[] maxFileSizes = { 50 * 1024, 100 * 1024, 200 * 1024 }; // 50KB, 100KB, 200KB
 
         for (int i = 0; i < fileCounts.length; i++) {
             final int testIndex = i;

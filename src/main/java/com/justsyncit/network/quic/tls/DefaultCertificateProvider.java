@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic.tls;
 
 import java.math.BigInteger;
@@ -32,9 +14,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Default implementation of CertificateProvider using Java's built-in security APIs.
+ * Default implementation of CertificateProvider using Java's built-in security
+ * APIs.
  * Provides a fallback implementation when BouncyCastle is not available.
- * Follows Single Responsibility Principle by focusing only on certificate operations.
+ * Follows Single Responsibility Principle by focusing only on certificate
+ * operations.
  */
 public class DefaultCertificateProvider implements CertificateProvider {
 
@@ -122,7 +106,7 @@ public class DefaultCertificateProvider implements CertificateProvider {
             X509Certificate leafCert = generateSelfSignedCertificate(leafKeyPair);
 
             logger.debug("Certificate chain generated successfully");
-            return new X509Certificate[]{leafCert, rootCert};
+            return new X509Certificate[] { leafCert, rootCert };
 
         } catch (Exception e) {
             logger.error("Failed to generate certificate chain", e);

@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.hash;
 
 import com.justsyncit.simd.SimdDetectionService;
@@ -67,6 +49,7 @@ public final class SimdUtils {
     // REMOVED: All has*Support() methods - now delegated to appropriate detectors
     // This eliminates the performance issue of repeated /proc/cpuinfo reads
 
-    // REMOVED: SimdInfo class and Builder - now using com.justsyncit.simd.SimdInfo interface
+    // REMOVED: SimdInfo class and Builder - now using com.justsyncit.simd.SimdInfo
+    // interface
     // This eliminates code duplication and ensures consistency across the codebase
 }

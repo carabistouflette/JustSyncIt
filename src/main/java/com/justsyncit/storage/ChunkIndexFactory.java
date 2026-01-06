@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage;
 
 import org.slf4j.Logger;
@@ -27,7 +9,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Factory for creating ChunkIndex instances.
- * Follows Dependency Inversion Principle by depending on abstractions rather than concrete classes.
+ * Follows Dependency Inversion Principle by depending on abstractions rather
+ * than concrete classes.
  * Provides a clean interface for creating different types of chunk indexes.
  */
 public final class ChunkIndexFactory {
@@ -44,9 +27,9 @@ public final class ChunkIndexFactory {
      * Creates a filesystem-based chunk index.
      *
      * @param storageDirectory directory where chunks are stored
-     * @param indexFile file to use for the index
+     * @param indexFile        file to use for the index
      * @return a new ChunkIndex instance
-     * @throws IOException if the index cannot be created
+     * @throws IOException              if the index cannot be created
      * @throws IllegalArgumentException if any parameter is null
      */
     public static ChunkIndex createFilesystemIndex(Path storageDirectory, Path indexFile)
@@ -73,7 +56,7 @@ public final class ChunkIndexFactory {
      * Validates parameters for filesystem index creation.
      *
      * @param storageDirectory storage directory
-     * @param indexFile index file
+     * @param indexFile        index file
      * @throws IllegalArgumentException if any parameter is null
      */
     private static void validateParameters(Path storageDirectory, Path indexFile) {

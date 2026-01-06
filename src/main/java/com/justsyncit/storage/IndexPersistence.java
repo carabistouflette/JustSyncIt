@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.storage;
 
 import org.slf4j.Logger;
@@ -49,7 +31,7 @@ public final class IndexPersistence {
      * Creates a new IndexPersistence.
      *
      * @param storageDirectory the directory where chunks are stored
-     * @param indexFile the file to use for the index
+     * @param indexFile        the file to use for the index
      * @throws IllegalArgumentException if storageDirectory or indexFile is null
      */
     public IndexPersistence(Path storageDirectory, Path indexFile) {
@@ -121,8 +103,8 @@ public final class IndexPersistence {
 
         // Atomically replace the old index file
         Files.move(tempFile, indexFile,
-                  StandardCopyOption.ATOMIC_MOVE,
-                  StandardCopyOption.REPLACE_EXISTING);
+                StandardCopyOption.ATOMIC_MOVE,
+                StandardCopyOption.REPLACE_EXISTING);
 
         logger.debug("Saved {} chunks to index", indexMap.size());
     }

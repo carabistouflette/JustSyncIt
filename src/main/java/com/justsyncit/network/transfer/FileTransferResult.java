@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.transfer;
 
 import java.net.InetSocketAddress;
@@ -209,7 +191,8 @@ public class FileTransferResult {
         /** The end time. */
         private long endTime;
 
-        private Builder() { }
+        private Builder() {
+        }
 
         public Builder transferId(String transferId) {
             this.transferId = transferId;
@@ -275,56 +258,56 @@ public class FileTransferResult {
     /**
      * Creates a successful file transfer result.
      *
-     * @param transferId the transfer ID
-     * @param filePath the file path
-     * @param remoteAddress the remote address
-     * @param fileSize the file size
+     * @param transferId       the transfer ID
+     * @param filePath         the file path
+     * @param remoteAddress    the remote address
+     * @param fileSize         the file size
      * @param bytesTransferred the number of bytes transferred
-     * @param startTime the start time in milliseconds
-     * @param endTime the end time in milliseconds
+     * @param startTime        the start time in milliseconds
+     * @param endTime          the end time in milliseconds
      * @return a successful file transfer result
      */
     public static FileTransferResult success(String transferId, Path filePath, InetSocketAddress remoteAddress,
-                                       long fileSize, long bytesTransferred, long startTime, long endTime) {
+            long fileSize, long bytesTransferred, long startTime, long endTime) {
         TransferParams params = new TransferParams.TransferParamsBuilder()
-                    .transferId(transferId)
-                    .filePath(filePath)
-                    .remoteAddress(remoteAddress)
-                    .success(true)
-                    .errorMessage(null)
-                    .fileSize(fileSize)
-                    .bytesTransferred(bytesTransferred)
-                    .startTime(startTime)
-                    .endTime(endTime)
-                    .build();
+                .transferId(transferId)
+                .filePath(filePath)
+                .remoteAddress(remoteAddress)
+                .success(true)
+                .errorMessage(null)
+                .fileSize(fileSize)
+                .bytesTransferred(bytesTransferred)
+                .startTime(startTime)
+                .endTime(endTime)
+                .build();
         return new FileTransferResult(params);
     }
 
     /**
      * Creates a failed file transfer result.
      *
-     * @param transferId the transfer ID
-     * @param filePath the file path
-     * @param remoteAddress the remote address
-     * @param errorMessage the error message
+     * @param transferId       the transfer ID
+     * @param filePath         the file path
+     * @param remoteAddress    the remote address
+     * @param errorMessage     the error message
      * @param bytesTransferred the number of bytes transferred
-     * @param startTime the start time in milliseconds
-     * @param endTime the end time in milliseconds
+     * @param startTime        the start time in milliseconds
+     * @param endTime          the end time in milliseconds
      * @return a failed file transfer result
      */
     public static FileTransferResult failure(String transferId, Path filePath, InetSocketAddress remoteAddress,
-                                       String errorMessage, long bytesTransferred, long startTime, long endTime) {
+            String errorMessage, long bytesTransferred, long startTime, long endTime) {
         TransferParams params = new TransferParams.TransferParamsBuilder()
-                    .transferId(transferId)
-                    .filePath(filePath)
-                    .remoteAddress(remoteAddress)
-                    .success(false)
-                    .errorMessage(errorMessage)
-                    .fileSize(0)
-                    .bytesTransferred(bytesTransferred)
-                    .startTime(startTime)
-                    .endTime(endTime)
-                    .build();
+                .transferId(transferId)
+                .filePath(filePath)
+                .remoteAddress(remoteAddress)
+                .success(false)
+                .errorMessage(errorMessage)
+                .fileSize(0)
+                .bytesTransferred(bytesTransferred)
+                .startTime(startTime)
+                .endTime(endTime)
+                .build();
         return new FileTransferResult(params);
     }
 
@@ -445,9 +428,9 @@ public class FileTransferResult {
     @Override
     public String toString() {
         return String.format("FileTransferResult{transferId='%s', filePath=%s, remoteAddress=%s, "
-                               + "success=%s, fileSize=%d, bytesTransferred=%d, progress=%.2f%%, "
-                               + "duration=%dms, rate=%.2f bytes/s}",
-                               transferId, filePath, remoteAddress, success, fileSize,
-                               bytesTransferred, getProgressPercentage(), duration, getTransferRate());
+                + "success=%s, fileSize=%d, bytesTransferred=%d, progress=%.2f%%, "
+                + "duration=%dms, rate=%.2f bytes/s}",
+                transferId, filePath, remoteAddress, success, fileSize,
+                bytesTransferred, getProgressPercentage(), duration, getTransferRate());
     }
 }

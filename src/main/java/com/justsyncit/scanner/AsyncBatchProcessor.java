@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.scanner;
 
 import java.nio.file.Path;
@@ -24,29 +6,33 @@ import java.util.List;
 
 /**
  * Interface for asynchronous batch processing of file operations.
- * Provides high-performance batch processing with adaptive sizing, priority scheduling,
- * and resource-aware coordination for optimal throughput and resource utilization.
+ * Provides high-performance batch processing with adaptive sizing, priority
+ * scheduling,
+ * and resource-aware coordination for optimal throughput and resource
+ * utilization.
  */
 public interface AsyncBatchProcessor {
 
     /**
      * Processes a batch of files using the specified batch options.
      *
-     * @param files list of files to process in the batch
+     * @param files   list of files to process in the batch
      * @param options batch processing options
      * @return a CompletableFuture that completes with the batch result
-     * @throws IllegalArgumentException if files is null or empty, or options is null
+     * @throws IllegalArgumentException if files is null or empty, or options is
+     *                                  null
      */
     CompletableFuture<BatchResult> processBatch(List<Path> files, BatchOptions options);
 
     /**
      * Processes a batch of files with priority scheduling.
      *
-     * @param files list of files to process in the batch
-     * @param options batch processing options
+     * @param files    list of files to process in the batch
+     * @param options  batch processing options
      * @param priority priority level for this batch
      * @return a CompletableFuture that completes with the batch result
-     * @throws IllegalArgumentException if files is null or empty, or options is null
+     * @throws IllegalArgumentException if files is null or empty, or options is
+     *                                  null
      */
     CompletableFuture<BatchResult> processBatch(List<Path> files, BatchOptions options, BatchPriority priority);
 
@@ -56,7 +42,8 @@ public interface AsyncBatchProcessor {
      * @param batches list of file batches to process
      * @param options batch processing options
      * @return a CompletableFuture that completes with aggregated results
-     * @throws IllegalArgumentException if batches is null or empty, or options is null
+     * @throws IllegalArgumentException if batches is null or empty, or options is
+     *                                  null
      */
     CompletableFuture<BatchAggregatedResult> processBatches(List<List<Path>> batches, BatchOptions options);
 
@@ -64,7 +51,7 @@ public interface AsyncBatchProcessor {
      * Processes a batch operation with custom operation type.
      *
      * @param operation the batch operation to execute
-     * @param options batch processing options
+     * @param options   batch processing options
      * @return a CompletableFuture that completes with the operation result
      * @throws IllegalArgumentException if operation is null or options is null
      */
@@ -172,7 +159,8 @@ public interface AsyncBatchProcessor {
     /**
      * Closes the batch processor and releases all resources asynchronously.
      *
-     * @return a CompletableFuture that completes when all resources have been released
+     * @return a CompletableFuture that completes when all resources have been
+     *         released
      */
     CompletableFuture<Void> closeAsync();
 

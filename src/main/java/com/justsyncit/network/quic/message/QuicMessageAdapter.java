@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.network.quic.message;
 
 import com.justsyncit.network.protocol.ProtocolMessage;
@@ -52,7 +34,7 @@ public class QuicMessageAdapter {
      * Serializes a protocol message for QUIC transport.
      * Adds QUIC-specific framing around the standard protocol message.
      *
-     * @param message the protocol message to serialize
+     * @param message  the protocol message to serialize
      * @param streamId the QUIC stream ID
      * @return a ByteBuffer containing the serialized message
      */
@@ -78,12 +60,12 @@ public class QuicMessageAdapter {
             quicBuffer.flip();
 
             logger.debug("Serialized message {} for QUIC stream {}, total size: {} bytes",
-                       message.getMessageType(), streamId, quicBuffer.remaining());
+                    message.getMessageType(), streamId, quicBuffer.remaining());
 
             return quicBuffer;
         } catch (Exception e) {
             logger.error("Failed to serialize message {} for QUIC stream {}",
-                       message.getMessageType(), streamId, e);
+                    message.getMessageType(), streamId, e);
             throw new IllegalStateException("Failed to serialize message for QUIC", e);
         }
     }
@@ -99,7 +81,7 @@ public class QuicMessageAdapter {
         try {
             if (quicBuffer.remaining() < MESSAGE_HEADER_SIZE) {
                 logger.warn("Insufficient data for QUIC message header: {} bytes available, {} required",
-                           quicBuffer.remaining(), MESSAGE_HEADER_SIZE);
+                        quicBuffer.remaining(), MESSAGE_HEADER_SIZE);
                 return null;
             }
 
@@ -118,7 +100,7 @@ public class QuicMessageAdapter {
 
             if (quicBuffer.remaining() < messageLength) {
                 logger.warn("Insufficient data for QUIC message: {} bytes available, {} required",
-                           quicBuffer.remaining(), messageLength);
+                        quicBuffer.remaining(), messageLength);
                 return null;
             }
 
@@ -131,7 +113,7 @@ public class QuicMessageAdapter {
             ProtocolMessage message = MessageFactory.deserializeMessage(messageBuffer);
 
             logger.debug("Deserialized message {} from QUIC stream {}",
-                       message.getMessageType(), streamId);
+                    message.getMessageType(), streamId);
 
             return message;
         } catch (Exception e) {
@@ -144,7 +126,7 @@ public class QuicMessageAdapter {
      * Serializes raw data for QUIC transport.
      * Used for large data transfers that don't fit in standard protocol messages.
      *
-     * @param data the raw data to serialize
+     * @param data     the raw data to serialize
      * @param streamId the QUIC stream ID
      * @return a ByteBuffer containing the serialized data
      */
@@ -166,7 +148,7 @@ public class QuicMessageAdapter {
             quicBuffer.flip();
 
             logger.debug("Serialized raw data for QUIC stream {}, size: {} bytes",
-                       streamId, data.length);
+                    streamId, data.length);
 
             return quicBuffer;
         } catch (Exception e) {
@@ -185,7 +167,7 @@ public class QuicMessageAdapter {
         try {
             if (quicBuffer.remaining() < MESSAGE_HEADER_SIZE) {
                 logger.warn("Insufficient data for QUIC raw data header: {} bytes available, {} required",
-                           quicBuffer.remaining(), MESSAGE_HEADER_SIZE);
+                        quicBuffer.remaining(), MESSAGE_HEADER_SIZE);
                 return new byte[0];
             }
 
@@ -193,7 +175,7 @@ public class QuicMessageAdapter {
             byte frameType = quicBuffer.get();
             if (frameType != QUIC_FRAME_TYPE_RAW_DATA) {
                 logger.debug("Unsupported QUIC frame type for raw data: 0x{}",
-                           String.format("%02x", frameType));
+                        String.format("%02x", frameType));
                 return new byte[0];
             }
 
@@ -205,7 +187,7 @@ public class QuicMessageAdapter {
 
             if (quicBuffer.remaining() < dataLength) {
                 logger.warn("Insufficient data for QUIC raw data: {} bytes available, {} required",
-                           quicBuffer.remaining(), dataLength);
+                        quicBuffer.remaining(), dataLength);
                 return new byte[0];
             }
 
@@ -225,9 +207,9 @@ public class QuicMessageAdapter {
      * Creates a stream control message for QUIC.
      * Used for stream management operations like opening/closing streams.
      *
-     * @param streamId the stream ID
+     * @param streamId    the stream ID
      * @param controlType the control type
-     * @param data additional control data
+     * @param data        additional control data
      * @return a ByteBuffer containing the control message
      */
     public static ByteBuffer createStreamControl(long streamId, int controlType, byte[] data) {
@@ -255,7 +237,7 @@ public class QuicMessageAdapter {
             quicBuffer.flip();
 
             logger.debug("Created stream control message for stream {}, type: {}, data size: {}",
-                       streamId, controlType, dataSize);
+                    streamId, controlType, dataSize);
 
             return quicBuffer;
         } catch (Exception e) {
@@ -269,7 +251,7 @@ public class QuicMessageAdapter {
      * Uses QUIC's variable-length integer encoding.
      *
      * @param buffer the buffer to write to
-     * @param value the value to write
+     * @param value  the value to write
      */
     private static void writeVariableLengthInteger(ByteBuffer buffer, long value) {
         if (value < 64) {

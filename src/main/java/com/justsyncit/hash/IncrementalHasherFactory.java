@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.hash;
 
 import java.io.Closeable;
@@ -23,38 +5,53 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 
 /**
- * Enhanced factory interface for creating incremental hashers with comprehensive
+ * Enhanced factory interface for creating incremental hashers with
+ * comprehensive
  * security, performance, and thread safety considerations.
  *
- * <p>This interface provides a contract for creating incremental hashers,
- * with clear requirements for thread safety, resource management, and error handling.</p>
+ * <p>
+ * This interface provides a contract for creating incremental hashers,
+ * with clear requirements for thread safety, resource management, and error
+ * handling.
+ * </p>
  *
- * <p><strong>Thread Safety Requirements:</strong></p>
+ * <p>
+ * <strong>Thread Safety Requirements:</strong>
+ * </p>
  * <ul>
- *   <li>Factory implementations MUST be thread-safe</li>
- *   <li>Created hasher instances MUST clearly document their thread safety guarantees</li>
- *   <li>Implementations SHOULD provide both thread-safe and non-thread-safe options</li>
+ * <li>Factory implementations MUST be thread-safe</li>
+ * <li>Created hasher instances MUST clearly document their thread safety
+ * guarantees</li>
+ * <li>Implementations SHOULD provide both thread-safe and non-thread-safe
+ * options</li>
  * </ul>
  *
- * <p><strong>Resource Management:</strong></p>
+ * <p>
+ * <strong>Resource Management:</strong>
+ * </p>
  * <ul>
- *   <li>Hasher instances that hold native resources MUST implement Closeable</li>
- *   <li>Close operations MUST be idempotent</li>
- *   <li>Resources SHOULD be released promptly when no longer needed</li>
+ * <li>Hasher instances that hold native resources MUST implement Closeable</li>
+ * <li>Close operations MUST be idempotent</li>
+ * <li>Resources SHOULD be released promptly when no longer needed</li>
  * </ul>
  *
- * <p><strong>Error Handling:</strong></p>
+ * <p>
+ * <strong>Error Handling:</strong>
+ * </p>
  * <ul>
- *   <li>IllegalArgumentException MUST be thrown for invalid input parameters</li>
- *   <li>IllegalStateException MUST be thrown when the hasher is in an invalid state</li>
- *   <li>HashingException SHOULD be thrown for hasher-specific errors</li>
+ * <li>IllegalArgumentException MUST be thrown for invalid input parameters</li>
+ * <li>IllegalStateException MUST be thrown when the hasher is in an invalid
+ * state</li>
+ * <li>HashingException SHOULD be thrown for hasher-specific errors</li>
  * </ul>
  *
- * <p><strong>Security Considerations:</strong></p>
+ * <p>
+ * <strong>Security Considerations:</strong>
+ * </p>
  * <ul>
- *   <li>Sensitive data SHOULD be handled securely (e.g., zeroing buffers)</li>
- *   <li>Hash verification SHOULD use constant-time comparison</li>
- *   <li>Input validation MUST be performed to prevent injection attacks</li>
+ * <li>Sensitive data SHOULD be handled securely (e.g., zeroing buffers)</li>
+ * <li>Hash verification SHOULD use constant-time comparison</li>
+ * <li>Input validation MUST be performed to prevent injection attacks</li>
  * </ul>
  */
 public interface IncrementalHasherFactory {
@@ -75,7 +72,7 @@ public interface IncrementalHasherFactory {
      * threads simultaneously without external synchronization.
      *
      * @return a new thread-safe IncrementalHasher instance, never null
-     * @throws HashingException if thread-safe hasher creation fails
+     * @throws HashingException              if thread-safe hasher creation fails
      * @throws UnsupportedOperationException if thread-safe hashing is not supported
      */
     default IncrementalHasher createThreadSafeIncrementalHasher() throws HashingException {
@@ -100,9 +97,15 @@ public interface IncrementalHasherFactory {
      * Enhanced interface for incremental hashing operations with comprehensive
      * security, performance, and resource management features.
      *
-     * <p>Useful for hashing large files or streaming data without loading everything into memory.</p>
+     * <p>
+     * Useful for hashing large files or streaming data without loading everything
+     * into memory.
+     * </p>
      *
-     * <p><strong>Usage Pattern:</strong></p>
+     * <p>
+     * <strong>Usage Pattern:</strong>
+     * </p>
+     * 
      * <pre>{@code
      * try (IncrementalHasher hasher = factory.createIncrementalHasher()) {
      *     hasher.update(dataChunk1);
@@ -118,20 +121,24 @@ public interface IncrementalHasherFactory {
          *
          * @param data the data to add to the hash, must not be null
          * @throws IllegalArgumentException if the data is null
-         * @throws IllegalStateException if the hasher has been finalized (digest called)
-         * @throws HashingException if a hasher-specific error occurs
+         * @throws IllegalStateException    if the hasher has been finalized (digest
+         *                                  called)
+         * @throws HashingException         if a hasher-specific error occurs
          */
         void update(byte[] data);
 
         /**
          * Updates the hash with the provided data slice.
          *
-         * @param data the data array containing the slice, must not be null
-         * @param offset the starting offset in the data array, must be >= 0 and < data.length
-         * @param length the number of bytes to hash, must be >= 0 and offset + length <= data.length
+         * @param data   the data array containing the slice, must not be null
+         * @param offset the starting offset in the data array, must be >= 0 and <
+         *               data.length
+         * @param length the number of bytes to hash, must be >= 0 and offset + length
+         *               <= data.length
          * @throws IllegalArgumentException if data is null or offset/length are invalid
-         * @throws IllegalStateException if the hasher has been finalized (digest called)
-         * @throws HashingException if a hasher-specific error occurs
+         * @throws IllegalStateException    if the hasher has been finalized (digest
+         *                                  called)
+         * @throws HashingException         if a hasher-specific error occurs
          */
         void update(byte[] data, int offset, int length);
 
@@ -140,10 +147,11 @@ public interface IncrementalHasherFactory {
          * This is a convenience method for working with NIO buffers.
          *
          * @param buffer the ByteBuffer containing data to hash, must not be null
-         * @throws IllegalArgumentException if buffer is null
-         * @throws IllegalStateException if the hasher has been finalized
-         * @throws HashingException if a hasher-specific error occurs
-         * @throws UnsupportedOperationException if the hasher doesn't support ByteBuffer operations
+         * @throws IllegalArgumentException      if buffer is null
+         * @throws IllegalStateException         if the hasher has been finalized
+         * @throws HashingException              if a hasher-specific error occurs
+         * @throws UnsupportedOperationException if the hasher doesn't support
+         *                                       ByteBuffer operations
          */
         default void update(ByteBuffer buffer) throws HashingException {
             if (buffer == null) {
@@ -172,7 +180,7 @@ public interface IncrementalHasherFactory {
          *
          * @return the hash as a hexadecimal string, never null
          * @throws IllegalStateException if the hasher has already been finalized
-         * @throws HashingException if hash finalization fails
+         * @throws HashingException      if hash finalization fails
          */
         String digest() throws HashingException;
 
@@ -183,7 +191,7 @@ public interface IncrementalHasherFactory {
          *
          * @return the hash as a byte array, never null
          * @throws IllegalStateException if the hasher has already been finalized
-         * @throws HashingException if hash finalization fails
+         * @throws HashingException      if hash finalization fails
          */
         default byte[] digestBytes() throws HashingException {
             String hexHash = digest();
@@ -201,8 +209,9 @@ public interface IncrementalHasherFactory {
          * hash values are needed.
          *
          * @return the current hash state as a hexadecimal string, never null
-         * @throws HashingException if intermediate hashing fails
-         * @throws UnsupportedOperationException if the hasher doesn't support intermediate hashing
+         * @throws HashingException              if intermediate hashing fails
+         * @throws UnsupportedOperationException if the hasher doesn't support
+         *                                       intermediate hashing
          */
         default String getIntermediateHash() throws HashingException {
             throw new UnsupportedOperationException("Intermediate hashing not supported by this implementation");
@@ -210,13 +219,16 @@ public interface IncrementalHasherFactory {
 
         /**
          * Verifies if the computed hash matches an expected hash.
-         * This method should perform constant-time comparison to prevent timing attacks.
+         * This method should perform constant-time comparison to prevent timing
+         * attacks.
          *
-         * @param expectedHash the expected hash value as hexadecimal string, must not be null
+         * @param expectedHash the expected hash value as hexadecimal string, must not
+         *                     be null
          * @return true if the hashes match, false otherwise
          * @throws IllegalArgumentException if expectedHash is null or invalid length
-         * @throws IllegalStateException if the hasher has not been finalized
-         * @throws HashingException if verification fails due to hasher-specific issues
+         * @throws IllegalStateException    if the hasher has not been finalized
+         * @throws HashingException         if verification fails due to hasher-specific
+         *                                  issues
          */
         default boolean verify(String expectedHash) {
             if (expectedHash == null) {
@@ -238,13 +250,15 @@ public interface IncrementalHasherFactory {
 
         /**
          * Verifies if the computed hash matches an expected hash.
-         * This method should perform constant-time comparison to prevent timing attacks.
+         * This method should perform constant-time comparison to prevent timing
+         * attacks.
          *
          * @param expectedHash the expected hash value as byte array, must not be null
          * @return true if the hashes match, false otherwise
          * @throws IllegalArgumentException if expectedHash is null or invalid length
-         * @throws IllegalStateException if the hasher has not been finalized
-         * @throws HashingException if verification fails due to hasher-specific issues
+         * @throws IllegalStateException    if the hasher has not been finalized
+         * @throws HashingException         if verification fails due to hasher-specific
+         *                                  issues
          */
         default boolean verify(byte[] expectedHash) {
             if (expectedHash == null) {
@@ -325,7 +339,8 @@ public interface IncrementalHasherFactory {
 
         /**
          * Closes this hasher and releases any resources it may be holding.
-         * Implementations should be idempotent - calling close multiple times should have no effect.
+         * Implementations should be idempotent - calling close multiple times should
+         * have no effect.
          * After closing, the hasher cannot be used for further operations.
          *
          * @throws HashingException if an error occurs while closing resources
