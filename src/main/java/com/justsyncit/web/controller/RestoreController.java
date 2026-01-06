@@ -28,9 +28,9 @@ import com.justsyncit.web.dto.RestoreRequest;
 
 import io.javalin.http.Context;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -45,11 +45,14 @@ public final class RestoreController {
 
     private final WebServerContext context;
     private final WebServer webServer;
+    private final ConfigController configController;
     private final AtomicReference<RestoreState> currentRestore;
 
-    public RestoreController(WebServerContext context, WebServer webServer) {
+    public RestoreController(WebServerContext context, WebServer webServer,
+            ConfigController configController) {
         this.context = context;
         this.webServer = webServer;
+        this.configController = configController;
         this.currentRestore = new AtomicReference<>();
     }
 
@@ -71,7 +74,14 @@ public final class RestoreController {
                 return;
             }
 
-            Path targetPath = Paths.get(request.getTargetPath());
+            Path targetPath = Paths.get(request.getTargetPath()).toAbsolutePath().normalize();
+
+            // [Omega Remediation] SEC-010: Validate target path against allowed sources
+            if (!isPathAllowed(targetPath)) {
+                ctx.status(403).json(ApiError.of(403, "Forbidden",
+                        "Restore target path is not in allowed directories", ctx.path()));
+                return;
+            }
 
             // Check if restore is already running
             RestoreState state = currentRestore.get();
@@ -317,5 +327,27 @@ public final class RestoreController {
         void setCurrentFile(String currentFile) {
             this.currentFile = currentFile;
         }
+    }
+
+    // [Omega Remediation] SEC-010: Path validation to prevent arbitrary file write
+    private boolean isPathAllowed(Path path) {
+        String pathStr = path.toAbsolutePath().normalize().toString();
+        List<String> allowedSources = configController.getBackupSourcesList();
+
+        // If no sources configured, default to user home only (safer default than root)
+        if (allowedSources.isEmpty()) {
+            String userHome = System.getProperty("user.home");
+            return pathStr.startsWith(userHome);
+        }
+
+        // Whitelist check
+        for (String source : allowedSources) {
+            if (pathStr.startsWith(source)) {
+                return true;
+            }
+        }
+
+        LOGGER.warning("Restore access denied to path not in allowed sources: " + path);
+        return false;
     }
 }
