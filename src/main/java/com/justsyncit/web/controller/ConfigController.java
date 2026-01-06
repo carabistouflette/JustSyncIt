@@ -172,6 +172,7 @@ public class ConfigController {
             }
 
             backupSources.add(path);
+            saveConfig(); // [Omega Remediation v2] PERF-H04: Persist backup sources
             LOGGER.info("Added backup source: " + path);
 
             ctx.status(201).json(Map.of(

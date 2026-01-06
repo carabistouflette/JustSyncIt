@@ -319,24 +319,29 @@ public class BackupService {
             return backup(sourceDir, options);
         }
 
+        // [Omega Remediation v2] PERF-C01: Check snapshot BEFORE async to avoid blocking .join()
+        java.util.Optional<com.justsyncit.storage.metadata.Snapshot> metadataOpt;
+        try {
+            metadataOpt = metadataService.getSnapshot(previousSnapshotId);
+        } catch (java.io.IOException e) {
+            LOGGER.error("Failed to get snapshot: {}", e.getMessage());
+            return CompletableFuture.failedFuture(new RuntimeException("Failed to get snapshot", e));
+        }
+        if (metadataOpt.isEmpty()) {
+            LOGGER.warn("Previous snapshot {} not found. Falling back to full backup.", previousSnapshotId);
+            return backup(sourceDir, options);
+        }
+        com.justsyncit.storage.metadata.Snapshot snapshotMetadata = metadataOpt.get();
+        Instant lastBackupTime = snapshotMetadata.getCreatedAt();
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 LOGGER.info("Starting INCREMENTAL backup of {} using CBT", sourceDir);
 
-                // 1. Get previous snapshot timestamp
-                java.util.Optional<com.justsyncit.storage.metadata.Snapshot> metadataOpt = metadataService
-                        .getSnapshot(previousSnapshotId);
-                if (metadataOpt.isEmpty()) {
-                    LOGGER.warn("Previous snapshot {} not found. Falling back to full backup.", previousSnapshotId);
-                    return backup(sourceDir, options).join();
-                }
-                com.justsyncit.storage.metadata.Snapshot metadata = metadataOpt.get();
-
-                Instant lastBackupTime = metadata.getCreatedAt();
-
-                // 2. Query CBT for changed files
+                // Query CBT for changed files
                 java.util.List<Path> changedFiles = cbtService.getChangedFiles(sourceDir, lastBackupTime);
                 LOGGER.info("CBT detected {} changed files since {}", changedFiles.size(), lastBackupTime);
+
 
                 // 3. Create new snapshot ID
                 String snapshotId = options.getSnapshotName() != null
