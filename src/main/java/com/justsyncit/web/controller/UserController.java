@@ -47,13 +47,31 @@ public final class UserController {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     // PBKDF2 constants
-    private static final int ITERATIONS = 10000;
+    // [Omega Remediation] SEC-001: OWASP 2024 recommends 600k iterations for
+    // PBKDF2-SHA256
+    private static final int ITERATIONS = 600000;
     private static final int KEY_LENGTH = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
+
+    // [Omega Remediation] SEC-003: Allowed roles whitelist
+    private static final java.util.Set<String> ALLOWED_ROLES = java.util.Set.of("admin", "user", "viewer");
 
     // In-memory user storage (now backed by JSON file)
     private final Map<String, User> users;
     private final Map<String, String> sessions; // token -> userId
+
+    // [Omega Remediation] SEC-002: Short-lived WebSocket tickets (30 second expiry)
+    private final Map<String, TicketInfo> wsTickets;
+
+    private static class TicketInfo {
+        final String userId;
+        final long createdAt;
+
+        TicketInfo(String userId, long createdAt) {
+            this.userId = userId;
+            this.createdAt = createdAt;
+        }
+    }
 
     private final ObjectMapper objectMapper;
     private final Path userDatabasePath;
@@ -62,6 +80,7 @@ public final class UserController {
         // Context kept for API compatibility
         this.users = new ConcurrentHashMap<>();
         this.sessions = new ConcurrentHashMap<>();
+        this.wsTickets = new ConcurrentHashMap<>(); // [Omega Remediation] SEC-002
         this.objectMapper = new ObjectMapper();
         this.userDatabasePath = Paths.get("config", "users.json");
 
@@ -191,7 +210,14 @@ public final class UserController {
                 user.setDisplayName(body.get("displayName"));
             }
             if (body.containsKey("role")) {
-                user.setRole(body.get("role"));
+                String newRole = body.get("role");
+                // [Omega Remediation] SEC-003: Validate role against whitelist
+                if (!ALLOWED_ROLES.contains(newRole)) {
+                    ctx.status(400).json(ApiError.badRequest(
+                            "Invalid role. Allowed roles: " + ALLOWED_ROLES, ctx.path()));
+                    return;
+                }
+                user.setRole(newRole);
             }
             if (body.containsKey("password") && !body.get("password").isEmpty()) {
                 user.setPassword(body.get("password"));
@@ -325,6 +351,62 @@ public final class UserController {
 
     public boolean isValidSession(String token) {
         return sessions.containsKey(token);
+    }
+
+    // [Omega Remediation] SEC-012: Role-based access control helper methods
+    public String getUserIdForSession(String token) {
+        return sessions.get(token);
+    }
+
+    public String getUserRole(String userId) {
+        if (userId == null)
+            return null;
+        User user = users.get(userId);
+        return user != null ? user.getRole() : null;
+    }
+
+    // [Omega Remediation] SEC-002: WebSocket ticket-based authentication
+    // Tickets are short-lived (30 seconds) and can only be used once
+    private static final long WS_TICKET_EXPIRY_MS = 30_000;
+
+    /**
+     * Creates a short-lived ticket for WebSocket authentication.
+     * Client should call this, then immediately connect to WebSocket with the
+     * ticket.
+     * 
+     * @param sessionToken the user's session token
+     * @return the one-time WebSocket ticket, or null if session is invalid
+     */
+    public String createWsTicket(String sessionToken) {
+        String userId = sessions.get(sessionToken);
+        if (userId == null) {
+            return null;
+        }
+        String ticket = generateToken();
+        wsTickets.put(ticket, new TicketInfo(userId, System.currentTimeMillis()));
+        return ticket;
+    }
+
+    /**
+     * Validates and consumes a WebSocket ticket (one-time use).
+     * 
+     * @param ticket the one-time ticket
+     * @return the userId if valid, null otherwise
+     */
+    public String validateAndConsumeTicket(String ticket) {
+        if (ticket == null) {
+            return null;
+        }
+        TicketInfo info = wsTickets.remove(ticket);
+        if (info == null) {
+            return null;
+        }
+        // Check if ticket has expired
+        if (System.currentTimeMillis() - info.createdAt > WS_TICKET_EXPIRY_MS) {
+            LOGGER.warning("WebSocket ticket expired");
+            return null;
+        }
+        return info.userId;
     }
 
     /**

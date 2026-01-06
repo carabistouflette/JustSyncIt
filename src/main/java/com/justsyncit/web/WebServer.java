@@ -145,6 +145,25 @@ public final class WebServer {
                 }
             });
 
+            // [Omega Remediation] SEC-012: Role-based access control
+            // Admin-only endpoints
+            app.before("/api/users/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin");
+            });
+            app.before("/api/config/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin");
+            });
+            // Admin and user endpoints
+            app.before("/api/scheduler/*", ctx -> {
+                if (ctx.method().toString().equals("OPTIONS"))
+                    return;
+                requireRole(ctx, "admin", "user");
+            });
+
             // Configure WebSocket
             configureWebSocket();
 
@@ -285,7 +304,7 @@ public final class WebServer {
         FileBrowserController fileBrowserController = new FileBrowserController(configController);
         BackupController backupController = new BackupController(context, this);
         SnapshotController snapshotController = new SnapshotController(context);
-        RestoreController restoreController = new RestoreController(context, this);
+        RestoreController restoreController = new RestoreController(context, this, configController);
         com.justsyncit.web.controller.SchedulerController schedulerController = new com.justsyncit.web.controller.SchedulerController(
                 context);
         // UserController is already initialized in start()
@@ -338,6 +357,35 @@ public final class WebServer {
         app.get("/api/health", ctx -> {
             ctx.json(java.util.Map.of("status", "ok", "timestamp", System.currentTimeMillis()));
         });
+    }
+
+    // [Omega Remediation] SEC-012: Role-based access control helper
+    private void requireRole(io.javalin.http.Context ctx, String... allowedRoles) {
+        String authHeader = ctx.header("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return; // Auth middleware will handle this
+        }
+
+        String token = authHeader.substring(7);
+        String userId = userController.getUserIdForSession(token);
+        String userRole = userController.getUserRole(userId);
+
+        if (userRole == null) {
+            ctx.status(403).json(java.util.Map.of("error", "Forbidden",
+                    "message", "User role not found"));
+            ctx.skipRemainingHandlers();
+            return;
+        }
+
+        for (String role : allowedRoles) {
+            if (role.equals(userRole)) {
+                return; // Role matches, allow access
+            }
+        }
+
+        ctx.status(403).json(java.util.Map.of("error", "Forbidden",
+                "message", "Insufficient permissions. Required: " + java.util.Arrays.toString(allowedRoles)));
+        ctx.skipRemainingHandlers();
     }
 
     private String serializeToJson(Object data) {
