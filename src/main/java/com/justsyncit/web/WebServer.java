@@ -177,28 +177,16 @@ public final class WebServer {
             });
 
             // [SEC-003] Thread-safe rate limiter using atomic operations
-            record RateLimitRecord(java.util.concurrent.atomic.AtomicInteger count, long windowStart) {
-            }
-            java.util.concurrent.ConcurrentHashMap<String, RateLimitRecord> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
-            final int MAX_ATTEMPTS = 5;
-            final long WINDOW_MS = 60_000; // 1 minute
+            // Max 1000 IPs tracked, 5 attempts per minute
+            RateLimiter loginRateLimiter = new RateLimiter(1000, 5, 60_000);
 
             app.before("/api/auth/login", ctx -> {
                 if (ctx.method().toString().equals("OPTIONS"))
                     return;
 
                 String clientIp = ctx.ip();
-                long now = System.currentTimeMillis();
 
-                RateLimitRecord record = loginAttempts.compute(clientIp, (ip, existing) -> {
-                    if (existing == null || now - existing.windowStart() > WINDOW_MS) {
-                        return new RateLimitRecord(new java.util.concurrent.atomic.AtomicInteger(1), now);
-                    }
-                    existing.count().incrementAndGet();
-                    return existing;
-                });
-
-                if (record.count().get() > MAX_ATTEMPTS) {
+                if (!loginRateLimiter.checkAndIncrement(clientIp)) {
                     ctx.status(429).json(java.util.Map.of(
                             "error", "Too Many Requests",
                             "message", "Rate limit exceeded. Try again in 1 minute."));
@@ -206,17 +194,15 @@ public final class WebServer {
                 }
             });
 
+            // Clean up user sessions
             rateLimiterCleanup = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
             rateLimiterCleanup.scheduleAtFixedRate(() -> {
                 try {
-                    long now = System.currentTimeMillis();
-                    loginAttempts.entrySet().removeIf(entry -> now - entry.getValue().windowStart() > WINDOW_MS);
-                    // Also clean up user sessions while we are at it
                     if (userController != null) {
                         userController.cleanup();
                     }
                 } catch (Exception e) {
-                    LOGGER.warning("Rate limiter cleanup failed: " + e.getMessage());
+                    LOGGER.warning("Session cleanup failed: " + e.getMessage());
                 }
             }, 1, 1, java.util.concurrent.TimeUnit.MINUTES);
 
