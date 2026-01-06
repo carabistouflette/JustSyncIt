@@ -12,8 +12,8 @@ import com.justsyncit.hash.FileHasher;
 import com.justsyncit.hash.HashAlgorithm;
 import com.justsyncit.hash.HashingException;
 import com.justsyncit.hash.IncrementalHasherFactory;
-import com.justsyncit.hash.Sha256HashAlgorithm;
 import com.justsyncit.hash.StreamHasher;
+import com.justsyncit.hash.Blake3HashAlgorithm;
 import com.justsyncit.simd.SimdDetectionService;
 import com.justsyncit.simd.SimdDetectionServiceImpl;
 
@@ -24,8 +24,8 @@ public class SecurityModule {
 
     public Blake3Service createBlake3Service() throws ServiceException {
         try {
-            HashAlgorithm bufferHasherAlgorithm = Sha256HashAlgorithm.create();
-            HashAlgorithm incrementalHasherAlgorithm = Sha256HashAlgorithm.create();
+            HashAlgorithm bufferHasherAlgorithm = Blake3HashAlgorithm.create();
+            HashAlgorithm incrementalHasherAlgorithm = Blake3HashAlgorithm.create();
 
             BufferHasher bufferHasher = new Blake3BufferHasher(bufferHasherAlgorithm);
             IncrementalHasherFactory incrementalHasherFactory = new Blake3IncrementalHasherFactory(
