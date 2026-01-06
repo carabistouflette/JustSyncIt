@@ -88,15 +88,16 @@ public class SnapshotsInfoCommand implements Command {
         }
 
         // Check for subcommand and snapshot ID
-        if (args.length < 2 || !args[0].equals("info")) {
-            logger.error("Missing subcommand 'info' or snapshot ID. Args: {}", java.util.Arrays.toString(args));
-            System.err.println("Error: Missing subcommand 'info' or snapshot ID");
+        // Check for snapshot ID
+        if (args.length < 1) {
+            logger.error("Missing snapshot ID. Args: {}", java.util.Arrays.toString(args));
+            System.err.println("Error: Missing snapshot ID");
             System.err.println(getUsage());
             System.err.println("Use 'help snapshots info' for more information");
             return false;
         }
 
-        String snapshotId = args[1];
+        String snapshotId = args[0];
 
         InfoOptions options;
         try {
@@ -116,16 +117,29 @@ public class SnapshotsInfoCommand implements Command {
         try {
             MetadataService service = this.metadataService;
             if (service == null) {
-                try {
-                    localService = serviceFactory.createMetadataService();
-                    service = localService;
-                } catch (ServiceException e) {
-                    handleError("Failed to initialize metadata service", e, logger);
-                    return false;
+                // Try to get from context first
+                if (context != null) {
+                    service = context.getMetadataService();
+                }
+
+                // If still null, create new one
+                if (service == null) {
+                    try {
+                        localService = serviceFactory.createMetadataService();
+                        service = localService;
+                    } catch (ServiceException e) {
+                        handleError("Failed to initialize metadata service", e, logger);
+                        return false;
+                    }
                 }
             }
 
-            return displaySnapshotInfo(service, snapshotId, options);
+            try {
+                return displaySnapshotInfo(service, snapshotId, options);
+            } catch (IllegalArgumentException e) {
+                System.err.println("Error: " + e.getMessage());
+                return false;
+            }
 
         } catch (IOException e) {
             handleError("Failed to get snapshot information for ID: " + snapshotId, e, logger);
@@ -147,7 +161,7 @@ public class SnapshotsInfoCommand implements Command {
         int fileLimit = DEFAULT_FILE_LIMIT;
         boolean showStatistics = true;
 
-        for (int i = 2; i < args.length; i++) {
+        for (int i = 1; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
                 case "--show-files":

@@ -18,7 +18,6 @@
 
 package com.justsyncit.command;
 
-
 import com.justsyncit.ServiceException;
 import com.justsyncit.ServiceFactory;
 import com.justsyncit.storage.metadata.MetadataService;
@@ -79,14 +78,15 @@ public class SnapshotsDeleteCommand implements Command {
         }
 
         // Check for subcommand and snapshot ID
-        if (args.length < 2 || !args[0].equals("delete")) {
-            System.err.println("Error: Missing subcommand 'delete' or snapshot ID");
+        // Check for snapshot ID
+        if (args.length < 1) {
+            System.err.println("Error: Missing snapshot ID");
             System.err.println(getUsage());
             System.err.println("Use 'help snapshots delete' for more information");
             return false;
         }
 
-        String snapshotId = args[1];
+        String snapshotId = args[0];
 
         DeleteOptions options;
         try {
@@ -105,16 +105,29 @@ public class SnapshotsDeleteCommand implements Command {
         try {
             MetadataService service = this.metadataService;
             if (service == null) {
-                try {
-                    localService = serviceFactory.createMetadataService();
-                    service = localService;
-                } catch (ServiceException e) {
-                    System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
-                    return false;
+                // Try to get from context first
+                if (context != null) {
+                    service = context.getMetadataService();
+                }
+
+                // If still null, create new one
+                if (service == null) {
+                    try {
+                        localService = serviceFactory.createMetadataService();
+                        service = localService;
+                    } catch (ServiceException e) {
+                        System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
+                        return false;
+                    }
                 }
             }
 
-            return deleteSnapshot(service, snapshotId, options);
+            try {
+                return deleteSnapshot(service, snapshotId, options);
+            } catch (IllegalArgumentException e) {
+                System.err.println("Error: " + e.getMessage());
+                return false;
+            }
 
         } catch (IOException e) {
             System.err.println("Error: Failed to delete snapshot: " + e.getMessage());
@@ -134,7 +147,7 @@ public class SnapshotsDeleteCommand implements Command {
     private DeleteOptions parseOptions(String[] args) {
         boolean confirm = true;
 
-        for (int i = 2; i < args.length; i++) {
+        for (int i = 1; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
                 case "--force":

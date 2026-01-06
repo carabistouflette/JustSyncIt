@@ -83,6 +83,7 @@ public class SnapshotsCommandGroup implements Command {
         }
 
         String subcommand = args[0];
+
         String[] subcommandArgs = java.util.Arrays.copyOfRange(args, 1, args.length);
 
         switch (subcommand) {

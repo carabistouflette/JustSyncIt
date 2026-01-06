@@ -89,6 +89,13 @@ public class SnapshotsListCommand implements Command {
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
+
+            // Skip the subcommand name if present (as enforced by SnapshotsCommandGroup
+            // standardization)
+            if (i == 0 && arg.equals("list")) {
+                continue;
+            }
+
             switch (arg) {
                 case "--verbose":
                 case "-v":

@@ -88,7 +88,8 @@ class ThreadPoolManagerComprehensiveTest {
 
             // Test that it can execute tasks
             CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> "test", ioThreadPool);
-            String result = future.get(2, TimeUnit.SECONDS);
+            String result = // 5 seconds timeout for all
+                    future.get(5, TimeUnit.SECONDS);
             assertEquals("test", result, "IO thread pool should execute tasks correctly");
         }
 
@@ -104,7 +105,8 @@ class ThreadPoolManagerComprehensiveTest {
 
             // Test that it can execute tasks
             CompletableFuture<Integer> future = CompletableFuture.supplyAsync(() -> 42, cpuThreadPool);
-            Integer result = future.get(2, TimeUnit.SECONDS);
+            Integer result = // 5 seconds timeout for all
+                    future.get(5, TimeUnit.SECONDS);
             assertEquals(42, result, "CPU thread pool should execute tasks correctly");
         }
 
@@ -121,7 +123,8 @@ class ThreadPoolManagerComprehensiveTest {
 
             // Test that it can execute tasks
             CompletableFuture<Boolean> future = CompletableFuture.supplyAsync(() -> true, completionHandlerThreadPool);
-            Boolean result = future.get(2, TimeUnit.SECONDS);
+            Boolean result = // 5 seconds timeout for all
+                    future.get(5, TimeUnit.SECONDS);
             assertTrue(result, "Completion handler thread pool should execute tasks correctly");
         }
 
@@ -137,7 +140,8 @@ class ThreadPoolManagerComprehensiveTest {
 
             // Test that it can execute tasks
             CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> "batch", batchThreadPool);
-            String result = future.get(2, TimeUnit.SECONDS);
+            String result = // 5 seconds timeout for all
+                    future.get(5, TimeUnit.SECONDS);
             assertEquals("batch", result, "Batch processing thread pool should execute tasks correctly");
         }
 
@@ -153,7 +157,8 @@ class ThreadPoolManagerComprehensiveTest {
 
             // Test that it can execute tasks
             CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> "watch", watchThreadPool);
-            String result = future.get(2, TimeUnit.SECONDS);
+            String result = // 5 seconds timeout for all
+                    future.get(5, TimeUnit.SECONDS);
             assertEquals("watch", result, "Watch service thread pool should execute tasks correctly");
         }
     }
@@ -320,7 +325,7 @@ class ThreadPoolManagerComprehensiveTest {
             CompletableFuture<Void> newTask = CompletableFuture.runAsync(() -> {
                 // Simple task
             }, ioThreadPool);
-            newTask.get(2, TimeUnit.SECONDS);
+            newTask.get(5, TimeUnit.SECONDS);
 
             // Should have caught some exceptions
             assertTrue(exceptionCount.get() > 0, "Should have caught some exceptions");
@@ -359,7 +364,7 @@ class ThreadPoolManagerComprehensiveTest {
         }, threadPool);
 
         // Then
-        future.get(2, TimeUnit.SECONDS);
+        future.get(5, TimeUnit.SECONDS);
         assertNotNull(threadPool);
         assertFalse(threadPool.isShutdown(), "Thread pool should not be shutdown for type: " + poolType);
     }

@@ -92,15 +92,15 @@ public class SnapshotsVerifyCommand implements Command {
             return true;
         }
 
-        if (args.length < 2 || !args[0].equals("verify")) {
-            logger.error("Missing subcommand 'verify' or snapshot ID");
-            System.err.println("Error: Missing subcommand 'verify' or snapshot ID");
+        if (args.length < 1) {
+            logger.error("Missing snapshot ID");
+            System.err.println("Error: Missing snapshot ID");
             System.err.println(getUsage());
             System.err.println("Use 'help snapshots verify' for more information");
             return false;
         }
 
-        String snapshotId = args[1];
+        String snapshotId = args[0];
         VerifyOptions options = parseOptions(args);
         if (options == null) {
             return false;
@@ -111,7 +111,7 @@ public class SnapshotsVerifyCommand implements Command {
             return true;
         }
 
-        try (ServiceContext services = initializeServices()) {
+        try (ServiceContext services = initializeServices(context)) {
             if (services == null) {
                 return false;
             }
@@ -177,7 +177,7 @@ public class SnapshotsVerifyCommand implements Command {
 
     private VerifyOptions parseOptions(String[] args) {
         VerifyOptions options = new VerifyOptions();
-        for (int i = 2; i < args.length; i++) {
+        for (int i = 1; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
                 case "--no-chunk-verify":
@@ -214,14 +214,16 @@ public class SnapshotsVerifyCommand implements Command {
         final ContentStore contentStore;
         final boolean createdMetadataService;
         final boolean createdBlake3Service;
+        final boolean createdContentStore;
 
         ServiceContext(MetadataService metadataService, Blake3Service blake3Service, ContentStore contentStore,
-                boolean createdMetadataService, boolean createdBlake3Service) {
+                boolean createdMetadataService, boolean createdBlake3Service, boolean createdContentStore) {
             this.metadataService = metadataService;
             this.blake3Service = blake3Service;
             this.contentStore = contentStore;
             this.createdMetadataService = createdMetadataService;
             this.createdBlake3Service = createdBlake3Service;
+            this.createdContentStore = createdContentStore;
         }
 
         @Override
@@ -233,7 +235,7 @@ public class SnapshotsVerifyCommand implements Command {
                     System.err.println("Warning: Failed to close metadata service: " + e.getMessage());
                 }
             }
-            if (contentStore != null) {
+            if (createdContentStore && contentStore != null) {
                 try {
                     contentStore.close();
                 } catch (Exception e) {
@@ -252,20 +254,29 @@ public class SnapshotsVerifyCommand implements Command {
         }
     }
 
-    private ServiceContext initializeServices() {
+    private ServiceContext initializeServices(CommandContext context) {
         MetadataService ms = this.metadataService;
         Blake3Service bs = this.blake3Service;
         ContentStore cs = null;
         boolean createdMs = false;
         boolean createdBs = false;
+        boolean createdCs = false;
 
         if (ms == null) {
-            try {
-                ms = serviceFactory.createMetadataService();
-                createdMs = true;
-            } catch (ServiceException e) {
-                System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
-                return null;
+            // Try to get from context first
+            if (context != null) {
+                ms = context.getMetadataService();
+            }
+
+            // If still null, create new one
+            if (ms == null) {
+                try {
+                    ms = serviceFactory.createMetadataService();
+                    createdMs = true;
+                } catch (ServiceException e) {
+                    System.err.println("Error: Failed to initialize metadata service: " + e.getMessage());
+                    return null;
+                }
             }
         }
 
@@ -275,11 +286,6 @@ public class SnapshotsVerifyCommand implements Command {
                 createdBs = true;
             } catch (ServiceException e) {
                 System.err.println("Error: Failed to initialize BLAKE3 service: " + e.getMessage());
-                // If we created metadata service, we should optimize and close it,
-                // but for simplicity and because we return null, we rely on the caller or just
-                // leak slightly in this error case
-                // which is acceptable for a CLI command that will exit.
-                // Better:
                 if (createdMs) {
                     try {
                         ms.close();
@@ -290,26 +296,35 @@ public class SnapshotsVerifyCommand implements Command {
             }
         }
 
-        try {
-            cs = serviceFactory.createSqliteContentStore(bs);
-        } catch (Exception e) {
-            System.err.println("Error: Failed to initialize content store: " + e.getMessage());
-            if (createdMs) {
+        if (cs == null) {
+            if (context != null) {
+                cs = context.getContentStore();
+            }
+
+            if (cs == null) {
                 try {
-                    ms.close();
-                } catch (Exception ignored) {
+                    cs = serviceFactory.createSqliteContentStore(bs);
+                    createdCs = true;
+                } catch (Exception e) {
+                    System.err.println("Error: Failed to initialize content store: " + e.getMessage());
+                    if (createdMs) {
+                        try {
+                            ms.close();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    if (createdBs && bs instanceof AutoCloseable) {
+                        try {
+                            ((AutoCloseable) bs).close();
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    return null;
                 }
             }
-            if (createdBs && bs instanceof AutoCloseable) {
-                try {
-                    ((AutoCloseable) bs).close();
-                } catch (Exception ignored) {
-                }
-            }
-            return null;
         }
 
-        return new ServiceContext(ms, bs, cs, createdMs, createdBs);
+        return new ServiceContext(ms, bs, cs, createdMs, createdBs, createdCs);
     }
 
     private static class VerifyStats {
