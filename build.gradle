@@ -246,6 +246,9 @@ task integrationTest(type: Test) {
     testLogging {
         events "passed", "skipped", "failed"
     }
+
+    // Set required environment variable for tests (32 bytes Base64)
+    environment 'JUSTSYNCIT_CLUSTER_KEY', 'MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE='
     
     // Configure test reports
     reports {

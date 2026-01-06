@@ -14,7 +14,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */ com.justsyncit.integration;
+ */
+package com.justsyncit.integration;
 
 import com.justsyncit.scanner.OptimizedAsyncByteBufferPool;
 import org.junit.jupiter.api.BeforeEach;
@@ -78,9 +79,6 @@ public class AsyncByteBufferPoolIntegrationTest {
     @Test
     @DisplayName("Test buffer sharing between file I/O and hashing operations")
     void testBufferSharingBetweenIoAndHashing() throws Exception {
-        // Create test file
-        Path testFile = createTestFile(1024 * 1024); // 1MB file
-
         // Mock hash service that uses same buffers
         MockHashService hashService = new MockHashService(optimizedPool);
 
@@ -95,7 +93,6 @@ public class AsyncByteBufferPoolIntegrationTest {
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         for (int i = 0; i < chunkCount; i++) {
-            final int chunkIndex = i;
             CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
                 long chunkStart = System.nanoTime();
 

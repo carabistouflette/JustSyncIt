@@ -75,55 +75,6 @@ public class NetworkServiceImpl implements NetworkService {
     private final byte[] clusterKey;
 
     /**
-     * Creates a new NetworkService implementation.
-     *
-     * @param tcpServer           the TCP server component
-     * @param tcpClient           the TCP client component
-     * @param connectionManager   the connection manager
-     * @param fileTransferManager the file transfer manager
-     * @param blake3Service       the BLAKE3 service
-     */
-    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient, ConnectionManager connectionManager,
-            FileTransferManager fileTransferManager, Blake3Service blake3Service) {
-        this(tcpServer, tcpClient, connectionManager, fileTransferManager, blake3Service,
-                QuicConfiguration.defaultConfiguration(), TransportType.TCP);
-    }
-
-    /**
-     * Creates a new NetworkService implementation with QUIC support.
-     *
-     * @param tcpServer            the TCP server component
-     * @param tcpClient            the TCP client component
-     * @param connectionManager    the connection manager
-     * @param fileTransferManager  the file transfer manager
-     * @param blake3Service        the BLAKE3 service
-     * @param quicConfiguration    the QUIC configuration
-     * @param defaultTransportType the default transport type for new connections
-     */
-    public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient, ConnectionManager connectionManager,
-            FileTransferManager fileTransferManager, Blake3Service blake3Service, QuicConfiguration quicConfiguration,
-            TransportType defaultTransportType) {
-        this(tcpServer, tcpClient, fileTransferManager, connectionManager, blake3Service,
-                new QuicTransportAdapter(quicConfiguration), quicConfiguration, defaultTransportType,
-                new com.justsyncit.network.encryption.AesGcmEncryptionService(), generateInsecureTestKey()); // TEST
-                                                                                                             // ONLY -
-                                                                                                             // generates
-                                                                                                             // random
-                                                                                                             // key
-    }
-
-    /**
-     * Generates a random ephemeral key for testing purposes only.
-     * This key is NOT persisted and will differ on every invocation,
-     * making it unsuitable for production where nodes must share the same key.
-     */
-    private static byte[] generateInsecureTestKey() {
-        byte[] key = new byte[32];
-        new java.security.SecureRandom().nextBytes(key);
-        return key;
-    }
-
-    /**
      * Creates a new NetworkService implementation with QUIC transport injection.
      * Follows Dependency Inversion Principle by accepting QuicTransport interface.
      *
