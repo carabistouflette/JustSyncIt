@@ -57,7 +57,6 @@ public final class TwoLevelChunkPathGenerator implements ChunkPathGenerator {
         if (hash.length() < MIN_HASH_LENGTH) {
             throw new IllegalArgumentException("Hash must be at least " + MIN_HASH_LENGTH + " characters long");
         }
-        // SEC-001: Prevent Path Traversal
         if (!hash.matches("^[a-zA-Z0-9]+$")) {
             throw new IllegalArgumentException("Hash must be alphanumeric");
         }
