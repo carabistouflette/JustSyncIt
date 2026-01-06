@@ -61,6 +61,8 @@ public final class SqliteMetadataService implements MetadataService {
 
     /** Database connection manager. */
     private final DatabaseConnectionManager connectionManager;
+    /** [Omega Remediation v2] ARCH-C01: Snapshot repository for delegation. */
+    private final SnapshotRepository snapshotRepository;
     /** Schema migrator for database management. */
 
     /** Encryption service (optional). */
@@ -104,6 +106,7 @@ public final class SqliteMetadataService implements MetadataService {
         this.objectMapper = new ObjectMapper(); // Initialize ObjectMapper
         this.keySupplier = keySupplier;
         this.closed = false;
+        this.snapshotRepository = new SnapshotRepository(connectionManager);
 
         // Initialize database schema
         try (Connection connection = connectionManager.getConnection()) {
