@@ -319,7 +319,6 @@ public class BackupService {
             return backup(sourceDir, options);
         }
 
-        // [Omega Remediation v2] PERF-C01: Check snapshot BEFORE async to avoid blocking .join()
         java.util.Optional<com.justsyncit.storage.metadata.Snapshot> metadataOpt;
         try {
             metadataOpt = metadataService.getSnapshot(previousSnapshotId);
@@ -341,7 +340,6 @@ public class BackupService {
                 // Query CBT for changed files
                 java.util.List<Path> changedFiles = cbtService.getChangedFiles(sourceDir, lastBackupTime);
                 LOGGER.info("CBT detected {} changed files since {}", changedFiles.size(), lastBackupTime);
-
 
                 // 3. Create new snapshot ID
                 String snapshotId = options.getSnapshotName() != null

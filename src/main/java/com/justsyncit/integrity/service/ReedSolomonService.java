@@ -87,7 +87,6 @@ public class ReedSolomonService {
         // Our RS impl works on bytes, so any size is fine.
 
         // 2. Load data into buffers
-        // [Omega Remediation] Use pooled buffers
         byte[][] shards = new byte[dataShards + parityShards][];
         try {
             for (int i = 0; i < shards.length; i++) {
@@ -281,7 +280,6 @@ public class ReedSolomonService {
                     }
                 }
 
-                // [Omega Remediation] Validation Step
                 try {
                     if (!blake3Service.verify(recoveredData, missingChunkHash)) {
                         logger.error(

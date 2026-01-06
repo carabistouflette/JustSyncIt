@@ -50,9 +50,6 @@ public final class FilesystemChunkIndex implements ChunkIndex {
     /** Persistence handler for loading and saving the index. */
     private final IndexPersistence persistence;
 
-    // [Omega Remediation] Removed async batching fields (pendingChanges,
-    // lastSaveTime) to enforce data safety.
-
     /**
      * Creates a new FilesystemChunkIndex.
      *
@@ -65,7 +62,6 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         this.lock = new ReentrantReadWriteLock();
         this.closed = false;
         this.closed = false;
-        // [Omega Remediation] Removed async batching initialization
 
         // Ensure directories exist and load existing index if it exists
         persistence.ensureDirectoriesExist();
@@ -100,7 +96,6 @@ public final class FilesystemChunkIndex implements ChunkIndex {
 
             indexMap.put(hash, filePath);
 
-            // [Omega Remediation] P0 Data Loss Prevention
             // Direct Synchronous Save. Performance penalized for Correctness.
             persistence.saveIndex(indexMap);
 
@@ -147,7 +142,6 @@ public final class FilesystemChunkIndex implements ChunkIndex {
         try {
             Path removed = indexMap.remove(hash);
             if (removed != null) {
-                // [Omega Remediation] P0 Data Loss Prevention
                 // Direct Synchronous Save.
                 persistence.saveIndex(indexMap);
 

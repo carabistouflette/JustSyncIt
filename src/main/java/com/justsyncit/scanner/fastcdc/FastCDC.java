@@ -27,8 +27,6 @@ public class FastCDC {
     // Gear hash table (randomly generated 64-bit integers)
     private static final long[] GEAR_TABLE = new long[256];
 
-    // [Omega Remediation] Removed placeholder SIMD code.
-
     static {
         // Initialize Gear hash table with a deterministic seed for reproducibility
         java.util.Random random = new java.util.Random(0xDEADBEEF);

@@ -55,6 +55,8 @@ public final class FilesystemContentStore extends AbstractContentStore {
     private final ChunkPathGenerator pathGenerator;
     /** Atomic counter for total size to avoid O(N) scans. */
     private final AtomicLong totalSize;
+    /** File to persist total size. */
+    private final Path sizeFile;
 
     /**
      * Creates a new FilesystemContentStore.
@@ -72,20 +74,45 @@ public final class FilesystemContentStore extends AbstractContentStore {
         this.chunkIndex = chunkIndex;
         this.integrityVerifier = integrityVerifier;
         this.pathGenerator = pathGenerator;
+        this.sizeFile = storageDirectory.resolve("size.dat");
 
         // Create storage directory if it doesn't exist
         Files.createDirectories(storageDirectory);
 
-        // [Omega Remediation] Async startup
         this.totalSize = new AtomicLong(0);
+        if (Files.exists(sizeFile)) {
+            try {
+                long savedSize = java.nio.ByteBuffer.wrap(Files.readAllBytes(sizeFile)).getLong();
+                totalSize.set(savedSize);
+                logger.info("Loaded total size from persistence: {} bytes", savedSize);
+            } catch (IOException e) {
+                logger.warn("Failed to load size file, falling back to scan", e);
+                startAsyncSizeCalculation();
+            }
+        } else {
+            startAsyncSizeCalculation();
+        }
+
+        logger.info("Initialized filesystem content store at {}", storageDirectory);
+    }
+
+    private void startAsyncSizeCalculation() {
         CompletableFuture.runAsync(() -> {
             long calculated = calculateInitialTotalSize(storageDirectory);
             totalSize.set(calculated);
+            saveTotalSize(); // Persist it for next time
             logger.info("Finished calculating total size: {} bytes", calculated);
         });
+    }
 
-        logger.info("Initialized filesystem content store at {} (size calculation running in background)",
-                storageDirectory);
+    private void saveTotalSize() {
+        try {
+            byte[] bytes = java.nio.ByteBuffer.allocate(8).putLong(totalSize.get()).array();
+            Files.write(sizeFile, bytes, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE);
+        } catch (IOException e) {
+            logger.warn("Failed to save total size persistence", e);
+        }
     }
 
     private long calculateInitialTotalSize(Path dir) {
@@ -173,16 +200,15 @@ public final class FilesystemContentStore extends AbstractContentStore {
                 throw new IOException("Failed to generate path for chunk", e);
             }
 
-            // [Omega Remediation] Removed System.out.println
             logger.trace("Storing chunk {} to {}", hash, chunkPath);
             // Write chunk to file (overwrite if exists to handle repair/corruption cases)
-            // [Omega Remediation] Removed SYNC for performance.
             // Durability is handled by replication and filesystem journaling.
             Files.write(chunkPath, data, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE);
 
             // Update stats
             totalSize.addAndGet(data.length);
+            saveTotalSize(); // Persist size change
 
             // Add to index (or update)
             chunkIndex.putChunk(hash, chunkPath);
@@ -221,7 +247,6 @@ public final class FilesystemContentStore extends AbstractContentStore {
                 return null;
             }
 
-            // [Omega Remediation] Removed System.out.println
             logger.trace("Retrieving chunk {} from {}", hash, chunkPath);
             if (!Files.exists(chunkPath)) {
                 logger.warn("Chunk {} found in index but file missing at {}", hash, chunkPath);
@@ -266,6 +291,7 @@ public final class FilesystemContentStore extends AbstractContentStore {
             Files.deleteIfExists(chunkPath);
             chunkIndex.removeChunk(hash);
             totalSize.addAndGet(-size);
+            saveTotalSize();
         }
     }
 

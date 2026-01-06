@@ -203,8 +203,10 @@ public final class MetadataServiceFactory {
      * @throws IOException if the service cannot be created
      */
     public static MetadataService createDefaultService() throws IOException {
-        // Use default database path in user's home directory
-        String defaultDbPath = System.getProperty("user.home") + "/.justsyncit/metadata.db";
-        return createFileBasedService(defaultDbPath);
+        String dbPath = System.getProperty("justsyncit.db.path");
+        if (dbPath == null || dbPath.trim().isEmpty()) {
+            dbPath = System.getProperty("user.home") + "/.justsyncit/metadata.db";
+        }
+        return createFileBasedService(dbPath);
     }
 }

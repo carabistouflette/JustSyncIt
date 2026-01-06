@@ -29,7 +29,6 @@ public class ArchiveAwareChunker implements FileChunker {
         // Detect if file is archive
         if (isZipFile(file)) {
             logger.debug("Detected ZIP archive: {}. Processing with standard chunking.", file);
-            // [Omega Remediation] Removed fake "semantic deduplication" claims.
             // This implementation transparently handles archives as opaque files for now.
             return delegate.chunkFile(file, options);
         }

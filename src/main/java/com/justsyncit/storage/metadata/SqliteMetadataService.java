@@ -61,7 +61,6 @@ public final class SqliteMetadataService implements MetadataService {
 
     /** Database connection manager. */
     private final DatabaseConnectionManager connectionManager;
-    /** [Omega Remediation v2] ARCH-C01: Snapshot repository for delegation. */
     private final SnapshotRepository snapshotRepository;
     /** Schema migrator for database management. */
 
@@ -161,146 +160,31 @@ public final class SqliteMetadataService implements MetadataService {
     @Override
     public Snapshot createSnapshot(String name, String description) throws IOException {
         validateNotClosed();
-        if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Snapshot name cannot be null or empty");
-        }
-
-        // Use the provided name as the ID for consistency with FileProcessor
-        // expectations
-        String id = name;
-        Instant now = Instant.now();
-
-        String sql = "INSERT INTO snapshots (id, name, created_at, description, total_files, total_size) "
-                + "VALUES (?, ?, ?, ?, 0, 0)";
-
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-
-            stmt.setString(1, id);
-            stmt.setString(2, name);
-            stmt.setLong(3, now.toEpochMilli());
-            stmt.setString(4, description);
-
-            int rows = stmt.executeUpdate();
-            if (rows == 0) {
-                throw new IOException("Failed to create snapshot, no rows affected.");
-            }
-
-            Snapshot snapshot = new Snapshot(id, name, description, now, 0, 0);
-            logger.debug("Created snapshot: {}", snapshot);
-            return snapshot;
-
-        } catch (SQLException e) {
-            throw new IOException("Failed to create snapshot", e);
-        }
+        return snapshotRepository.createSnapshot(name, description);
     }
 
     @Override
     public void updateSnapshot(Snapshot snapshot) throws IOException {
         validateNotClosed();
-        if (snapshot == null) {
-            throw new IllegalArgumentException("Snapshot cannot be null");
-        }
-
-        String sql = "UPDATE snapshots SET total_files = ?, total_size = ? WHERE id = ?";
-
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-
-            stmt.setLong(1, snapshot.getTotalFiles());
-            stmt.setLong(2, snapshot.getTotalSize());
-            stmt.setString(3, snapshot.getId());
-
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected > 0) {
-                logger.debug("Updated snapshot stats: {}", snapshot);
-            } else {
-                logger.warn("Snapshot not found for update: {}", snapshot.getId());
-            }
-
-        } catch (SQLException e) {
-            throw new IOException("Failed to update snapshot", e);
-        }
+        snapshotRepository.updateSnapshot(snapshot);
     }
 
     @Override
     public Optional<Snapshot> getSnapshot(String id) throws IOException {
         validateNotClosed();
-        if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
-        }
-
-        String sql = "SELECT id, name, created_at, description, total_files, total_size, merkle_root "
-                + "FROM snapshots WHERE id = ?";
-
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-
-            stmt.setString(1, id);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    Snapshot snapshot = mapRowToSnapshot(rs);
-                    logger.debug("Retrieved snapshot: {}", snapshot);
-                    return Optional.of(snapshot);
-                } else {
-                    logger.debug("Snapshot not found: {}", id);
-                    return Optional.empty();
-                }
-            }
-        } catch (SQLException e) {
-            throw new IOException("Failed to get snapshot", e);
-        }
+        return snapshotRepository.getSnapshot(id);
     }
 
     @Override
     public List<Snapshot> listSnapshots() throws IOException {
         validateNotClosed();
-
-        String sql = "SELECT id, name, created_at, description, total_files, total_size, merkle_root "
-                + "FROM snapshots ORDER BY created_at DESC";
-
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql);
-                ResultSet rs = stmt.executeQuery()) {
-
-            List<Snapshot> snapshots = new ArrayList<>();
-            while (rs.next()) {
-                snapshots.add(mapRowToSnapshot(rs));
-            }
-
-            logger.debug("Listed {} snapshots", snapshots.size());
-            return snapshots;
-
-        } catch (SQLException e) {
-            throw new IOException("Failed to list snapshots", e);
-        }
+        return snapshotRepository.listSnapshots();
     }
 
     @Override
     public void deleteSnapshot(String id) throws IOException {
         validateNotClosed();
-        if (id == null || id.trim().isEmpty()) {
-            throw new IllegalArgumentException("Snapshot ID cannot be null or empty");
-        }
-
-        String sql = "DELETE FROM snapshots WHERE id = ?";
-
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-
-            stmt.setString(1, id);
-            int rowsAffected = stmt.executeUpdate();
-
-            if (rowsAffected > 0) {
-                logger.debug("Deleted snapshot: {}", id);
-            } else {
-                logger.warn("Snapshot not found for deletion: {}", id);
-            }
-
-        } catch (SQLException e) {
-            throw new IOException("Failed to delete snapshot", e);
-        }
+        snapshotRepository.deleteSnapshot(id);
     }
 
     @Override
@@ -1266,42 +1150,14 @@ public final class SqliteMetadataService implements MetadataService {
 
     @Override
     public void setSnapshotRoot(String snapshotId, String rootHash) throws IOException {
-        String sql = "UPDATE snapshots SET merkle_root = ? WHERE id = ?";
-
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-
-            stmt.setString(1, rootHash);
-            stmt.setString(2, snapshotId);
-
-            int rows = stmt.executeUpdate();
-            if (rows == 0) {
-                throw new IOException("Snapshot not found: " + snapshotId);
-            }
-        } catch (SQLException e) {
-            throw new IOException("Failed to set snapshot root for: " + snapshotId, e);
-        }
+        validateNotClosed();
+        snapshotRepository.setSnapshotRoot(snapshotId, rootHash);
     }
 
     @Override
     public Optional<String> getSnapshotRoot(String snapshotId) throws IOException {
-        String sql = "SELECT merkle_root FROM snapshots WHERE id = ?";
-
-        try (Connection connection = connectionManager.getConnection();
-                PreparedStatement stmt = connection.prepareStatement(sql)) {
-
-            stmt.setString(1, snapshotId);
-
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) {
-                    String rootHash = rs.getString("merkle_root");
-                    return Optional.ofNullable(rootHash);
-                }
-                return Optional.empty();
-            }
-        } catch (SQLException e) {
-            throw new IOException("Failed to get snapshot root for: " + snapshotId, e);
-        }
+        validateNotClosed();
+        return snapshotRepository.getSnapshotRoot(snapshotId);
     }
 
     @Override
@@ -1464,21 +1320,16 @@ public final class SqliteMetadataService implements MetadataService {
 
     @Override
     public boolean validateSnapshotChain(String snapshotId) throws IOException {
-        Optional<Snapshot> snapshotOpt = getSnapshot(snapshotId);
+        validateNotClosed();
+
+        Optional<Snapshot> snapshotOpt = snapshotRepository.getSnapshot(snapshotId);
         if (snapshotOpt.isEmpty()) {
             return false;
         }
-        // Snapshot object doesn't have parentId, so we query it via SQL
-        // Snapshot snapshot = snapshotOpt.get(); // Not needed if we query parent
-        // separately
 
         // 1. Check Merkle Root
-        Optional<String> rootHashOpt = getSnapshotRoot(snapshotId);
+        Optional<String> rootHashOpt = snapshotRepository.getSnapshotRoot(snapshotId);
         if (rootHashOpt.isEmpty()) {
-            // It's possible old snapshots don't have merkle roots if created before this
-            // feature?
-            // But going forward required. Let's assume invalid if missing for now, or warn?
-            // Sticking to strict validation: invalid.
             return false;
         }
         String rootHash = rootHashOpt.get();
@@ -1487,10 +1338,10 @@ public final class SqliteMetadataService implements MetadataService {
         }
 
         // 2. Check Parent
-        String parentId = getParentSnapshotId(snapshotId);
+        String parentId = snapshotRepository.getParentSnapshotId(snapshotId);
         if (parentId != null) {
             // Verify parent exists
-            if (getSnapshot(parentId).isEmpty()) {
+            if (snapshotRepository.getSnapshot(parentId).isEmpty()) {
                 return false;
             }
             // Recursive validation
@@ -1498,22 +1349,6 @@ public final class SqliteMetadataService implements MetadataService {
         }
 
         return true;
-    }
-
-    private String getParentSnapshotId(String snapshotId) throws IOException {
-        String sql = "SELECT parent_id FROM snapshots WHERE id = ?";
-        try (java.sql.Connection conn = connectionManager.getConnection();
-                java.sql.PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setString(1, snapshotId);
-            try (java.sql.ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    return rs.getString("parent_id");
-                }
-            }
-        } catch (SQLException e) {
-            throw new IOException("Failed to get parent snapshot ID", e);
-        }
-        return null;
     }
 
     @Override
@@ -2007,17 +1842,6 @@ public final class SqliteMetadataService implements MetadataService {
         int chunkIndex = rs.getInt("chunk_index");
         boolean isParity = rs.getInt("is_parity") == 1;
         return new ChunkParityEntry(groupId, chunkHash, chunkIndex, isParity);
-    }
-
-    private Snapshot mapRowToSnapshot(ResultSet rs) throws SQLException {
-        String id = rs.getString("id");
-        String name = rs.getString("name");
-        String description = rs.getString("description");
-        Instant createdAt = Instant.ofEpochMilli(rs.getLong("created_at"));
-        long totalFiles = rs.getLong("total_files");
-        long totalSize = rs.getLong("total_size");
-
-        return new Snapshot(id, name, description, createdAt, totalFiles, totalSize);
     }
 
     /**

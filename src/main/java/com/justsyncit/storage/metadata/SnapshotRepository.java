@@ -32,8 +32,6 @@ import java.util.Optional;
 
 /**
  * Repository for Snapshot CRUD operations.
- * [Omega Remediation v2] ARCH-C01: Extracted from SqliteMetadataService to
- * follow SRP.
  */
 public final class SnapshotRepository {
 
@@ -272,6 +270,29 @@ public final class SnapshotRepository {
         } catch (SQLException e) {
             throw new IOException("Failed to get snapshot root", e);
         }
+    }
+
+    /**
+     * Gets the parent snapshot ID for a given snapshot.
+     *
+     * @param snapshotId snapshot ID
+     * @return parent snapshot ID or null if not found/no parent
+     * @throws IOException if database operation fails
+     */
+    public String getParentSnapshotId(String snapshotId) throws IOException {
+        String sql = "SELECT parent_id FROM snapshots WHERE id = ?";
+        try (Connection conn = connectionManager.getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, snapshotId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("parent_id");
+                }
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to get parent snapshot ID", e);
+        }
+        return null;
     }
 
     /**
