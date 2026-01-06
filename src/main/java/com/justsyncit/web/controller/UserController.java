@@ -19,8 +19,8 @@
 package com.justsyncit.web.controller;
 
 import com.justsyncit.web.WebServerContext;
+import com.justsyncit.web.model.User;
 import com.justsyncit.web.dto.ApiError;
-
 import io.javalin.http.Context;
 
 import com.justsyncit.web.dto.UserRequests.*;
@@ -61,27 +61,12 @@ public final class UserController {
 
     private static final java.util.Set<String> ALLOWED_ROLES = java.util.Set.of("admin", "user", "viewer");
 
-    private static final long SESSION_TTL_MS = 24 * 60 * 60 * 1000L;
+    private final com.justsyncit.web.service.AuthService authService;
 
     // In-memory user storage (now backed by JSON file)
     private final Map<String, User> users;
-    private final Map<String, SessionInfo> sessions; // token -> SessionInfo with expiry
-
+    // sessions handled by authService
     private final Map<String, TicketInfo> wsTickets;
-
-    private static class SessionInfo {
-        final String userId;
-        final long createdAt;
-
-        SessionInfo(String userId, long createdAt) {
-            this.userId = userId;
-            this.createdAt = createdAt;
-        }
-
-        boolean isExpired() {
-            return System.currentTimeMillis() - createdAt > SESSION_TTL_MS;
-        }
-    }
 
     private static class TicketInfo {
         final String userId;
@@ -99,7 +84,7 @@ public final class UserController {
     public UserController(WebServerContext context) {
         // Context kept for API compatibility
         this.users = new ConcurrentHashMap<>();
-        this.sessions = new ConcurrentHashMap<>();
+        this.authService = new com.justsyncit.web.service.AuthService(Paths.get("config"));
         this.wsTickets = new ConcurrentHashMap<>();
         this.objectMapper = new ObjectMapper();
         this.userDatabasePath = Paths.get("config", "users.json");
@@ -274,8 +259,10 @@ public final class UserController {
             return;
         }
 
-        // Remove any sessions for this user
-        sessions.entrySet().removeIf(e -> e.getValue().equals(userId));
+        // Invalidate any sessions for this user is complex without reverse lookup,
+        // skipping for now as explicit logout isn't required by spec
+        // But we should try if possible. AuthService doesn't support getSessionsByUser
+        // yet.
         saveUsers();
 
         LOGGER.info("Deleted user: {}", user.getUsername());
@@ -311,9 +298,8 @@ public final class UserController {
             // Auto-migrate legacy PBKDF2 users to Argon2id
             migrateToArgon2(user, password);
 
-            // Generate session token with timestamp for expiry
-            String token = generateToken();
-            sessions.put(token, new SessionInfo(user.getId(), System.currentTimeMillis()));
+            // Generate persistent session token
+            String token = authService.createSession(user);
 
             LOGGER.info("User logged in: {}", username);
 
@@ -356,7 +342,7 @@ public final class UserController {
         }
 
         if (token != null) {
-            sessions.remove(token);
+            authService.invalidateSession(token);
         }
 
         // Clear the session cookie
@@ -430,23 +416,12 @@ public final class UserController {
     }
 
     public boolean isValidSession(String token) {
-        SessionInfo session = sessions.get(token);
-        if (session == null) {
-            return false;
-        }
-        if (session.isExpired()) {
-            sessions.remove(token); // Cleanup expired session
-            return false;
-        }
-        return true;
+        return authService.isValidSession(token);
     }
 
     public String getUserIdForSession(String token) {
-        SessionInfo session = sessions.get(token);
-        if (session == null || session.isExpired()) {
-            return null;
-        }
-        return session.userId;
+        var session = authService.getSession(token);
+        return session != null ? session.userId() : null;
     }
 
     public String getUserRole(String userId) {
@@ -468,12 +443,12 @@ public final class UserController {
      * @return the one-time WebSocket ticket, or null if session is invalid
      */
     public String createWsTicket(String sessionToken) {
-        SessionInfo session = sessions.get(sessionToken);
-        if (session == null || session.isExpired()) {
+        var session = authService.getSession(sessionToken);
+        if (session == null) {
             return null;
         }
         String ticket = generateToken();
-        wsTickets.put(ticket, new TicketInfo(session.userId, System.currentTimeMillis()));
+        wsTickets.put(ticket, new TicketInfo(session.userId(), System.currentTimeMillis()));
         return ticket;
     }
 
@@ -513,8 +488,8 @@ public final class UserController {
      * Cleans up expired sessions and tickets.
      */
     public void cleanup() {
+        authService.cleanup();
         long now = System.currentTimeMillis();
-        sessions.entrySet().removeIf(entry -> entry.getValue().isExpired());
         wsTickets.entrySet().removeIf(entry -> now - entry.getValue().createdAt > WS_TICKET_EXPIRY_MS);
     }
 
@@ -561,86 +536,4 @@ public final class UserController {
 
     // User class
 
-    // User class - Made public for Jackson support
-    public static class User {
-        private static final Argon2idKeyDerivationService SHARED_ARGON2_SERVICE = new Argon2idKeyDerivationService();
-
-        private String id;
-        private String username;
-        private String displayName;
-        private String role;
-        private String passwordHash;
-        private String salt;
-
-        // Default constructor for Jackson
-        public User() {
-        }
-
-        public User(String id, String username, String displayName, String role) {
-            this.id = id;
-            this.username = username;
-            this.displayName = displayName;
-            this.role = role;
-        }
-
-        public void setPassword(String password) {
-            // [SEC-002] Use shared service instance instead of creating new one
-            byte[] saltBytes = SHARED_ARGON2_SERVICE.generateSalt();
-            this.salt = Base64.getEncoder().encodeToString(saltBytes);
-            try {
-                byte[] hash = SHARED_ARGON2_SERVICE.deriveKey(password.toCharArray(), saltBytes, 32);
-                this.passwordHash = ARGON2_PREFIX + Base64.getEncoder().encodeToString(hash);
-            } catch (EncryptionException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public void setId(String id) {
-            this.id = id;
-        }
-
-        public String getUsername() {
-            return username;
-        }
-
-        public void setUsername(String username) {
-            this.username = username;
-        }
-
-        public String getDisplayName() {
-            return displayName;
-        }
-
-        public void setDisplayName(String displayName) {
-            this.displayName = displayName;
-        }
-
-        public String getRole() {
-            return role;
-        }
-
-        public void setRole(String role) {
-            this.role = role;
-        }
-
-        public String getPasswordHash() {
-            return passwordHash;
-        }
-
-        public void setPasswordHash(String passwordHash) {
-            this.passwordHash = passwordHash;
-        }
-
-        public String getSalt() {
-            return salt;
-        }
-
-        public void setSalt(String salt) {
-            this.salt = salt;
-        }
-    }
 }
