@@ -49,6 +49,11 @@ import org.slf4j.LoggerFactory;
  * Follows Single Responsibility Principle by focusing solely on client
  * connection management.
  */
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLEngineResult;
+import javax.net.ssl.SSLException;
+
 public class ClientConnection implements Connection {
 
     /** The logger for this class. */
@@ -86,12 +91,19 @@ public class ClientConnection implements Connection {
     /** The write interest handler. */
     private final Consumer<Boolean> writeInterestHandler;
 
+    // SSL/TLS fields
+    private final SSLEngine sslEngine;
+    private ByteBuffer netReadBuffer;
+    private ByteBuffer netWriteBuffer;
+    private ByteBuffer appReadBuffer;
+
     /**
      * Creates a new client connection.
      *
      * @param socketChannel        socket channel
      * @param remoteAddress        remote address
      * @param bufferPool           buffer pool (optional)
+     * @param sslContext           SSL context (optional, enables TLS if provided)
      * @param writeInterestHandler handler for write interest (true=enable,
      *                             false=disable)
      * @return a new ClientConnection instance
@@ -99,7 +111,7 @@ public class ClientConnection implements Connection {
      *                                  is null
      */
     public static ClientConnection create(SocketChannel socketChannel, SocketAddress remoteAddress,
-            AsyncByteBufferPool bufferPool, Consumer<Boolean> writeInterestHandler) {
+            AsyncByteBufferPool bufferPool, SSLContext sslContext, Consumer<Boolean> writeInterestHandler) {
         // Validate parameters before object creation
         if (socketChannel == null) {
             throw new IllegalArgumentException("SocketChannel cannot be null");
@@ -110,12 +122,17 @@ public class ClientConnection implements Connection {
         if (writeInterestHandler == null) {
             throw new IllegalArgumentException("WriteInterestHandler cannot be null");
         }
-        return new ClientConnection(socketChannel, remoteAddress, bufferPool, writeInterestHandler);
+        return new ClientConnection(socketChannel, remoteAddress, bufferPool, sslContext, writeInterestHandler);
+    }
+
+    public static ClientConnection create(SocketChannel socketChannel, SocketAddress remoteAddress,
+            AsyncByteBufferPool bufferPool, Consumer<Boolean> writeInterestHandler) {
+        return create(socketChannel, remoteAddress, bufferPool, null, writeInterestHandler);
     }
 
     public static ClientConnection create(SocketChannel socketChannel, SocketAddress remoteAddress,
             Consumer<Boolean> writeInterestHandler) {
-        return create(socketChannel, remoteAddress, null, writeInterestHandler);
+        return create(socketChannel, remoteAddress, null, null, writeInterestHandler);
     }
 
     /**
@@ -124,10 +141,11 @@ public class ClientConnection implements Connection {
      * @param socketChannel        socket channel (must not be null)
      * @param remoteAddress        remote address (must not be null)
      * @param bufferPool           buffer pool (optional)
+     * @param sslContext           SSL context (optional)
      * @param writeInterestHandler write interest handler
      */
     private ClientConnection(SocketChannel socketChannel, SocketAddress remoteAddress, AsyncByteBufferPool bufferPool,
-            Consumer<Boolean> writeInterestHandler) {
+            SSLContext sslContext, Consumer<Boolean> writeInterestHandler) {
         // Store reference to socket channel - this is an injected dependency
         this.socketChannel = socketChannel;
         this.remoteAddress = remoteAddress;
@@ -141,6 +159,21 @@ public class ClientConnection implements Connection {
         this.lastActivityTime = Instant.now();
         this.bytesSent = new AtomicLong(0);
         this.bytesReceived = new AtomicLong(0);
+
+        if (sslContext != null) {
+            this.sslEngine = sslContext.createSSLEngine();
+            this.sslEngine.setUseClientMode(false); // Server mode
+            this.sslEngine.setNeedClientAuth(false); // Optional: configure based on requirements
+
+            // Allocate buffers for SSL
+            int packetBufferSize = sslEngine.getSession().getPacketBufferSize();
+            int appBufferSize = sslEngine.getSession().getApplicationBufferSize();
+            this.netReadBuffer = ByteBuffer.allocate(packetBufferSize);
+            this.netWriteBuffer = ByteBuffer.allocate(packetBufferSize);
+            this.appReadBuffer = ByteBuffer.allocate(appBufferSize);
+        } else {
+            this.sslEngine = null;
+        }
 
         if (bufferPool != null) {
             // Using a default size for header reading initially, will be replaced with
@@ -179,20 +212,69 @@ public class ClientConnection implements Connection {
         int received = dataBuffer.remaining();
         bytesReceived.addAndGet(received);
 
-        // Copy received data to read buffer
-        while (dataBuffer.hasRemaining()) {
+        if (sslEngine != null) {
+            // TLS Mode
+            while (dataBuffer.hasRemaining()) {
+                // Copy data to netReadBuffer
+                int bytesToCopy = Math.min(dataBuffer.remaining(), netReadBuffer.remaining());
+                // Simple copy loop to avoid BufferOverflowException
+                for (int i = 0; i < bytesToCopy; i++) {
+                    netReadBuffer.put(dataBuffer.get());
+                }
+
+                netReadBuffer.flip();
+                SSLEngineResult result;
+                try {
+                    result = sslEngine.unwrap(netReadBuffer, appReadBuffer);
+                } catch (SSLException e) {
+                    logger.error("SSL Error: {}", e.getMessage());
+                    throw e;
+                }
+                netReadBuffer.compact();
+
+                switch (result.getStatus()) {
+                    case OK:
+                        appReadBuffer.flip();
+                        processAppBuffer(appReadBuffer, messageHandler);
+                        appReadBuffer.compact();
+                        break;
+                    case BUFFER_UNDERFLOW:
+                        // Need more data, break and wait for next read
+                        return;
+                    case BUFFER_OVERFLOW:
+                        // App buffer too small, shouldn't happen if allocated correctly based on
+                        // session
+                        logger.error("SSL Buffer Overflow");
+                        // Resize app buffer? For now just fail.
+                        throw new IOException("SSL Buffer Overflow");
+                    case CLOSED:
+                        close();
+                        return;
+                }
+
+                // Handle handshake if needed
+                handleHandshake(result.getHandshakeStatus());
+            }
+        } else {
+            // Plaintext Mode
+            processAppBuffer(dataBuffer, messageHandler);
+        }
+    }
+
+    private void processAppBuffer(ByteBuffer buffer, Consumer<ProtocolMessage> messageHandler) throws IOException {
+        while (buffer.hasRemaining()) {
             if (readingHeader) {
                 // Defensive check: ensure buffer is large enough for header
                 if (readBuffer.capacity() < com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE) {
                     logger.warn("Read buffer too small for header ({} < {}), reallocating. Pending bytes: {}",
                             readBuffer.capacity(), com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE,
-                            dataBuffer.remaining());
+                            buffer.remaining());
                     readBuffer = ByteBuffer.allocate(com.justsyncit.network.protocol.ProtocolConstants.HEADER_SIZE);
                 }
 
                 // Fill header buffer
-                int bytesToRead = Math.min(readBuffer.remaining(), dataBuffer.remaining());
-                copyBuffer(dataBuffer, readBuffer, bytesToRead);
+                int bytesToRead = Math.min(readBuffer.remaining(), buffer.remaining());
+                copyBuffer(buffer, readBuffer, bytesToRead);
 
                 if (!readBuffer.hasRemaining()) {
                     // Header is complete, parse it
@@ -218,8 +300,8 @@ public class ClientConnection implements Connection {
                 }
             } else {
                 // Fill payload buffer
-                int bytesToRead = Math.min(readBuffer.remaining(), dataBuffer.remaining());
-                copyBuffer(dataBuffer, readBuffer, bytesToRead);
+                int bytesToRead = Math.min(readBuffer.remaining(), buffer.remaining());
+                copyBuffer(buffer, readBuffer, bytesToRead);
 
                 if (!readBuffer.hasRemaining()) {
                     // Message is complete, parse it
@@ -251,6 +333,77 @@ public class ClientConnection implements Connection {
                 }
             }
         }
+    }
+
+    private void handleHandshake(SSLEngineResult.HandshakeStatus status) throws IOException {
+        if (status == SSLEngineResult.HandshakeStatus.FINISHED
+                || status == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
+            return;
+        }
+
+        switch (status) {
+            case NEED_UNWRAP:
+                // Wait for more data
+                break;
+            case NEED_WRAP:
+                netWriteBuffer.clear();
+                SSLEngineResult result;
+                try {
+                    result = sslEngine.wrap(ByteBuffer.allocate(0), netWriteBuffer); // Wrap empty buffer to generate
+                                                                                     // handshake data
+                } catch (SSLException e) {
+                    logger.error("SSL Wrap Error during handshake: {}", e.getMessage());
+                    throw e;
+                }
+                netWriteBuffer.flip();
+                if (netWriteBuffer.hasRemaining()) {
+                    // Send handshake data directly
+                    ByteBuffer handshakeData = ByteBuffer.allocate(netWriteBuffer.remaining());
+                    handshakeData.put(netWriteBuffer);
+                    handshakeData.flip();
+                    // Queue for immediate sending
+                    pendingOperations.offer(new BufferOperation(handshakeData));
+                    tryWrite(new CompletableFuture<>());
+                }
+                handleHandshake(result.getHandshakeStatus());
+                break;
+            case NEED_TASK:
+                Runnable task;
+                while ((task = sslEngine.getDelegatedTask()) != null) {
+                    task.run();
+                }
+                handleHandshake(sslEngine.getHandshakeStatus());
+                break;
+            default:
+                break;
+        }
+    }
+
+    private ByteBuffer encrypt(ByteBuffer appData) throws IOException {
+        if (sslEngine == null) {
+            return appData;
+        }
+
+        netWriteBuffer.clear();
+        SSLEngineResult result;
+        try {
+            result = sslEngine.wrap(appData, netWriteBuffer);
+        } catch (SSLException e) {
+            logger.error("SSL Wrap Error: {}", e.getMessage());
+            throw e;
+        }
+
+        if (result.getStatus() != SSLEngineResult.Status.OK) {
+            throw new IOException("SSL encrypt failed: " + result.getStatus());
+        }
+
+        handleHandshake(result.getHandshakeStatus());
+
+        netWriteBuffer.flip();
+        ByteBuffer encrypted = ByteBuffer.allocate(netWriteBuffer.remaining());
+        encrypted.put(netWriteBuffer);
+        encrypted.flip();
+        return encrypted;
     }
 
     /**
@@ -300,17 +453,21 @@ public class ClientConnection implements Connection {
         }
 
         updateLastActivityTime();
-        // ByteSent tracking for message is approx headers + payload
-        // We'll track it when serializing or just use message total size?
-        bytesSent.addAndGet(message.getTotalSize());
 
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        // Queue message for sending
-        ByteBuffer messageBuffer = message.serialize();
-        pendingOperations.offer(new BufferOperation(messageBuffer));
+        try {
+            // Queue message for sending
+            ByteBuffer messageBuffer = message.serialize();
+            ByteBuffer toSend = sslEngine != null ? encrypt(messageBuffer) : messageBuffer;
 
-        tryWrite(future);
+            bytesSent.addAndGet(toSend.remaining());
+            pendingOperations.offer(new BufferOperation(toSend));
+
+            tryWrite(future);
+        } catch (IOException e) {
+            future.completeExceptionally(e);
+        }
 
         return future;
     }
@@ -328,6 +485,12 @@ public class ClientConnection implements Connection {
         if (closed.get()) {
             return CompletableFuture.failedFuture(
                     new IOException("Connection is closed: " + remoteAddress));
+        }
+
+        if (sslEngine != null) {
+            return CompletableFuture.failedFuture(
+                    new UnsupportedOperationException(
+                            "Zero-copy transfer not supported with SSL/TLS. Use chunked transfer instead."));
         }
 
         updateLastActivityTime();

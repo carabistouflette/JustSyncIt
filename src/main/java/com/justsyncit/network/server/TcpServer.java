@@ -74,13 +74,14 @@ public class TcpServer {
 
     /** The server thread. */
     private Thread serverThread;
-    /** The network configuration. */
+    private final javax.net.ssl.SSLContext sslContext;
     private final NetworkConfiguration configuration;
 
     /**
      * Creates a new TCP server.
      */
-    public TcpServer(com.justsyncit.scanner.AsyncByteBufferPool bufferPool, NetworkConfiguration configuration) {
+    public TcpServer(com.justsyncit.scanner.AsyncByteBufferPool bufferPool, NetworkConfiguration configuration,
+            javax.net.ssl.SSLContext sslContext) {
         this.listeners = new CopyOnWriteArrayList<>();
         this.clients = new ConcurrentHashMap<>();
         this.executorService = Executors.newCachedThreadPool(r -> {
@@ -92,14 +93,19 @@ public class TcpServer {
 
         this.bufferPool = bufferPool;
         this.configuration = configuration != null ? configuration : new NetworkConfiguration();
+        this.sslContext = sslContext;
+    }
+
+    public TcpServer(NetworkConfiguration configuration, javax.net.ssl.SSLContext sslContext) {
+        this(null, configuration, sslContext);
     }
 
     public TcpServer(NetworkConfiguration configuration) {
-        this(null, configuration);
+        this(null, configuration, null);
     }
 
     public TcpServer() {
-        this(null, new NetworkConfiguration());
+        this(null, new NetworkConfiguration(), null);
     }
 
     /**
@@ -245,7 +251,7 @@ public class TcpServer {
 
             // Create client connection
             SocketAddress clientAddress = clientChannel.getRemoteAddress();
-            ClientConnection connection = ClientConnection.create(clientChannel, clientAddress, bufferPool,
+            ClientConnection connection = ClientConnection.create(clientChannel, clientAddress, bufferPool, sslContext,
                     (enable) -> {
                         SelectionKey k = clientChannel.keyFor(selector);
                         if (k != null && k.isValid()) {
