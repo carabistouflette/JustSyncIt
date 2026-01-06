@@ -463,13 +463,25 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                 }
             };
 
-            Files.walkFileTree(context.rootDirectory,
-                    java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class),
-                    context.options.getMaxDepth(),
-                    simpleVisitor);
+            CompletableFuture.runAsync(() -> {
+                try {
+                    Files.walkFileTree(context.rootDirectory,
+                            java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class),
+                            context.options.getMaxDepth(),
+                            simpleVisitor);
 
-            // Mark walk as completed
-            context.walkCompleted.set(true);
+                    // Mark walk as completed
+                    context.walkCompleted.set(true);
+                    checkCompletion(context);
+
+                } catch (Exception e) {
+                    logger.error("Async scan walk failed: {}", context.scanId, e);
+                    context.errorsQueue
+                            .add(new ScanResult.ScanError(context.rootDirectory, e, "Walk failed: " + e.getMessage()));
+                    context.walkCompleted.set(true); // Ensure we don't hang
+                    checkCompletion(context);
+                }
+            }, threadPoolManager.getIoThreadPool());
 
             // Check if we are already done (if all tasks finished while walking)
             checkCompletion(context);
