@@ -1,21 +1,3 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.web;
 
 import com.justsyncit.backup.BackupService;
@@ -23,6 +5,8 @@ import com.justsyncit.restore.RestoreService;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.hash.Blake3Service;
+import com.justsyncit.web.service.AuthService;
+import com.justsyncit.web.service.SqliteAuthStore;
 
 /**
  * Context object containing all services needed by web controllers.
@@ -35,8 +19,10 @@ public final class WebServerContext {
     private final ContentStore contentStore;
     private final MetadataService metadataService;
     private final Blake3Service blake3Service;
-
     private final com.justsyncit.scheduler.SchedulerService schedulerService;
+
+    private final SqliteAuthStore authStore;
+    private final AuthService authService;
 
     private WebServerContext(Builder builder) {
         this.backupService = builder.backupService;
@@ -45,6 +31,8 @@ public final class WebServerContext {
         this.metadataService = builder.metadataService;
         this.blake3Service = builder.blake3Service;
         this.schedulerService = builder.schedulerService;
+        this.authStore = builder.authStore;
+        this.authService = builder.authService;
     }
 
     /**
@@ -103,6 +91,14 @@ public final class WebServerContext {
         return blake3Service;
     }
 
+    public SqliteAuthStore getAuthStore() {
+        return authStore;
+    }
+
+    public AuthService getAuthService() {
+        return authService;
+    }
+
     /**
      * Creates a new builder for WebServerContext.
      *
@@ -122,6 +118,8 @@ public final class WebServerContext {
         private MetadataService metadataService;
         private Blake3Service blake3Service;
         private com.justsyncit.scheduler.SchedulerService schedulerService;
+        private SqliteAuthStore authStore;
+        private AuthService authService;
 
         private Builder() {
         }
@@ -189,6 +187,16 @@ public final class WebServerContext {
          */
         public Builder withSchedulerService(com.justsyncit.scheduler.SchedulerService schedulerService) {
             this.schedulerService = schedulerService;
+            return this;
+        }
+
+        public Builder withAuthStore(SqliteAuthStore authStore) {
+            this.authStore = authStore;
+            return this;
+        }
+
+        public Builder withAuthService(AuthService authService) {
+            this.authService = authService;
             return this;
         }
 

@@ -1,30 +1,16 @@
-/*
- * JustSyncIt - Backup solution
- * Copyright (C) 2023 JustSyncIt Team
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 package com.justsyncit.command;
 
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.web.WebServer;
 import com.justsyncit.web.WebServerContext;
+import com.justsyncit.web.service.AuthService;
+import com.justsyncit.web.service.SqliteAuthStore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.nio.file.Paths;
 
 /**
  * Command to start the web server for the management interface.
@@ -115,6 +101,11 @@ public final class WebStartCommand implements Command {
                     .createSchedulerService(backupService);
             schedulerService.start();
 
+            // Create Authentication Services
+            String authDbPath = Paths.get("config", "auth.db").toString();
+            SqliteAuthStore authStore = serviceFactory.createAuthStore(authDbPath);
+            AuthService authService = new AuthService(authStore);
+
             // Create WebServerContext using Builder pattern
             WebServerContext webContext = WebServerContext.builder()
                     .withMetadataService(metadataService)
@@ -123,6 +114,8 @@ public final class WebStartCommand implements Command {
                     .withBackupService(backupService)
                     .withRestoreService(restoreService)
                     .withSchedulerService(schedulerService)
+                    .withAuthStore(authStore)
+                    .withAuthService(authService)
                     .build();
             runningServer = new WebServer(port, webContext);
             runningServer.start();
