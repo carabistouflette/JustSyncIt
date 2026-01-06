@@ -187,22 +187,11 @@ public final class SqliteMetadataService implements MetadataService {
             if (key != null) {
                 encryptionEnabled = true;
                 try {
-                    // Deterministic encryption for path to ensure uniqueness constraint works
-                    // IV Seed = SHA-256(path)
-                    // We use the path bytes as seed directly (service handles hashing/truncation if
-                    // needed,
-                    // or we should hash it. AesGcmEncryptionService expects truncated hash usually,
-                    // but let's check contract. It expects a byte array seed.
-
-                    // Actually, to be safe and consistent with EncryptedContentStore, let's use the
-                    // path hash.
-                    // But we don't have blake3 service here easily.
-                    // Let's rely on BlindIndexSearch or standard MessageDigest if needed?
-                    // AesGcmEncryptionService.encryptDeterministic truncates the seed.
-                    // Passing the path bytes directly as seed maintains determinism.
-
+                    // Randomized encryption for path
+                    // We use standard encrypt() which generates a random IV.
+                    // This prevents structural analysis of the filesystem.
                     byte[] pathBytes = originalPath.getBytes(StandardCharsets.UTF_8);
-                    byte[] encryptedPathFn = encryptionService.encryptDeterministic(pathBytes, key, pathBytes, null);
+                    byte[] encryptedPathFn = encryptionService.encrypt(pathBytes, key);
                     String encryptedPath = Base64.getEncoder().encodeToString(encryptedPathFn);
 
                     // Create modified file metadata with encrypted path
@@ -312,7 +301,8 @@ public final class SqliteMetadataService implements MetadataService {
             if (encryptionEnabled) {
                 try {
                     byte[] pathBytes = file.getPath().getBytes(StandardCharsets.UTF_8);
-                    byte[] encryptedPathFn = encryptionService.encryptDeterministic(pathBytes, key, pathBytes, null);
+                    // Use randomized encryption
+                    byte[] encryptedPathFn = encryptionService.encrypt(pathBytes, key);
                     String encryptedPath = Base64.getEncoder().encodeToString(encryptedPathFn);
 
                     processedFile = new FileMetadata(
