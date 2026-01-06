@@ -1339,12 +1339,15 @@ public final class SqliteMetadataService implements MetadataService {
 
                     String mappingSql = "INSERT INTO file_copy_map (old_id, new_id) " +
                             "SELECT id, lower(hex(randomblob(16))) FROM files " +
-                            "WHERE snapshot_id = '" + sourceSnapshotId + "' " +
+                            "WHERE snapshot_id = ? " +
                             (changedPaths != null && !changedPaths.isEmpty()
                                     ? "AND path NOT IN (SELECT path FROM excluded_paths)"
                                     : "");
 
-                    stmt.execute(mappingSql);
+                    try (PreparedStatement mappingPs = connection.prepareStatement(mappingSql)) {
+                        mappingPs.setString(1, sourceSnapshotId);
+                        mappingPs.execute();
+                    }
 
                     // Copy files
                     String copyFilesSql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash, encryption_mode) "
