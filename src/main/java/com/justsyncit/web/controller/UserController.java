@@ -36,6 +36,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.justsyncit.network.encryption.Argon2idKeyDerivationService;
+import com.justsyncit.network.encryption.EncryptionException;
 
 /**
  * REST controller for user management and authentication.
@@ -50,6 +52,9 @@ public final class UserController {
     private static final int ITERATIONS = 600000;
     private static final int KEY_LENGTH = 256;
     private static final String ALGORITHM = "PBKDF2WithHmacSHA256";
+    private static final String ARGON2_PREFIX = "$ARGON2ID$";
+
+    private final Argon2idKeyDerivationService argon2Service;
 
     private static final java.util.Set<String> ALLOWED_ROLES = java.util.Set.of("admin", "user", "viewer");
 
@@ -95,6 +100,7 @@ public final class UserController {
         this.wsTickets = new ConcurrentHashMap<>();
         this.objectMapper = new ObjectMapper();
         this.userDatabasePath = Paths.get("config", "users.json");
+        this.argon2Service = new Argon2idKeyDerivationService();
 
         loadUsers();
 
@@ -347,7 +353,17 @@ public final class UserController {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private static String hashPassword(String password, byte[] salt) {
+    private String hashPassword(String password, byte[] salt) {
+        // Default to Argon2id for new hashes
+        try {
+            byte[] hash = argon2Service.deriveKey(password.toCharArray(), salt, 32);
+            return ARGON2_PREFIX + Base64.getEncoder().encodeToString(hash);
+        } catch (EncryptionException e) {
+            throw new RuntimeException("Error hashing password with Argon2id", e);
+        }
+    }
+
+    private static String hashPasswordPBKDF2(String password, byte[] salt) {
         try {
             javax.crypto.spec.PBEKeySpec spec = new javax.crypto.spec.PBEKeySpec(
                     password.toCharArray(), salt, ITERATIONS, KEY_LENGTH);
@@ -359,13 +375,31 @@ public final class UserController {
         }
     }
 
-    private static boolean verifyPassword(String password, String storedHash, String storedSalt) {
+    private boolean verifyPassword(String password, String storedHash, String storedSalt) {
         byte[] salt = Base64.getDecoder().decode(storedSalt);
-        String newHash = hashPassword(password, salt);
-        // Use constant-time comparison to prevent timing attacks
-        return java.security.MessageDigest.isEqual(
-                newHash.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-                storedHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        if (storedHash.startsWith(ARGON2_PREFIX)) {
+            // Argon2id verification
+            String rawHash = storedHash.substring(ARGON2_PREFIX.length());
+            try {
+                byte[] calculatedHash = argon2Service.deriveKey(password.toCharArray(), salt, 32);
+                String calculatedHashStr = Base64.getEncoder().encodeToString(calculatedHash);
+                // Constant time comparison roughly (Strings might vary, but MessageDigest is
+                // safer)
+                return java.security.MessageDigest.isEqual(
+                        calculatedHashStr.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        rawHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            } catch (EncryptionException e) {
+                LOGGER.severe("Argon2 verify failed: " + e.getMessage());
+                return false;
+            }
+        } else {
+            // Legacy PBKDF2 verification
+            String newHash = hashPasswordPBKDF2(password, salt);
+            return java.security.MessageDigest.isEqual(
+                    newHash.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                    storedHash.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
     }
 
     public boolean isValidSession(String token) {
@@ -448,6 +482,15 @@ public final class UserController {
         return isValidSession(token);
     }
 
+    /**
+     * Cleans up expired sessions and tickets.
+     */
+    public void cleanup() {
+        long now = System.currentTimeMillis();
+        sessions.entrySet().removeIf(entry -> entry.getValue().isExpired());
+        wsTickets.entrySet().removeIf(entry -> now - entry.getValue().createdAt > WS_TICKET_EXPIRY_MS);
+    }
+
     private void loadUsers() {
         try {
             if (Files.exists(userDatabasePath)) {
@@ -473,7 +516,7 @@ public final class UserController {
     }
 
     private void createDefaultAdmin() {
-        String tempPass = java.util.UUID.randomUUID().toString().substring(0, 8);
+        String tempPass = java.util.UUID.randomUUID().toString();
         User admin = new User(generateId(), "admin", "Administrator", "admin");
         admin.setPassword(tempPass);
         users.put(admin.getId(), admin);
@@ -527,10 +570,43 @@ public final class UserController {
         }
 
         public void setPassword(String password) {
-            byte[] saltBytes = new byte[16];
-            RANDOM.nextBytes(saltBytes);
+            // This is a bit tricky because User is static inner class but needs access to
+            // UserController's argon2 service or static methods.
+            // But hashPassword is now instance method in UserController to use
+            // argon2Service.
+            // We should refactor User to NOT set password itself, or make hashPassword
+            // static but accepting service.
+            // Or just instantiate service here temporarily? Not efficient.
+            // Actually, UserController.hashPassword was static, now it uses instance field
+            // argon2Service.
+            // So User.setPassword cannot call it easily unless we pass instance.
+            // Refactor: Logic should be in UserController.createUser/updateUser, NOT User
+            // class.
+            // But User class is used for JSON deserialization too.
+            // Existing code calls user.setPassword(password).
+            // QUICK FIX: Instantiate service here (overhead is lowish for Argon2 config
+            // object)
+            // or better: change setPassword to take hash/salt, and do logic in Controller.
+            // But existing calls in Controller use user.setPassword(raw).
+
+            // Let's use a static helper for now that creates key derivation service if
+            // needed,
+            // or revert hashPassword to static and pass service?
+            // User class is static, so it cannot access UserController instance.
+
+            // Re-design: usage is `user.setPassword(password)`.
+            // We'll change it to `setPassword(String password)` using a new private default
+            // service instance.
+
+            Argon2idKeyDerivationService service = new Argon2idKeyDerivationService();
+            byte[] saltBytes = service.generateSalt();
             this.salt = Base64.getEncoder().encodeToString(saltBytes);
-            this.passwordHash = UserController.hashPassword(password, saltBytes);
+            try {
+                byte[] hash = service.deriveKey(password.toCharArray(), saltBytes, 32);
+                this.passwordHash = ARGON2_PREFIX + Base64.getEncoder().encodeToString(hash);
+            } catch (EncryptionException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         public String getId() {
