@@ -176,7 +176,10 @@ public final class WebServer {
                 }
             });
 
-            java.util.concurrent.ConcurrentHashMap<String, long[]> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
+            // [SEC-003] Thread-safe rate limiter using atomic operations
+            record RateLimitRecord(java.util.concurrent.atomic.AtomicInteger count, long windowStart) {
+            }
+            java.util.concurrent.ConcurrentHashMap<String, RateLimitRecord> loginAttempts = new java.util.concurrent.ConcurrentHashMap<>();
             final int MAX_ATTEMPTS = 5;
             final long WINDOW_MS = 60_000; // 1 minute
 
@@ -187,19 +190,15 @@ public final class WebServer {
                 String clientIp = ctx.ip();
                 long now = System.currentTimeMillis();
 
-                loginAttempts.compute(clientIp, (ip, record) -> {
-                    if (record == null) {
-                        return new long[] { 1, now }; // [count, windowStart]
+                RateLimitRecord record = loginAttempts.compute(clientIp, (ip, existing) -> {
+                    if (existing == null || now - existing.windowStart() > WINDOW_MS) {
+                        return new RateLimitRecord(new java.util.concurrent.atomic.AtomicInteger(1), now);
                     }
-                    if (now - record[1] > WINDOW_MS) {
-                        return new long[] { 1, now }; // Reset window
-                    }
-                    record[0]++;
-                    return record;
+                    existing.count().incrementAndGet();
+                    return existing;
                 });
 
-                long[] record = loginAttempts.get(clientIp);
-                if (record != null && record[0] > MAX_ATTEMPTS && (now - record[1]) <= WINDOW_MS) {
+                if (record.count().get() > MAX_ATTEMPTS) {
                     ctx.status(429).json(java.util.Map.of(
                             "error", "Too Many Requests",
                             "message", "Rate limit exceeded. Try again in 1 minute."));
@@ -211,7 +210,7 @@ public final class WebServer {
             rateLimiterCleanup.scheduleAtFixedRate(() -> {
                 try {
                     long now = System.currentTimeMillis();
-                    loginAttempts.entrySet().removeIf(entry -> now - entry.getValue()[1] > WINDOW_MS);
+                    loginAttempts.entrySet().removeIf(entry -> now - entry.getValue().windowStart() > WINDOW_MS);
                     // Also clean up user sessions while we are at it
                     if (userController != null) {
                         userController.cleanup();
