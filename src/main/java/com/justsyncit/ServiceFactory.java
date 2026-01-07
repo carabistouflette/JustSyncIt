@@ -3,6 +3,7 @@ package com.justsyncit;
 import com.justsyncit.command.CommandRegistry;
 import com.justsyncit.command.HashCommand;
 import com.justsyncit.command.VerifyCommand;
+import com.justsyncit.command.CommandContext;
 import com.justsyncit.network.command.NetworkCommand;
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.hash.HashingException;
@@ -11,22 +12,31 @@ import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.HealingContentStore;
 import com.justsyncit.integrity.service.ReedSolomonService;
 import com.justsyncit.storage.metadata.MetadataService;
-import com.justsyncit.storage.metadata.MetadataServiceFactory;
+import com.justsyncit.storage.StorageFactory;
+import com.justsyncit.network.NetworkFactory;
 import java.io.IOException;
 
 /**
  * Factory for creating application services and managing dependencies.
+ * Now acts as a facade delegating to domain-specific factories.
  */
 public class ServiceFactory {
 
     private final com.justsyncit.modules.SecurityModule securityModule;
-    private final com.justsyncit.modules.NetworkModule networkModule;
-    private final com.justsyncit.modules.StorageModule storageModule;
+    private final StorageFactory storageFactory;
+    private final NetworkFactory networkFactory;
+
+    // Singleton instances
+    private com.justsyncit.scheduler.SchedulerService schedulerService;
+    private com.justsyncit.web.service.SqliteAuthStore authStore;
+    private com.justsyncit.web.service.AuthService authService;
+    private com.justsyncit.backup.BackupService backupService;
+    private com.justsyncit.restore.RestoreService restoreService;
 
     public ServiceFactory() {
         this.securityModule = new com.justsyncit.modules.SecurityModule();
-        this.networkModule = new com.justsyncit.modules.NetworkModule(securityModule);
-        this.storageModule = new com.justsyncit.modules.StorageModule();
+        this.storageFactory = new StorageFactory();
+        this.networkFactory = new NetworkFactory(this.securityModule);
     }
 
     /**
@@ -39,8 +49,46 @@ public class ServiceFactory {
         Blake3Service blake3Service = createBlake3Service();
         CommandRegistry commandRegistry = createCommandRegistry(blake3Service);
         ApplicationInfoDisplay infoDisplay = createInfoDisplay();
+        CommandContext commandContext = createDefaultCommandContext(blake3Service);
 
-        return new JustSyncItApplication(blake3Service, commandRegistry, infoDisplay);
+        return new JustSyncItApplication(commandContext, commandRegistry, infoDisplay);
+    }
+
+    /**
+     * Creates a default CommandContext with all production services.
+     *
+     * @param blake3Service the blake3 service
+     * @return configured command context
+     * @throws ServiceException if service creation fails
+     */
+    public CommandContext createDefaultCommandContext(Blake3Service blake3Service) throws ServiceException {
+        try {
+            MetadataService metadataService = createMetadataService();
+            ContentStore contentStore = createContentStore(blake3Service);
+            com.justsyncit.restore.RestoreService restoreService = createRestoreService(contentStore, metadataService,
+                    blake3Service);
+            com.justsyncit.backup.BackupService backupService = createAsyncBackupService(contentStore, metadataService,
+                    blake3Service);
+
+            // Create additional services for Web/Full context
+            com.justsyncit.scheduler.SchedulerService scheduler = createSchedulerService(backupService);
+            // Default auth db path, configurable via strict property
+            String authDbPath = System.getProperty("justsyncit.auth.db.path", "config/auth.db");
+            com.justsyncit.web.service.SqliteAuthStore authStore = createAuthStore(authDbPath);
+            com.justsyncit.web.service.AuthService auth = createAuthService(authStore);
+
+            return CommandContext.builder(blake3Service)
+                    .metadataService(metadataService)
+                    .contentStore(contentStore)
+                    .restoreService(restoreService)
+                    .backupService(backupService)
+                    .schedulerService(scheduler)
+                    .authStore(authStore)
+                    .authService(auth)
+                    .build();
+        } catch (IOException e) {
+            throw new ServiceException("Failed to create default command context", e);
+        }
     }
 
     /**
@@ -60,7 +108,7 @@ public class ServiceFactory {
      * @return configured content store
      */
     public synchronized ContentStore createContentStore(Blake3Service blake3Service) throws IOException {
-        return storageModule.createContentStore(blake3Service);
+        return storageFactory.createContentStore(blake3Service);
     }
 
     /**
@@ -85,17 +133,13 @@ public class ServiceFactory {
             com.justsyncit.network.encryption.EncryptionService encryptionService,
             java.util.function.Supplier<byte[]> keySupplier,
             Blake3Service blake3Service) {
-        return new com.justsyncit.storage.EncryptedContentStore(delegate, encryptionService, keySupplier,
-                blake3Service);
+        return storageFactory.createEncryptedContentStore(delegate, encryptionService, keySupplier, blake3Service);
     }
 
     public MetadataService createEncryptedMetadataService(String databasePath,
             com.justsyncit.network.encryption.EncryptionService encryptionService,
             java.util.function.Supplier<byte[]> keySupplier) throws IOException {
-        com.justsyncit.metadata.BlindIndexSearch blindIndexSearch = new com.justsyncit.metadata.BlindIndexSearch(
-                keySupplier);
-        return MetadataServiceFactory.createEncryptedFileBasedService(databasePath, encryptionService, blindIndexSearch,
-                keySupplier);
+        return storageFactory.createEncryptedMetadataService(databasePath, encryptionService, keySupplier);
     }
 
     /**
@@ -105,11 +149,29 @@ public class ServiceFactory {
      * @return configured AuthStore
      * @throws IOException if creation fails
      */
-    public com.justsyncit.web.service.SqliteAuthStore createAuthStore(String databasePath) throws IOException {
-        // Reuse SqliteConnectionManager from storage package
-        com.justsyncit.storage.metadata.DatabaseConnectionManager cm = new com.justsyncit.storage.metadata.SqliteConnectionManager(
-                databasePath, 10);
-        return new com.justsyncit.web.service.SqliteAuthStore(cm);
+    public synchronized com.justsyncit.web.service.SqliteAuthStore createAuthStore(String databasePath)
+            throws IOException {
+        if (authStore == null) {
+            // Reuse SqliteConnectionManager from storage package
+            com.justsyncit.storage.metadata.DatabaseConnectionManager cm = new com.justsyncit.storage.metadata.SqliteConnectionManager(
+                    databasePath, 10);
+            authStore = new com.justsyncit.web.service.SqliteAuthStore(cm);
+        }
+        return authStore;
+    }
+
+    /**
+     * Creates an Auth Service.
+     * 
+     * @param authStore the auth store
+     * @return configured AuthService
+     */
+    public synchronized com.justsyncit.web.service.AuthService createAuthService(
+            com.justsyncit.web.service.SqliteAuthStore authStore) {
+        if (authService == null) {
+            authService = new com.justsyncit.web.service.AuthService(authStore);
+        }
+        return authService;
     }
 
     /**
@@ -165,7 +227,7 @@ public class ServiceFactory {
      * @return configured network service
      */
     public NetworkService createNetworkService(Blake3Service blake3Service) {
-        return networkModule.createNetworkService(blake3Service);
+        return networkFactory.createNetworkService(blake3Service);
     }
 
     /**
@@ -176,7 +238,7 @@ public class ServiceFactory {
      * @return configured network service
      */
     public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKey) {
-        return networkModule.createNetworkService(blake3Service, clusterKey);
+        return networkFactory.createNetworkService(blake3Service, clusterKey);
     }
 
     /**
@@ -212,11 +274,7 @@ public class ServiceFactory {
      * @throws ServiceException if service creation fails
      */
     public MetadataService createMetadataService() throws ServiceException {
-        try {
-            return MetadataServiceFactory.createDefaultService();
-        } catch (IOException e) {
-            throw new ServiceException("Failed to create metadata service", e);
-        }
+        return storageFactory.createMetadataService();
     }
 
     /**
@@ -251,10 +309,13 @@ public class ServiceFactory {
      * @return a configured RestoreService instance
      * @throws ServiceException if service creation fails
      */
-    public com.justsyncit.restore.RestoreService createRestoreService(ContentStore contentStore,
+    public synchronized com.justsyncit.restore.RestoreService createRestoreService(ContentStore contentStore,
             MetadataService metadataService,
             Blake3Service blake3Service) throws ServiceException {
-        return new com.justsyncit.restore.RestoreService(contentStore, metadataService, blake3Service);
+        if (restoreService == null) {
+            restoreService = new com.justsyncit.restore.RestoreService(contentStore, metadataService, blake3Service);
+        }
+        return restoreService;
     }
 
     /**
@@ -340,11 +401,7 @@ public class ServiceFactory {
      * @throws ServiceException if service creation fails
      */
     public MetadataService createMetadataService(String databasePath) throws ServiceException {
-        try {
-            return MetadataServiceFactory.createFileBasedService(databasePath);
-        } catch (IOException e) {
-            throw new ServiceException("Failed to create metadata service", e);
-        }
+        return storageFactory.createMetadataService(databasePath);
     }
 
     /**
@@ -354,11 +411,7 @@ public class ServiceFactory {
      * @throws ServiceException if service creation fails
      */
     public MetadataService createInMemoryMetadataService() throws ServiceException {
-        try {
-            return MetadataServiceFactory.createInMemoryService();
-        } catch (IOException e) {
-            throw new ServiceException("Failed to create in-memory metadata service", e);
-        }
+        return storageFactory.createInMemoryMetadataService();
     }
 
     /**
@@ -369,7 +422,7 @@ public class ServiceFactory {
      * @throws ServiceException if store creation fails
      */
     public ContentStore createSqliteContentStore(Blake3Service blake3Service) throws ServiceException {
-        return storageModule.createSqliteContentStore(blake3Service);
+        return storageFactory.createSqliteContentStore(blake3Service);
     }
 
     /**
@@ -390,25 +443,29 @@ public class ServiceFactory {
      * @return a configured async BackupService instance
      * @throws ServiceException if service creation fails
      */
-    public com.justsyncit.backup.BackupService createAsyncBackupService(ContentStore contentStore,
+    public synchronized com.justsyncit.backup.BackupService createAsyncBackupService(ContentStore contentStore,
             MetadataService metadataService,
             Blake3Service blake3Service) throws ServiceException {
-        try {
-            // Create async components
-            com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl
-                    .create();
-            com.justsyncit.scanner.ThreadPoolManager threadPoolManager = com.justsyncit.scanner.ThreadPoolManager
-                    .getInstance();
-            com.justsyncit.scanner.AsyncFilesystemScanner asyncScanner = new com.justsyncit.scanner.AsyncFilesystemScannerImpl(
-                    threadPoolManager, bufferPool);
-            com.justsyncit.scanner.AsyncFileChunker asyncChunker = com.justsyncit.scanner.AsyncFileChunkerImpl
-                    .create(blake3Service);
+        if (backupService == null) {
+            try {
+                // Create async components
+                com.justsyncit.scanner.AsyncByteBufferPool bufferPool = com.justsyncit.scanner.AsyncByteBufferPoolImpl
+                        .create();
+                com.justsyncit.scanner.ThreadPoolManager threadPoolManager = com.justsyncit.scanner.ThreadPoolManager
+                        .getInstance();
+                com.justsyncit.scanner.AsyncFilesystemScanner asyncScanner = new com.justsyncit.scanner.AsyncFilesystemScannerImpl(
+                        threadPoolManager, bufferPool);
+                com.justsyncit.scanner.AsyncFileChunker asyncChunker = com.justsyncit.scanner.AsyncFileChunkerImpl
+                        .create(blake3Service);
 
-            return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner, asyncChunker,
-                    null, blake3Service);
-        } catch (HashingException e) {
-            throw new ServiceException("Failed to create async backup service", e);
+                backupService = new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner,
+                        asyncChunker,
+                        null, blake3Service);
+            } catch (HashingException e) {
+                throw new ServiceException("Failed to create async backup service", e);
+            }
         }
+        return backupService;
     }
 
     /**
@@ -436,7 +493,7 @@ public class ServiceFactory {
             com.justsyncit.scanner.AsyncBatchProcessor batchProcessor = com.justsyncit.scanner.AsyncFileBatchProcessorImpl
                     .create(delegateChunker, bufferPool, threadPoolManager);
             com.justsyncit.scanner.BatchConfiguration batchConfig = new com.justsyncit.scanner.BatchConfiguration();
-            com.justsyncit.scanner.AsyncFileChunker batchAsyncChunker = new com.justsyncit.scanner.BatchAwareAsyncFileChunker(
+            com.justsyncit.scanner.BatchAwareAsyncFileChunker batchAsyncChunker = new com.justsyncit.scanner.BatchAwareAsyncFileChunker(
                     delegateChunker, batchProcessor, batchConfig);
 
             return new com.justsyncit.backup.BackupService(contentStore, metadataService, asyncScanner,
@@ -573,9 +630,12 @@ public class ServiceFactory {
      * @param backupService the backup service
      * @return configured scheduler service
      */
-    public com.justsyncit.scheduler.SchedulerService createSchedulerService(
+    public synchronized com.justsyncit.scheduler.SchedulerService createSchedulerService(
             com.justsyncit.backup.BackupService backupService) {
-        return new com.justsyncit.scheduler.SchedulerService(backupService);
+        if (schedulerService == null) {
+            schedulerService = new com.justsyncit.scheduler.SchedulerService(backupService);
+        }
+        return schedulerService;
     }
 
     /**

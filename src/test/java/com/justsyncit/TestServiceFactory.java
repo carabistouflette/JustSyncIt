@@ -3,6 +3,7 @@ package com.justsyncit;
 import com.justsyncit.command.CommandRegistry;
 import com.justsyncit.hash.Blake3BufferHasher;
 import com.justsyncit.hash.Blake3FileHasher;
+import com.justsyncit.command.CommandContext;
 import com.justsyncit.hash.Blake3IncrementalHasherFactory;
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.hash.Blake3ServiceImpl;
@@ -55,7 +56,8 @@ public class TestServiceFactory {
         CommandRegistry commandRegistry = new CommandRegistry();
         ApplicationInfoDisplay infoDisplay = new ConsoleInfoDisplay();
 
-        return new JustSyncItApplication(blake3Service, commandRegistry, infoDisplay);
+        CommandContext context = CommandContext.builder(blake3Service).build();
+        return new JustSyncItApplication(context, commandRegistry, infoDisplay);
     }
 
     /**

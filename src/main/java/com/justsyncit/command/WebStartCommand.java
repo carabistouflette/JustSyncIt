@@ -6,11 +6,14 @@ import com.justsyncit.web.WebServer;
 import com.justsyncit.web.WebServerContext;
 import com.justsyncit.web.service.AuthService;
 import com.justsyncit.web.service.SqliteAuthStore;
+import com.justsyncit.scheduler.SchedulerService;
+import com.justsyncit.backup.BackupService;
+import com.justsyncit.restore.RestoreService;
+import com.justsyncit.hash.Blake3Service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 
 /**
@@ -21,7 +24,6 @@ public final class WebStartCommand implements Command {
 
     private static final Logger logger = LoggerFactory.getLogger(WebStartCommand.class);
     private static final int DEFAULT_PORT = 8080;
-    private static final String DEFAULT_AUTH_DB_PATH = "config/auth.db";
 
     private static WebServer runningServer;
 
@@ -80,45 +82,36 @@ public final class WebStartCommand implements Command {
         }
 
         try {
-            // Create ServiceFactory to instantiate missing services
-            com.justsyncit.ServiceFactory serviceFactory = new com.justsyncit.ServiceFactory();
-
-            // Create BackupService and RestoreService
+            // Retrieve services from context
             ContentStore contentStore = context.getContentStore();
             MetadataService metadataService = context.getMetadataService();
+            BackupService backupService = context.getBackupService();
+            RestoreService restoreService = context.getRestoreService();
+            Blake3Service blake3Service = context.getBlake3Service();
 
-            // Lazy initialization if not in context
-            if (contentStore == null) {
-                contentStore = serviceFactory.createContentStore(context.getBlake3Service());
+            // Validate critical services
+            if (contentStore == null || metadataService == null || backupService == null || restoreService == null) {
+                System.err.println("Error: Critical services not available in command context.");
+                return false;
             }
-            if (metadataService == null) {
-                metadataService = serviceFactory.createMetadataService();
+
+            // Retrieve additional services from context
+            SchedulerService schedulerService = context.getSchedulerService();
+            SqliteAuthStore authStore = context.getAuthStore();
+            AuthService authService = context.getAuthService();
+
+            if (schedulerService == null || authStore == null || authService == null) {
+                System.err.println("Error: Web services (Scheduler, Auth) not available in command context.");
+                return false;
             }
 
-            com.justsyncit.backup.BackupService backupService = serviceFactory.createBackupService(
-                    contentStore,
-                    metadataService,
-                    context.getBlake3Service());
-
-            com.justsyncit.restore.RestoreService restoreService = serviceFactory.createRestoreService(
-                    contentStore,
-                    metadataService,
-                    context.getBlake3Service());
-
-            com.justsyncit.scheduler.SchedulerService schedulerService = serviceFactory
-                    .createSchedulerService(backupService);
             schedulerService.start();
-
-            // Create Authentication Services
-            String authDbPath = Paths.get(DEFAULT_AUTH_DB_PATH).toString();
-            SqliteAuthStore authStore = serviceFactory.createAuthStore(authDbPath);
-            AuthService authService = new AuthService(authStore);
 
             // Create WebServerContext using Builder pattern
             WebServerContext webContext = WebServerContext.builder()
                     .withMetadataService(metadataService)
                     .withContentStore(contentStore)
-                    .withBlake3Service(context.getBlake3Service())
+                    .withBlake3Service(blake3Service)
                     .withBackupService(backupService)
                     .withRestoreService(restoreService)
                     .withSchedulerService(schedulerService)
@@ -155,6 +148,11 @@ public final class WebStartCommand implements Command {
             handleError("Failed to start web server", e, logger);
             return false;
         }
+    }
+
+    private void handleError(String message, Exception e, Logger logger) {
+        System.err.println("Error: " + message + ": " + e.getMessage());
+        logger.error(message, e);
     }
 
     /**

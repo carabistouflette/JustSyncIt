@@ -18,8 +18,15 @@ public class ServiceFactoryTest {
 
     private ServiceFactory serviceFactory;
 
+    @org.junit.jupiter.api.io.TempDir
+    java.nio.file.Path tempDir;
+
     @BeforeEach
     void setUp() {
+        System.setProperty("justsyncit.db.path", tempDir.resolve("metadata.db").toString());
+        System.setProperty("justsyncit.auth.db.path", tempDir.resolve("auth.db").toString());
+        // Set valid 32-byte Base64 cluster key
+        System.setProperty("justsyncit.cluster.key", java.util.Base64.getEncoder().encodeToString(new byte[32]));
         serviceFactory = new ServiceFactory();
     }
 

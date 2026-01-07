@@ -3,7 +3,6 @@ package com.justsyncit;
 import com.justsyncit.command.Command;
 import com.justsyncit.command.CommandContext;
 import com.justsyncit.command.CommandRegistry;
-import com.justsyncit.hash.Blake3Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
@@ -21,8 +20,8 @@ public class JustSyncItApplication {
     /** Logger for the application. */
     private static final Logger logger = LoggerFactory.getLogger(JustSyncItApplication.class);
 
-    /** BLAKE3 service instance. */
-    private final Blake3Service blake3Service;
+    /** Application context with services. */
+    private final CommandContext context;
 
     /** Command registry for managing commands. */
     private final CommandRegistry commandRegistry;
@@ -31,17 +30,17 @@ public class JustSyncItApplication {
     private final ApplicationInfoDisplay infoDisplay;
 
     /**
-     * Creates a new JustSyncItApplicationRefactored with all dependencies.
+     * Creates a new JustSyncItApplication with all dependencies.
      *
-     * @param blake3Service   the BLAKE3 service
+     * @param context         the command context
      * @param commandRegistry the command registry
      * @param infoDisplay     the application info display
      */
     public JustSyncItApplication(
-            Blake3Service blake3Service,
+            CommandContext context,
             CommandRegistry commandRegistry,
             ApplicationInfoDisplay infoDisplay) {
-        this.blake3Service = blake3Service;
+        this.context = context;
         this.commandRegistry = commandRegistry;
         this.infoDisplay = infoDisplay;
     }
@@ -82,7 +81,7 @@ public class JustSyncItApplication {
         logger.info("JustSyncIt is running");
 
         // Display BLAKE3 implementation info
-        infoDisplay.displayBlake3Info(blake3Service);
+        infoDisplay.displayBlake3Info(context.getBlake3Service());
 
         // Display application header
         logger.info("JustSyncIt - Backup Solution");
@@ -211,24 +210,11 @@ public class JustSyncItApplication {
     private void processCommands(String[] args) {
         logger.info("Running with {} arguments", args.length);
 
-        // Create a fully populated CommandContext with all services
-        CommandContext context;
-        try {
-            ServiceFactory serviceFactory = new ServiceFactory();
-            com.justsyncit.storage.metadata.MetadataService metadataService = serviceFactory.createMetadataService();
-            com.justsyncit.storage.ContentStore contentStore = serviceFactory.createContentStore(blake3Service);
-            com.justsyncit.restore.RestoreService restoreService = serviceFactory.createRestoreService(
-                    contentStore, metadataService, blake3Service);
-
-            context = CommandContext.builder(blake3Service)
-                    .metadataService(metadataService)
-                    .contentStore(contentStore)
-                    .restoreService(restoreService)
-                    .build();
-        } catch (Exception e) {
-            logger.error("Failed to initialize services for command context", e);
-            // Fall back to minimal context
-            context = new CommandContext(blake3Service);
+        // Use the injected context directly
+        // The context is already fully populated by the ServiceFactory
+        if (context == null) {
+            logger.error("Command context is null, critical failure");
+            return;
         }
 
         boolean commandExecuted = false;
