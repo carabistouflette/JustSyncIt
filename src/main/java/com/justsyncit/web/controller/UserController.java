@@ -284,11 +284,17 @@ public final class UserController {
 
             // Set HttpOnly cookie for XSS protection
             boolean isSecure = ctx.scheme().equals("https");
-            String cookieFlags = "; HttpOnly; SameSite=Strict; Path=/";
+            StringBuilder cookieBuilder = new StringBuilder();
+            cookieBuilder.append("session=").append(token);
+            cookieBuilder.append("; Path=/");
+            cookieBuilder.append("; HttpOnly");
+            cookieBuilder.append("; SameSite=Strict");
+
             if (isSecure) {
-                cookieFlags += "; Secure";
+                cookieBuilder.append("; Secure");
             }
-            ctx.header("Set-Cookie", "session=" + token + cookieFlags);
+
+            ctx.header("Set-Cookie", cookieBuilder.toString());
 
             ctx.json(Map.of(
                     "user", new UserRequests.UserResponse(
