@@ -69,6 +69,7 @@ dependencies {
 
 application {
     mainClass = 'com.justsyncit.JustSyncItApplication'
+    applicationDefaultJvmArgs = ['--add-modules', 'jdk.incubator.vector']
 }
 
 // JaCoCo configuration for code coverage
@@ -183,9 +184,11 @@ java {
 
 tasks.withType(JavaCompile) {
     options.compilerArgs << "-Xlint:all"
-    options.compilerArgs << "-Werror" // Optional: treat warnings as errors to force clean build? Maybe too aggressive for now.
+    // options.compilerArgs << "-Werror" // Removed to allow incubating warnings
     // Let's just use -Xlint:all and -Xlint:-processing (to ignore annotation processing warnings if any)
     options.compilerArgs << "-Xlint:-processing"
+    options.compilerArgs << "--add-modules"
+    options.compilerArgs << "jdk.incubator.vector"
     options.encoding = 'UTF-8'
 }
 
@@ -330,7 +333,7 @@ task benchmarkTest(type: Test) {
     }
 }
 
-test {
+tasks.named('test') {
     useJUnitPlatform {
         excludeTags 'performance', 'benchmark', 'slow'
     }
@@ -348,12 +351,17 @@ test {
     }
     
     // Set required environment variable for tests (32 bytes Base64)
-
+    // environment 'JUSTSYNCIT_CLUSTER_KEY', 'x'.repeat(32) // Example if needed globally
     
+    // Enable vector API for all tests
+    jvmArgs += [
+        '--add-modules=jdk.incubator.vector',
+        '--enable-native-access=ALL-UNNAMED'
+    ]
+
     // Handle Java 24 compatibility issues
     if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24)) {
-        jvmArgs = [
-            '--enable-native-access=ALL-UNNAMED',
+        jvmArgs += [
             '-Djava.util.logging.config.file=src/main/resources/logback-quiet.xml'
         ]
     }
