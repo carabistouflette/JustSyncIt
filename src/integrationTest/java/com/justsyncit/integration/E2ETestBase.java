@@ -67,7 +67,13 @@ public abstract class E2ETestBase {
                 testStorageDir, metadataService, blake3Service);
         backupService = serviceFactory.createBackupService(contentStore, metadataService, blake3Service);
         restoreService = serviceFactory.createRestoreService(contentStore, metadataService, blake3Service);
-        networkService = serviceFactory.createNetworkService();
+
+        // Generate a random cluster key for testing
+        byte[] keyBytes = new byte[32];
+        new java.security.SecureRandom().nextBytes(keyBytes);
+        String testClusterKey = java.util.Base64.getEncoder().encodeToString(keyBytes);
+
+        networkService = serviceFactory.createNetworkService(blake3Service, testClusterKey);
         networkServiceWithSimulation = NetworkSimulationUtil.createExcellentNetworkSimulator(networkService);
 
         resourcesToCleanup.add(new ResourceWrapper<>(contentStore));

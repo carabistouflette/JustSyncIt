@@ -248,7 +248,7 @@ task integrationTest(type: Test) {
     }
 
     // Set required environment variable for tests (32 bytes Base64)
-    environment 'JUSTSYNCIT_CLUSTER_KEY', 'MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE='
+
     
     // Configure test reports
     reports {
@@ -348,7 +348,7 @@ test {
     }
     
     // Set required environment variable for tests (32 bytes Base64)
-    environment 'JUSTSYNCIT_CLUSTER_KEY', 'MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE='
+
     
     // Handle Java 24 compatibility issues
     if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_24)) {
