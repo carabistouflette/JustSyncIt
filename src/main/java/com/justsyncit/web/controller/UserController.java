@@ -486,21 +486,8 @@ public final class UserController {
             return;
         }
 
-        // Print to console (stdout) specifically so it can be seen in the terminal or
-        // captured by container logs
-        // but NOT persisted in application logs which might be rotated/stored
-        // insecurely.
-        System.out.println("\n");
-        System.out.println("===================================================================");
-        System.out.println("            JUSTSYNCIT DEFAULT ADMIN ACCOUNT CREATED               ");
-        System.out.println("===================================================================");
-        System.out.println(" Username: admin");
-        System.out.println(" Password: " + tempPass);
-        System.out.println("===================================================================");
-        System.out.println(" IMPORTANT: This password is ephemeral and generated randomly.     ");
-        System.out.println(" Set JUSTSYNCIT_ADMIN_PASSWORD env var to configure a fixed password.");
-        System.out.println("===================================================================\n");
-
-        LOGGER.warn("Default admin account created. Credentials printed to stdout.");
+        // Admins should set the env var or use the setup wizard.
+        LOGGER.warn("Default admin account created. PLEASE SET 'JUSTSYNCIT_ADMIN_PASSWORD' ENV VARIABLE IMMEDIATELY.");
+        LOGGER.warn("For ephemeral access, checks logs for 'Default admin account created' confirmation only.");
     }
 }
