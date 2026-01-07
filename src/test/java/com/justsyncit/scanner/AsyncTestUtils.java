@@ -1,6 +1,5 @@
 package com.justsyncit.scanner;
 
-import com.justsyncit.scanner.FileChunker.ChunkingResult;
 import java.nio.ByteBuffer;
 
 import java.nio.file.Path;
@@ -309,7 +308,7 @@ public final class AsyncTestUtils {
     public static <T> List<T> waitForAllAndGetResults(Duration timeout,
             java.util.Collection<? extends CompletableFuture<T>> futures)
             throws AsyncTestException {
-        @SuppressWarnings({ "unchecked", "rawtypes" })
+        @SuppressWarnings({ "unchecked" })
         CompletableFuture<T>[] array = futures.toArray(new CompletableFuture[0]);
         return waitForAllAndGetResults(timeout, array);
     }

@@ -107,18 +107,18 @@ class FixedSizeFileChunkerTest {
     @Test
     void testChunkWithAsyncIO() throws IOException, InterruptedException, ExecutionException {
         Path file = tempDir.resolve("async.txt");
-        byte[] data = new byte[64 * 1024]; // Exactly 64KB
+        byte[] data = new byte[2 * 1024 * 1024]; // 2MB, ensures async IO path is taken
         Files.write(file, data);
 
         ChunkingOptions options = new ChunkingOptions().withUseAsyncIO(true);
         FileChunker.ChunkingResult result = chunker.chunkFile(file, options).get();
 
         assertTrue(result.isSuccess());
-        assertEquals(1, result.getChunkCount());
+        assertEquals(32, result.getChunkCount()); // 2MB / 64KB = 32 chunks
         assertEquals(data.length, result.getTotalSize());
         assertEquals(0, result.getSparseSize());
         assertNotNull(result.getFileHash());
-        assertEquals(1, result.getChunkHashes().size());
+        assertEquals(32, result.getChunkHashes().size());
     }
 
     @Test
