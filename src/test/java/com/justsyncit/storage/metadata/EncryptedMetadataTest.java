@@ -8,7 +8,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
@@ -26,12 +25,18 @@ class EncryptedMetadataTest {
         private SqliteMetadataService metadataService;
         private DatabaseConnectionManager connectionManager;
         private byte[] secretKey;
+        private Connection keepAliveConnection;
 
         @BeforeEach
-        void setUp() throws IOException {
+        void setUp() throws IOException, java.sql.SQLException {
                 // Setup in-memory database with shared cache so we can inspect it from test
-                connectionManager = new SqliteConnectionManager("file::memory:?cache=shared", 1);
-                SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
+                // Use named memory DB to ensure sharing works across different connection
+                // managers
+                connectionManager = new SqliteConnectionManager("file:memdb1?mode=memory&cache=shared", 1);
+                // Keep one connection open to persistence of shared in-memory DB
+                keepAliveConnection = connectionManager.getConnection();
+
+                // SqliteSchemaMigrator.create() ... (removed)
 
                 // Setup encryption
                 secretKey = new byte[32]; // 256-bit key
@@ -46,9 +51,12 @@ class EncryptedMetadataTest {
         }
 
         @AfterEach
-        void tearDown() throws IOException {
+        void tearDown() throws IOException, java.sql.SQLException {
                 if (metadataService != null) {
                         metadataService.close();
+                }
+                if (keepAliveConnection != null && !keepAliveConnection.isClosed()) {
+                        keepAliveConnection.close();
                 }
         }
 
@@ -104,7 +112,13 @@ class EncryptedMetadataTest {
                         assertEquals(1, files.size());
                         assertEquals(originalPath, files.get(0).getPath());
                 } catch (Exception e) {
-                        e.printStackTrace();
+                        System.out.println("TEST FAILURE DETAILS: " + e.getMessage());
+                        if (e.getCause() != null) {
+                                System.out.println("TEST FAILURE CAUSE: " + e.getCause().getMessage());
+                                e.getCause().printStackTrace();
+                        } else {
+                                e.printStackTrace();
+                        }
                         throw e;
                 }
         }
@@ -156,22 +170,28 @@ class EncryptedMetadataTest {
                 try {
                         // This test simulates a migration scenario where some files are plain text
 
-                        // Allow creating a service WITHOUT encryption to simulate legacy insert
-                        SqliteMetadataService legacyService = new SqliteMetadataService(
-                                        connectionManager, null, null, null,
-                                        new com.fasterxml.jackson.databind.ObjectMapper());
+                        FileMetadata plainFile;
+                        // Use a separate connection manager for legacy service so closing it doesn't
+                        // close the main one
+                        // but points to same shared memory DB
+                        try (DatabaseConnectionManager legacyConnManager = new SqliteConnectionManager(
+                                        "file:memdb1?mode=memory&cache=shared", 1);
+                                        SqliteMetadataService legacyService = new SqliteMetadataService(
+                                                        legacyConnManager, null, null, null,
+                                                        new com.fasterxml.jackson.databind.ObjectMapper())) {
 
-                        legacyService.createSnapshot("snap1", "Legacy");
+                                legacyService.createSnapshot("snap1", "Legacy");
 
-                        FileMetadata plainFile = new FileMetadata(
-                                        UUID.randomUUID().toString(),
-                                        "snap1",
-                                        "/legacy/plain.txt",
-                                        0L,
-                                        Instant.now(),
-                                        "h_old",
-                                        Collections.emptyList());
-                        legacyService.insertFile(plainFile);
+                                plainFile = new FileMetadata(
+                                                UUID.randomUUID().toString(),
+                                                "snap1",
+                                                "/legacy/plain.txt",
+                                                0L,
+                                                Instant.now(),
+                                                "h_old",
+                                                Collections.emptyList());
+                                legacyService.insertFile(plainFile);
+                        }
 
                         // Now switch to encrypted service
 
@@ -198,5 +218,33 @@ class EncryptedMetadataTest {
                         e.printStackTrace();
                         throw e;
                 }
+        }
+
+        @Test
+        void testDecryptionFailure() throws Exception {
+                // Manually insert a file with corrupt path data/invalid Base64
+                // to trigger the exception handling in decryptPath
+                metadataService.createSnapshot("snap_fail", "Snapshot with corrupt file");
+
+                String corruptPath = "NotValidBase64!!!";
+                String fileId = UUID.randomUUID().toString();
+
+                try (Connection conn = connectionManager.getConnection();
+                                Statement stmt = conn.createStatement()) {
+
+                        // Direct SQL insert to bypass service validation/encryption logic
+                        String sql = String.format(
+                                        "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash, encryption_mode) "
+                                                        +
+                                                        "VALUES ('%s', 'snap_fail', '%s', 100, %d, 'hash', 'AES')",
+                                        fileId, corruptPath, System.currentTimeMillis());
+                        stmt.execute(sql);
+                }
+
+                // Verify retrieval catches exception and returns placeholder
+                Optional<FileMetadata> retrieved = metadataService.getFile(fileId);
+                assertTrue(retrieved.isPresent());
+                // Expecting the placeholder defined in FileRepository
+                assertEquals("<decryption_failed>", retrieved.get().getPath());
         }
 }

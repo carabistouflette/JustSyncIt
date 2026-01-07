@@ -40,12 +40,16 @@ public final class ChunkRepository {
             return;
         }
 
-        String sql = "INSERT OR IGNORE INTO chunks (hash) VALUES (?)";
+        // last_accessed is NOT NULL in schema, so we must provide it.
+        String sql = "INSERT OR IGNORE INTO chunks (hash, size, first_seen, last_accessed) VALUES (?, 0, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             Set<String> uniqueHashes = new HashSet<>(chunkHashes);
             int batchCount = 0;
+            long now = System.currentTimeMillis();
             for (String hash : uniqueHashes) {
                 stmt.setString(1, hash);
+                stmt.setLong(2, now);
+                stmt.setLong(3, now);
                 stmt.addBatch();
                 batchCount++;
                 if (batchCount >= 500) {
@@ -107,6 +111,43 @@ public final class ChunkRepository {
                 return chunks;
             }
         }
+    }
+
+    public java.util.Map<String, List<String>> getFileChunksForFiles(Connection connection, List<String> fileIds)
+            throws SQLException {
+        if (fileIds == null || fileIds.isEmpty()) {
+            return java.util.Collections.emptyMap();
+        }
+
+        // SQLite limit is often 999. We'll batch to be safe, e.g. 500.
+        java.util.Map<String, List<String>> result = new java.util.HashMap<>();
+        int batchSize = 500;
+
+        for (int i = 0; i < fileIds.size(); i += batchSize) {
+            int end = Math.min(i + batchSize, fileIds.size());
+            List<String> batch = fileIds.subList(i, end);
+
+            StringBuilder sql = new StringBuilder("SELECT file_id, chunk_hash FROM file_chunks WHERE file_id IN (");
+            for (int j = 0; j < batch.size(); j++) {
+                sql.append(j == 0 ? "?" : ",?");
+            }
+            sql.append(") ORDER BY file_id, chunk_order ASC");
+
+            try (PreparedStatement stmt = connection.prepareStatement(sql.toString())) {
+                for (int j = 0; j < batch.size(); j++) {
+                    stmt.setString(j + 1, batch.get(j));
+                }
+
+                try (ResultSet rs = stmt.executeQuery()) {
+                    while (rs.next()) {
+                        String fileId = rs.getString("file_id");
+                        String chunkHash = rs.getString("chunk_hash");
+                        result.computeIfAbsent(fileId, k -> new ArrayList<>()).add(chunkHash);
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     public Optional<ChunkMetadata> getChunkMetadata(String hash) throws SQLException {

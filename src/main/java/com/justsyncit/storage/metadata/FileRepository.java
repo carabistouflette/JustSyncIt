@@ -357,12 +357,42 @@ public final class FileRepository {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 List<FileMetadata> list = new ArrayList<>();
+                // First pass: collect basic metadata
                 while (rs.next()) {
-                    List<String> chunks = includeChunks ? chunkRepository.getFileChunks(connection, rs.getString("id"))
-                            : null;
-                    list.add(mapRowToFileMetadata(rs, chunks));
+                    // Pass null chunks initially
+                    list.add(mapRowToFileMetadata(rs, null));
                 }
-                return list;
+
+                if (includeChunks && !list.isEmpty()) {
+                    List<String> fileIds = new ArrayList<>(list.size());
+                    for (FileMetadata fm : list) {
+                        fileIds.add(fm.getId());
+                    }
+
+                    // Bulk fetch chunks
+                    java.util.Map<String, List<String>> chunksMap = chunkRepository.getFileChunksForFiles(connection,
+                            fileIds);
+
+                    // Reconstruct with chunks
+                    List<FileMetadata> completeList = new ArrayList<>(list.size());
+                    for (FileMetadata fm : list) {
+                        List<String> chunks = chunksMap.getOrDefault(fm.getId(), Collections.emptyList());
+                        completeList.add(new FileMetadata(
+                                fm.getId(),
+                                fm.getSnapshotId(),
+                                fm.getPath(),
+                                fm.getSize(),
+                                fm.getModifiedTime(),
+                                fm.getFileHash(),
+                                chunks));
+                    }
+                    return completeList;
+                } else if (includeChunks) {
+                    // Requested chunks but empty list
+                    return list;
+                } else {
+                    return list;
+                }
             }
         } catch (SQLException e) {
             throw new IOException(e);
@@ -575,9 +605,13 @@ public final class FileRepository {
             try {
                 return new String(encryptionService.decrypt(Base64.getDecoder().decode(path), keySupplier.get()),
                         StandardCharsets.UTF_8);
+            } catch (IllegalArgumentException | EncryptionException e) {
+                // Log at DEBUG to avoid flooding logs during scan of many failed files
+                logger.debug("Decryption failed for path: {}", e.getMessage());
+                return "<decryption_failed>";
             } catch (Exception e) {
-                logger.error("Decrypt failed", e);
-                return path;
+                logger.warn("Unexpected error during decryption", e);
+                return "<decryption_error>";
             }
         }
         return path;
