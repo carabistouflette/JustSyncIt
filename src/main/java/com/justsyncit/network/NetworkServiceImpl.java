@@ -16,11 +16,9 @@ import com.justsyncit.network.quic.QuicStream;
 import com.justsyncit.network.quic.QuicConfiguration;
 import com.justsyncit.network.quic.QuicTransport;
 import com.justsyncit.storage.ContentStore;
-import com.justsyncit.hash.Blake3Service;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Objects;
@@ -28,7 +26,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,56 +71,35 @@ public class NetworkServiceImpl implements NetworkService {
     private final com.justsyncit.network.transfer.SecureTransferHandler secureTransferHandler;
     private final byte[] clusterKey;
 
-    /**
-     * Creates a new NetworkService implementation with QUIC transport injection.
-     * Follows Dependency Inversion Principle by accepting QuicTransport interface.
-     *
-     * @param tcpServer            the TCP server component
-     * @param tcpClient            the TCP client component
-     * @param fileTransferManager  the file transfer manager
-     * @param connectionManager    the connection manager
-     * @param blake3Service        the BLAKE3 service
-     * @param quicTransport        the QUIC transport implementation
-     * @param quicConfiguration    the QUIC configuration
-     * @param defaultTransportType the default transport type for new connections
-     * @param encryptionService    the encryption service
-     * @param clusterKey           the cluster key for encryption
-     */
-    @SuppressWarnings("this-escape")
+    /** Handler for QUIC transfers. */
+    private final com.justsyncit.network.transfer.QuicTransportHandler quicTransportHandler;
+
     public NetworkServiceImpl(TcpServer tcpServer, TcpClient tcpClient, FileTransferManager fileTransferManager,
-            ConnectionManager connectionManager, Blake3Service blake3Service, QuicTransport quicTransport,
-            QuicConfiguration quicConfiguration, TransportType defaultTransportType,
-            com.justsyncit.network.encryption.EncryptionService encryptionService, byte[] clusterKey) {
-        this.tcpServer = Objects.requireNonNull(tcpServer, "tcpServer cannot be null");
-        this.tcpClient = Objects.requireNonNull(tcpClient, "tcpClient cannot be null");
-        this.fileTransferManager = Objects.requireNonNull(fileTransferManager, "fileTransferManager cannot be null");
-        this.fileTransferManager.setNetworkService(this);
-        this.connectionManager = Objects.requireNonNull(connectionManager, "connectionManager cannot be null");
-
-        this.quicTransport = Objects.requireNonNull(quicTransport, "quicTransport cannot be null");
-        Objects.requireNonNull(quicConfiguration, "quicConfiguration cannot be null");
-        this.defaultTransportType = Objects.requireNonNull(defaultTransportType, "defaultTransportType cannot be null");
-        Objects.requireNonNull(encryptionService, "encryptionService cannot be null");
-        this.clusterKey = Objects.requireNonNull(clusterKey, "clusterKey cannot be null");
-        if (clusterKey.length != 32) {
-            throw new IllegalArgumentException("Cluster key must be 32 bytes");
-        }
-
+            ConnectionManager connectionManager, com.justsyncit.hash.Blake3Service blake3Service,
+            QuicTransport quicTransport, QuicConfiguration quicConfiguration,
+            TransportType defaultTransportType,
+            com.justsyncit.network.encryption.EncryptionService encryptionService,
+            byte[] clusterKey) {
+        this.tcpServer = tcpServer;
+        this.tcpClient = tcpClient;
+        this.fileTransferManager = fileTransferManager;
+        this.connectionManager = connectionManager;
+        this.quicTransport = quicTransport;
+        this.defaultTransportType = defaultTransportType;
+        this.clusterKey = clusterKey;
+        this.quicServer = new QuicServer(quicConfiguration);
+        this.connectionTransports = new ConcurrentHashMap<>();
         this.statistics = new NetworkStatisticsImpl();
         this.listeners = new CopyOnWriteArrayList<>();
         this.running = new AtomicBoolean(false);
-        this.connectionTransports = new ConcurrentHashMap<>();
 
         // Initialize helpers
         this.secureTransferHandler = new com.justsyncit.network.transfer.SecureTransferHandler(blake3Service,
                 encryptionService);
-
-        // Initialize QUIC server
-        this.quicServer = new QuicServer(quicConfiguration);
-
-        // Register event listeners with components
-        setupEventListeners();
+        this.quicTransportHandler = new com.justsyncit.network.transfer.QuicTransportHandler(quicTransport, statistics);
     }
+
+    // ...
 
     /**
      * Sets up event listeners for all network components.
@@ -511,9 +487,13 @@ public class NetworkServiceImpl implements NetworkService {
 
         long length = Math.min(chunkSize, totalSize - offset);
         try {
+            // Use thenComposeAsync to break the recursion stack, preventing
+            // StackOverflowError
+            // for large files where chunks might be sent synchronously or very fast.
             return sendFilePart(filePath, offset, length, remoteAddress, transportType)
-                    .thenCompose(v -> sendFileChunksSequentially(filePath, remoteAddress, offset + length, totalSize,
-                            chunkSize, transportType));
+                    .thenComposeAsync(
+                            v -> sendFileChunksSequentially(filePath, remoteAddress, offset + length, totalSize,
+                                    chunkSize, transportType));
         } catch (IOException e) {
             return CompletableFuture.failedFuture(e);
         }
@@ -523,28 +503,7 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<Void> sendFilePart(Path filePath, long offset, long length,
             InetSocketAddress remoteAddress, TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
-            // QUIC impl doesn't support zero-copy partial transfer yet, fallback to reading
-            // and sending
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    try (java.nio.channels.FileChannel fc = java.nio.channels.FileChannel.open(filePath,
-                            java.nio.file.StandardOpenOption.READ)) {
-                        ByteBuffer buffer = ByteBuffer.allocate((int) Math.min(length, 1024 * 1024)); // Limit
-                                                                                                      // buffer
-                                                                                                      // size
-                        fc.read(buffer, offset);
-                        buffer.flip();
-                        long fileSize = Files.size(filePath);
-                        com.justsyncit.network.protocol.ProtocolMessage partMessage = new com.justsyncit.network.protocol.ChunkDataMessage(
-                                filePath.toString(), offset, buffer.remaining(), fileSize, "hash-placeholder",
-                                buffer.array());
-                        sendMessage(partMessage, remoteAddress, transportType);
-                    }
-                    return null;
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
+            return quicTransportHandler.sendFilePart(filePath, offset, length, remoteAddress);
         } else {
             // TCP zero-copy
             Connection connection = getConnection(remoteAddress);
@@ -582,14 +541,7 @@ public class NetworkServiceImpl implements NetworkService {
     public CompletableFuture<Void> sendMessage(ProtocolMessage message, InetSocketAddress remoteAddress,
             TransportType transportType) throws IOException {
         if (transportType == TransportType.QUIC) {
-            return quicTransport.sendMessage(message, remoteAddress).thenRun(() -> {
-                statistics.incrementBytesSent(message.getTotalSize());
-                logger.trace("Message sent via QUIC to {}: {}", remoteAddress, message.getMessageType());
-            }).exceptionally(throwable -> {
-                logger.error("Failed to send message via QUIC to {}: {}", remoteAddress, message.getMessageType(),
-                        throwable);
-                return null;
-            });
+            return quicTransportHandler.sendMessage(message, remoteAddress);
         } else {
             Connection connection = getConnection(remoteAddress);
             if (connection == null) {
@@ -598,11 +550,6 @@ public class NetworkServiceImpl implements NetworkService {
 
             return connection.sendMessage(message).thenRun(() -> {
                 statistics.incrementBytesSent(message.getTotalSize());
-                logger.trace("Message sent via TCP to {}: {}", remoteAddress, message.getMessageType());
-            }).exceptionally(throwable -> {
-                logger.error("Failed to send message via TCP to {}: {}", remoteAddress, message.getMessageType(),
-                        throwable);
-                return null;
             });
         }
     }
@@ -752,129 +699,4 @@ public class NetworkServiceImpl implements NetworkService {
         notifyListeners(listener -> listener.onError(error, context), "error");
     }
 
-    /**
-     * Implementation of NetworkStatistics.
-     */
-    private static class NetworkStatisticsImpl implements NetworkStatistics {
-
-        /** Counter for total bytes sent. */
-        private final AtomicLong totalBytesSent = new AtomicLong(0);
-        /** Counter for total bytes received. */
-        private final AtomicLong totalBytesReceived = new AtomicLong(0);
-        /** Counter for active connections. */
-        private final AtomicLong activeConnections = new AtomicLong(0);
-        /** Counter for completed transfers. */
-        private final AtomicLong completedTransfers = new AtomicLong(0);
-        /** Counter for failed transfers. */
-        private final AtomicLong failedTransfers = new AtomicLong(0);
-        /** Counter for messages sent. */
-        private final AtomicLong messagesSent = new AtomicLong(0);
-        /** Counter for messages received. */
-        private final AtomicLong messagesReceived = new AtomicLong(0);
-        /** Start time in milliseconds. */
-        private volatile long startTime;
-        /** End time in milliseconds. */
-        private volatile long endTime;
-
-        public void start() {
-            startTime = System.currentTimeMillis();
-            endTime = 0;
-        }
-
-        public void stop() {
-            endTime = System.currentTimeMillis();
-        }
-
-        public void incrementBytesSent(long bytes) {
-            totalBytesSent.addAndGet(bytes);
-        }
-
-        public void incrementBytesReceived(long bytes) {
-            totalBytesReceived.addAndGet(bytes);
-        }
-
-        public void incrementActiveConnections() {
-            activeConnections.incrementAndGet();
-        }
-
-        public void decrementActiveConnections() {
-            activeConnections.decrementAndGet();
-        }
-
-        public void incrementCompletedTransfers() {
-            completedTransfers.incrementAndGet();
-        }
-
-        public void incrementFailedTransfers() {
-            failedTransfers.incrementAndGet();
-        }
-
-        public void incrementMessagesSent() {
-            messagesSent.incrementAndGet();
-        }
-
-        @Override
-        public long getTotalBytesSent() {
-            return totalBytesSent.get();
-        }
-
-        @Override
-        public long getTotalBytesReceived() {
-            return totalBytesReceived.get();
-        }
-
-        @Override
-        public int getActiveConnections() {
-            return (int) activeConnections.get();
-        }
-
-        @Override
-        public long getCompletedTransfers() {
-            return completedTransfers.get();
-        }
-
-        @Override
-        public long getFailedTransfers() {
-            return failedTransfers.get();
-        }
-
-        @Override
-        public double getAverageTransferRate() {
-            long uptime = getUptimeMillis();
-            if (uptime <= 0) {
-                return 0.0;
-            }
-            long totalBytes = totalBytesSent.get() + totalBytesReceived.get();
-            return (double) totalBytes / (uptime / 1000.0); // bytes
-                                                            // per
-                                                            // second
-        }
-
-        @Override
-        public long getUptimeMillis() {
-            if (startTime == 0) {
-                return 0;
-            }
-            long current = endTime > 0 ? endTime : System.currentTimeMillis();
-            return current - startTime;
-        }
-
-        public long getMessagesSent() {
-            return messagesSent.get();
-        }
-
-        public long getMessagesReceived() {
-            return messagesReceived.get();
-        }
-
-        @Override
-        public long getTotalMessagesSent() {
-            return messagesSent.get();
-        }
-
-        @Override
-        public long getTotalMessagesReceived() {
-            return messagesReceived.get();
-        }
-    }
 }
