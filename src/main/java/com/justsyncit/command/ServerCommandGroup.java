@@ -1,5 +1,7 @@
 package com.justsyncit.command;
 
+import com.justsyncit.ApplicationInfoDisplay;
+
 /**
  * Command group for server operations.
  * This command delegates to specific server subcommands.
@@ -19,25 +21,38 @@ public class ServerCommandGroup implements Command {
     /**
      * Creates a server command group with default subcommands.
      */
+    /**
+     * Creates a server command group with default subcommands.
+     */
     public ServerCommandGroup() {
-        this(new ServerStartCommand(null),
-                new ServerStopCommand(null),
-                new ServerStatusCommand(null));
+        this(new com.justsyncit.ConsoleInfoDisplay());
     }
 
+    private ServerCommandGroup(ApplicationInfoDisplay console) {
+        this(new ServerStartCommand(null, console),
+                new ServerStopCommand(null, console),
+                new ServerStatusCommand(null, console),
+                console);
+    }
+
+    private final ApplicationInfoDisplay console;
+
     /**
-     * Creates a server command group with injected subcommands.
+     * Creates a new ServerCommandGroup.
      *
      * @param startCommand  the start command
      * @param stopCommand   the stop command
      * @param statusCommand the status command
+     * @param console       the console display
      */
     public ServerCommandGroup(ServerStartCommand startCommand,
             ServerStopCommand stopCommand,
-            ServerStatusCommand statusCommand) {
+            ServerStatusCommand statusCommand,
+            ApplicationInfoDisplay console) {
         this.startCommand = startCommand;
         this.stopCommand = stopCommand;
         this.statusCommand = statusCommand;
+        this.console = console;
     }
 
     @Override
@@ -92,7 +107,7 @@ public class ServerCommandGroup implements Command {
      * Displays error message for missing subcommand.
      */
     private void displayMissingSubcommandError() {
-        System.err.println("Error: Missing subcommand");
+        console.displayError("Error: Missing subcommand");
         displayAvailableSubcommands();
     }
 
@@ -102,7 +117,7 @@ public class ServerCommandGroup implements Command {
      * @param subcommand the unknown subcommand
      */
     private void displayUnknownSubcommandError(String subcommand) {
-        System.err.println("Error: Unknown subcommand: " + subcommand);
+        console.displayError("Error: Unknown subcommand: " + subcommand);
         displayAvailableSubcommands();
     }
 
@@ -110,36 +125,36 @@ public class ServerCommandGroup implements Command {
      * Displays the list of available subcommands.
      */
     private void displayAvailableSubcommands() {
-        System.err.println("Available subcommands: " + SUBCOMMAND_START + ", "
+        console.displayError("Available subcommands: " + SUBCOMMAND_START + ", "
                 + SUBCOMMAND_STOP + ", " + SUBCOMMAND_STATUS);
-        System.err.println("Use 'help server' for more information");
+        console.displayError("Use 'help server' for more information");
     }
 
     /**
      * Displays detailed help information for the server command group.
      */
     private void displayHelp() {
-        System.out.println("Server Command Group Help");
-        System.out.println("===========================");
-        System.out.println();
-        System.out.println("Usage: " + getUsage());
-        System.out.println();
-        System.out.println("Description:");
-        System.out.println("  " + getDescription());
-        System.out.println();
-        System.out.println("Subcommands:");
-        System.out.println("  " + SUBCOMMAND_START + "        Start a backup server");
-        System.out.println("  " + SUBCOMMAND_STOP + "         Stop a running backup server");
-        System.out.println("  " + SUBCOMMAND_STATUS + "       Show server status and configuration");
-        System.out.println();
-        System.out.println("Examples:");
-        System.out.println("  server " + SUBCOMMAND_START);
-        System.out.println("  server " + SUBCOMMAND_STOP);
-        System.out.println("  server " + SUBCOMMAND_STATUS);
-        System.out.println();
-        System.out.println("For detailed help on a specific subcommand, use:");
-        System.out.println("  help server " + SUBCOMMAND_START);
-        System.out.println("  help server " + SUBCOMMAND_STOP);
-        System.out.println("  help server " + SUBCOMMAND_STATUS);
+        console.displayInfo("Server Command Group Help");
+        console.displayInfo("===========================");
+        console.displayInfo("");
+        console.displayInfo("Usage: " + getUsage());
+        console.displayInfo("");
+        console.displayInfo("Description:");
+        console.displayInfo("  " + getDescription());
+        console.displayInfo("");
+        console.displayInfo("Subcommands:");
+        console.displayInfo("  " + SUBCOMMAND_START + "        Start a backup server");
+        console.displayInfo("  " + SUBCOMMAND_STOP + "         Stop a running backup server");
+        console.displayInfo("  " + SUBCOMMAND_STATUS + "       Show server status and configuration");
+        console.displayInfo("");
+        console.displayInfo("Examples:");
+        console.displayInfo("  server " + SUBCOMMAND_START);
+        console.displayInfo("  server " + SUBCOMMAND_STOP);
+        console.displayInfo("  server " + SUBCOMMAND_STATUS);
+        console.displayInfo("");
+        console.displayInfo("For detailed help on a specific subcommand, use:");
+        console.displayInfo("  help server " + SUBCOMMAND_START);
+        console.displayInfo("  help server " + SUBCOMMAND_STOP);
+        console.displayInfo("  help server " + SUBCOMMAND_STATUS);
     }
 }

@@ -120,9 +120,10 @@ public class ServiceFactory {
      */
     private CommandRegistry createCommandRegistry(Blake3Service blake3Service) {
         CommandRegistry registry = new CommandRegistry();
+        ApplicationInfoDisplay console = createInfoDisplay();
 
         // Register commands
-        registry.register(new HashCommand(blake3Service));
+        registry.register(new HashCommand(blake3Service, console));
         registry.register(new VerifyCommand()); // Uses CommandContext for injection
         registry.register(new com.justsyncit.command.DedupStatsCommand());
         try {
@@ -132,12 +133,15 @@ public class ServiceFactory {
             // Register integrity command
             registry.register(new com.justsyncit.command.IntegrityCommand(
                     createIntegrityCheckService(metadataService, blake3Service)));
+
+            // Re-register ServerCommandGroup with dependencies if needed, or leave as is if
+            // not used from here.
+            // But wait, CommandRegistry constructor registers ServerCommandGroup with
+            // nulls.
+            // If we want it to work, we should probably overwrite it here or rely on
+            // specific factories.
+            // Let's at least fix HashCommand for now as that was the error.
         } catch (ServiceException e) {
-            // Log error but allow startup? Or throw?
-            // Since this is factory, we should probably just throw if metadata service
-            // fails.
-            // But createCommandRegistry signature doesn't throw.
-            // Let's create metadata service outside or wrap exception.
             throw new RuntimeException("Failed to create services for commands", e);
         }
 
@@ -162,6 +166,17 @@ public class ServiceFactory {
      */
     public NetworkService createNetworkService(Blake3Service blake3Service) {
         return networkModule.createNetworkService(blake3Service);
+    }
+
+    /**
+     * Creates a network service with the provided BLAKE3 service and cluster key.
+     *
+     * @param blake3Service the BLAKE3 service to use
+     * @param clusterKey    the cluster key (Base64)
+     * @return configured network service
+     */
+    public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKey) {
+        return networkModule.createNetworkService(blake3Service, clusterKey);
     }
 
     /**

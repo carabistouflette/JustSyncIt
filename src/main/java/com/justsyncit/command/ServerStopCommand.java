@@ -26,15 +26,18 @@ public class ServerStopCommand implements Command {
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
+    private final com.justsyncit.ApplicationInfoDisplay console;
 
     /**
      * Creates a server stop command with dependency injection.
      *
      * @param networkService network service (may be null for lazy initialization)
+     * @param console        the console display
      */
-    public ServerStopCommand(NetworkService networkService) {
+    public ServerStopCommand(NetworkService networkService, com.justsyncit.ApplicationInfoDisplay console) {
         this.networkService = networkService;
         this.serviceFactory = new ServiceFactory();
+        this.console = console;
     }
 
     @Override
@@ -63,9 +66,9 @@ public class ServerStopCommand implements Command {
         // Check for subcommand
         if (args.length == 0 || !args[0].equals("stop")) {
             logger.error("Missing subcommand 'stop'");
-            System.err.println("Error: Missing subcommand 'stop'");
-            System.err.println(getUsage());
-            System.err.println("Use 'help server stop' for more information");
+            console.displayError("Error: Missing subcommand 'stop'");
+            console.displayError(getUsage());
+            console.displayError("Use 'help server stop' for more information");
             return false;
         }
 
@@ -73,7 +76,7 @@ public class ServerStopCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
-            System.err.println(e.getMessage());
+            console.displayError(e.getMessage());
             return false;
         }
 
@@ -93,7 +96,7 @@ public class ServerStopCommand implements Command {
                     service = localService;
                 } catch (Exception e) {
                     logger.error("Failed to initialize network service", e);
-                    System.err.println("Error: Failed to initialize network service: " + e.getMessage());
+                    console.displayError("Error: Failed to initialize network service: " + e.getMessage());
                     return false;
                 }
             }
@@ -102,7 +105,7 @@ public class ServerStopCommand implements Command {
 
         } catch (Exception e) {
             logger.error("Failed to stop server", e);
-            System.err.println("Error: Failed to stop server: " + e.getMessage());
+            console.displayError("Error: Failed to stop server: " + e.getMessage());
             return false;
         } finally {
             closeQuietly(localService);
@@ -157,7 +160,7 @@ public class ServerStopCommand implements Command {
         // Check if server is running
         if (!service.isServerRunning()) {
             logger.warn("Server is not running");
-            System.err.println("Error: Server is not running");
+            console.displayError("Error: Server is not running");
             return false;
         }
 
@@ -165,8 +168,8 @@ public class ServerStopCommand implements Command {
         int activeTransfers = service.getActiveTransferCount();
         if (activeTransfers > 0 && !options.force) {
             logger.warn("Server has {} active transfer(s) in progress, stopping aborted", activeTransfers);
-            System.err.println("Error: Server has " + activeTransfers + " active transfer(s) in progress");
-            System.err.println("Use --force to stop the server anyway");
+            console.displayError("Error: Server has " + activeTransfers + " active transfer(s) in progress");
+            console.displayError("Use --force to stop the server anyway");
             return false;
         }
 
@@ -174,13 +177,13 @@ public class ServerStopCommand implements Command {
         if (options.verbose) {
             displayPreStopStatus(service);
             if (activeTransfers > 0 && options.force) {
-                System.out.println("Warning: Forcing server stop with " + activeTransfers + " active transfer(s)");
+                console.displayInfo("Warning: Forcing server stop with " + activeTransfers + " active transfer(s)");
             }
         }
 
         // Stop the server
         if (options.verbose) {
-            System.out.println("Stopping server...");
+            console.displayInfo("Stopping server...");
         }
 
         service.stopServer().get();
@@ -189,7 +192,7 @@ public class ServerStopCommand implements Command {
         if (options.verbose) {
             displayStopSuccess(service);
         } else {
-            System.out.println("Server stopped.");
+            console.displayInfo("Server stopped.");
         }
 
         return true;
@@ -201,10 +204,10 @@ public class ServerStopCommand implements Command {
      * @param service network service
      */
     private void displayPreStopStatus(NetworkService service) {
-        System.out.println("Server Status Before Stop:");
-        System.out.println("=========================");
+        console.displayInfo("Server Status Before Stop:");
+        console.displayInfo("=========================");
         displayServerStatus(service);
-        System.out.println();
+        console.displayInfo("");
     }
 
     /**
@@ -213,21 +216,21 @@ public class ServerStopCommand implements Command {
      * @param service network service
      */
     private void displayStopSuccess(NetworkService service) {
-        System.out.println("Server stopped successfully!");
+        console.displayInfo("Server stopped successfully!");
 
         // Show final statistics
         NetworkService.NetworkStatistics stats = service.getStatistics();
-        System.out.println();
-        System.out.println("Final Statistics:");
-        System.out.println("=================");
-        System.out.println("Total bytes sent: " + formatFileSize(stats.getTotalBytesSent()));
-        System.out.println("Total bytes received: " + formatFileSize(stats.getTotalBytesReceived()));
-        System.out.println("Total messages sent: " + stats.getTotalMessagesSent());
-        System.out.println("Total messages received: " + stats.getTotalMessagesReceived());
-        System.out.println("Completed transfers: " + stats.getCompletedTransfers());
-        System.out.println("Failed transfers: " + stats.getFailedTransfers());
-        System.out.println("Average transfer rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
-        System.out.println("Uptime: " + formatUptime(stats.getUptimeMillis()));
+        console.displayInfo("");
+        console.displayInfo("Final Statistics:");
+        console.displayInfo("=================");
+        console.displayInfo("Total bytes sent: " + formatFileSize(stats.getTotalBytesSent()));
+        console.displayInfo("Total bytes received: " + formatFileSize(stats.getTotalBytesReceived()));
+        console.displayInfo("Total messages sent: " + stats.getTotalMessagesSent());
+        console.displayInfo("Total messages received: " + stats.getTotalMessagesReceived());
+        console.displayInfo("Completed transfers: " + stats.getCompletedTransfers());
+        console.displayInfo("Failed transfers: " + stats.getFailedTransfers());
+        console.displayInfo("Average transfer rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+        console.displayInfo("Uptime: " + formatUptime(stats.getUptimeMillis()));
     }
 
     /**

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Paths;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Command to start the web server for the management interface.
@@ -23,6 +24,12 @@ public final class WebStartCommand implements Command {
     private static final String DEFAULT_AUTH_DB_PATH = "config/auth.db";
 
     private static WebServer runningServer;
+
+    /**
+     * Latch to signal shutdown, avoiding Thread.currentThread().join() which blocks
+     * indefinitely.
+     */
+    private final CountDownLatch shutdownLatch = new CountDownLatch(1);
 
     @Override
     public String getName() {
@@ -128,7 +135,7 @@ public final class WebStartCommand implements Command {
             System.out.println("║  Press Ctrl+C to stop the server                   ║");
             System.out.println("╚════════════════════════════════════════════════════╝");
 
-            // Add shutdown hook
+            // Add shutdown hook that signals the latch
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("\nShutting down web server...");
                 if (runningServer != null) {
@@ -137,10 +144,11 @@ public final class WebStartCommand implements Command {
                 if (schedulerService != null) {
                     schedulerService.stop();
                 }
+                shutdownLatch.countDown(); // Signal main thread to exit
             }));
 
-            // Block until interrupted
-            Thread.currentThread().join();
+            // Block until shutdown signal (Ctrl+C or SIGTERM)
+            shutdownLatch.await();
 
             return true;
         } catch (Exception e) {

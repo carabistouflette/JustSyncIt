@@ -2,6 +2,7 @@ package com.justsyncit.command;
 
 import com.justsyncit.hash.Blake3Service;
 import com.justsyncit.hash.HashingException;
+import com.justsyncit.ApplicationInfoDisplay;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,14 +24,17 @@ public class HashCommand implements Command {
 
     /** BLAKE3 service instance. */
     private final Blake3Service blake3Service;
+    private final ApplicationInfoDisplay console;
 
     /**
      * Creates a new HashCommand.
      *
      * @param blake3Service the BLAKE3 service
+     * @param console       the console display
      */
-    public HashCommand(Blake3Service blake3Service) {
+    public HashCommand(Blake3Service blake3Service, ApplicationInfoDisplay console) {
         this.blake3Service = blake3Service;
+        this.console = console;
     }
 
     @Override
@@ -42,9 +46,9 @@ public class HashCommand implements Command {
         }
 
         if (args.length < 1) {
-            System.err.println("Error: File path is required");
-            System.err.println(getUsage());
-            System.err.println("Use '--hash --help' for more information");
+            console.displayError("Error: File path is required");
+            console.displayError(getUsage());
+            console.displayError("Use '--hash --help' for more information");
             return false;
         }
 
@@ -90,7 +94,7 @@ public class HashCommand implements Command {
             return true;
 
         } catch (IOException | HashingException e) {
-            System.err.println("Error hashing file: " + e.getMessage());
+            console.displayError("Error hashing file: " + e.getMessage());
             logger.error("Error hashing file: {}", e.getMessage(), e);
             return false;
         }
@@ -105,13 +109,13 @@ public class HashCommand implements Command {
      */
     private boolean validateFile(Path path, String filePath) {
         if (!Files.exists(path)) {
-            System.err.println("Error: File does not exist: " + filePath);
+            console.displayError("Error: File does not exist: " + filePath);
             logger.error("File does not exist: {}", filePath);
             return false;
         }
 
         if (!Files.isRegularFile(path)) {
-            System.err.println("Error: Path is not a regular file: " + filePath);
+            console.displayError("Error: Path is not a regular file: " + filePath);
             logger.error("Path is not a regular file: {}", filePath);
             return false;
         }
@@ -128,33 +132,33 @@ public class HashCommand implements Command {
      * @param timeMillis the time taken in milliseconds
      */
     private void displayResult(String filePath, long fileSize, String hash, long timeMillis) {
-        System.out.println("File: " + filePath);
-        System.out.println("Size: " + formatFileSize(fileSize) + " (" + fileSize + " bytes)");
-        System.out.println("BLAKE3 Hash: " + hash);
-        System.out.println("Time: " + timeMillis + " ms");
+        console.displayInfo("File: " + filePath);
+        console.displayInfo("Size: " + formatFileSize(fileSize) + " (" + fileSize + " bytes)");
+        console.displayInfo("BLAKE3 Hash: " + hash);
+        console.displayInfo("Time: " + timeMillis + " ms");
     }
 
     /**
      * Displays help information for the hash command.
      */
     private void displayHelp() {
-        System.out.println("Hash Command Help");
-        System.out.println("=================");
-        System.out.println();
-        System.out.println("Usage: " + getUsage());
-        System.out.println();
-        System.out.println("Description:");
-        System.out.println("  " + getDescription());
-        System.out.println();
-        System.out.println("Arguments:");
-        System.out.println("  file    Path to the file to hash");
-        System.out.println();
-        System.out.println("Options:");
-        System.out.println("  --help  Show this help message");
-        System.out.println();
-        System.out.println("Examples:");
-        System.out.println("  --hash /path/to/file.txt");
-        System.out.println("  --hash document.pdf");
+        console.displayInfo("Hash Command Help");
+        console.displayInfo("=================");
+        console.displayInfo("");
+        console.displayInfo("Usage: " + getUsage());
+        console.displayInfo("");
+        console.displayInfo("Description:");
+        console.displayInfo("  " + getDescription());
+        console.displayInfo("");
+        console.displayInfo("Arguments:");
+        console.displayInfo("  file    Path to the file to hash");
+        console.displayInfo("");
+        console.displayInfo("Options:");
+        console.displayInfo("  --help  Show this help message");
+        console.displayInfo("");
+        console.displayInfo("Examples:");
+        console.displayInfo("  --hash /path/to/file.txt");
+        console.displayInfo("  --hash document.pdf");
     }
 
     /**

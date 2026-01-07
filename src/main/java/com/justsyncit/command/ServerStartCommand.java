@@ -28,16 +28,19 @@ public class ServerStartCommand implements Command {
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
+    private final com.justsyncit.ApplicationInfoDisplay console;
     private final CountDownLatch stopLatch = new CountDownLatch(1);
 
     /**
      * Creates a server start command with dependency injection.
      *
      * @param networkService network service (may be null for lazy initialization)
+     * @param console        the console display
      */
-    public ServerStartCommand(NetworkService networkService) {
+    public ServerStartCommand(NetworkService networkService, com.justsyncit.ApplicationInfoDisplay console) {
         this.networkService = networkService;
         this.serviceFactory = new ServiceFactory();
+        this.console = console;
     }
 
     @Override
@@ -66,9 +69,9 @@ public class ServerStartCommand implements Command {
         // Check for subcommand
         if (args.length == 0 || !args[0].equals("start")) {
             logger.error("Missing subcommand 'start'");
-            System.err.println("Error: Missing subcommand 'start'");
-            System.err.println(getUsage());
-            System.err.println("Use 'help server start' for more information");
+            console.displayError("Error: Missing subcommand 'start'");
+            console.displayError(getUsage());
+            console.displayError("Use 'help server start' for more information");
             return false;
         }
 
@@ -77,7 +80,7 @@ public class ServerStartCommand implements Command {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
             logger.error("Invalid arguments: {}", e.getMessage());
-            System.err.println(e.getMessage());
+            console.displayError(e.getMessage());
             return false;
         }
 
@@ -98,7 +101,7 @@ public class ServerStartCommand implements Command {
                     service = localService;
                 } catch (Exception e) {
                     logger.error("Failed to initialize network service", e);
-                    System.err.println("Error: Failed to initialize network service: " + e.getMessage());
+                    console.displayError("Error: Failed to initialize network service: " + e.getMessage());
                     return false;
                 }
             }
@@ -107,7 +110,7 @@ public class ServerStartCommand implements Command {
 
         } catch (Exception e) {
             logger.error("Failed to start server", e);
-            System.err.println("Error: Failed to start server: " + e.getMessage());
+            console.displayError("Error: Failed to start server: " + e.getMessage());
             return false;
         } finally {
             closeQuietly(localService);
@@ -193,7 +196,7 @@ public class ServerStartCommand implements Command {
         // Check if server is already running
         if (service.isServerRunning()) {
             logger.warn("Server is already running on port {}", service.getServerPort());
-            System.err.println("Error: Server is already running on port " + service.getServerPort());
+            console.displayError("Error: Server is already running on port " + service.getServerPort());
             return false;
         }
 
@@ -204,7 +207,7 @@ public class ServerStartCommand implements Command {
         CompletableFuture<Void> startFuture = service.startServer(options.port, options.transportType);
 
         if (options.verbose) {
-            System.out.println("Server starting...");
+            console.displayInfo("Server starting...");
         }
 
         // Setup completion handler
@@ -216,21 +219,21 @@ public class ServerStartCommand implements Command {
             startFuture.get(STARTUP_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
             logger.error("Server failed to start: Timed out after {}ms", STARTUP_TIMEOUT_MS);
-            System.err.println("Server failed to start: Timed out after " + STARTUP_TIMEOUT_MS + "ms");
+            console.displayError("Server failed to start: Timed out after " + STARTUP_TIMEOUT_MS + "ms");
             return false;
         } catch (java.util.concurrent.ExecutionException e) {
             logger.error("Server start execution failed", e);
-            System.err.println("Error: Server start failed: " + e.getCause().getMessage());
+            console.displayError("Error: Server start failed: " + e.getCause().getMessage());
             return false;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.err.println("Server start interrupted");
+            console.displayError("Server start interrupted");
             return false;
         }
 
         if (!service.isServerRunning()) {
             logger.error("Server failed to start (timeout or error)");
-            System.err.println("Server failed to start (timeout or error)");
+            console.displayError("Server failed to start (timeout or error)");
             return false;
         }
 
@@ -249,11 +252,11 @@ public class ServerStartCommand implements Command {
      * @param options start options
      */
     private void displayStartupInfo(StartOptions options) {
-        System.out.println("Starting JustSyncIt backup server...");
-        System.out.println("Port: " + options.port);
-        System.out.println("Transport: " + options.transportType);
-        System.out.println("Daemon mode: " + (options.daemon ? "enabled" : "disabled"));
-        System.out.println();
+        console.displayInfo("Starting JustSyncIt backup server...");
+        console.displayInfo("Port: " + options.port);
+        console.displayInfo("Transport: " + options.transportType);
+        console.displayInfo("Daemon mode: " + (options.daemon ? "enabled" : "disabled"));
+        console.displayInfo("");
     }
 
     /**
@@ -272,12 +275,12 @@ public class ServerStartCommand implements Command {
                     cause = cause.getCause();
                 }
                 logger.error("Failed to start server", cause);
-                System.err.println("Failed to start server: " + cause.getMessage());
+                console.displayError("Failed to start server: " + cause.getMessage());
             } else if (options.verbose) {
-                System.out.println("Server started successfully!");
-                System.out.println("Listening on port " + options.port + " using " + options.transportType);
+                console.displayInfo("Server started successfully!");
+                console.displayInfo("Listening on port " + options.port + " using " + options.transportType);
                 if (!options.daemon) {
-                    System.out.println("Press Ctrl+C to stop the server");
+                    console.displayInfo("Press Ctrl+C to stop the server");
                     setupShutdownHook(service);
                 }
             }
@@ -292,12 +295,12 @@ public class ServerStartCommand implements Command {
     private void setupShutdownHook(NetworkService service) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
-                System.out.println("\nShutting down server...");
+                console.displayInfo("\nShutting down server...");
                 service.stopServer().get();
-                System.out.println("Server stopped.");
+                console.displayInfo("Server stopped.");
             } catch (Exception e) {
                 logger.error("Error stopping server", e);
-                System.err.println("Error stopping server: " + e.getMessage());
+                console.displayError("Error stopping server: " + e.getMessage());
             } finally {
                 stopLatch.countDown();
             }
@@ -311,8 +314,8 @@ public class ServerStartCommand implements Command {
      */
     private void handleDaemonMode(StartOptions options) {
         if (options.verbose) {
-            System.out.println("Server started successfully in daemon mode.");
-            System.out.println("Server is running in background on port " + options.port);
+            console.displayInfo("Server started successfully in daemon mode.");
+            console.displayInfo("Server is running in background on port " + options.port);
         }
     }
 
@@ -345,12 +348,11 @@ public class ServerStartCommand implements Command {
             }
 
             NetworkService.NetworkStatistics stats = service.getStatistics();
-            System.out.printf("\rConnections: %d, Transfers: %d, Bytes sent: %s, Bytes received: %s",
+            console.displayInfo(String.format("Connections: %d, Transfers: %d, Bytes sent: %s, Bytes received: %s",
                     stats.getActiveConnections(),
                     stats.getCompletedTransfers(),
                     formatFileSize(stats.getTotalBytesSent()),
-                    formatFileSize(stats.getTotalBytesReceived()));
-            System.out.flush();
+                    formatFileSize(stats.getTotalBytesReceived())));
         }
     }
 
@@ -376,7 +378,7 @@ public class ServerStartCommand implements Command {
                 resource.close();
             } catch (Exception e) {
                 logger.warn("Failed to close resource", e);
-                System.err.println("Warning: Failed to close resource: " + e.getMessage());
+                console.displayError("Warning: Failed to close resource: " + e.getMessage());
             }
         }
     }
@@ -385,27 +387,27 @@ public class ServerStartCommand implements Command {
      * Displays detailed help information for the server start command.
      */
     private void displayHelp() {
-        System.out.println("Server Start Command Help");
-        System.out.println("===========================");
-        System.out.println();
-        System.out.println("Usage: " + getUsage());
-        System.out.println();
-        System.out.println("Description:");
-        System.out.println("  " + getDescription());
-        System.out.println();
-        System.out.println("Options:");
-        System.out.println("  --port PORT           Port to listen on (default: " + DEFAULT_PORT + ")");
-        System.out.println("  --transport TYPE       Transport protocol (TCP|QUIC, default: TCP)");
-        System.out.println("  --daemon, -d          Run in daemon mode (background)");
-        System.out.println("  --quiet, -q           Quiet mode with minimal output");
-        System.out.println("  --help                Show this help message");
-        System.out.println();
-        System.out.println("Examples:");
-        System.out.println("  server start");
-        System.out.println("  server start --port 9090");
-        System.out.println("  server start --transport QUIC");
-        System.out.println("  server start --port 9090 --transport QUIC --daemon");
-        System.out.println("  server start --quiet");
+        console.displayInfo("Server Start Command Help");
+        console.displayInfo("===========================");
+        console.displayInfo("");
+        console.displayInfo("Usage: " + getUsage());
+        console.displayInfo("");
+        console.displayInfo("Description:");
+        console.displayInfo("  " + getDescription());
+        console.displayInfo("");
+        console.displayInfo("Options:");
+        console.displayInfo("  --port PORT           Port to listen on (default: " + DEFAULT_PORT + ")");
+        console.displayInfo("  --transport TYPE       Transport protocol (TCP|QUIC, default: TCP)");
+        console.displayInfo("  --daemon, -d          Run in daemon mode (background)");
+        console.displayInfo("  --quiet, -q           Quiet mode with minimal output");
+        console.displayInfo("  --help                Show this help message");
+        console.displayInfo("");
+        console.displayInfo("Examples:");
+        console.displayInfo("  server start");
+        console.displayInfo("  server start --port 9090");
+        console.displayInfo("  server start --transport QUIC");
+        console.displayInfo("  server start --port 9090 --transport QUIC --daemon");
+        console.displayInfo("  server start --quiet");
     }
 
     /**

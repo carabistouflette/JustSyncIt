@@ -25,4 +25,14 @@ public class ConsoleInfoDisplay implements ApplicationInfoDisplay {
         logger.info("JNI Implementation: {}", info.isJniImplementation() ? "Yes" : "No");
         logger.info("=====================================\n");
     }
+
+    @Override
+    public void displayInfo(String message) {
+        logger.info(message);
+    }
+
+    @Override
+    public void displayError(String message) {
+        logger.error(message);
+    }
 }

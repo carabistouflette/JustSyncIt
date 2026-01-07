@@ -13,15 +13,18 @@ public class ServerStatusCommand implements Command {
 
     private final NetworkService networkService;
     private final ServiceFactory serviceFactory;
+    private final com.justsyncit.ApplicationInfoDisplay console;
 
     /**
      * Creates a server status command with dependency injection.
      *
      * @param networkService network service (may be null for lazy initialization)
+     * @param console        the console display
      */
-    public ServerStatusCommand(NetworkService networkService) {
+    public ServerStatusCommand(NetworkService networkService, com.justsyncit.ApplicationInfoDisplay console) {
         this.networkService = networkService;
         this.serviceFactory = new ServiceFactory();
+        this.console = console;
     }
 
     @Override
@@ -49,9 +52,9 @@ public class ServerStatusCommand implements Command {
 
         // Check for subcommand
         if (args.length == 0 || !args[0].equals("status")) {
-            System.err.println("Error: Missing subcommand 'status'");
-            System.err.println(getUsage());
-            System.err.println("Use 'help server status' for more information");
+            console.displayError("Error: Missing subcommand 'status'");
+            console.displayError(getUsage());
+            console.displayError("Use 'help server status' for more information");
             return false;
         }
 
@@ -59,7 +62,7 @@ public class ServerStatusCommand implements Command {
         try {
             options = parseOptions(args);
         } catch (IllegalArgumentException e) {
-            System.err.println(e.getMessage());
+            console.displayError(e.getMessage());
             return false;
         }
 
@@ -79,7 +82,7 @@ public class ServerStatusCommand implements Command {
                     localService = serviceFactory.createNetworkService();
                     service = localService;
                 } catch (Exception e) {
-                    System.err.println("Error: Failed to initialize network service: " + e.getMessage());
+                    console.displayError("Error: Failed to initialize network service: " + e.getMessage());
                     return false;
                 }
             }
@@ -93,7 +96,7 @@ public class ServerStatusCommand implements Command {
             return true;
 
         } catch (Exception e) {
-            System.err.println("Error: Failed to get server status: " + e.getMessage());
+            console.displayError("Error: Failed to get server status: " + e.getMessage());
             return false;
         } finally {
             closeQuietly(localService);
@@ -126,6 +129,7 @@ public class ServerStatusCommand implements Command {
                     return null;
                 default:
                     if (arg.startsWith("--")) {
+                        console.displayError("Error: Unknown option: " + arg);
                         throw new IllegalArgumentException("Error: Unknown option: " + arg);
                     }
                     break;
@@ -142,12 +146,12 @@ public class ServerStatusCommand implements Command {
      * @param verbose whether to show verbose output
      */
     private void displayTextStatus(NetworkService service, boolean verbose) {
-        System.out.println("JustSyncIt Server Status");
-        System.out.println("========================");
-        System.out.println();
+        console.displayInfo("JustSyncIt Server Status");
+        console.displayInfo("========================");
+        console.displayInfo("");
 
         displayBasicStatus(service);
-        System.out.println();
+        console.displayInfo("");
 
         if (verbose || service.isServerRunning()) {
             displayStatistics(service, verbose);
@@ -160,16 +164,16 @@ public class ServerStatusCommand implements Command {
      * @param service network service
      */
     private void displayBasicStatus(NetworkService service) {
-        System.out.println("Server Status: " + (service.isServerRunning() ? "RUNNING" : "STOPPED"));
-        System.out.println("Service Status: " + (service.isRunning() ? "ACTIVE" : "INACTIVE"));
+        console.displayInfo("Server Status: " + (service.isServerRunning() ? "RUNNING" : "STOPPED"));
+        console.displayInfo("Service Status: " + (service.isRunning() ? "ACTIVE" : "INACTIVE"));
 
         if (service.isServerRunning()) {
-            System.out.println("Listening Port: " + service.getServerPort());
-            System.out.println("Default Transport: " + service.getDefaultTransportType());
-            System.out.println("Active Connections: " + service.getActiveConnectionCount());
-            System.out.println("Active Transfers: " + service.getActiveTransferCount());
+            console.displayInfo("Listening Port: " + service.getServerPort());
+            console.displayInfo("Default Transport: " + service.getDefaultTransportType());
+            console.displayInfo("Active Connections: " + service.getActiveConnectionCount());
+            console.displayInfo("Active Transfers: " + service.getActiveTransferCount());
         } else {
-            System.out.println("Server is not running");
+            console.displayInfo("Server is not running");
         }
     }
 
@@ -182,16 +186,16 @@ public class ServerStatusCommand implements Command {
     private void displayStatistics(NetworkService service, boolean verbose) {
         NetworkService.NetworkStatistics stats = service.getStatistics();
 
-        System.out.println("Statistics:");
-        System.out.println("-----------");
-        System.out.println("Total Bytes Sent: " + formatFileSize(stats.getTotalBytesSent()));
-        System.out.println("Total Bytes Received: " + formatFileSize(stats.getTotalBytesReceived()));
-        System.out.println("Total Messages Sent: " + stats.getTotalMessagesSent());
-        System.out.println("Total Messages Received: " + stats.getTotalMessagesReceived());
-        System.out.println("Completed Transfers: " + stats.getCompletedTransfers());
-        System.out.println("Failed Transfers: " + stats.getFailedTransfers());
-        System.out.println("Average Transfer Rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
-        System.out.println("Uptime: " + formatUptime(stats.getUptimeMillis()));
+        console.displayInfo("Statistics:");
+        console.displayInfo("-----------");
+        console.displayInfo("Total Bytes Sent: " + formatFileSize(stats.getTotalBytesSent()));
+        console.displayInfo("Total Bytes Received: " + formatFileSize(stats.getTotalBytesReceived()));
+        console.displayInfo("Total Messages Sent: " + stats.getTotalMessagesSent());
+        console.displayInfo("Total Messages Received: " + stats.getTotalMessagesReceived());
+        console.displayInfo("Completed Transfers: " + stats.getCompletedTransfers());
+        console.displayInfo("Failed Transfers: " + stats.getFailedTransfers());
+        console.displayInfo("Average Transfer Rate: " + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
+        console.displayInfo("Uptime: " + formatUptime(stats.getUptimeMillis()));
 
         if (verbose) {
             displayDetailedStatistics(service, stats);
@@ -205,26 +209,22 @@ public class ServerStatusCommand implements Command {
      * @param stats   network statistics
      */
     private void displayDetailedStatistics(NetworkService service, NetworkService.NetworkStatistics stats) {
-        System.out.println();
-        System.out.println("Detailed Information:");
-        System.out.println("--------------------");
-
         double successRate = calculateSuccessRate(stats);
         long totalTransfers = stats.getCompletedTransfers() + stats.getFailedTransfers();
 
-        System.out.println("Success Rate: " + String.format("%.2f%%", successRate));
+        console.displayInfo("Success Rate: " + String.format("%.2f%%", successRate));
         System.out.println("Total Transfers Attempted: " + totalTransfers);
 
         if (service.isServerRunning()) {
-            System.out.println("Current Transfer Rate: "
+            console.displayInfo("Current Transfer Rate: "
                     + formatFileSize((long) stats.getAverageTransferRate()) + "/s");
         }
 
-        System.out.println("Connection Capacity: " + service.getActiveConnectionCount() + " active");
+        console.displayInfo("Connection Capacity: " + service.getActiveConnectionCount() + " active");
 
         double throughputPerSecond = calculateThroughputPerSecond(stats);
         if (throughputPerSecond > 0) {
-            System.out.println("Average Throughput: " + formatFileSize((long) throughputPerSecond) + "/s");
+            console.displayInfo("Average Throughput: " + formatFileSize((long) throughputPerSecond) + "/s");
         }
     }
 
@@ -249,7 +249,7 @@ public class ServerStatusCommand implements Command {
         }
 
         json.append("\n}");
-        System.out.println(json.toString());
+        console.displayInfo(json.toString());
     }
 
     /**

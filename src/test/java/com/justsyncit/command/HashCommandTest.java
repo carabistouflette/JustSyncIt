@@ -30,10 +30,13 @@ class HashCommandTest {
     @TempDir
     Path tempDir;
 
+    private com.justsyncit.ApplicationInfoDisplay mockConsole;
+
     @BeforeEach
     void setUp() {
         mockBlake3Service = mock(Blake3Service.class);
-        hashCommand = new HashCommand(mockBlake3Service);
+        mockConsole = mock(com.justsyncit.ApplicationInfoDisplay.class);
+        hashCommand = new HashCommand(mockBlake3Service, mockConsole);
     }
 
     @Test
@@ -97,8 +100,7 @@ class HashCommandTest {
         Files.writeString(testFile, "test content");
 
         // Mock hash service
-        when(mockBlake3Service.hashFile(any(Path.class)))
-                .thenReturn("abc123hash");
+        when(mockBlake3Service.hashFile(any(Path.class))).thenReturn("abc123hash");
 
         CommandContext context = new CommandContext(mockBlake3Service);
         boolean result = hashCommand.execute(new String[] { testFile.toString() }, context);
@@ -124,8 +126,7 @@ class HashCommandTest {
         Path testFile = tempDir.resolve("test.txt");
         Files.writeString(testFile, "test content");
 
-        when(mockBlake3Service.hashFile(any(Path.class)))
-                .thenThrow(new java.io.IOException("Hash failed"));
+        when(mockBlake3Service.hashFile(any(Path.class))).thenThrow(new java.io.IOException("Hash failed"));
 
         CommandContext context = new CommandContext(mockBlake3Service);
         boolean result = hashCommand.execute(new String[] { testFile.toString() }, context);

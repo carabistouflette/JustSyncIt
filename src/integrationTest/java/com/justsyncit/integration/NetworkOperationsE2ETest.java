@@ -38,9 +38,11 @@ public class NetworkOperationsE2ETest extends E2ETestBase {
     protected void setUp() throws Exception {
         super.setUp();
         serverCommand = new ServerCommandGroup();
-        startCommand = new ServerStartCommand(null);
-        stopCommand = new ServerStopCommand(null);
-        statusCommand = new ServerStatusCommand(null);
+        // Create manual commands
+        com.justsyncit.ApplicationInfoDisplay console = new com.justsyncit.ConsoleInfoDisplay();
+        startCommand = new ServerStartCommand(null, console);
+        stopCommand = new ServerStopCommand(null, console);
+        statusCommand = new ServerStatusCommand(null, console);
         transferCommand = new TransferCommand(networkService);
         syncCommand = new SyncCommand(networkService);
         commandContext = new CommandContext(blake3Service, networkService, metadataService, contentStore);
@@ -310,7 +312,11 @@ public class NetworkOperationsE2ETest extends E2ETestBase {
         assertTrue(startResult1, "First server start should succeed");
 
         // Create separate service and context for second server
-        NetworkService networkService2 = serviceFactory.createNetworkService();
+        // Generate a random cluster key for the second server
+        byte[] keyBytes = new byte[32];
+        new java.security.SecureRandom().nextBytes(keyBytes);
+        String testClusterKey = java.util.Base64.getEncoder().encodeToString(keyBytes);
+        NetworkService networkService2 = serviceFactory.createNetworkService(blake3Service, testClusterKey);
         CommandContext commandContext2 = new CommandContext(blake3Service, networkService2, metadataService,
                 contentStore);
 

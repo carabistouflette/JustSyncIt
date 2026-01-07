@@ -18,7 +18,7 @@ public final class CommandRegistry {
      */
     public CommandRegistry() {
         // Register existing commands
-        register(new com.justsyncit.command.HashCommand(null)); // Will be injected properly
+        register(new com.justsyncit.command.HashCommand(null, null)); // Will be injected properly
         register(new com.justsyncit.command.VerifyCommand()); // Uses CommandContext for injection
         register(new com.justsyncit.command.BackupCommand(null)); // Will be injected properly
         register(new com.justsyncit.command.RestoreCommand(null)); // Will be injected properly
@@ -27,7 +27,7 @@ public final class CommandRegistry {
         register(new SnapshotsCommandGroup());
 
         // Register new network operation commands
-        register(new ServerCommandGroup());
+        register(new ServerCommandGroup(null, null, null, null));
         register(new com.justsyncit.command.TransferCommand(null)); // Will be injected properly
         register(new com.justsyncit.command.SyncCommand(null)); // Will be injected properly
 

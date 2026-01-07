@@ -33,7 +33,7 @@ class ServerStartCommandTest {
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        command = new ServerStartCommand(networkService);
+        command = new ServerStartCommand(networkService, new com.justsyncit.ConsoleInfoDisplay());
         System.setOut(new PrintStream(outContent));
         System.setErr(new PrintStream(errContent));
     }
