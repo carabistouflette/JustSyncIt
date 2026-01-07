@@ -61,29 +61,6 @@ public class BackupService {
         this.blake3Service = blake3Service;
     }
 
-    /**
-     * @deprecated Use the full constructor with blake3Service for Merkle Tree
-     *             support.
-     *             This constructor will be removed in a future version.
-     */
-    @Deprecated(forRemoval = true, since = "0.2.0")
-    public BackupService(ContentStore contentStore, MetadataService metadataService,
-            FilesystemScanner scanner, FileChunker chunker,
-            ChangedBlockTrackingService cbtService) {
-        this(contentStore, metadataService, scanner, chunker, cbtService, null);
-    }
-
-    /**
-     * @deprecated Use the full constructor with blake3Service for Merkle Tree
-     *             support.
-     *             This constructor will be removed in a future version.
-     */
-    @Deprecated(forRemoval = true, since = "0.2.0")
-    public BackupService(ContentStore contentStore, MetadataService metadataService,
-            FilesystemScanner scanner, FileChunker chunker) {
-        this(contentStore, metadataService, scanner, chunker, null, null);
-    }
-
     public void setEventListener(FileProcessor.EventListener eventListener) {
         this.eventListener = eventListener;
     }
@@ -358,6 +335,14 @@ public class BackupService {
      * @param previousSnapshotId ID of the previous snapshot to compare against
      * @return future that completes with snapshot ID
      */
+    /**
+     * Performs an incremental backup using Changed Block Tracking if available.
+     *
+     * @param sourceDir          directory to backup
+     * @param options            backup options
+     * @param previousSnapshotId ID of the previous snapshot to compare against
+     * @return future that completes with snapshot ID
+     */
     public CompletableFuture<BackupResult> backupIncremental(Path sourceDir, BackupOptions options,
             String previousSnapshotId) {
         if (cbtService == null) {
@@ -365,113 +350,125 @@ public class BackupService {
             return backup(sourceDir, options);
         }
 
-        java.util.Optional<com.justsyncit.storage.metadata.Snapshot> metadataOpt;
-        try {
-            metadataOpt = metadataService.getSnapshot(previousSnapshotId);
-        } catch (java.io.IOException e) {
-            LOGGER.error("Failed to get snapshot: {}", e.getMessage());
-            return CompletableFuture.failedFuture(new RuntimeException("Failed to get snapshot", e));
-        }
-        if (metadataOpt.isEmpty()) {
-            LOGGER.warn("Previous snapshot {} not found. Falling back to full backup.", previousSnapshotId);
-            return backup(sourceDir, options);
-        }
-        com.justsyncit.storage.metadata.Snapshot snapshotMetadata = metadataOpt.get();
-        Instant lastBackupTime = snapshotMetadata.getCreatedAt();
-
+        // 1. Fetch previous snapshot metadata (Async)
         return CompletableFuture.supplyAsync(() -> {
             try {
-                LOGGER.info("Starting INCREMENTAL backup of {} using CBT", sourceDir);
+                return metadataService.getSnapshot(previousSnapshotId);
+            } catch (java.io.IOException e) {
+                throw new java.util.concurrent.CompletionException(new RuntimeException("Failed to get snapshot", e));
+            }
+        }).thenCompose(metadataOpt -> {
+            if (metadataOpt.isEmpty()) {
+                LOGGER.warn("Previous snapshot {} not found. Falling back to full backup.", previousSnapshotId);
+                return backup(sourceDir, options);
+            }
+            com.justsyncit.storage.metadata.Snapshot snapshotMetadata = metadataOpt.get();
+            Instant lastBackupTime = snapshotMetadata.getCreatedAt();
 
+            return CompletableFuture.supplyAsync(() -> {
+                LOGGER.info("Starting INCREMENTAL backup of {} using CBT", sourceDir);
                 // Query CBT for changed files
-                java.util.List<Path> changedFiles = cbtService.getChangedFiles(sourceDir, lastBackupTime);
+                // Query CBT for changed files
+                return cbtService.getChangedFiles(sourceDir, lastBackupTime);
+            }).thenCompose(changedFiles -> {
                 LOGGER.info("CBT detected {} changed files since {}", changedFiles.size(), lastBackupTime);
 
-                // 3. Create new snapshot ID
+                // 2. Create new snapshot ID
                 String snapshotId = options.getSnapshotName() != null
                         ? options.getSnapshotName()
                         : "backup-inc-" + Instant.now().toString();
 
                 String description = "Incremental backup of " + sourceDir + " based on " + previousSnapshotId;
-                metadataService.createSnapshot(snapshotId, description);
+                try {
+                    metadataService.createSnapshot(snapshotId, description);
+                } catch (Exception e) {
+                    throw new java.util.concurrent.CompletionException(
+                            new RuntimeException("Failed to create snapshot", e));
+                }
 
-                // 4. Process ONLY changed files
+                // 3. Process ONLY changed files (Async)
                 FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
                 processor.setSnapshotId(snapshotId);
 
                 if (eventListener != null)
                     processor.setEventListener(eventListener);
 
-                long totalBytes = 0;
-                int processedCount = 0;
-                int errorCount = 0;
+                com.justsyncit.scanner.ChunkingOptions chunkingOpts = new com.justsyncit.scanner.ChunkingOptions()
+                        .withChunkSize(options.getChunkSize());
 
-                // SEC-001 fix: Process files asynchronously instead of blocking with .join()
-                List<CompletableFuture<FileProcessor.ProcessingResult>> futures = new java.util.ArrayList<>();
-                List<Path> validFiles = new java.util.ArrayList<>();
+                List<CompletableFuture<FileProcessor.ProcessingResult>> futures = changedFiles.stream()
+                        .filter(file -> java.nio.file.Files.exists(file) && java.nio.file.Files.isRegularFile(file))
+                        .map(file -> processor.processFile(file, chunkingOpts))
+                        .collect(Collectors.toList());
 
-                for (Path file : changedFiles) {
-                    if (java.nio.file.Files.exists(file) && java.nio.file.Files.isRegularFile(file)) {
-                        validFiles.add(file);
-                        futures.add(processor.processFile(file,
-                                new com.justsyncit.scanner.ChunkingOptions()
-                                        .withChunkSize(options.getChunkSize())));
-                    }
-                }
+                // 4. Aggregate results (Non-blocking)
+                return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
+                        .thenApply(v -> {
+                            long totalBytes = 0;
+                            int processedCount = 0;
+                            int errorCount = 0;
 
-                // Wait for all files to complete
-                @SuppressWarnings("rawtypes")
-                CompletableFuture[] futuresArray = futures.toArray(new CompletableFuture[0]);
-                CompletableFuture<Void> allDone = CompletableFuture.allOf(futuresArray);
+                            for (CompletableFuture<FileProcessor.ProcessingResult> f : futures) {
+                                try {
+                                    FileProcessor.ProcessingResult res = f.join(); // Safe here as allOf guarantees
+                                                                                   // completion
+                                    if (res != null) {
+                                        totalBytes += res.getTotalBytes();
+                                        processedCount++;
+                                    }
+                                } catch (Exception e) {
+                                    LOGGER.error("Failed to process file during incremental backup", e);
+                                    errorCount++;
+                                }
+                            }
+                            return FileProcessor.ProcessingResult.create(null, processedCount, 0, errorCount,
+                                    totalBytes,
+                                    totalBytes);
+                        })
+                        .thenCompose(result -> {
+                            // 5. Copy unchanged files (Blocking but wrapped in supplyAsync via
+                            // thenApply/Compose if we wanted, but let's stick to this flow)
+                            // Since metadataService IO might be blocking, verify if we should wrap this
+                            // too.
+                            // For safety, let's wrap the copy IO in a separate async stage.
+                            return CompletableFuture.supplyAsync(() -> {
+                                try {
+                                    LOGGER.info("Copying unchanged files from {} to {}", previousSnapshotId,
+                                            snapshotId);
+                                    List<String> changedPaths = changedFiles.stream().map(Path::toString)
+                                            .collect(Collectors.toList());
+                                    metadataService.copyUnchangedFiles(previousSnapshotId, snapshotId, changedPaths);
+                                    return result;
+                                } catch (java.io.IOException e) {
+                                    throw new java.util.concurrent.CompletionException(
+                                            new RuntimeException("Failed to copy unchanged files", e));
+                                }
+                            });
+                        })
+                        .thenApply(result -> {
+                            // 6. Build Merkle Tree
+                            if (blake3Service != null) {
+                                try {
+                                    LOGGER.info("Building Merkle Tree for incremental snapshot: {}", snapshotId);
+                                    MerkleTree tree = new MerkleTree(blake3Service);
+                                    List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId, false);
+                                    MerkleNode root = tree.build(allFiles);
+                                    persistMerkleTree(root);
+                                    metadataService.setSnapshotRoot(snapshotId, root.getHash());
+                                    LOGGER.info("Merkle Tree built and persisted. Root: {}", root.getHash());
+                                } catch (Exception e) {
+                                    // Make this critical?
+                                    throw new java.util.concurrent.CompletionException(
+                                            new RuntimeException("Failed to build Merkle Tree", e));
+                                }
+                            }
 
-                try {
-                    allDone.get(); // Block once for all files, not per-file
-                } catch (java.util.concurrent.ExecutionException e) {
-                    LOGGER.error("Some files failed to process", e.getCause());
-                }
+                            int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
 
-                // Collect results
-                for (int i = 0; i < futures.size(); i++) {
-                    try {
-                        FileProcessor.ProcessingResult fileResult = futures.get(i).getNow(null);
-                        if (fileResult != null) {
-                            totalBytes += fileResult.getTotalBytes();
-                            processedCount++;
-                        }
-                    } catch (Exception e) {
-                        LOGGER.error("Failed to process file: {}", validFiles.get(i), e);
-                        errorCount++;
-                    }
-                }
-
-                // Copy unchanged files from previous snapshot
-                LOGGER.info("Copying unchanged files from {} to {}", previousSnapshotId, snapshotId);
-                List<String> changedPaths = changedFiles.stream().map(Path::toString).collect(Collectors.toList());
-                metadataService.copyUnchangedFiles(previousSnapshotId, snapshotId, changedPaths);
-
-                // Build Merkle Tree for the incremental snapshot
-                if (blake3Service != null) {
-                    try {
-                        LOGGER.info("Building Merkle Tree for incremental snapshot: {}", snapshotId);
-                        MerkleTree tree = new MerkleTree(blake3Service);
-                        List<FileMetadata> allFiles = metadataService.getFilesInSnapshot(snapshotId, false);
-                        MerkleNode root = tree.build(allFiles);
-                        persistMerkleTree(root);
-                        metadataService.setSnapshotRoot(snapshotId, root.getHash());
-                        LOGGER.info("Merkle Tree built and persisted. Root: {}", root.getHash());
-                    } catch (Exception e) {
-                        LOGGER.error("Failed to build Merkle Tree", e);
-                        throw new RuntimeException(
-                                "CRITICAL: Failed to build Merkle Tree. Backup integrity compromised.", e);
-                    }
-                }
-
-                return BackupResult.success(snapshotId, processedCount, totalBytes, -1, errorCount, false);
-
-            } catch (Exception e) {
-                LOGGER.error("Incremental backup failed", e);
-                throw new RuntimeException(e);
-            }
+                            return BackupResult.success(snapshotId, result.getProcessedFiles(), result.getTotalBytes(),
+                                    chunksCreated, result.getErrorFiles(), false);
+                        });
+            });
         });
     }
 
@@ -548,18 +545,20 @@ public class BackupService {
         if (root == null)
             return;
 
-        // Post-order traversal to persist children before parents (though not strictly
-        // required with current schema)
-        // Actually, efficiently we can just arbitrary order.
-        // But let's recursive.
+        // Iterative traversal to avoid StackOverflowError on deep directory structures
+        java.util.Stack<MerkleNode> stack = new java.util.Stack<>();
+        stack.push(root);
 
-        List<MerkleNode> children = root.getChildren();
-        if (root.getType() == MerkleNode.Type.DIRECTORY && children != null) {
-            for (MerkleNode child : children) {
-                persistMerkleTree(child);
+        while (!stack.isEmpty()) {
+            MerkleNode node = stack.pop();
+            metadataService.upsertMerkleNode(node);
+
+            List<MerkleNode> children = node.getChildren();
+            if (node.getType() == MerkleNode.Type.DIRECTORY && children != null) {
+                for (MerkleNode child : children) {
+                    stack.push(child);
+                }
             }
         }
-
-        metadataService.upsertMerkleNode(root);
     }
 }
