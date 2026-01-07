@@ -63,6 +63,9 @@ public class FileTransferStatus {
     /** The compression type used for this transfer. */
     private final String compressionType;
 
+    /** List of chunk hashes for the file being transferred. */
+    private final java.util.List<String> chunkHashes;
+
     /**
      * Creates a new file transfer status.
      *
@@ -96,8 +99,10 @@ public class FileTransferStatus {
         this.bytesTransferred = new AtomicLong(0);
         this.startTime = System.currentTimeMillis();
         this.state = Objects.requireNonNull(state, "state cannot be null");
+        this.state = Objects.requireNonNull(state, "state cannot be null");
         this.lastUpdateTime = startTime;
         this.compressionType = Objects.requireNonNull(compressionType, "compressionType cannot be null");
+        this.chunkHashes = new java.util.concurrent.CopyOnWriteArrayList<>();
     }
 
     /**
@@ -284,6 +289,24 @@ public class FileTransferStatus {
             return 0.0;
         }
         return (getBytesTransferred() * 1000.0) / elapsedTime;
+    }
+
+    /**
+     * Gets the list of chunk hashes.
+     *
+     * @return the list of chunk hashes
+     */
+    public java.util.List<String> getChunkHashes() {
+        return java.util.Collections.unmodifiableList(chunkHashes);
+    }
+
+    /**
+     * Adds a chunk hash to the list.
+     *
+     * @param chunkHash the chunk hash
+     */
+    public void addChunkHash(String chunkHash) {
+        chunkHashes.add(chunkHash);
     }
 
     /**
