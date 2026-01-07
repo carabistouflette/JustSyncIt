@@ -19,12 +19,6 @@ import java.util.concurrent.RejectedExecutionHandler;
  * implementations.
  */
 
-/**
- * Base class for managed thread pools with monitoring and adaptive sizing.
- * Provides common functionality for all specialized thread pool
- * implementations.
- */
-
 public abstract class ManagedThreadPool {
 
     private static final Logger logger = LoggerFactory.getLogger(ManagedThreadPool.class);
@@ -40,6 +34,8 @@ public abstract class ManagedThreadPool {
     protected final AtomicLong totalExecutionTime = new AtomicLong(0);
     protected final AtomicInteger activeThreads = new AtomicInteger(0);
     protected final AtomicInteger currentQueueSize = new AtomicInteger(0);
+
+    protected final long startNanoTime = System.nanoTime();
 
     /**
      * Creates a new ManagedThreadPool.
@@ -123,6 +119,9 @@ public abstract class ManagedThreadPool {
      * Gets pool-specific statistics.
      */
     public ThreadPoolStats.PoolSpecificStats getPoolStats() {
+        double uptimeSeconds = Math.max(0.001, (System.nanoTime() - startNanoTime) / 1_000_000_000.0);
+        double throughput = executor.getCompletedTaskCount() / uptimeSeconds;
+
         return new ThreadPoolStats.PoolSpecificStats(
                 0, // resizeCount - not tracked in base implementation
                 System.currentTimeMillis(), // lastResizeTime
@@ -130,10 +129,7 @@ public abstract class ManagedThreadPool {
                 0.7, // currentEfficiency - default
                 0.8, // targetEfficiency - default
                 executor.getQueue().size() * 100.0, // averageLatency
-                executor.getCompletedTaskCount() > 0
-                        ? (double) executor.getCompletedTaskCount() / (System.currentTimeMillis() / 1000.0)
-                        : 0.0 // throughput
-        );
+                throughput);
     }
 
     /**
@@ -175,9 +171,9 @@ public abstract class ManagedThreadPool {
         double adjustedPressure = Math.max(0.0, Math.min(1.0, pressureLevel));
 
         if (adjustedPressure > 0.7) {
-            int currentMax = executor.getMaximumPoolSize();
+            int configMax = poolConfig.getMaximumPoolSize();
             int reducedMax = Math.max(poolConfig.getCorePoolSize(),
-                    (int) (currentMax * (1.0 - adjustedPressure * 0.3)));
+                    (int) (configMax * (1.0 - adjustedPressure * 0.3)));
             executor.setMaximumPoolSize(reducedMax);
         }
     }
