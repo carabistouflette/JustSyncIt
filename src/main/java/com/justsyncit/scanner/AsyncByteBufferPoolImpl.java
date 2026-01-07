@@ -8,6 +8,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
@@ -44,6 +45,10 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
     private volatile boolean closed;
     /** Lock for cleanup operations. */
     private final ReentrantLock cleanupLock;
+    /** Semaphore for throttling buffer allocations. */
+    private final Semaphore allocationPermits;
+    /** Maximum number of buffers. */
+    private final int maxBuffers;
     /** Executor service for async operations. */
     private final ExecutorService executorService;
 
@@ -83,11 +88,13 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
      */
     private AsyncByteBufferPoolImpl(int defaultBufferSize, int maxBuffers) {
         this.defaultBufferSize = defaultBufferSize;
+        this.maxBuffers = maxBuffers;
         this.availableBuffers = new ConcurrentLinkedQueue<>();
         this.totalBuffers = new AtomicInteger(0);
         this.buffersInUse = new AtomicInteger(0);
         this.closed = false;
         this.cleanupLock = new ReentrantLock();
+        this.allocationPermits = new Semaphore(maxBuffers, true); // Fair semaphore
         this.executorService = Executors.newCachedThreadPool(new DaemonThreadFactory());
 
         // Pre-allocate some buffers
@@ -110,29 +117,49 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
             return CompletableFuture.failedFuture(new IllegalStateException("Buffer pool has been closed"));
         }
 
-        return CompletableFuture.supplyAsync(() -> {
-            // Try to find an existing buffer that's large enough
-            ByteBuffer buffer = availableBuffers.poll();
-            while (buffer != null) {
-                if (buffer.capacity() >= size) {
-                    buffersInUse.incrementAndGet();
-                    buffer.clear();
-                    logger.trace("Acquired buffer of size {} for request {}", buffer.capacity(), size);
-                    return buffer;
+        // Try to acquire a permit without blocking first
+        if (allocationPermits.tryAcquire()) {
+            // Fast path: permit available
+            return CompletableFuture.supplyAsync(() -> acquireBufferInternal(size), executorService);
+        } else {
+            // Slow path: wait for a permit asynchronously
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    allocationPermits.acquire(); // This blocks until permit is available
+                    return acquireBufferInternal(size);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new java.util.concurrent.CompletionException("Interrupted while waiting for buffer", e);
                 }
-                // Buffer is too small, put it back and try another
-                availableBuffers.offer(buffer);
-                buffer = availableBuffers.poll();
+            }, executorService);
+        }
+    }
+
+    /**
+     * Internal method to acquire a buffer after a permit has been obtained.
+     */
+    private ByteBuffer acquireBufferInternal(int size) {
+        // Try to find an existing buffer that's large enough
+        ByteBuffer buffer = availableBuffers.poll();
+        while (buffer != null) {
+            if (buffer.capacity() >= size) {
+                buffersInUse.incrementAndGet();
+                buffer.clear();
+                logger.trace("Acquired buffer of size {} for request {}", buffer.capacity(), size);
+                return buffer;
             }
+            // Buffer is too small, put it back and try another
+            availableBuffers.offer(buffer);
+            buffer = availableBuffers.poll();
+        }
 
-            // No suitable buffer found, allocate a new one
-            int allocateSize = Math.max(size, defaultBufferSize);
-            buffer = allocateBuffer(allocateSize);
-            buffersInUse.incrementAndGet();
+        // No suitable buffer found, allocate a new one
+        int allocateSize = Math.max(size, defaultBufferSize);
+        buffer = allocateBuffer(allocateSize);
+        buffersInUse.incrementAndGet();
 
-            logger.trace("Allocated new buffer of size {} for request {}", allocateSize, size);
-            return buffer;
-        }, executorService);
+        logger.trace("Allocated new buffer of size {} for request {}", allocateSize, size);
+        return buffer;
     }
 
     @Override
@@ -141,7 +168,8 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Buffer cannot be null"));
         }
         if (closed) {
-            // Pool is closed, just let the buffer be garbage collected
+            // Pool is closed, release permit but let buffer be garbage collected
+            allocationPermits.release();
             return CompletableFuture.completedFuture(null);
         }
 
@@ -154,6 +182,8 @@ public class AsyncByteBufferPoolImpl implements AsyncByteBufferPool {
                 // This shouldn't happen in normal operation
                 logger.warn("Failed to release buffer to pool - pool may be full");
             }
+            // Release permit to unblock waiting acquires
+            allocationPermits.release();
         }, executorService);
     }
 
