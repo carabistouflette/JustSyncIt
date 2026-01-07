@@ -132,6 +132,86 @@ public final class FileRepository {
         }
     }
 
+    public List<String> insertFiles(List<FileMetadata> files) throws IOException {
+        if (files == null) {
+            throw new IllegalArgumentException("Files list cannot be null");
+        }
+        if (files.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String sql = "INSERT INTO files (id, snapshot_id, path, size, modified_time, file_hash, encryption_mode) "
+                + "VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        List<String> ids = new ArrayList<>(files.size());
+
+        try (Connection connection = connectionManager.getConnection()) {
+            boolean originalAutoCommit = connection.getAutoCommit();
+            connection.setAutoCommit(false);
+
+            try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+                for (FileMetadata file : files) {
+                    ids.add(file.getId());
+                    String path = file.getPath();
+                    String encryptionMode = "NONE";
+
+                    if (encryptionService != null && keySupplier != null && keySupplier.get() != null) {
+                        try {
+                            byte[] pathBytes = path.getBytes(StandardCharsets.UTF_8);
+                            byte[] encryptedPath = encryptionService.encrypt(pathBytes, keySupplier.get());
+                            path = Base64.getEncoder().encodeToString(encryptedPath);
+                            encryptionMode = "AES";
+                        } catch (EncryptionException e) {
+                            throw new IOException("Failed to encrypt file path", e);
+                        }
+                    }
+
+                    stmt.setString(1, file.getId());
+                    stmt.setString(2, file.getSnapshotId());
+                    stmt.setString(3, path);
+                    stmt.setLong(4, file.getSize());
+                    stmt.setLong(5, file.getModifiedTime().toEpochMilli());
+                    stmt.setString(6, file.getFileHash());
+                    stmt.setString(7, encryptionMode);
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+
+                // Handle chunks and search index
+                // Note: This part is still partially iterative due to ChunkRepository
+                // limitations/structure
+                // but at least the main files table is batched.
+                for (FileMetadata file : files) {
+                    chunkRepository.ensureChunksExist(connection, file.getChunkHashes());
+                    chunkRepository.insertFileChunks(connection, file);
+
+                    String path = file.getPath();
+                    // Re-derive encryption mode or check logic?
+                    // We need to know if we blindly index.
+                    // The loop above determined encryption mode.
+                    boolean encrypted = (encryptionService != null && keySupplier != null && keySupplier.get() != null);
+
+                    if (encrypted && blindIndexSearch != null) {
+                        insertFileKeywords(connection, file.getId(), path);
+                    } else if (!encrypted) {
+                        insertFileSearch(connection, file.getId(), path);
+                    }
+                }
+
+                connection.commit();
+                return ids;
+
+            } catch (SQLException e) {
+                connection.rollback();
+                throw e;
+            } finally {
+                connection.setAutoCommit(originalAutoCommit);
+            }
+        } catch (SQLException e) {
+            throw new IOException("Failed to insert files batch", e);
+        }
+    }
+
     public void updateFile(FileMetadata file) throws IOException {
         if (file == null)
             throw new IllegalArgumentException("File cannot be null");

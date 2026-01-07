@@ -476,18 +476,26 @@ public final class UserController {
         boolean passwordFromEnv = envPassword != null && !envPassword.isBlank();
 
         String tempPass = passwordFromEnv ? envPassword : java.util.UUID.randomUUID().toString();
-        User admin = new User(generateId(), "admin", "Administrator", "admin");
-        admin.setPassword(tempPass);
+        if (passwordFromEnv) {
+            User admin = new User(generateId(), "admin", "Administrator", "admin");
+            admin.setPassword(tempPass);
 
-        try {
-            authStore.createUser(admin);
-        } catch (Exception e) {
-            LOGGER.error("Failed to create default admin", e);
-            return;
+            try {
+                authStore.createUser(admin);
+            } catch (Exception e) {
+                LOGGER.error("Failed to create default admin", e);
+                return;
+            }
         }
 
-        // Admins should set the env var or use the setup wizard.
-        LOGGER.warn("Default admin account created. PLEASE SET 'JUSTSYNCIT_ADMIN_PASSWORD' ENV VARIABLE IMMEDIATELY.");
-        LOGGER.warn("For ephemeral access, checks logs for 'Default admin account created' confirmation only.");
+        if (passwordFromEnv) {
+            LOGGER.info("Default admin account created using JUSTSYNCIT_ADMIN_PASSWORD.");
+        } else {
+            LOGGER.error(
+                    "JUSTSYNCIT_ADMIN_PASSWORD environment variable is not set. Default admin account was NOT created. Please set this variable to initialize the admin user.");
+            // We do not create the user if no password is provided securely.
+            // This prevents generating a random password that is either lost (if not
+            // printed) or leaked (if printed).
+        }
     }
 }

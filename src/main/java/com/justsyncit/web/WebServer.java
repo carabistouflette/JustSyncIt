@@ -118,63 +118,9 @@ public final class WebServer {
             // Initialize User Controller
             this.userController = new UserController(context.getAuthStore(), context.getAuthService());
 
-            // Auth Middleware
-            app.before("/api/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return; // Allow CORS preflight
-
-                String path = ctx.path();
-                // Public endpoints
-                if (path.equals("/api/auth/login") ||
-                        path.equals("/api/auth/logout") ||
-                        path.equals("/api/health")) {
-                    return;
-                }
-
-                // Try Authorization header first, then cookie fallback
-                String authHeader = ctx.header("Authorization");
-                String token = null;
-
-                if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                    token = authHeader.substring(7);
-                } else {
-                    // Fallback to HttpOnly session cookie
-                    token = ctx.cookie("session");
-                }
-
-                if (token == null || token.isEmpty()) {
-                    ctx.status(401)
-                            .json(java.util.Map.of("error", "Unauthorized", "message",
-                                    "Missing authentication"));
-                    ctx.skipRemainingHandlers();
-                    return;
-                }
-
-                if (!userController.isValidSession(token)) {
-                    ctx.status(401)
-                            .json(java.util.Map.of("error", "Unauthorized", "message", "Invalid or expired token"));
-                    ctx.skipRemainingHandlers();
-                    return;
-                }
-            });
-
-            // [SEC-003] Thread-safe rate limiter using atomic operations
-            // Max 1000 IPs tracked, 5 attempts per minute
-            RateLimiter loginRateLimiter = new RateLimiter(1000, 5, 60_000);
-
-            app.before("/api/auth/login", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-
-                String clientIp = ctx.ip();
-
-                if (!loginRateLimiter.checkAndIncrement(clientIp)) {
-                    ctx.status(429).json(java.util.Map.of(
-                            "error", "Too Many Requests",
-                            "message", "Rate limit exceeded. Try again in 1 minute."));
-                    ctx.skipRemainingHandlers();
-                }
-            });
+            // Security Configuration
+            configureSecurity(app);
+            configureRateLimiting(app);
 
             // Clean up user sessions
             rateLimiterCleanup = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
@@ -494,6 +440,71 @@ public final class WebServer {
         // Health check
         app.get("/api/health", ctx -> {
             ctx.json(java.util.Map.of("status", "ok", "timestamp", System.currentTimeMillis()));
+        });
+    }
+
+    private void configureSecurity(Javalin app) {
+        // Auth Middleware
+        app.before("/api/*", ctx -> {
+            if (ctx.method().toString().equals("OPTIONS"))
+                return; // Allow CORS preflight
+
+            String path = ctx.path();
+
+            // Public endpoints - Using stricter matching
+            // [SEC-HARDENING] whitelist exact paths to prevent suffix attacks
+            if (path.equals("/api/auth/login") ||
+                    path.equals("/api/auth/logout") ||
+                    path.equals("/api/health")) {
+                return;
+            }
+
+            // Try Authorization header first, then cookie fallback
+            String authHeader = ctx.header("Authorization");
+            String token = null;
+
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
+            } else {
+                // Fallback to HttpOnly session cookie
+                token = ctx.cookie("session");
+            }
+
+            if (token == null || token.isEmpty()) {
+                ctx.status(401)
+                        .json(java.util.Map.of("error", "Unauthorized", "message",
+                                "Missing authentication"));
+                ctx.skipRemainingHandlers();
+                return;
+            }
+
+            if (!userController.isValidSession(token)) {
+                ctx.status(401)
+                        .json(java.util.Map.of("error", "Unauthorized", "message", "Invalid or expired token"));
+                ctx.skipRemainingHandlers();
+                return;
+            }
+        });
+    }
+
+    private void configureRateLimiting(Javalin app) {
+        // [SEC-003] Thread-safe rate limiter using atomic operations
+        // Max 1000 IPs tracked, 5 attempts per minute
+        RateLimiter loginRateLimiter = new RateLimiter(1000, 5, 60_000);
+
+        app.before("/api/auth/login", ctx -> {
+            if (ctx.method().toString().equals("OPTIONS"))
+                return;
+
+            String clientIp = ctx.ip();
+
+            if (!loginRateLimiter.checkAndIncrement(clientIp)) {
+                LOGGER.warn("Rate limit exceeded for IP: {}", clientIp);
+                ctx.status(429).json(java.util.Map.of(
+                        "error", "Too Many Requests",
+                        "message", "Rate limit exceeded. Try again in 1 minute."));
+                ctx.skipRemainingHandlers();
+            }
         });
     }
 

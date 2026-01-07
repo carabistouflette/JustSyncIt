@@ -280,22 +280,8 @@ public class SqliteMetadataService implements MetadataService {
     @Override
     public List<String> insertFiles(List<FileMetadata> files) throws IOException {
         validateNotClosed();
-        // FileRepository doesn't have batch insertFiles exposed yet?
-        // Ah, assuming I can loop or I should have added it.
-        // For efficiency, batch is better.
-        // I'll loop for now as I missed adding batch insert to FileRepository in last
-        // rewrite.
-        // Wait, SqliteMetadataService logic for insertFiles was batch?
-        // ImplementationPlan said "Extract...".
-        // I'll implement loop here. If performance is bad, I'll add batch method to
-        // Repo later.
-        // Actually, simple loop inside transaction in Repo would be best.
-        // But simply:
-        java.util.ArrayList<String> ids = new java.util.ArrayList<>();
-        for (FileMetadata f : files) {
-            ids.add(fileRepository.insertFile(f));
-        }
-        return ids;
+        // Delegate to repository batch insert for performance
+        return fileRepository.insertFiles(files);
     }
 
     @Override
