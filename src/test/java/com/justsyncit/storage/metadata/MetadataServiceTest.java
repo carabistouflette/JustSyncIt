@@ -32,14 +32,13 @@ class MetadataServiceTest {
     private MetadataService metadataService;
     /** Temporary directory for test database. */
     private Path tempDir;
+    private DatabaseConnectionManager connectionManager;
 
     @BeforeEach
     void setUp() throws IOException {
-        tempDir = Files.createTempDirectory("metadata-test");
-        DatabaseConnectionManager connectionManager = new SqliteConnectionManager(
-                tempDir.resolve("test.db").toString(), 5);
-        SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
-        metadataService = new SqliteMetadataService(connectionManager, schemaMigrator);
+        connectionManager = new SqliteConnectionManager("file::memory:?cache=shared", 1);
+        metadataService = new SqliteMetadataService(connectionManager, null, null, null,
+                new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     @AfterEach

@@ -37,18 +37,14 @@ public final class SnapshotRepository {
     /**
      * Creates a new snapshot.
      *
-     * @param name        snapshot name (used as ID)
-     * @param description snapshot description
+     * @param snapshot snapshot to create
      * @return created snapshot
      * @throws IOException if database operation fails
      */
-    public Snapshot createSnapshot(String name, String description) throws IOException {
-        if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Snapshot name cannot be null or empty");
+    public Snapshot createSnapshot(Snapshot snapshot) throws IOException {
+        if (snapshot == null) {
+            throw new IllegalArgumentException("Snapshot cannot be null");
         }
-
-        String id = name;
-        Instant now = Instant.now();
 
         String sql = "INSERT INTO snapshots (id, name, created_at, description, total_files, total_size) "
                 + "VALUES (?, ?, ?, ?, 0, 0)";
@@ -56,22 +52,22 @@ public final class SnapshotRepository {
         try (Connection connection = connectionManager.getConnection();
                 PreparedStatement stmt = connection.prepareStatement(sql)) {
 
-            stmt.setString(1, id);
-            stmt.setString(2, name);
-            stmt.setLong(3, now.toEpochMilli());
-            stmt.setString(4, description);
+            stmt.setString(1, snapshot.getId());
+            stmt.setString(2, snapshot.getName());
+            stmt.setLong(3, snapshot.getCreatedAt().toEpochMilli());
+            stmt.setString(4, snapshot.getDescription());
 
             int rows = stmt.executeUpdate();
             if (rows == 0) {
                 throw new IOException("Failed to create snapshot, no rows affected.");
             }
 
-            Snapshot snapshot = new Snapshot(id, name, description, now, 0, 0);
             logger.debug("Created snapshot: {}", snapshot);
             return snapshot;
 
         } catch (SQLException e) {
-            throw new IOException("Failed to create snapshot", e);
+            logger.error("Failed to create snapshot (ErrorCode: {}): {}", e.getErrorCode(), e.getMessage());
+            throw new IOException("Failed to create snapshot: " + e.getMessage(), e);
         }
     }
 

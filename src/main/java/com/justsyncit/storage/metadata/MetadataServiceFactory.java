@@ -75,9 +75,11 @@ public final class MetadataServiceFactory {
         logger.info("Creating file-based metadata service with database: {}", databasePath);
 
         DatabaseConnectionManager connectionManager = new SqliteConnectionManager(databasePath, maxConnections);
-        SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
+        // SchemaMigrator is now internal to SqliteMetadataService logic (or handled
+        // there)
 
-        return new SqliteMetadataService(connectionManager, schemaMigrator);
+        return new SqliteMetadataService(connectionManager, null, null, null,
+                new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     /**
@@ -132,9 +134,8 @@ public final class MetadataServiceFactory {
             }
         }
 
-        SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
-
-        return new SqliteMetadataService(sharedInMemoryConnectionManager, schemaMigrator);
+        return new SqliteMetadataService(sharedInMemoryConnectionManager, null, null, null,
+                new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     /**
@@ -172,10 +173,9 @@ public final class MetadataServiceFactory {
 
         DatabaseConnectionManager connectionManager = new SqliteConnectionManager(databasePath,
                 DEFAULT_MAX_CONNECTIONS);
-        SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
 
-        return new SqliteMetadataService(connectionManager, schemaMigrator, encryptionService, blindIndexSearch,
-                keySupplier);
+        return new SqliteMetadataService(connectionManager, encryptionService, keySupplier, blindIndexSearch,
+                new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     /**

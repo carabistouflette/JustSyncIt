@@ -56,12 +56,13 @@ class EncryptedBackupE2ETest {
         // Setup Metadata Service (Encrypted)
         connectionManager = new SqliteConnectionManager("file::memory:?cache=shared", 1);
         BlindIndexSearch blindIndexSearch = new BlindIndexSearch(keySupplier);
-        metadataService = new SqliteMetadataService(
+        byte[] clusterKey = masterKey; // Assuming clusterKey is the same as masterKey for this test
+        this.metadataService = new SqliteMetadataService(
                 connectionManager,
-                SqliteSchemaMigrator.create(),
                 encryptionService,
+                () -> clusterKey,
                 blindIndexSearch,
-                keySupplier);
+                new com.fasterxml.jackson.databind.ObjectMapper());
 
         // Setup Content Store (Encrypted wrapper around File System)
         Path storagePath = tempDir.resolve("storage/chunks");

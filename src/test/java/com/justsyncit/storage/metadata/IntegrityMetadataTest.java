@@ -22,11 +22,14 @@ public class IntegrityMetadataTest {
     private DatabaseConnectionManager connectionManager;
 
     @BeforeEach
-    public void setUp() throws Exception {
-        Path dbPath = tempDir.resolve("test-metadata.db");
-        connectionManager = new SqliteConnectionManager(dbPath.toString(), 10);
-        metadataService = new SqliteMetadataService(connectionManager, SqliteSchemaMigrator.create());
+    void setUp() throws Exception {
+        connectionManager = new SqliteConnectionManager("file::memory:?cache=shared", 1);
+        metadataService = new SqliteMetadataService(connectionManager, null, null, null,
+                new com.fasterxml.jackson.databind.ObjectMapper());
+        setupTestData();
+    }
 
+    private void setupTestData() throws IOException {
         // We need chunks to refer to foreign keys
         // So let's insert some dummy chunks
         ChunkMetadata c1 = new ChunkMetadata("hash1", 100, Instant.now(), 1, Instant.now());

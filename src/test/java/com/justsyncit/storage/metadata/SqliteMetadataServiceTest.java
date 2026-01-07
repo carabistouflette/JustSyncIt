@@ -35,17 +35,18 @@ class SqliteMetadataServiceTest {
     }
 
     private void setupService(boolean useEncryption) throws IOException {
-        SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
+        // SchemaMigrator is handled internally now
         if (useEncryption) {
             secretKey = new byte[32];
             new java.security.SecureRandom().nextBytes(secretKey);
             Supplier<byte[]> keySupplier = () -> secretKey;
             EncryptionService encryptionService = new AesGcmEncryptionService();
             BlindIndexSearch blindIndexSearch = new BlindIndexSearch(keySupplier);
-            metadataService = new SqliteMetadataService(connectionManager, schemaMigrator, encryptionService,
-                    blindIndexSearch, keySupplier);
+            metadataService = new SqliteMetadataService(connectionManager, encryptionService,
+                    keySupplier, blindIndexSearch, new com.fasterxml.jackson.databind.ObjectMapper());
         } else {
-            metadataService = new SqliteMetadataService(connectionManager, schemaMigrator);
+            metadataService = new SqliteMetadataService(connectionManager, null, null, null,
+                    new com.fasterxml.jackson.databind.ObjectMapper());
         }
     }
 

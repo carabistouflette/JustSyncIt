@@ -39,14 +39,10 @@ class EncryptedMetadataTest {
                 Supplier<byte[]> keySupplier = () -> secretKey;
 
                 EncryptionService encryptionService = new AesGcmEncryptionService();
-                BlindIndexSearch blindIndexSearch = new BlindIndexSearch(keySupplier);
+                BlindIndexSearch blindIndexSearch = new BlindIndexSearch(() -> new byte[32]);
 
-                metadataService = new SqliteMetadataService(
-                                connectionManager,
-                                schemaMigrator,
-                                encryptionService,
-                                blindIndexSearch,
-                                keySupplier);
+                metadataService = new SqliteMetadataService(connectionManager, encryptionService,
+                                keySupplier, blindIndexSearch, new com.fasterxml.jackson.databind.ObjectMapper());
         }
 
         @AfterEach
@@ -162,8 +158,8 @@ class EncryptedMetadataTest {
 
                         // Allow creating a service WITHOUT encryption to simulate legacy insert
                         SqliteMetadataService legacyService = new SqliteMetadataService(
-                                        connectionManager,
-                                        SqliteSchemaMigrator.create());
+                                        connectionManager, null, null, null,
+                                        new com.fasterxml.jackson.databind.ObjectMapper());
 
                         legacyService.createSnapshot("snap1", "Legacy");
 

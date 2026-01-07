@@ -64,10 +64,9 @@ public final class FileMetadata {
             throw new IllegalArgumentException("File hash cannot be null or empty");
         }
         if (chunkHashes == null) {
-            throw new IllegalArgumentException("Chunk hashes list cannot be null");
-        }
-        if (size > 0 && chunkHashes.isEmpty()) {
-            throw new IllegalArgumentException("Chunk hashes list cannot be empty for non-empty file");
+            this.chunkHashes = java.util.Collections.emptyList();
+        } else {
+            this.chunkHashes = List.copyOf(chunkHashes);
         }
 
         this.id = id;
@@ -76,7 +75,10 @@ public final class FileMetadata {
         this.size = size;
         this.modifiedTime = modifiedTime;
         this.fileHash = fileHash;
-        this.chunkHashes = List.copyOf(chunkHashes); // Create immutable copy
+
+        // Validation for chunks vs size is relaxed to allow fetching metadata without
+        // chunks
+        // if (size > 0 && chunkHashes.isEmpty()) { ... }
     }
 
     /**

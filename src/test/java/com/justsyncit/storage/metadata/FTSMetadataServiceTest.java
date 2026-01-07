@@ -27,16 +27,9 @@ class FTSMetadataServiceTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        tempDir = Files.createTempDirectory("fts-test");
-        connectionManager = new SqliteConnectionManager(
-                tempDir.resolve("test.db").toString(), 5);
-        SchemaMigrator schemaMigrator = SqliteSchemaMigrator.create();
-        try {
-            metadataService = new SqliteMetadataService(connectionManager, schemaMigrator);
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw e;
-        }
+        connectionManager = new SqliteConnectionManager("file::memory:?cache=shared", 1);
+        metadataService = new SqliteMetadataService(connectionManager, null, null, null,
+                new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     @AfterEach
