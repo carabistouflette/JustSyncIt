@@ -397,7 +397,8 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
 
         try {
             // Create async file visitor if none provided
-            AsyncFileVisitor asyncVisitor = asyncFileVisitor != null ? asyncFileVisitor : new DefaultAsyncFileVisitor();
+            AsyncFileVisitor asyncVisitor = asyncFileVisitor != null ? asyncFileVisitor
+                    : (fileVisitor != null ? new FileVisitorAdapter(fileVisitor) : new DefaultAsyncFileVisitor());
 
             // Walk the file tree asynchronously
             // The walk itself happens on the current thread (which is an IO thread from
@@ -808,5 +809,43 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             partitions.add(new ArrayList<>(list.subList(i, end)));
         }
         return partitions;
+    }
+
+    /**
+     * Adapter to bridge legacy FileVisitor to AsyncFileVisitor.
+     */
+    private class FileVisitorAdapter implements AsyncFilesystemScanner.AsyncFileVisitor {
+        private final FileVisitor delegate;
+
+        FileVisitorAdapter(FileVisitor delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public CompletableFuture<FileVisitor.FileVisitResult> visitFileAsync(Path file, BasicFileAttributes attrs) {
+            try {
+                return CompletableFuture.completedFuture(delegate.visitFile(file, attrs));
+            } catch (IOException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<FileVisitor.FileVisitResult> visitDirectoryAsync(Path dir, BasicFileAttributes attrs) {
+            try {
+                return CompletableFuture.completedFuture(delegate.visitDirectory(dir, attrs));
+            } catch (IOException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        }
+
+        @Override
+        public CompletableFuture<FileVisitor.FileVisitResult> visitFailedAsync(Path file, IOException exc) {
+            try {
+                return CompletableFuture.completedFuture(delegate.visitFailed(file, exc));
+            } catch (IOException e) {
+                return CompletableFuture.failedFuture(e);
+            }
+        }
     }
 }

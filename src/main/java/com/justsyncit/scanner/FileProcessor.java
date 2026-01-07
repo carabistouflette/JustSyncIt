@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -166,8 +168,15 @@ public class FileProcessor {
         this.metadataService = metadataService;
 
         // Set content store on chunker if it supports it
+        // Set content store on chunker if it supports it
         if (chunker instanceof FixedSizeFileChunker) {
             ((FixedSizeFileChunker) chunker).setContentStore(contentStore);
+        } else if (chunker instanceof AsyncFileChunker) {
+            AsyncFileChunker asyncChunker = (AsyncFileChunker) chunker;
+            AsyncChunkHandler delegate = asyncChunker.getAsyncChunkHandler();
+            if (delegate != null && !(delegate instanceof StoringAsyncChunkHandler)) {
+                asyncChunker.setAsyncChunkHandler(new StoringAsyncChunkHandler(delegate, contentStore));
+            }
         }
 
         this.executorService = Executors.newFixedThreadPool(
@@ -1262,5 +1271,100 @@ public class FileProcessor {
                     currentSnapshotId = null;
             }
         }, executorService);
+    }
+
+    /**
+     * AsyncChunkHandler that stores processed chunks in the ContentStore.
+     */
+    private static class StoringAsyncChunkHandler implements AsyncChunkHandler {
+        private final AsyncChunkHandler delegate;
+        private final ContentStore contentStore;
+
+        StoringAsyncChunkHandler(AsyncChunkHandler delegate, ContentStore contentStore) {
+            this.delegate = delegate;
+            this.contentStore = contentStore;
+        }
+
+        @Override
+        public CompletableFuture<String> processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks,
+                Path file) {
+            byte[] data = new byte[chunkData.remaining()];
+            chunkData.mark();
+            chunkData.get(data);
+            chunkData.reset();
+
+            return CompletableFuture.supplyAsync(() -> {
+                try {
+                    return contentStore.storeChunk(data);
+                } catch (IOException e) {
+                    throw new CompletionException(e);
+                }
+            }, Executors.newCachedThreadPool())
+                    .thenCompose(storedHash -> {
+                        return delegate.processChunkAsync(chunkData, chunkIndex, totalChunks, file)
+                                .thenApply(delegateHash -> {
+                                    return storedHash;
+                                });
+                    });
+        }
+
+        @Override
+        public void processChunkAsync(ByteBuffer chunkData, int chunkIndex, int totalChunks, Path file,
+                CompletionHandler<String, Exception> handler) {
+            processChunkAsync(chunkData, chunkIndex, totalChunks, file)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            handler.failed(ex instanceof Exception ? (Exception) ex : new Exception(ex));
+                        } else {
+                            handler.completed(result);
+                        }
+                    });
+        }
+
+        @Override
+        public CompletableFuture<String[]> processChunksAsync(ByteBuffer[] chunks, Path file) {
+            List<CompletableFuture<String>> futures = new ArrayList<>();
+            for (int i = 0; i < chunks.length; i++) {
+                futures.add(processChunkAsync(chunks[i], i, chunks.length, file));
+            }
+            return CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .thenApply(v -> futures.stream().map(CompletableFuture::join).toArray(String[]::new));
+        }
+
+        @Override
+        public void processChunksAsync(ByteBuffer[] chunks, Path file,
+                CompletionHandler<String[], Exception> handler) {
+            processChunksAsync(chunks, file).whenComplete((res, ex) -> {
+                if (ex != null)
+                    handler.failed(ex instanceof Exception ? (Exception) ex : new Exception(ex));
+                else
+                    handler.completed(res);
+            });
+        }
+
+        @Override
+        public int getMaxConcurrentChunks() {
+            return delegate.getMaxConcurrentChunks();
+        }
+
+        @Override
+        public void setMaxConcurrentChunks(int maxConcurrentChunks) {
+            delegate.setMaxConcurrentChunks(maxConcurrentChunks);
+        }
+
+        @Override
+        public boolean supportsBackpressure() {
+            return delegate.supportsBackpressure();
+        }
+
+        @Override
+        public CompletableFuture<Void> applyBackpressure() {
+            return delegate.applyBackpressure();
+        }
+
+        @Override
+        public CompletableFuture<Void> releaseBackpressure() {
+            return delegate.releaseBackpressure();
+        }
     }
 }
