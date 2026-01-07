@@ -36,7 +36,7 @@ public class NetworkFactory {
             }
             // If still null, we pass it. NetworkModule might fail if key is required.
             // But we preserved legacy behavior.
-            return networkModule.createNetworkService(blake3Service, envKey);
+            return networkModule.createNetworkService(blake3Service, envKey, null);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) { // Assuming ServiceException or other checked
@@ -44,9 +44,35 @@ public class NetworkFactory {
         }
     }
 
+    public NetworkService createNetworkService(Blake3Service blake3Service,
+            com.justsyncit.storage.metadata.MetadataService metadataService) {
+        try {
+            String envKey = System.getenv("JUSTSYNCIT_CLUSTER_KEY");
+            if (envKey == null) {
+                envKey = System.getProperty("justsyncit.cluster.key");
+            }
+            return networkModule.createNetworkService(blake3Service, envKey, metadataService);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create network service", e);
+        }
+    }
+
     public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKey) {
         try {
-            return networkModule.createNetworkService(blake3Service, clusterKey);
+            return networkModule.createNetworkService(blake3Service, clusterKey, null);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create network service", e);
+        }
+    }
+
+    public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKey,
+            com.justsyncit.storage.metadata.MetadataService metadataService) {
+        try {
+            return networkModule.createNetworkService(blake3Service, clusterKey, metadataService);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

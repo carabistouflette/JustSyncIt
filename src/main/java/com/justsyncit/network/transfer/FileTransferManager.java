@@ -20,7 +20,19 @@ public interface FileTransferManager {
          * 
          * @param networkService the network service
          */
+        /**
+         * Sets the network service to use for transfers.
+         * 
+         * @param networkService the network service
+         */
         void setNetworkService(com.justsyncit.network.NetworkService networkService);
+
+        /**
+         * Sets the metadata service to use for persisting file metadata.
+         *
+         * @param metadataService the metadata service
+         */
+        void setMetadataService(com.justsyncit.storage.metadata.MetadataService metadataService);
 
         /**
          * Sets the compression service to use for transfers.

@@ -53,6 +53,7 @@ public class ServiceFactory {
     private AuthService authService;
     private BackupService backupService;
     private RestoreService restoreService;
+    private MetadataService metadataService;
 
     public ServiceFactory() {
         this.securityModule = new SecurityModule();
@@ -145,8 +146,11 @@ public class ServiceFactory {
         return storageFactory.createEncryptedMetadataService(databasePath, encryptionService, keySupplier);
     }
 
-    public MetadataService createMetadataService() throws ServiceException {
-        return storageFactory.createMetadataService();
+    public synchronized MetadataService createMetadataService() throws ServiceException {
+        if (metadataService == null) {
+            metadataService = storageFactory.createMetadataService();
+        }
+        return metadataService;
     }
 
     public MetadataService createMetadataService(String databasePath) throws ServiceException {
@@ -185,11 +189,19 @@ public class ServiceFactory {
     }
 
     public NetworkService createNetworkService(Blake3Service blake3Service) {
-        return networkFactory.createNetworkService(blake3Service);
+        try {
+            return networkFactory.createNetworkService(blake3Service, createMetadataService());
+        } catch (ServiceException e) {
+            throw new RuntimeException("Failed to obtain MetadataService for NetworkService", e);
+        }
     }
 
     public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKey) {
-        return networkFactory.createNetworkService(blake3Service, clusterKey);
+        try {
+            return networkFactory.createNetworkService(blake3Service, clusterKey, createMetadataService());
+        } catch (ServiceException e) {
+            throw new RuntimeException("Failed to obtain MetadataService for NetworkService", e);
+        }
     }
 
     // --- Core Services (Backup/Restore/Integrity) ---

@@ -21,16 +21,20 @@ public class NetworkModule {
     }
 
     public NetworkService createNetworkService(Blake3Service blake3Service) {
-        return createNetworkService(blake3Service, null);
+        return createNetworkService(blake3Service, null, null);
     }
 
-    public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKeyBase64) {
+    public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKeyBase64,
+            com.justsyncit.storage.metadata.MetadataService metadataService) {
         com.justsyncit.network.NetworkConfiguration configuration = new com.justsyncit.network.NetworkConfiguration();
         TcpServer tcpServer = new TcpServer(configuration);
         TcpClient tcpClient = new TcpClient(configuration);
         ConnectionManager connectionManager = new ConnectionManagerImpl();
         FileTransferManagerImpl fileTransferManager = new FileTransferManagerImpl();
         fileTransferManager.setBlake3Service(blake3Service);
+        if (metadataService != null) {
+            fileTransferManager.setMetadataService(metadataService);
+        }
         // Inject dependencies for DIP
         fileTransferManager.setTransferPipelineFactory(
                 new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory());
