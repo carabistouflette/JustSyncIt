@@ -340,7 +340,6 @@ public class AsyncWatchServiceManager {
             }
 
             // Register using standard Path.register API
-            @SuppressWarnings({ "unchecked", "rawtypes" })
             WatchEvent.Kind<?>[] kindsArray = kinds.toArray(new WatchEvent.Kind[0]);
             return directory.register(watchService, kindsArray);
 

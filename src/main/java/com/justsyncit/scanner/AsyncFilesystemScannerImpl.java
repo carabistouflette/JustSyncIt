@@ -1,5 +1,6 @@
 package com.justsyncit.scanner;
 
+import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,6 +97,7 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
         final ConcurrentLinkedQueue<ScanResult.ScannedFile> scannedFilesQueue;
         final ConcurrentLinkedQueue<ScanResult.ScanError> errorsQueue;
         final Consumer<AsyncScanResult> streamingConsumer;
+        final Semaphore taskPermits; // Backpressure control
 
         ScanContext(String scanId, Path rootDirectory, ScanOptions options) {
             this(scanId, rootDirectory, options, null);
@@ -119,6 +121,9 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             this.scannedFilesQueue = new ConcurrentLinkedQueue<>();
             this.errorsQueue = new ConcurrentLinkedQueue<>();
             this.streamingConsumer = streamingConsumer;
+            // Limit concurrent processing tasks to avoid OOM
+            // 2048 is a reasonable limit for typical file systems
+            this.taskPermits = new Semaphore(2048);
         }
     }
 
@@ -411,6 +416,14 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                         return java.nio.file.FileVisitResult.TERMINATE;
                     }
 
+                    try {
+                        // Backpressure: Acquire permit before submitting task
+                        context.taskPermits.acquire();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return java.nio.file.FileVisitResult.TERMINATE;
+                    }
+
                     // Increment pending tasks before submitting
                     context.pendingTasks.incrementAndGet();
 
@@ -420,6 +433,7 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                             processFileAsync(file, context, asyncVisitor);
                         });
                     } catch (Exception e) {
+                        context.taskPermits.release(); // Release if submission failed
                         logger.error("Error submitting file for processing: {}", file, e);
                         context.errorsQueue.add(new ScanResult.ScanError(file, e, e.getMessage()));
                         // Decrement if submission failed
@@ -439,6 +453,14 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                     }
                     context.directoriesProcessed.incrementAndGet();
 
+                    try {
+                        // Backpressure: Acquire permit before submitting directory task
+                        context.taskPermits.acquire();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return java.nio.file.FileVisitResult.TERMINATE;
+                    }
+
                     // Also process directory visitation async
                     context.pendingTasks.incrementAndGet();
                     try {
@@ -446,6 +468,7 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                             processDirectoryAsync(dir, attrs, context, asyncVisitor);
                         });
                     } catch (Exception e) {
+                        context.taskPermits.release();
                         logger.error("Error submitting directory for processing: {}", dir, e);
                         if (context.pendingTasks.decrementAndGet() == 0) {
                             checkCompletion(context);
@@ -564,6 +587,8 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             if (context.pendingTasks.decrementAndGet() == 0) {
                 checkCompletion(context);
             }
+        } finally {
+            context.taskPermits.release();
         }
     }
 
@@ -596,7 +621,10 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
                                         path, attrs.size(), attrs.lastModifiedTime().toInstant(),
                                         isSymlink, isSparse, linkTarget);
 
-                                context.scannedFilesQueue.add(scannedFile);
+                                // Optimization: Only store in queue if NOT streaming to avoid OOM
+                                if (context.streamingConsumer == null) {
+                                    context.scannedFilesQueue.add(scannedFile);
+                                }
 
                                 // Handle streaming
                                 if (context.streamingConsumer != null) {
@@ -642,6 +670,8 @@ public class AsyncFilesystemScannerImpl implements AsyncFilesystemScanner {
             if (context.pendingTasks.decrementAndGet() == 0) {
                 checkCompletion(context);
             }
+        } finally {
+            context.taskPermits.release();
         }
     }
 

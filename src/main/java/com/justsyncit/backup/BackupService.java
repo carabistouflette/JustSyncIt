@@ -222,21 +222,24 @@ public class BackupService {
      */
     public CompletableFuture<BackupResult> backup(Path sourceDir, BackupOptions options,
             java.util.function.Consumer<FileProcessor> progressListener) {
+
+        // 1. Validation (Synchronous check)
+        try {
+            if (sourceDir == null) {
+                throw new IllegalArgumentException("Source directory cannot be null");
+            }
+            if (!java.nio.file.Files.exists(sourceDir) || !java.nio.file.Files.isDirectory(sourceDir)) {
+                throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
+            }
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+
+        LOGGER.info("Starting backup of {}", sourceDir);
+
+        // 2. Snapshot & Initialize (Async)
         return CompletableFuture.supplyAsync(() -> {
             try {
-                // Validate source directory
-                if (sourceDir == null) {
-                    throw new IllegalArgumentException("Source directory cannot be null");
-                }
-                if (!java.nio.file.Files.exists(sourceDir)) {
-                    throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
-                }
-                if (!java.nio.file.Files.isDirectory(sourceDir)) {
-                    throw new IllegalArgumentException("Directory must exist and be a directory: " + sourceDir);
-                }
-
-                LOGGER.info("Starting backup of {}", sourceDir);
-
                 // Configure scan options
                 ScanOptions scanOptions = new ScanOptions()
                         .withSymlinkStrategy(options.getSymlinkStrategy())
@@ -248,14 +251,12 @@ public class BackupService {
                         ? options.getSnapshotName()
                         : "backup-" + Instant.now().toString();
 
-                // Include source root in description for restore path relativization
                 String baseDescription = options.getDescription() != null
                         ? options.getDescription()
                         : "Backup created on " + Instant.now();
                 String description = "Processing session for directory: " + sourceDir.toAbsolutePath().toString()
                         + " | " + baseDescription;
 
-                // Create snapshot in DB before processing
                 metadataService.createSnapshot(snapshotId, description);
                 LOGGER.info("Created snapshot: {}", snapshotId);
 
@@ -264,28 +265,35 @@ public class BackupService {
                         .withChunkSize(options.getChunkSize())
                         .withDetectSparseFiles(true);
 
-                // Create file processor and set snapshot ID
+                // Initialize Processor
                 FileProcessor processor = FileProcessor.create(scanner, chunker, contentStore, metadataService);
                 processor.setSnapshotId(snapshotId);
 
                 if (progressListener != null) {
                     processor.setProgressListener(progressListener);
                 }
-
                 if (eventListener != null) {
                     processor.setEventListener(eventListener);
                 }
 
-                // Process directory
-                FileProcessor.ProcessingResult result = processor
-                        .processDirectory(sourceDir, scanOptions, chunkingOptions).get();
+                return new BackupContext(snapshotId, processor, scanOptions, chunkingOptions);
+            } catch (Exception e) {
+                throw new RuntimeException("Initialization failed", e);
+            }
+        }).thenCompose(ctx -> {
+            // 3. Process Directory (Async)
+            return ctx.processor.processDirectory(sourceDir, ctx.scanOptions, ctx.chunkingOptions)
+                    .thenApply(result -> new ProcessingContext(ctx, result));
+        }).thenApply(pCtx -> {
+            // 4. Post-processing (Async/Sync mix - mostly CPU bound now or DB IO)
+            try {
+                String snapshotId = pCtx.backupCtx.snapshotId;
+                FileProcessor.ProcessingResult result = pCtx.result;
 
                 LOGGER.info("Backup completed successfully: {}", snapshotId);
 
-                // Calculate chunks created (approximate based on total bytes and chunk size)
                 int chunksCreated = (int) (result.getTotalBytes() / options.getChunkSize()) + 1;
 
-                // Build and persist Merkle Tree
                 if (blake3Service != null) {
                     try {
                         LOGGER.info("Building Merkle Tree for snapshot: {}", snapshotId);
@@ -300,30 +308,31 @@ public class BackupService {
                     }
                 }
 
-                // Check for total failure: no files processed but errors exist
                 int errorFiles = result.getErrorFiles();
                 if (result.getProcessedFiles() == 0 && errorFiles > 0) {
                     LOGGER.error("Backup failed: processed 0 files with {} errors", errorFiles);
-                    return BackupResult.failure("Backup processed 0 files with " + errorFiles + " errors. Check logs.");
+                    return BackupResult
+                            .failure("Backup processed 0 files with " + errorFiles + " errors. Check logs.");
                 }
 
                 return BackupResult.success(snapshotId, result.getProcessedFiles(),
                         result.getTotalBytes(), chunksCreated, errorFiles, options.isVerifyIntegrity());
 
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                LOGGER.error("Backup interrupted", e);
-                throw new RuntimeException("Backup was interrupted", e);
-            } catch (java.io.IOException e) {
-                LOGGER.error("Backup failed due to IO error: {}", e.getMessage(), e);
-                throw new RuntimeException("IO error during backup: " + e.getMessage(), e);
-            } catch (RuntimeException e) {
-                LOGGER.error("Backup failed: {}", e.getMessage(), e);
-                throw e;
             } catch (Exception e) {
-                LOGGER.error("Backup failed unexpectedly: {}", e.getMessage(), e);
-                throw new RuntimeException("Unexpected error during backup", e);
+                throw new RuntimeException("Post-processing failed", e);
             }
+        }).exceptionally(e -> {
+            Throwable cause = e instanceof java.util.concurrent.CompletionException ? e.getCause() : e;
+            if (cause instanceof InterruptedException) {
+                LOGGER.error("Backup interrupted", cause);
+                return BackupResult.failure("Backup was interrupted: " + cause.getMessage()); // Or rethrow?
+                // Returning failure result is safer for caller than unhandled exception future
+                // sometimes
+            }
+            LOGGER.error("Backup failed: {}", cause.getMessage(), cause);
+            // Propagate exception to match original behavior of returning failed future if
+            // catastrophic
+            throw new java.util.concurrent.CompletionException(cause);
         });
     }
 

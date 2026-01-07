@@ -425,42 +425,31 @@ public class FixedSizeFileChunker implements FileChunker {
     private CompletableFuture<FileChunker.ChunkingResult> performAsyncChunking(Path file, ChunkingOptions options,
             int chunkSize,
             long fileSize, int chunkCount, List<String> chunkHashes) {
-        CompletableFuture<FileChunker.ChunkingResult> resultFuture = new CompletableFuture<>();
 
         // Update max concurrent operations if specified in options
-        if (options.getMaxConcurrentChunks() != this.maxConcurrentOperations) {
+        // Note: With the removal of the blocking semaphore, we rely on the
+        // AsyncByteBufferPool
+        // and the executor to manage concurrency pressure naturally.
+        if (options.getMaxConcurrentChunks() > 0) {
             this.maxConcurrentOperations = options.getMaxConcurrentChunks();
-            // Update semaphore permits
-            operationSemaphore.drainPermits();
-            operationSemaphore.release(this.maxConcurrentOperations);
         }
 
-        AsynchronousFileChannel channel = null;
+        CompletableFuture<FileChunker.ChunkingResult> resultFuture = new CompletableFuture<>();
+
         try {
-            channel = AsynchronousFileChannel.open(file, StandardOpenOption.READ);
-            final AsynchronousFileChannel finalChannel = channel;
+            AsynchronousFileChannel channel = AsynchronousFileChannel.open(file, StandardOpenOption.READ);
 
             // Calculate file hash asynchronously
-            calculateFileHashAsync(finalChannel, fileSize)
+            calculateFileHashAsync(channel, fileSize)
                     .thenCompose(fileHash -> {
-                        // Process chunks concurrently using true async I/O
-                        // Use a synchronized list or array to maintain order if necessary, but here we
-                        // just need to collect hashes
-                        // Actually, since we're using a List<String> passed in, and adding
-                        // concurrently, order is not guaranteed!
-                        // This seems like a pre-existing bug or behavior.
-                        // However, FixedSizeFileChunker.ChunkingResult constructor takes the list.
-                        // If order matters (it does for reconstruction), this list should be ordered.
-                        // Ideally, we should collect futures and map them to list in order.
-                        // But for now, focusing on plumbing 'options'.
-                        return processAllChunksAsync(finalChannel, file, chunkSize, fileSize, chunkCount, chunkHashes,
+                        return processAllChunksAsync(channel, file, chunkSize, fileSize, chunkCount, chunkHashes,
                                 options)
                                 .thenApply(v -> new FileChunker.ChunkingResult(file, chunkCount, fileSize, 0, fileHash,
                                         chunkHashes));
                     })
                     .whenComplete((result, throwable) -> {
                         // Close channel after all operations complete
-                        closeChannelAsync(finalChannel);
+                        closeChannelAsync(channel);
                         if (throwable != null) {
                             resultFuture.completeExceptionally(throwable);
                         } else {
@@ -469,7 +458,6 @@ public class FixedSizeFileChunker implements FileChunker {
                     });
 
         } catch (IOException e) {
-            closeChannelAsync(channel);
             resultFuture.complete(FileChunker.ChunkingResult.createFailed(file, e));
         }
 
@@ -535,6 +523,7 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     private CompletableFuture<Void> processAllChunksAsync(AsynchronousFileChannel channel, Path file, int chunkSize,
             long fileSize, int chunkCount, List<String> chunkHashes, ChunkingOptions options) {
+
         @SuppressWarnings("unchecked")
         CompletableFuture<String>[] chunkFutures = (CompletableFuture<String>[]) new CompletableFuture<?>[chunkCount];
 
@@ -544,28 +533,24 @@ public class FixedSizeFileChunker implements FileChunker {
             final long offset = (long) i * chunkSize;
             final int length = (int) Math.min(chunkSize, fileSize - offset);
 
-            chunkFutures[i] = processChunkAsync(channel, offset, length, chunkIndex, file, chunkHashes, options);
+            chunkFutures[i] = processChunkAsync(channel, offset, length, chunkIndex, file, options);
         }
 
         // Wait for all chunks to complete without blocking
         return CompletableFuture.allOf(chunkFutures)
-                .thenApply(v -> {
+                .thenAccept(v -> {
                     logger.debug("Completed processing {} chunks for file {}", chunkCount, file);
                     // Collect results in order
-                    for (int i = 0; i < chunkCount; i++) {
-                        try {
-                            // Since allOf completed, get() will be immediate
-                            String hash = chunkFutures[i].join();
-                            chunkHashes.add(hash);
-                        } catch (Exception e) {
-                            // Should be handled by exceptionally/exceptionallyCompleted in individual
-                            // futures
-                            // but if we get here, something is wrong.
-                            logger.error("Failed to retrieve hash for chunk {}", i, e);
-                            throw new java.util.concurrent.CompletionException(e);
+                    // Since all futures are done, join() is safe and immediate
+                    // Note: We synchronize on chunkHashes to be safe, though purely sequential add
+                    // here is fine
+                    // if this is the only thread modifying it.
+                    synchronized (chunkHashes) {
+                        for (int i = 0; i < chunkCount; i++) {
+                            // Any exception here will propagate
+                            chunkHashes.add(chunkFutures[i].join());
                         }
                     }
-                    return null;
                 });
     }
 
@@ -573,64 +558,47 @@ public class FixedSizeFileChunker implements FileChunker {
      * Processes a single chunk asynchronously using true async I/O with
      * CompletionHandler.
      */
+    /**
+     * Processes a single chunk asynchronously using true async I/O.
+     * Returns a Future that completes with the Chunk Hash.
+     */
     private CompletableFuture<String> processChunkAsync(AsynchronousFileChannel channel, long offset, int length,
-            int chunkIndex, Path file, List<String> chunkHashes, ChunkingOptions options) {
-        CompletableFuture<String> resultFuture = new CompletableFuture<>();
+            int chunkIndex, Path file, ChunkingOptions options) {
 
-        // Acquire operation permit
-        try {
-            operationSemaphore.acquire();
-            activeOperations.incrementAndGet();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            resultFuture.completeExceptionally(new RuntimeException("Interrupted while acquiring operation permit", e));
-            return resultFuture;
-        }
-
-        // Acquire buffer asynchronously
-        asyncBufferPool.acquireAsync(length)
+        // 1. Acquire Buffer (Async) - This acts as our throttle
+        return asyncBufferPool.acquireAsync(length)
                 .thenCompose(buffer -> {
-                    // Use CompletionHandler pattern for true async I/O
+                    CompletableFuture<String> readAndHashFuture = new CompletableFuture<>();
+
+                    // 2. Async Read
                     channel.read(buffer, offset, null, new CompletionHandler<Integer, Void>() {
                         @Override
                         public void completed(Integer bytesRead, Void attachment) {
-                            if (bytesRead == -1) {
-                                asyncBufferPool.releaseAsync(buffer);
-                                operationSemaphore.release();
-                                activeOperations.decrementAndGet();
-                                resultFuture.completeExceptionally(new IOException("Unexpected end of file"));
-                                return;
-                            }
-
-                            buffer.flip();
-                            byte[] chunkData = new byte[buffer.remaining()];
-                            buffer.get(chunkData);
-
-                            // Release buffer
-                            asyncBufferPool.releaseAsync(buffer);
-
                             try {
+                                if (bytesRead == -1) {
+                                    readAndHashFuture.completeExceptionally(
+                                            new IOException("Unexpected end of file at chunk " + chunkIndex));
+                                    return;
+                                }
+
+                                buffer.flip();
+                                byte[] chunkData = new byte[buffer.remaining()];
+                                buffer.get(chunkData);
+
                                 // Report status
                                 FileChunker.ChunkStatusCallback statusCallback = options.getStatusCallback();
                                 if (statusCallback != null) {
                                     statusCallback.onStatus("Hashing chunk " + (chunkIndex + 1));
                                 }
 
-                                // Calculate hash
+                                // 3. Hash (CPU bound - could be offloaded to common pool if blocking, but
+                                // blake3 is fast)
                                 String hash = blake3Service.hashBuffer(chunkData);
 
-                                // Store chunk if content store is available
+                                // 4. Store (Optional)
                                 if (contentStore != null) {
-                                    try {
-                                        contentStore.storeChunk(chunkData);
-                                        logger.debug("Stored chunk {} ({} bytes)", hash, chunkData.length);
-                                    } catch (IOException e) {
-                                        operationSemaphore.release();
-                                        activeOperations.decrementAndGet();
-                                        resultFuture.completeExceptionally(
-                                                new IOException("Failed to store chunk: " + hash, e));
-                                        return;
-                                    }
+                                    contentStore.storeChunk(chunkData);
+                                    logger.debug("Stored chunk {} ({} bytes)", hash, chunkData.length);
                                 }
 
                                 // Report progress
@@ -639,82 +607,29 @@ public class FixedSizeFileChunker implements FileChunker {
                                     callback.onProgress(bytesRead);
                                 }
 
-                                // Add hash to the list. The original `processAllChunksAsync` used `synchronized
-                                // (chunkHashes)`.
-                                // To maintain consistency with the original logic of adding to the shared list,
-                                // and given that `processAllChunksAsync` now just waits for futures,
-                                // this is the place to add the hash to the shared list.
-                                // Add hash to the list. The original `processAllChunksAsync` used `synchronized
-                                // (chunkHashes)`.
-                                // To maintain consistency with the original logic of adding to the shared list,
-                                // and given that `processAllChunksAsync` now just waits for futures,
-                                // this is the place to add the hash to the shared list.
-                                // synchronized (chunkHashes) {
-                                // // Note: This adds hashes in the order they complete, not necessarily
-                                // chunkIndex
-                                // // order.
-                                // chunkHashes.add(hash);
-                                // }
-                                // FIX: WE DO NOT ADD TO LIST HERE ANYMORE to prevent ordering bugs.
-                                // The caller (processAllChunksAsync) will aggregate results in order.
-
-                                operationSemaphore.release();
-                                activeOperations.decrementAndGet();
-                                resultFuture.complete(hash);
+                                activeOperations.decrementAndGet(); // Stats
+                                readAndHashFuture.complete(hash);
 
                             } catch (Exception e) {
-                                operationSemaphore.release();
-                                activeOperations.decrementAndGet();
-                                resultFuture.completeExceptionally(
+                                readAndHashFuture.completeExceptionally(
                                         new RuntimeException("Failed to process chunk " + chunkIndex, e));
+                            } finally {
+                                // Always release buffer
+                                asyncBufferPool.releaseAsync(buffer);
                             }
                         }
 
                         @Override
                         public void failed(Throwable exc, Void attachment) {
                             asyncBufferPool.releaseAsync(buffer);
-                            operationSemaphore.release();
-                            activeOperations.decrementAndGet();
-                            resultFuture.completeExceptionally(
+                            readAndHashFuture.completeExceptionally(
                                     new RuntimeException("Failed to read chunk " + chunkIndex, exc));
                         }
                     });
 
-                    // The instruction's `processChunkAsync` returns `readFuture` here,
-                    // but the original code did not have a `readFuture` variable.
-                    // The `channel.read` call is the async operation.
-                    // The `thenCompose` expects a `CompletableFuture`.
-                    // The `channel.read` with `CompletionHandler` directly completes
-                    // `resultFuture`.
-                    // So, we don't need to return a `readFuture` from `thenCompose`.
-                    // The `thenCompose` block should just return `null` or
-                    // `CompletableFuture.completedFuture(null)`
-                    // if it's just initiating an async operation that completes `resultFuture`
-                    // externally.
-                    // However, the `thenCompose` is meant to chain futures.
-                    // Let's revert to the original structure where `resultFuture` is completed by
-                    // the handler.
-                    return resultFuture; // This is incorrect for thenCompose. It should return a new CF.
-                                         // The original code's `thenCompose` was problematic.
-                                         // The `channel.read` is the async part.
-                                         // The `thenCompose` should return a future that represents the read.
-                                         // Let's keep the original structure where `resultFuture` is completed
-                                         // by the CompletionHandler, and the `thenCompose` block just initiates it.
-                                         // The `thenCompose` itself should return a dummy future or be replaced.
-                                         // For now, I'll keep the original structure where `resultFuture` is
-                                         // completed by the handler, and the `thenCompose` block just initiates
-                                         // the read. The `thenCompose` itself should return a future that
-                                         // represents the completion of the read.
-                                         // Let's create a `readCompletionFuture` that the handler completes.
-                })
-                .exceptionally(throwable -> {
-                    operationSemaphore.release();
-                    activeOperations.decrementAndGet();
-                    resultFuture.completeExceptionally(throwable);
-                    return null;
+                    activeOperations.incrementAndGet(); // Stats
+                    return readAndHashFuture;
                 });
-
-        return resultFuture;
     }
 
     /**
