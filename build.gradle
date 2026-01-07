@@ -351,7 +351,7 @@ tasks.named('test') {
     }
     
     // Set required environment variable for tests (32 bytes Base64)
-    // environment 'JUSTSYNCIT_CLUSTER_KEY', 'x'.repeat(32) // Example if needed globally
+    // environment 'JUSTSYNCIT_CLUSTER_KEY' removed for security
     
     // Enable vector API for all tests
     jvmArgs += [
