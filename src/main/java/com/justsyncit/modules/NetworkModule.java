@@ -39,12 +39,6 @@ public class NetworkModule {
                 .createEncryptionService();
 
         String envKey = clusterKeyBase64;
-        if (envKey == null || envKey.isBlank()) {
-            envKey = System.getenv("JUSTSYNCIT_CLUSTER_KEY");
-            if (envKey == null || envKey.isBlank()) {
-                envKey = System.getProperty("justsyncit.cluster.key");
-            }
-        }
 
         byte[] clusterKey;
         if (envKey != null && !envKey.isEmpty()) {
@@ -52,15 +46,14 @@ public class NetworkModule {
                 clusterKey = java.util.Base64.getDecoder().decode(envKey);
                 if (clusterKey.length != 32) {
                     throw new IllegalArgumentException(
-                            "JUSTSYNCIT_CLUSTER_KEY must decode to exactly 32 bytes. Got: " + clusterKey.length);
+                            "Cluster key must decode to exactly 32 bytes. Got: " + clusterKey.length);
                 }
             } catch (IllegalArgumentException e) {
-                throw new IllegalStateException("Invalid JUSTSYNCIT_CLUSTER_KEY: " + e.getMessage(), e);
+                throw new IllegalStateException("Invalid cluster key: " + e.getMessage(), e);
             }
         } else {
             throw new IllegalStateException(
-                    "JUSTSYNCIT_CLUSTER_KEY environment variable is required for secure network operation. " +
-                            "Generate one with: openssl rand -base64 32 | tr -d '\\n' && echo");
+                    "Cluster key is required for secure network operation. Please provide it via configuration.");
         }
 
         return new NetworkServiceImpl(tcpServer, tcpClient, fileTransferManager, connectionManager, blake3Service,

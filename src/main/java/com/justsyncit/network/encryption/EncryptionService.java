@@ -1,5 +1,7 @@
 package com.justsyncit.network.encryption;
 
+import java.nio.ByteBuffer;
+
 /**
  * Interface for encryption services providing authenticated encryption.
  * Supports AEAD (Authenticated Encryption with Associated Data).
@@ -15,6 +17,18 @@ public interface EncryptionService {
      * @throws EncryptionException if encryption fails
      */
     byte[] encrypt(byte[] plaintext, byte[] key) throws EncryptionException;
+
+    /**
+     * Encrypts data from plaintext buffer to ciphertext buffer.
+     *
+     * @param plaintext  the data to encrypt
+     * @param ciphertext the buffer to write encrypted data to (must have sufficient
+     *                   capacity)
+     * @param key        the encryption key
+     * @return number of bytes written to ciphertext buffer
+     * @throws EncryptionException if encryption fails
+     */
+    int encrypt(ByteBuffer plaintext, ByteBuffer ciphertext, byte[] key) throws EncryptionException;
 
     /**
      * Encrypts data with authenticated encryption and associated data.
@@ -37,6 +51,17 @@ public interface EncryptionService {
      * @throws EncryptionException if decryption or authentication fails
      */
     byte[] decrypt(byte[] ciphertext, byte[] key) throws EncryptionException;
+
+    /**
+     * Decrypts data from ciphertext buffer to plaintext buffer.
+     *
+     * @param ciphertext the encrypted data
+     * @param plaintext  the buffer to write decrypted data to
+     * @param key        the decryption key
+     * @return number of bytes written to plaintext buffer
+     * @throws EncryptionException if decryption fails
+     */
+    int decrypt(ByteBuffer ciphertext, ByteBuffer plaintext, byte[] key) throws EncryptionException;
 
     /**
      * Decrypts data with authentication and associated data verification.

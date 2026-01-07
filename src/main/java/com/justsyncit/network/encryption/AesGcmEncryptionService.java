@@ -5,6 +5,7 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 import org.bouncycastle.crypto.generators.HKDFBytesGenerator;
@@ -59,6 +60,42 @@ public final class AesGcmEncryptionService implements EncryptionService {
     @Override
     public byte[] encrypt(byte[] plaintext, byte[] key) throws EncryptionException {
         return encrypt(plaintext, key, null);
+    }
+
+    @Override
+    public int encrypt(ByteBuffer plaintext, ByteBuffer ciphertext, byte[] key) throws EncryptionException {
+        validateKey(key);
+
+        byte[] keyCopy = null;
+        try {
+            // Generate random IV
+            byte[] iv = new byte[IV_SIZE_BYTES];
+            secureRandom.nextBytes(iv);
+
+            // Write IV to ciphertext first
+            ciphertext.put(iv);
+
+            // Create a copy of the key for internal use
+            keyCopy = Arrays.copyOf(key, key.length);
+
+            // Init cipher
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(TAG_SIZE_BITS, iv);
+            SecretKeySpec keySpec = new SecretKeySpec(keyCopy, ALGORITHM);
+
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, gcmSpec);
+
+            // Encrypt
+            int outputSize = cipher.doFinal(plaintext, ciphertext);
+            return IV_SIZE_BYTES + outputSize;
+
+        } catch (Exception e) {
+            throw new EncryptionException("Encryption failed", e);
+        } finally {
+            if (keyCopy != null) {
+                Arrays.fill(keyCopy, (byte) 0);
+            }
+        }
     }
 
     @Override
@@ -139,6 +176,42 @@ public final class AesGcmEncryptionService implements EncryptionService {
     @Override
     public byte[] decrypt(byte[] ciphertext, byte[] key) throws EncryptionException {
         return decrypt(ciphertext, key, null);
+    }
+
+    @Override
+    public int decrypt(ByteBuffer ciphertext, ByteBuffer plaintext, byte[] key) throws EncryptionException {
+        validateKey(key);
+
+        byte[] iv = new byte[IV_SIZE_BYTES];
+        byte[] keyCopy = null;
+
+        try {
+            // Read IV from input (must preserve position for potential retry if needed, but
+            // usually we consume it)
+            if (ciphertext.remaining() < IV_SIZE_BYTES) {
+                throw new EncryptionException("Ciphertext too short for IV");
+            }
+            ciphertext.get(iv);
+
+            // Create a copy of the key for internal use
+            keyCopy = Arrays.copyOf(key, key.length);
+
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION); // Use new instance to be safe with state
+            GCMParameterSpec gcmSpec = new GCMParameterSpec(TAG_SIZE_BITS, iv);
+            SecretKeySpec keySpec = new SecretKeySpec(keyCopy, ALGORITHM);
+
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmSpec);
+
+            return cipher.doFinal(ciphertext, plaintext);
+
+        } catch (Exception e) {
+            throw new EncryptionException("Decryption failed", e);
+        } finally {
+            if (keyCopy != null) {
+                Arrays.fill(keyCopy, (byte) 0);
+            }
+            Arrays.fill(iv, (byte) 0);
+        }
     }
 
     @Override
