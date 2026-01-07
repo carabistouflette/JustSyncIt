@@ -21,6 +21,10 @@ public class NetworkModule {
     }
 
     public NetworkService createNetworkService(Blake3Service blake3Service) {
+        return createNetworkService(blake3Service, null);
+    }
+
+    public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKeyBase64) {
         com.justsyncit.network.NetworkConfiguration configuration = new com.justsyncit.network.NetworkConfiguration();
         TcpServer tcpServer = new TcpServer(configuration);
         TcpClient tcpClient = new TcpClient(configuration);
@@ -34,7 +38,14 @@ public class NetworkModule {
         com.justsyncit.network.encryption.EncryptionService encryptionService = securityModule
                 .createEncryptionService();
 
-        String envKey = System.getenv("JUSTSYNCIT_CLUSTER_KEY");
+        String envKey = clusterKeyBase64;
+        if (envKey == null || envKey.isBlank()) {
+            envKey = System.getenv("JUSTSYNCIT_CLUSTER_KEY");
+            if (envKey == null || envKey.isBlank()) {
+                envKey = System.getProperty("justsyncit.cluster.key");
+            }
+        }
+
         byte[] clusterKey;
         if (envKey != null && !envKey.isEmpty()) {
             try {

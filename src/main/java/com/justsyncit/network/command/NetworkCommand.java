@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,7 +128,7 @@ public class NetworkCommand implements Command {
                         handleError("Failed to start network server", e, logger);
                         return null;
                     })
-                    .join();
+                    .get(60, TimeUnit.SECONDS);
             return true;
         } catch (NumberFormatException e) {
             logger.warn("Invalid port number provided: {}", args[1]);
@@ -147,7 +148,7 @@ public class NetworkCommand implements Command {
                         handleError("Failed to stop network server", e, logger);
                         return null;
                     })
-                    .join();
+                    .get(60, TimeUnit.SECONDS);
             return true;
         } catch (Exception e) {
             handleError("Failed to stop network server", e, logger);
@@ -178,7 +179,7 @@ public class NetworkCommand implements Command {
                         handleError("Failed to connect to " + address, e, logger);
                         return null;
                     })
-                    .join();
+                    .get(60, TimeUnit.SECONDS);
             return true;
         } catch (NumberFormatException e) {
             logger.warn("Invalid port number in address: {}", args[1]);
@@ -213,7 +214,7 @@ public class NetworkCommand implements Command {
                         handleError("Failed to disconnect from " + address, e, logger);
                         return null;
                     })
-                    .join();
+                    .get(60, TimeUnit.SECONDS);
             return true;
         } catch (NumberFormatException e) {
             logger.warn("Invalid port number in address: {}", args[1]);
@@ -254,7 +255,7 @@ public class NetworkCommand implements Command {
                         handleError("File transfer failed", e, logger);
                         return null;
                     })
-                    .join();
+                    .get(300, TimeUnit.SECONDS); // 5 minutes for file transfers
 
             if (result != null && result.isSuccess()) {
                 Duration duration = Duration.between(start, Instant.now());

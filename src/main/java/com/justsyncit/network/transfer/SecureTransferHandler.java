@@ -83,12 +83,15 @@ public class SecureTransferHandler {
 
                 // 5. Send message (Header + Encrypted Body)
                 // Using generic sendMessage which handles serialization of header+body
-                return connection.sendMessage(message).join();
+                // Return the message future to be composed into the async chain
+                return message;
 
             } catch (IOException e) {
                 logger.error("Failed to send file part: {}", filePath, e);
                 throw new CompletionException(e);
             }
-        }, ThreadPoolManager.getInstance().getIoThreadPool()).thenCompose(v -> CompletableFuture.completedFuture(null));
+        }, ThreadPoolManager.getInstance().getIoThreadPool())
+                .thenCompose(message -> connection.sendMessage(message))
+                .thenApply(v -> null);
     }
 }

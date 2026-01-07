@@ -705,76 +705,51 @@ public class NetworkServiceImpl implements NetworkService {
     }
 
     // Event notification methods
-    private void notifyConnectionEstablished(InetSocketAddress remoteAddress) {
+
+    private void notifyListeners(java.util.function.Consumer<NetworkEventListener> action, String context) {
         for (NetworkEventListener listener : listeners) {
             try {
-                listener.onConnectionEstablished(remoteAddress);
+                action.accept(listener);
             } catch (Exception e) {
-                logger.error("Error notifying listener of connection established", e);
+                // Catching generic Exception to ensure one failing listener doesn't break the
+                // loop for others
+                logger.error("Error notifying listener of {}", context, e);
             }
         }
+    }
+
+    private void notifyConnectionEstablished(InetSocketAddress remoteAddress) {
+        notifyListeners(listener -> listener.onConnectionEstablished(remoteAddress), "connection established");
     }
 
     private void notifyConnectionClosed(InetSocketAddress remoteAddress, Throwable cause) {
-        for (NetworkEventListener listener : listeners) {
-            try {
-                listener.onConnectionClosed(remoteAddress, cause);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of connection closed", e);
-            }
-        }
+        notifyListeners(listener -> listener.onConnectionClosed(remoteAddress, cause), "connection closed");
     }
 
     private void notifyMessageReceived(ProtocolMessage message, InetSocketAddress remoteAddress) {
-        for (NetworkEventListener listener : listeners) {
-            try {
-                listener.onMessageReceived(message, remoteAddress);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of message received", e);
-            }
-        }
+        notifyListeners(listener -> listener.onMessageReceived(message, remoteAddress), "message received");
     }
 
     private void notifyFileTransferStarted(Path filePath, InetSocketAddress remoteAddress, long fileSize) {
-        for (NetworkEventListener listener : listeners) {
-            try {
-                listener.onFileTransferStarted(filePath, remoteAddress, fileSize);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of file transfer started", e);
-            }
-        }
+        notifyListeners(listener -> listener.onFileTransferStarted(filePath, remoteAddress, fileSize),
+                "file transfer started");
     }
 
     private void notifyFileTransferProgress(Path filePath, InetSocketAddress remoteAddress, long bytesTransferred,
             long totalBytes) {
-        for (NetworkEventListener listener : listeners) {
-            try {
-                listener.onFileTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of file transfer progress", e);
-            }
-        }
+        notifyListeners(
+                listener -> listener.onFileTransferProgress(filePath, remoteAddress, bytesTransferred, totalBytes),
+                "file transfer progress");
     }
 
     private void notifyFileTransferCompleted(Path filePath, InetSocketAddress remoteAddress, boolean success,
             String error) {
-        for (NetworkEventListener listener : listeners) {
-            try {
-                listener.onFileTransferCompleted(filePath, remoteAddress, success, error);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of file transfer completed", e);
-            }
-        }
+        notifyListeners(listener -> listener.onFileTransferCompleted(filePath, remoteAddress, success, error),
+                "file transfer completed");
     }
 
     private void notifyError(Throwable error, String context) {
-        for (NetworkEventListener listener : listeners) {
-            try {
-                listener.onError(error, context);
-            } catch (Exception e) {
-                logger.error("Error notifying listener of error", e);
-            }
-        }
+        notifyListeners(listener -> listener.onError(error, context), "error");
     }
 
     /**
