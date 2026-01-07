@@ -167,14 +167,16 @@ public final class FileRepository {
                     chunkRepository.ensureChunksExist(connection, file.getChunkHashes());
                     chunkRepository.insertFileChunks(connection, file);
                     // Update search index
-                    if ("AES".equals(encMode) && blindIndexSearch != null) {
-                        // delete old keywords?
-                        stmt.execute("DELETE FROM file_keywords WHERE file_id='" + file.getId() + "'");
-                        insertFileKeywords(connection, file.getId(), file.getPath());
-                    } else {
-                        // Update FTS
-                        stmt.execute("DELETE FROM files_search WHERE file_id='" + file.getId() + "'");
-                        insertFileSearch(connection, file.getId(), file.getPath());
+                    try (Statement delStmt = connection.createStatement()) {
+                        if ("AES".equals(encMode) && blindIndexSearch != null) {
+                            // delete old keywords
+                            delStmt.execute("DELETE FROM file_keywords WHERE file_id='" + file.getId() + "'");
+                            insertFileKeywords(connection, file.getId(), file.getPath());
+                        } else {
+                            // Update FTS
+                            delStmt.execute("DELETE FROM files_search WHERE file_id='" + file.getId() + "'");
+                            insertFileSearch(connection, file.getId(), file.getPath());
+                        }
                     }
                     connection.commit();
                 } else {
@@ -499,6 +501,73 @@ public final class FileRepository {
             }
         }
         return path;
+    }
+
+    public int countFilesInSnapshot(String snapshotId, String pathPrefix) throws IOException {
+        // Optimistic: Try fast SQL count if possible
+        if (encryptionService == null || keySupplier == null) {
+            String sql = "SELECT COUNT(*) FROM files WHERE snapshot_id = ?";
+            if (pathPrefix != null && !pathPrefix.isEmpty())
+                sql += " AND path LIKE ?";
+
+            try (Connection conn = connectionManager.getConnection();
+                    PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, snapshotId);
+                if (pathPrefix != null && !pathPrefix.isEmpty())
+                    stmt.setString(2, pathPrefix + "%");
+                try (ResultSet rs = stmt.executeQuery()) {
+                    return rs.next() ? rs.getInt(1) : 0;
+                }
+            } catch (SQLException e) {
+                throw new IOException("Count failed", e);
+            }
+        } else {
+            // Encrypted mode: Must scan
+            try {
+                return countFilesInSnapshotStreaming(snapshotId, pathPrefix);
+            } catch (SQLException e) {
+                throw new IOException("Count failed", e);
+            }
+        }
+    }
+
+    private int countFilesInSnapshotStreaming(String snapshotId, String pathPrefix) throws SQLException, IOException {
+        if (pathPrefix == null || pathPrefix.isEmpty()) {
+            // Simple count matches DB count as encryption doesn't change existence
+            // validation
+            // assuming snapshot_id is unencrypted (it is).
+            try (Connection c = connectionManager.getConnection();
+                    PreparedStatement s = c.prepareStatement("SELECT COUNT(*) FROM files WHERE snapshot_id=?")) {
+                s.setString(1, snapshotId);
+                try (ResultSet rs = s.executeQuery()) {
+                    return rs.next() ? rs.getInt(1) : 0;
+                }
+            }
+        }
+
+        // Decrypt stream
+        String sql = "SELECT path, encryption_mode FROM files WHERE snapshot_id = ?";
+        try (Connection conn = connectionManager.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setFetchSize(100);
+            stmt.setString(1, snapshotId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                int count = 0;
+                while (rs.next()) {
+                    String path = rs.getString("path");
+                    String mode = rs.getString("encryption_mode");
+                    try {
+                        String decryptedPath = decryptPath(path, mode);
+                        if (decryptedPath.startsWith(pathPrefix))
+                            count++;
+                    } catch (Exception e) {
+                        // ignore decryption errors for count?
+                        continue;
+                    }
+                }
+                return count;
+            }
+        }
     }
 
     private FileMetadata mapRowToFileMetadata(ResultSet rs, List<String> chunks) throws SQLException {

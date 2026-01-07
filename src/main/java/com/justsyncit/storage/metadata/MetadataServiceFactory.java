@@ -75,11 +75,11 @@ public final class MetadataServiceFactory {
         logger.info("Creating file-based metadata service with database: {}", databasePath);
 
         DatabaseConnectionManager connectionManager = new SqliteConnectionManager(databasePath, maxConnections);
-        // SchemaMigrator is now internal to SqliteMetadataService logic (or handled
-        // there)
 
-        return new SqliteMetadataService(connectionManager, null, null, null,
-                new com.fasterxml.jackson.databind.ObjectMapper());
+        ChunkRepository chunkRepository = new ChunkRepository(connectionManager);
+        FileRepository fileRepository = new FileRepository(connectionManager, null, null, null, chunkRepository);
+
+        return new SqliteMetadataService(connectionManager, fileRepository, chunkRepository);
     }
 
     /**
@@ -134,8 +134,11 @@ public final class MetadataServiceFactory {
             }
         }
 
-        return new SqliteMetadataService(sharedInMemoryConnectionManager, null, null, null,
-                new com.fasterxml.jackson.databind.ObjectMapper());
+        ChunkRepository chunkRepository = new ChunkRepository(sharedInMemoryConnectionManager);
+        FileRepository fileRepository = new FileRepository(sharedInMemoryConnectionManager, null, null, null,
+                chunkRepository);
+
+        return new SqliteMetadataService(sharedInMemoryConnectionManager, fileRepository, chunkRepository);
     }
 
     /**
@@ -174,8 +177,11 @@ public final class MetadataServiceFactory {
         DatabaseConnectionManager connectionManager = new SqliteConnectionManager(databasePath,
                 DEFAULT_MAX_CONNECTIONS);
 
-        return new SqliteMetadataService(connectionManager, encryptionService, keySupplier, blindIndexSearch,
-                new com.fasterxml.jackson.databind.ObjectMapper());
+        ChunkRepository chunkRepository = new ChunkRepository(connectionManager);
+        FileRepository fileRepository = new FileRepository(connectionManager, encryptionService, keySupplier,
+                blindIndexSearch, chunkRepository);
+
+        return new SqliteMetadataService(connectionManager, fileRepository, chunkRepository);
     }
 
     /**

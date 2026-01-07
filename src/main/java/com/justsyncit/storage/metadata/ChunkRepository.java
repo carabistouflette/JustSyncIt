@@ -160,8 +160,50 @@ public final class ChunkRepository {
         }
     }
 
-    // Streaming chunks is complex to move to a simple repository without explicit
-    // resource handling for the caller. For now, we omit it or implement it if
-    // needed by Service.
-    // The Service will likely just rely on connection usage.
+    public java.util.stream.Stream<ChunkMetadata> streamAllChunks() throws java.io.IOException, SQLException {
+        Connection connection = connectionManager.getConnection();
+        java.sql.Statement stmt = connection.createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT hash, size, first_seen, reference_count, last_accessed FROM chunks");
+
+        java.util.Iterator<ChunkMetadata> iterator = new java.util.Iterator<>() {
+            boolean hasNext = rs.next();
+
+            @Override
+            public boolean hasNext() {
+                return hasNext;
+            }
+
+            @Override
+            public ChunkMetadata next() {
+                if (!hasNext)
+                    throw new java.util.NoSuchElementException();
+                try {
+                    ChunkMetadata m = new ChunkMetadata(
+                            rs.getString("hash"),
+                            rs.getLong("size"),
+                            Instant.ofEpochMilli(rs.getLong("first_seen")),
+                            rs.getLong("reference_count"),
+                            Instant.ofEpochMilli(rs.getLong("last_accessed")));
+                    hasNext = rs.next();
+                    return m;
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+
+        return java.util.stream.StreamSupport.stream(
+                java.util.Spliterators.spliteratorUnknownSize(iterator,
+                        java.util.Spliterator.ORDERED | java.util.Spliterator.NONNULL),
+                false)
+                .onClose(() -> {
+                    try {
+                        rs.close();
+                        stmt.close();
+                        connection.close();
+                    } catch (SQLException e) {
+                        logger.error("Failed to close stream resources", e);
+                    }
+                });
+    }
 }

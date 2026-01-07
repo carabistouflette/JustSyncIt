@@ -26,6 +26,35 @@ import java.util.stream.Stream;
  * - FileRepository
  * - ChunkRepository
  * - MerkleRepository
+ * ```java
+ * package com.justsyncit.storage.metadata;
+ * 
+ * import com.fasterxml.jackson.databind.ObjectMapper;
+ * import com.justsyncit.network.encryption.EncryptionService;
+ * import com.justsyncit.metadata.BlindIndexSearch;
+ * import com.justsyncit.storage.snapshot.MerkleNode;
+ * import com.justsyncit.storage.snapshot.MerkleTreeDiffer;
+ * // Snapshot is in same package
+ * import org.slf4j.Logger;
+ * import org.slf4j.LoggerFactory;
+ * 
+ * import java.io.IOException;
+ * import java.sql.Connection;
+ * import java.sql.ResultSet;
+ * import java.sql.SQLException;
+ * import java.sql.Statement;
+ * import java.util.List;
+ * import java.util.Optional;
+ * import java.util.function.Supplier;
+ * import java.util.stream.Stream;
+ * 
+ * /**
+ * MetadataService implementation using SQLite.
+ * This class now acts as a coordinator, delegating persistence logic to:
+ * - SnapshotRepository
+ * - FileRepository
+ * - ChunkRepository
+ * - MerkleRepository
  */
 public class SqliteMetadataService implements MetadataService {
 
@@ -51,32 +80,49 @@ public class SqliteMetadataService implements MetadataService {
 
     // Dependencies needed for repo initialization or migration?
     // Kept for now if legacy logic needs them, but most should be in Repos.
-    private final EncryptionService encryptionService;
-    private final Supplier<byte[]> keySupplier;
-    private final BlindIndexSearch blindIndexSearch;
     private final ObjectMapper objectMapper;
 
     private volatile boolean closed = false;
 
+    /**
+     * Modern constructor with dependency injection for Repositories.
+     */
+    public SqliteMetadataService(DatabaseConnectionManager connectionManager,
+            FileRepository fileRepository,
+            ChunkRepository chunkRepository) {
+        this.connectionManager = connectionManager;
+        this.fileRepository = fileRepository;
+        this.chunkRepository = chunkRepository;
+
+        // Initialize other repositories internally for now, as they are not yet passed
+        // in by Factory
+        this.snapshotRepository = new SnapshotRepository(connectionManager);
+        this.merkleRepository = new MerkleRepository(connectionManager,
+                new com.fasterxml.jackson.databind.ObjectMapper());
+        this.objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+
+        // Perform Schema Migration / Initialization
+        initializeDatabase();
+    }
+
+    /**
+     * Legacy constructor for backward compatibility and tests.
+     * Initializes repositories internally.
+     */
     public SqliteMetadataService(DatabaseConnectionManager connectionManager,
             EncryptionService encryptionService,
             Supplier<byte[]> keySupplier,
             BlindIndexSearch blindIndexSearch,
             ObjectMapper objectMapper) {
         this.connectionManager = connectionManager;
-        this.encryptionService = encryptionService;
-        this.keySupplier = keySupplier;
-        this.blindIndexSearch = blindIndexSearch;
         this.objectMapper = objectMapper;
 
-        // Initialize Repositories
-        this.snapshotRepository = new SnapshotRepository(connectionManager);
         this.chunkRepository = new ChunkRepository(connectionManager);
         this.fileRepository = new FileRepository(connectionManager, encryptionService, keySupplier, blindIndexSearch,
-                chunkRepository);
+                this.chunkRepository);
+        this.snapshotRepository = new SnapshotRepository(connectionManager);
         this.merkleRepository = new MerkleRepository(connectionManager, objectMapper);
 
-        // Perform Schema Migration / Initialization
         initializeDatabase();
     }
 
@@ -285,91 +331,7 @@ public class SqliteMetadataService implements MetadataService {
     @Override
     public int countFilesInSnapshot(String snapshotId, String pathPrefix) throws IOException {
         validateNotClosed();
-        // Assuming FileRepository doesn't have count?
-        // I didn't add countFilesInSnapshot to FileRepository in step 128.
-        // I missed it.
-        // Fallback: use getFilesInSnapshot listing size? No, too heavy.
-        // I must implement count here via DB default call?
-        // Or add to FileRepository.
-        // I'll add it to FileRepository via replace after this? Or just do direct SQL
-        // here.
-        // Direct SQL here is pragmatic given the deadline.
-        // Ideally should be in Repo.
-
-        String sql = "SELECT COUNT(*) FROM files WHERE snapshot_id = ?";
-        if (pathPrefix != null && !pathPrefix.isEmpty())
-            sql += " AND path LIKE ?"; // Note: Encryption aware logic needed?
-
-        // Encryption logic:
-        if (encryptionService != null && keySupplier != null) {
-            // Streaming count
-            // This is complex logic that WAS in SqliteMetadataService.
-            // I should have moved it.
-            // I will leverage `getFilesInSnapshot(..., limit=-1)` and count size?
-            // "count" usually implies fast.
-            // But with encryption+prefix, you MUST stream/decrypt everything.
-            // So `getFilesInSnapshot(..., includeChunks=false)` -> size() is roughly same
-            // cost (decryption overhead dominating).
-            // Memory overhead of List is the issue.
-            // I'll implement a basic streaming count here.
-
-            try {
-                return countFilesInSnapshotStreaming(snapshotId, pathPrefix);
-            } catch (SQLException e) {
-                throw new IOException("Count failed", e);
-            }
-        }
-
-        try (Connection conn = connectionManager.getConnection();
-                java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, snapshotId);
-            if (pathPrefix != null && !pathPrefix.isEmpty())
-                stmt.setString(2, pathPrefix + "%");
-            try (ResultSet rs = stmt.executeQuery()) {
-                return rs.next() ? rs.getInt(1) : 0;
-            }
-        } catch (SQLException e) {
-            throw new IOException("Count failed", e);
-        }
-    }
-
-    private int countFilesInSnapshotStreaming(String snapshotId, String pathPrefix) throws SQLException, IOException {
-        if (pathPrefix == null || pathPrefix.isEmpty()) {
-            // Simple count
-            try (Connection c = connectionManager.getConnection();
-                    java.sql.PreparedStatement s = c
-                            .prepareStatement("SELECT COUNT(*) FROM files WHERE snapshot_id=?")) {
-                s.setString(1, snapshotId);
-                try (ResultSet rs = s.executeQuery()) {
-                    return rs.next() ? rs.getInt(1) : 0;
-                }
-            }
-        }
-        // Decrypt stream
-        String sql = "SELECT path, encryption_mode FROM files WHERE snapshot_id = ?";
-        try (Connection conn = connectionManager.getConnection();
-                java.sql.PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setFetchSize(100);
-            stmt.setString(1, snapshotId);
-            try (ResultSet rs = stmt.executeQuery()) {
-                int count = 0;
-                while (rs.next()) {
-                    String path = rs.getString("path");
-                    String mode = rs.getString("encryption_mode");
-                    if ("AES".equals(mode)) {
-                        try {
-                            path = new String(encryptionService.decrypt(java.util.Base64.getDecoder().decode(path),
-                                    keySupplier.get()));
-                        } catch (Exception e) {
-                            continue;
-                        }
-                    }
-                    if (path.startsWith(pathPrefix))
-                        count++;
-                }
-                return count;
-            }
-        }
+        return fileRepository.countFilesInSnapshot(snapshotId, pathPrefix);
     }
 
     @Override
@@ -387,65 +349,8 @@ public class SqliteMetadataService implements MetadataService {
     @Override
     public Stream<ChunkMetadata> streamAllChunks() throws IOException {
         validateNotClosed();
-        // chunkRepository.streamAllChunks() throws UnsupportedOperationException
-        // currently?
-        // I'll implement the streaming logic here using ConnectionManager directly for
-        // now
-        // to avoid API breakage until Repo is fully mature.
-
         try {
-            Connection connection = connectionManager.getConnection(); // Helper method?
-            // We need a NEW connection or handle result set carefully.
-            // Simple-sqlite-jdbc typically allows one active statement per connection?
-            // If connectionManager pools, we get one.
-
-            Statement stmt = connection.createStatement();
-            // stmt.setFetchSize(100); // SQLite driver dependent
-            ResultSet rs = stmt
-                    .executeQuery("SELECT hash, size, first_seen, reference_count, last_accessed FROM chunks");
-
-            // Iterator approach
-            java.util.Iterator<ChunkMetadata> iterator = new java.util.Iterator<>() {
-                boolean hasNext = rs.next();
-
-                @Override
-                public boolean hasNext() {
-                    return hasNext;
-                }
-
-                @Override
-                public ChunkMetadata next() {
-                    if (!hasNext)
-                        throw new java.util.NoSuchElementException();
-                    try {
-                        ChunkMetadata m = new ChunkMetadata(
-                                rs.getString("hash"),
-                                rs.getLong("size"),
-                                java.time.Instant.ofEpochMilli(rs.getLong("first_seen")),
-                                rs.getLong("reference_count"),
-                                java.time.Instant.ofEpochMilli(rs.getLong("last_accessed")));
-                        hasNext = rs.next();
-                        return m;
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            };
-
-            return java.util.stream.StreamSupport.stream(
-                    java.util.Spliterators.spliteratorUnknownSize(iterator,
-                            java.util.Spliterator.ORDERED | java.util.Spliterator.NONNULL),
-                    false)
-                    .onClose(() -> {
-                        try {
-                            rs.close();
-                            stmt.close();
-                            connection.close();
-                        } catch (SQLException e) {
-                            logger.error("Failed to close stream resources", e);
-                        }
-                    });
-
+            return chunkRepository.streamAllChunks();
         } catch (SQLException e) {
             throw new IOException("Failed to stream chunks", e);
         }
@@ -454,6 +359,9 @@ public class SqliteMetadataService implements MetadataService {
     @Override
     public void recordChunkAccess(String chunkHash) throws IOException {
         validateNotClosed();
+        if (chunkHash == null || chunkHash.isEmpty()) {
+            throw new IllegalArgumentException("Chunk hash cannot be null or empty");
+        }
         try {
             chunkRepository.recordChunkAccess(chunkHash);
         } catch (SQLException e) {
@@ -474,6 +382,9 @@ public class SqliteMetadataService implements MetadataService {
     @Override
     public void upsertChunk(ChunkMetadata chunk) throws IOException {
         validateNotClosed();
+        if (chunk == null) {
+            throw new IllegalArgumentException("Chunk metadata cannot be null");
+        }
         try {
             chunkRepository.upsertChunk(chunk);
         } catch (SQLException e) {
