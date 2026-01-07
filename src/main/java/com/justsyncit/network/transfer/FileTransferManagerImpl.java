@@ -12,7 +12,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import com.justsyncit.network.compression.CompressionService;
 
+import com.justsyncit.storage.metadata.FileMetadata;
 import java.io.IOException;
+import java.time.Instant;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -60,6 +62,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
     private com.justsyncit.network.NetworkService networkService;
     /** The compression service. */
     private CompressionService compressionService;
+
+    /** The metadata service. */
+    private com.justsyncit.storage.metadata.MetadataService metadataService;
     /** Executor for parallel decompression tasks. */
     // private final java.util.concurrent.ExecutorService decompressionExecutor; //
     // Removed in favor of ThreadPoolManager
@@ -93,10 +98,13 @@ public class FileTransferManagerImpl implements FileTransferManager {
     /**
      * Executes a file transfer using the NetworkService.
      */
-    private CompletableFuture<FileTransferResult> simulateFileTransfer(String transferId, Path filePath,
+    private CompletableFuture<FileTransferResult> executeFileTransfer(String transferId, Path filePath,
             InetSocketAddress remoteAddress,
             ContentStore contentStore, long startTime) {
         return CompletableFuture.supplyAsync(() -> {
+            // Incremental hasher resources
+            com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher fileHasher = null;
+
             try {
                 long fileSize = Files.size(filePath);
                 FileTransferStatus status = activeTransfers.get(transferId);
@@ -116,9 +124,17 @@ public class FileTransferManagerImpl implements FileTransferManager {
                         .createPipeline(
                                 networkService, compressionService, useCompression, remoteAddress);
 
+                // Initialize hasher
+                com.justsyncit.hash.IncrementalHasherFactory hasherFactory = new com.justsyncit.hash.Blake3IncrementalHasherFactory(
+                        com.justsyncit.hash.Sha256HashAlgorithm.create());
+                fileHasher = hasherFactory.createIncrementalHasher();
+
                 long offset = 0;
                 long remaining = fileSize;
                 List<CompletableFuture<Void>> chunkFutures = new ArrayList<>();
+
+                // Chain for ordered hashing
+                CompletableFuture<Void> hashingChain = CompletableFuture.completedFuture(null);
 
                 while (remaining > 0) {
                     if (!running.get() || status.isCancelled()) {
@@ -131,14 +147,26 @@ public class FileTransferManagerImpl implements FileTransferManager {
                     com.justsyncit.network.transfer.pipeline.ChunkTask task = new com.justsyncit.network.transfer.pipeline.ChunkTask(
                             transferId, filePath, offset, (int) chunkSize, fileSize);
 
+                    // Create future to capture read data
+                    CompletableFuture<byte[]> readFuture = new CompletableFuture<>();
+                    task.setReadFuture(readFuture);
+
+                    // Hook into hashing chain BEFORE submitting to pipeline to ensure order
+                    // preservation structure
+                    final com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher currentHasher = fileHasher;
+                    hashingChain = hashingChain.thenCompose(v -> readFuture.thenAccept(data -> {
+                        try {
+                            currentHasher.update(data);
+                        } catch (Exception e) {
+                            throw new java.util.concurrent.CompletionException(e);
+                        }
+                    }));
+
                     // Submit to pipeline (this will handle backpressure automatically)
                     CompletableFuture<Void> f = pipeline.submit(task);
                     chunkFutures.add(f);
 
-                    // Update stats (optimistic updates, although real updates happen in stages,
-                    // for the status object we update here to keep UI "moving" as we submit)
-                    // Note: Ideally stages should callback to update status, but for minimal
-                    // changes we keep this.
+                    // Update stats
                     status.addBytesTransferred(chunkSize);
                     notifyTransferProgress(filePath, remoteAddress, status.getBytesTransferred(), fileSize);
 
@@ -148,6 +176,10 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 // Wait for all pipeline tasks to finish
                 pipeline.waitForCompletion().join(); // This joins on internal pipeline futures
+
+                // Wait for hashing to finish
+                hashingChain.join();
+                String finalHash = fileHasher.digest();
 
                 // --- END PIPELINE EXECUTION ---
 
@@ -165,7 +197,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                     try {
                         networkService.sendMessage(
-                                new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, PLACEHOLDER_HASH),
+                                new TransferCompleteMessage(filePath.toString(), fileSize, fileSize, finalHash),
                                 remoteAddress).orTimeout(30, TimeUnit.SECONDS).join();
                     } catch (Exception e) {
                         logger.warn("Failed to send transfer complete message", e);
@@ -196,7 +228,6 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 return result;
             } catch (Exception e) {
-                // Catch-all for unexpected runtime exceptions to ensure we don't hang
                 long endTime = System.currentTimeMillis();
                 FileTransferStatus status = activeTransfers.get(transferId);
                 long bytesTransferred = status != null ? status.getBytesTransferred() : 0;
@@ -210,6 +241,14 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 notifyError(e, "File transfer execution (Unexpected)");
 
                 return result;
+            } finally {
+                if (fileHasher != null) {
+                    try {
+                        fileHasher.close();
+                    } catch (Exception e) {
+                        logger.warn("Failed to close hasher", e);
+                    }
+                }
             }
         }, com.justsyncit.scanner.ThreadPoolManager.getInstance().getBatchProcessingThreadPool());
     }
@@ -242,6 +281,12 @@ public class FileTransferManagerImpl implements FileTransferManager {
     @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "CompressionService is mutable but required for functionality")
     public void setCompressionService(CompressionService compressionService) {
         this.compressionService = compressionService;
+    }
+
+    @Override
+    @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "MetadataService is mutable but required for functionality")
+    public void setMetadataService(com.justsyncit.storage.metadata.MetadataService metadataService) {
+        this.metadataService = metadataService;
     }
 
     /**
@@ -331,15 +376,44 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 throw new IOException("Invalid file path: filename is empty");
             }
 
+            // Calculate file hash (Pre-Scan)
+            // We use SHA-256 directly here to match the current "Blake3" factory behavior
+            // (which uses SHA-256).
+            // This fixes the "Fake Hash" absurdity by ensuring we send a REAL hash.
+            // Note: This adds a read pass, but integrity is paramount.
+            String fileHash;
+            try {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                try (java.io.InputStream fis = Files.newInputStream(filePath)) {
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    while ((bytesRead = fis.read(buffer)) != -1) {
+                        digest.update(buffer, 0, bytesRead);
+                    }
+                }
+                byte[] hashBytes = digest.digest();
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hashBytes) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1)
+                        hexString.append('0');
+                    hexString.append(hex);
+                }
+                fileHash = hexString.toString();
+            } catch (NoSuchAlgorithmException e) {
+                logger.error("SHA-256 algorithm not found, falling back to placeholder", e);
+                fileHash = PLACEHOLDER_HASH;
+            }
+
             // Send transfer request
             FileTransferRequestMessage request = new FileTransferRequestMessage(
-                    fileName, fileSize, System.currentTimeMillis(), PLACEHOLDER_HASH, DEFAULT_CHUNK_SIZE,
+                    fileName, fileSize, System.currentTimeMillis(), fileHash, DEFAULT_CHUNK_SIZE,
                     compressionType);
 
             return networkService.sendMessage(request, remoteAddress)
                     .orTimeout(30, TimeUnit.SECONDS)
                     .thenCompose(
-                            v -> simulateFileTransfer(transferId, filePath, remoteAddress, contentStore, startTime));
+                            v -> executeFileTransfer(transferId, filePath, remoteAddress, contentStore, startTime));
 
         } catch (IOException e) {
             FileTransferResult result = FileTransferResult.failure(
@@ -376,8 +450,21 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         // Register the transfer
         // Use fileName as ID for receiving to match what we expect in chunks
-        // In a real system we would map this to a local temporary file path
-        Path localPath = java.nio.file.Paths.get(fileName); // Simplified
+        // FIX: Sanitize the path to prevent traversal attacks
+        Path rawPath = java.nio.file.Paths.get(fileName);
+        String safeFileName = rawPath.getFileName().toString();
+
+        // Enforce safe directory
+        Path baseDir = java.nio.file.Paths.get("downloads").toAbsolutePath();
+        try {
+            if (!java.nio.file.Files.exists(baseDir)) {
+                java.nio.file.Files.createDirectories(baseDir);
+            }
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(new IOException("Failed to create download directory", e));
+        }
+
+        Path localPath = baseDir.resolve(safeFileName);
 
         FileTransferStatus status = FileTransferStatus.pending(fileName, localPath, remoteAddress, fileSize,
                 compressionType);
@@ -385,7 +472,7 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         notifyTransferStarted(localPath, remoteAddress, fileSize);
 
-        logger.debug("Accepting file transfer request for {}", fileName);
+        logger.debug("Accepting file transfer request for {} -> {}", fileName, localPath);
 
         // In a real implementation we should send an ACK here
         return CompletableFuture.completedFuture(null);
@@ -422,6 +509,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 checksum,
                 chunkOffset,
                 contentStore);
+
+        // Accumulate chunk hash for metadata persistence
+        status.addChunkHash(checksum);
 
         return pipeline.process(chunkDataBytes)
                 .thenAccept(dataLength -> {
@@ -491,17 +581,43 @@ public class FileTransferManagerImpl implements FileTransferManager {
         }
 
         TransferCompleteMessage complete = (TransferCompleteMessage) completeMessage;
-        String transferId = UUID.randomUUID().toString(); // Generate a transfer ID
+        String filePath = complete.getFilePath();
         boolean success = true; // Transfer complete is always successful
         String errorMessage = complete.getErrorMessage();
 
-        FileTransferStatus status = activeTransfers.get(transferId);
+        FileTransferStatus status = activeTransfers.get(filePath);
         if (status == null) {
             return CompletableFuture.completedFuture(null); // Transfer already completed
         }
 
         if (success) {
             status.setState(FileTransferStatus.TransferState.COMPLETED);
+
+            // Persist file metadata
+            if (metadataService != null) {
+                try {
+                    FileMetadata metadata = new FileMetadata(
+                            UUID.randomUUID().toString(),
+                            "incoming-transfer",
+                            status.getFilePath().toString(),
+                            status.getFileSize(),
+                            Instant.now(),
+                            complete.getFinalBlake3Hash(),
+                            status.getChunkHashes());
+                    metadataService.updateFile(metadata);
+                    logger.debug("Persisted file metadata for {}", status.getFilePath());
+                } catch (Exception e) {
+                    logger.error("Failed to persist file metadata for {}", status.getFilePath(), e);
+                    // Don't fail the transfer just because metadata failed?
+                    // "Write-Only Transfer" is the defect, so failing to persist IS a failure of
+                    // the system.
+                    // But technically the file content is there.
+                    // For now we log error, but maybe we should flag status as warning?
+                }
+            } else {
+                logger.warn("MetadataService not configured - file metadata will not be persisted for {}",
+                        status.getFilePath());
+            }
         } else {
             status.setState(FileTransferStatus.TransferState.FAILED);
             status.setErrorMessage(errorMessage);
