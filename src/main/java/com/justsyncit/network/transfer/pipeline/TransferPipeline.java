@@ -57,6 +57,13 @@ public class TransferPipeline {
 
         // Chain the stages
         CompletableFuture<Void> pipelineFuture = readStage.process(task)
+                .thenCompose(t -> {
+                    // Notify that data is read
+                    if (t.getReadFuture() != null) {
+                        t.getReadFuture().complete(t.getRawData());
+                    }
+                    return CompletableFuture.completedFuture(t);
+                })
                 .thenCompose(hashStage::process)
                 .thenCompose(compressStage::process)
                 .thenCompose(sendStage::process)

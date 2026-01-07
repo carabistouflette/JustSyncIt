@@ -88,4 +88,14 @@ public class ChunkTask {
     public void setKeyAlias(String keyAlias) {
         this.keyAlias = keyAlias;
     }
+
+    private java.util.concurrent.CompletableFuture<byte[]> readFuture;
+
+    public void setReadFuture(java.util.concurrent.CompletableFuture<byte[]> readFuture) {
+        this.readFuture = readFuture;
+    }
+
+    public java.util.concurrent.CompletableFuture<byte[]> getReadFuture() {
+        return readFuture;
+    }
 }
