@@ -19,60 +19,71 @@ import java.util.concurrent.TimeUnit;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 public class AbsurdityReproductionTest {
 
-    @Mock
-    private NetworkService networkService;
-    @Mock
-    private ContentStore contentStore;
-    @Mock
-    private com.justsyncit.network.compression.CompressionService compressionService;
+        @Mock
+        private NetworkService networkService;
+        @Mock
+        private ContentStore contentStore;
+        @Mock
+        private com.justsyncit.network.compression.CompressionService compressionService;
 
-    private FileTransferManagerImpl fileTransferManager;
-    private final InetSocketAddress remoteAddress = new InetSocketAddress("localhost", 9000);
+        @Mock
+        private com.justsyncit.hash.Blake3Service blake3Service;
 
-    @BeforeEach
-    void setUp() {
-        fileTransferManager = new FileTransferManagerImpl();
-        fileTransferManager.setNetworkService(networkService);
-        fileTransferManager.setCompressionService(compressionService);
-        fileTransferManager.start();
-    }
+        private FileTransferManagerImpl fileTransferManager;
+        private final InetSocketAddress remoteAddress = new InetSocketAddress("localhost", 9000);
 
-    @Test
-    void testRequestContainsRealHash() throws Exception {
-        // Given a file to transfer
-        Path tempFile = Files.createTempFile("absurdity-test", ".tmp");
-        Files.write(tempFile, "Faille de sécurité".getBytes());
-        tempFile.toFile().deleteOnExit();
+        @BeforeEach
+        void setUp() throws Exception {
+                fileTransferManager = new FileTransferManagerImpl();
+                fileTransferManager.setNetworkService(networkService);
+                fileTransferManager.setCompressionService(compressionService);
+                fileTransferManager.setBlake3Service(blake3Service);
 
-        // Mock network service to return completed futures
-        when(networkService.sendMessage(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
-        when(compressionService.getAlgorithmName()).thenReturn("NONE");
+                // Mock hash behavior
+                lenient().when(blake3Service.hashBuffer(any(byte[].class))).thenReturn("real_blake3_hash_value");
+                lenient().when(blake3Service.hashFile(any(Path.class))).thenReturn("real_blake3_hash_value");
+                lenient().when(blake3Service.hashFile(any(Path.class))).thenReturn("real_blake3_hash_value");
 
-        // When sendFile is called
-        fileTransferManager.setTransferPipelineFactory(
-                new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory());
-        fileTransferManager.sendFile(tempFile, remoteAddress, contentStore).get(5, TimeUnit.SECONDS);
+                fileTransferManager.start();
+        }
 
-        // Then capture the FileTransferRequestMessage
-        ArgumentCaptor<com.justsyncit.network.protocol.ProtocolMessage> messageCaptor = ArgumentCaptor
-                .forClass(com.justsyncit.network.protocol.ProtocolMessage.class);
-        verify(networkService, atLeastOnce()).sendMessage(messageCaptor.capture(), eq(remoteAddress));
+        @Test
+        void testRequestContainsRealHash() throws Exception {
+                // Given a file to transfer
+                Path tempFile = Files.createTempFile("absurdity-test", ".tmp");
+                Files.write(tempFile, "Faille de sécurité".getBytes());
+                tempFile.toFile().deleteOnExit();
 
-        // Find the FileTransferRequestMessage
-        FileTransferRequestMessage requestMessage = messageCaptor.getAllValues().stream()
-                .filter(m -> m instanceof FileTransferRequestMessage)
-                .map(m -> (FileTransferRequestMessage) m)
-                .findFirst()
-                .orElseThrow(() -> new AssertionError("FileTransferRequestMessage not sent"));
+                // Mock network service to return completed futures
+                when(networkService.sendMessage(any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+                when(compressionService.getAlgorithmName()).thenReturn("NONE");
 
-        // FAIL if it contains "pending_calculation"
-        // This test documents the absurdity.
-        System.out.println("Sent Hash: " + requestMessage.getBlake3Hash());
-        assertNotEquals("pending_calculation", requestMessage.getBlake3Hash(),
-                "CRITICAL: The system is sending a placeholder hash! This is an absurdity.");
-    }
+                // When sendFile is called
+                fileTransferManager.setTransferPipelineFactory(
+                                new com.justsyncit.network.transfer.pipeline.DefaultTransferPipelineFactory());
+                fileTransferManager.sendFile(tempFile, remoteAddress, contentStore).get(5, TimeUnit.SECONDS);
+
+                // Then capture the FileTransferRequestMessage
+                ArgumentCaptor<com.justsyncit.network.protocol.ProtocolMessage> messageCaptor = ArgumentCaptor
+                                .forClass(com.justsyncit.network.protocol.ProtocolMessage.class);
+                verify(networkService, atLeastOnce()).sendMessage(messageCaptor.capture(), eq(remoteAddress));
+
+                // Find the FileTransferRequestMessage
+                FileTransferRequestMessage requestMessage = messageCaptor.getAllValues().stream()
+                                .filter(m -> m instanceof FileTransferRequestMessage)
+                                .map(m -> (FileTransferRequestMessage) m)
+                                .findFirst()
+                                .orElseThrow(() -> new AssertionError("FileTransferRequestMessage not sent"));
+
+                // FAIL if it contains "pending_calculation"
+                // This test documents the absurdity.
+                System.out.println("Sent Hash: " + requestMessage.getBlake3Hash());
+                assertNotEquals("pending_calculation", requestMessage.getBlake3Hash(),
+                                "CRITICAL: The system is sending a placeholder hash! This is an absurdity.");
+        }
 }
