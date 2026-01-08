@@ -19,8 +19,9 @@ public class MasterPasswordService {
     // private static final Logger logger =
     // LoggerFactory.getLogger(MasterPasswordService.class);
     private static final String CONFIG_FILE = ".justsyncit/auth.config";
-    private static final String PROP_HASH = "master.hash";
+    private static final String PROP_WRAPPED_KEY = "master.wrapped_key";
     private static final String PROP_SALT = "master.salt";
+    private static final String PROP_IV = "master.iv";
 
     private final KeyDerivationService kdfService;
     private final Path configPath;
@@ -51,15 +52,40 @@ public class MasterPasswordService {
             throw new IllegalStateException("Password already set");
         }
 
-        byte[] salt = kdfService.generateSalt();
-        byte[] hash = kdfService.deriveKey(password, salt);
+        try {
+            // 1. Generate a random 32-byte Master Key
+            byte[] masterKey = new byte[32];
+            java.security.SecureRandom secureRandom = new java.security.SecureRandom();
+            secureRandom.nextBytes(masterKey);
 
-        saveAuthBootstrap(hash, salt);
-        this.derivedMasterKey = hash; // The first hash is used as the master key
+            // 2. Derive Key Encryption Key (KEK) from password
+            byte[] salt = kdfService.generateSalt();
+            byte[] kek = kdfService.deriveKey(password, salt, 32);
+
+            // 3. Wrap (Encrypt) the Master Key using AES-GCM
+            byte[] iv = new byte[12]; // 96-bit IV for GCM
+            secureRandom.nextBytes(iv);
+
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, iv);
+            javax.crypto.spec.SecretKeySpec kekSpec = new javax.crypto.spec.SecretKeySpec(kek, "AES");
+
+            cipher.init(javax.crypto.Cipher.ENCRYPT_MODE, kekSpec, gcmSpec);
+            byte[] wrappedKey = cipher.doFinal(masterKey);
+
+            saveAuthConfig(wrappedKey, salt, iv);
+            this.derivedMasterKey = masterKey;
+
+            // Clean up KEK from memory
+            Arrays.fill(kek, (byte) 0);
+
+        } catch (Exception e) {
+            throw new EncryptionException("Failed to setup password", e);
+        }
     }
 
     /**
-     * Verifies the master password and derives the master key.
+     * Verifies the master password and unwraps the master key.
      */
     public boolean verifyAndDerive(char[] password) throws EncryptionException {
         if (!isPasswordSet()) {
@@ -68,18 +94,36 @@ public class MasterPasswordService {
 
         try {
             Properties props = loadProps();
-            byte[] storedHash = Base64.getDecoder().decode(props.getProperty(PROP_HASH));
-            byte[] salt = Base64.getDecoder().decode(props.getProperty(PROP_SALT));
-
-            byte[] computedHash = kdfService.deriveKey(password, salt);
-
-            if (Arrays.equals(storedHash, computedHash)) {
-                this.derivedMasterKey = computedHash;
-                return true;
+            if (!props.containsKey(PROP_WRAPPED_KEY)) {
+                // Determine if this is legacy config or corrupted
+                throw new EncryptionException("Invalid auth configuration: missing wrapped key");
             }
-            return false;
+
+            byte[] wrappedKey = Base64.getDecoder().decode(props.getProperty(PROP_WRAPPED_KEY));
+            byte[] salt = Base64.getDecoder().decode(props.getProperty(PROP_SALT));
+            byte[] iv = Base64.getDecoder().decode(props.getProperty(PROP_IV));
+
+            byte[] kek = kdfService.deriveKey(password, salt, 32);
+
+            javax.crypto.Cipher cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding");
+            javax.crypto.spec.GCMParameterSpec gcmSpec = new javax.crypto.spec.GCMParameterSpec(128, iv);
+            javax.crypto.spec.SecretKeySpec kekSpec = new javax.crypto.spec.SecretKeySpec(kek, "AES");
+
+            cipher.init(javax.crypto.Cipher.DECRYPT_MODE, kekSpec, gcmSpec);
+
+            try {
+                this.derivedMasterKey = cipher.doFinal(wrappedKey);
+                Arrays.fill(kek, (byte) 0);
+                return true;
+            } catch (javax.crypto.AEADBadTagException e) {
+                Arrays.fill(kek, (byte) 0);
+                return false;
+            }
+
         } catch (IOException e) {
             throw new EncryptionException("Failed to read auth config", e);
+        } catch (Exception e) {
+            throw new EncryptionException("Failed to verify/derive key", e);
         }
     }
 
@@ -90,12 +134,13 @@ public class MasterPasswordService {
         return derivedMasterKey != null ? derivedMasterKey.clone() : null;
     }
 
-    private void saveAuthBootstrap(byte[] hash, byte[] salt) throws EncryptionException {
+    private void saveAuthConfig(byte[] wrappedKey, byte[] salt, byte[] iv) throws EncryptionException {
         try {
             Files.createDirectories(configPath.getParent());
             Properties props = new Properties();
-            props.setProperty(PROP_HASH, Base64.getEncoder().encodeToString(hash));
+            props.setProperty(PROP_WRAPPED_KEY, Base64.getEncoder().encodeToString(wrappedKey));
             props.setProperty(PROP_SALT, Base64.getEncoder().encodeToString(salt));
+            props.setProperty(PROP_IV, Base64.getEncoder().encodeToString(iv));
 
             try (var out = Files.newOutputStream(configPath)) {
                 props.store(out, "JustSyncIt Auth Configuration");
