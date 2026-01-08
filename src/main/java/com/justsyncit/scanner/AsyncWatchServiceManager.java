@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,6 +44,12 @@ import java.util.stream.Collectors;
 public class AsyncWatchServiceManager {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncWatchServiceManager.class);
+
+    /**
+     * Maximum events to queue before applying backpressure (prevents memory
+     * exhaustion).
+     */
+    private static final int MAX_EVENT_QUEUE_SIZE = 10_000;
 
     /** Thread pool manager for async operations. */
     private final ThreadPoolManager threadPoolManager;
@@ -78,6 +84,9 @@ public class AsyncWatchServiceManager {
     /** Event handlers by registration ID. */
     private final Map<String, Consumer<FileChangeEvent>> eventHandlers;
 
+    /** Shared scheduler for debounce timers to prevent thread leaks. */
+    private final java.util.concurrent.ScheduledExecutorService scheduler;
+
     /** Lock for synchronization. */
     private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
 
@@ -99,12 +108,18 @@ public class AsyncWatchServiceManager {
         this.configuration = Objects.requireNonNull(configuration);
         this.activeRegistrations = new ConcurrentHashMap<>();
         this.watchServices = new ConcurrentHashMap<>();
-        this.eventQueue = new LinkedBlockingQueue<>();
+        this.eventQueue = new ArrayBlockingQueue<>(MAX_EVENT_QUEUE_SIZE);
         this.eventProcessingExecutor = threadPoolManager.getWatchServiceThreadPool();
         this.debounceTimers = new ConcurrentHashMap<>();
         this.running = new AtomicBoolean(false);
         this.stats = new AsyncScannerStats();
         this.eventHandlers = new ConcurrentHashMap<>();
+        // utilization of a single threaded scheduler is sufficient for debouncing
+        this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AsyncWatchService-Scheduler");
+            t.setDaemon(true);
+            return t;
+        });
     }
 
     /**
@@ -151,7 +166,9 @@ public class AsyncWatchServiceManager {
 
                 // Shutdown event processing executor
                 eventProcessingExecutor.shutdown();
+                scheduler.shutdown(); // Shutdown the shared scheduler
                 eventProcessingExecutor.awaitTermination(10, TimeUnit.SECONDS);
+                scheduler.awaitTermination(5, TimeUnit.SECONDS);
 
                 // Clear all collections
                 activeRegistrations.clear();
@@ -592,20 +609,19 @@ public class AsyncWatchServiceManager {
             existingTimer.cancel(false);
         }
 
-        // Schedule new debounce timer
-        ScheduledFuture<?> timer = Executors.newSingleThreadScheduledExecutor()
-                .schedule(() -> {
-                    // Process all events after debounce timeout
-                    events.forEach(event -> {
-                        registration.incrementEventsProcessed();
-                        registration.updateLastEventTime();
-                        eventHandler.accept(event);
-                    });
+        // Schedule new debounce timer using the shared scheduler
+        ScheduledFuture<?> timer = scheduler.schedule(() -> {
+            // Process all events after debounce timeout
+            events.forEach(event -> {
+                registration.incrementEventsProcessed();
+                registration.updateLastEventTime();
+                eventHandler.accept(event);
+            });
 
-                    // Remove timer from map
-                    debounceTimers.remove(directory);
+            // Remove timer from map
+            debounceTimers.remove(directory);
 
-                }, configuration.getDebounceTimeoutMs(), TimeUnit.MILLISECONDS);
+        }, configuration.getDebounceTimeoutMs(), TimeUnit.MILLISECONDS);
 
         debounceTimers.put(directory, timer);
     }
