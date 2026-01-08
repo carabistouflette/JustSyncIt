@@ -1,7 +1,5 @@
 package com.justsyncit.scanner;
 
-import com.justsyncit.storage.ChunkStorage;
-
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 
@@ -11,7 +9,7 @@ import java.util.concurrent.CompletableFuture;
  * Follows Interface Segregation Principle by providing focused chunking
  * operations.
  */
-public interface FileChunker extends ChunkStorage {
+public interface FileChunker {
 
     /**
      * Chunks a file into fixed-size pieces.

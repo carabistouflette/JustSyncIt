@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -252,32 +251,6 @@ public class FixedSizeFileChunker implements FileChunker {
     }
 
     @Override
-    public String storeChunk(byte[] data) throws IOException {
-        // This method is not implemented in FileChunker
-        // Chunk storage should be handled by ContentStore
-        throw new UnsupportedOperationException("storeChunk not implemented in FileChunker");
-    }
-
-    @Override
-    public byte[] retrieveChunk(String hash) throws IOException, StorageIntegrityException {
-        // This would integrate with ContentStore in a real implementation
-        throw new UnsupportedOperationException("retrieveChunk not implemented in FileChunker");
-    }
-
-    @Override
-    public boolean existsChunk(String hash) throws IOException {
-        if (contentStore == null) {
-            throw new UnsupportedOperationException("Content store not initialized");
-        }
-        return contentStore.existsChunk(hash);
-    }
-
-    @Override
-    public void deleteChunk(String hash) throws IOException {
-        throw new UnsupportedOperationException("Deletion not supported by chunker");
-    }
-
-    @Override
     @SuppressWarnings("EI_EXPOSE_REP2")
     public void setBufferPool(BufferPool bufferPool) {
         if (bufferPool == null) {
@@ -394,7 +367,7 @@ public class FixedSizeFileChunker implements FileChunker {
 
             // Calculate number of chunks
             int chunkCount = (int) Math.ceil((double) fileSize / effectiveChunkSize);
-            List<String> chunkHashes = new ArrayList<>(chunkCount);
+            String[] chunkHashes = new String[chunkCount];
 
             logger.debug("Chunking file {} ({} bytes) into {} chunks of {} bytes each",
                     file, fileSize, chunkCount, effectiveChunkSize);
@@ -421,7 +394,7 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     private CompletableFuture<FileChunker.ChunkingResult> performAsyncChunking(Path file, ChunkingOptions options,
             int chunkSize,
-            long fileSize, int chunkCount, List<String> chunkHashes) {
+            long fileSize, int chunkCount, String[] chunkHashes) {
 
         // Update max concurrent operations if specified in options
         if (options.getMaxConcurrentChunks() > 0) {
@@ -435,14 +408,14 @@ public class FixedSizeFileChunker implements FileChunker {
 
             // Create incremental hasher for single-pass file hashing
             com.justsyncit.hash.IncrementalHasherFactory hasherFactory = new com.justsyncit.hash.Blake3IncrementalHasherFactory(
-                    com.justsyncit.hash.Sha256HashAlgorithm.create());
+                    com.justsyncit.hash.Blake3HashAlgorithm.create());
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher fileHasher = hasherFactory
                     .createIncrementalHasher();
 
             // Process chunks and hash file in a single pass
             processAllChunksAsync(channel, file, chunkSize, fileSize, chunkCount, chunkHashes, options, fileHasher)
                     .thenApply(fileHash -> new FileChunker.ChunkingResult(file, chunkCount, fileSize, 0, fileHash,
-                            chunkHashes))
+                            java.util.Arrays.asList(chunkHashes)))
                     .whenComplete((result, throwable) -> {
                         // Close resources
                         closeChannelAsync(channel);
@@ -467,7 +440,7 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     private CompletableFuture<FileChunker.ChunkingResult> performSyncChunking(Path file, ChunkingOptions options,
             int chunkSize,
-            long fileSize, int chunkCount, List<String> chunkHashes) {
+            long fileSize, int chunkCount, String[] chunkHashes) {
         return CompletableFuture.supplyAsync(() -> {
             AsynchronousFileChannel channel = null;
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher fileHasher = null;
@@ -476,7 +449,7 @@ public class FixedSizeFileChunker implements FileChunker {
 
                 // Initialize incremental hasher for file hash
                 com.justsyncit.hash.IncrementalHasherFactory hasherFactory = new com.justsyncit.hash.Blake3IncrementalHasherFactory(
-                        com.justsyncit.hash.Sha256HashAlgorithm.create());
+                        com.justsyncit.hash.Blake3HashAlgorithm.create());
                 fileHasher = hasherFactory.createIncrementalHasher();
 
                 // Process chunks sequentially
@@ -491,7 +464,7 @@ public class FixedSizeFileChunker implements FileChunker {
 
                     // Process chunk and update file hasher
                     String chunkHash = processChunkSync(channel, offset, length, fileHasher);
-                    chunkHashes.add(chunkHash);
+                    chunkHashes[i] = chunkHash;
 
                     FileChunker.ChunkProgressCallback progressCallback = options.getProgressCallback();
                     if (progressCallback != null) {
@@ -505,7 +478,8 @@ public class FixedSizeFileChunker implements FileChunker {
                 }
 
                 String fileHash = fileHasher.digest();
-                return new FileChunker.ChunkingResult(file, chunkCount, fileSize, 0, fileHash, chunkHashes);
+                return new FileChunker.ChunkingResult(file, chunkCount, fileSize, 0, fileHash,
+                        java.util.Arrays.asList(chunkHashes));
             } catch (Exception e) {
                 return FileChunker.ChunkingResult.createFailed(file, e);
             } finally {
@@ -533,7 +507,7 @@ public class FixedSizeFileChunker implements FileChunker {
      * Returns a Future that completes with the full file hash.
      */
     private CompletableFuture<String> processAllChunksAsync(AsynchronousFileChannel channel, Path file, int chunkSize,
-            long fileSize, int chunkCount, List<String> chunkHashes, ChunkingOptions options,
+            long fileSize, int chunkCount, String[] chunkHashes, ChunkingOptions options,
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher fileHasher) {
 
         CompletableFuture<String> result = new CompletableFuture<>();
@@ -558,7 +532,7 @@ public class FixedSizeFileChunker implements FileChunker {
      */
     private void submitNextChunk(int startIndex,
             AsynchronousFileChannel channel, Path file, int chunkSize,
-            long fileSize, int chunkCount, List<String> chunkHashes, ChunkingOptions options,
+            long fileSize, int chunkCount, String[] chunkHashes, ChunkingOptions options,
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher fileHasher,
             CompletableFuture<Void>[] hashingChain,
             CompletableFuture<String> finalResult) {
@@ -630,10 +604,15 @@ public class FixedSizeFileChunker implements FileChunker {
 
     private void processSingleChunk(ByteBuffer buffer, int chunkIndex, long offset, int length,
             AsynchronousFileChannel channel, ChunkingOptions options,
-            List<String> chunkHashes,
+            String[] chunkHashes,
             com.justsyncit.hash.IncrementalHasherFactory.IncrementalHasher fileHasher,
             CompletableFuture<Void>[] hashingChain,
             CompletableFuture<String> finalResult) {
+
+        // Ensure buffer limit is correct for the read
+        if (buffer.remaining() > length) {
+            buffer.limit(buffer.position() + length);
+        }
 
         // Prepare futures for this chunk
         CompletableFuture<Void> previousHash = hashingChain[0];
@@ -671,10 +650,8 @@ public class FixedSizeFileChunker implements FileChunker {
                     // CPU bound work: Hash Chunk
                     String hash = blake3Service.hashBuffer(chunkData);
 
-                    // Add to list (Need sync)
-                    synchronized (chunkHashes) {
-                        chunkHashes.add(hash);
-                    }
+                    // Add to list (No sync needed with array index)
+                    chunkHashes[chunkIndex] = hash;
 
                     // Report progress
                     FileChunker.ChunkProgressCallback progressCallback = options.getProgressCallback();

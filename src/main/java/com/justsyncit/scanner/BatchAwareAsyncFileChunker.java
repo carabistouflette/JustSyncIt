@@ -155,27 +155,6 @@ public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
     }
 
     @Override
-    public String storeChunk(byte[] data) throws java.io.IOException {
-        return delegate.storeChunk(data);
-    }
-
-    @Override
-    public byte[] retrieveChunk(String hash)
-            throws java.io.IOException, com.justsyncit.storage.StorageIntegrityException {
-        return delegate.retrieveChunk(hash);
-    }
-
-    @Override
-    public boolean existsChunk(String hash) throws java.io.IOException {
-        return delegate.existsChunk(hash);
-    }
-
-    @Override
-    public void deleteChunk(String hash) throws java.io.IOException {
-        delegate.deleteChunk(hash);
-    }
-
-    @Override
     public boolean isClosed() {
         return delegate.isClosed();
     }
@@ -238,8 +217,22 @@ public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
             java.util.Map<String, Object> results = batchResult.getResults();
 
             String fileHash = (String) results.get("fileHash");
-            @SuppressWarnings("unchecked")
-            java.util.List<String> chunkHashes = (java.util.List<String>) results.get("chunkHashes");
+
+            Object chunkHashesObj = results.get("chunkHashes");
+            java.util.List<String> chunkHashes;
+            if (chunkHashesObj instanceof java.util.List<?>) {
+                java.util.List<?> list = (java.util.List<?>) chunkHashesObj;
+                // Verify elements are strings if list is not empty
+                if (!list.isEmpty() && !(list.get(0) instanceof String)) {
+                    throw new RuntimeException("Batch operation returned invalid chunk hashes type");
+                }
+                @SuppressWarnings("unchecked")
+                java.util.List<String> typedList = (java.util.List<String>) list;
+                chunkHashes = typedList;
+            } else {
+                chunkHashes = null;
+            }
+
             Integer chunkCount = (Integer) results.get("chunkCount");
             Long totalSize = (Long) results.get("totalSize");
 
@@ -292,13 +285,9 @@ public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
      * Calculates I/O requirement for chunking the file.
      */
     private long calculateIoRequirement(Path file, ChunkingOptions options) {
-        try {
-            // reasonable I/O requirement: 50 MB/s
-            return 50L * 1024 * 1024;
-        } catch (Exception e) {
-            logger.warn("Failed to calculate I/O requirement for file: {}", file, e);
-            return 1024 * 1024; // Default to 1MB/s
-        }
+        // Use the configured target throughput
+        double targetMBps = batchConfig.getTargetThroughputMBps();
+        return (long) (targetMBps * 1024 * 1024);
     }
 
     /**

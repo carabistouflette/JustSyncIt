@@ -227,25 +227,6 @@ public class FastCDCFileChunker implements FileChunker {
     }
 
     // Unimplemented methods from interface
-    @Override
-    public String storeChunk(byte[] data) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public byte[] retrieveChunk(String hash) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean existsChunk(String hash) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void deleteChunk(String hash) throws IOException {
-        throw new UnsupportedOperationException("Deletion not supported by chunker");
-    }
 
     public void close() {
         this.closed = true;
