@@ -8,6 +8,7 @@ import com.justsyncit.network.protocol.ChunkDataMessage;
 import com.justsyncit.network.protocol.ChunkAckMessage;
 import com.justsyncit.network.protocol.TransferCompleteMessage;
 import com.justsyncit.storage.ContentStore;
+import com.justsyncit.hash.Blake3HashAlgorithm; // Import added
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import com.justsyncit.network.compression.CompressionService;
@@ -19,8 +20,7 @@ import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+// Imports removed
 import java.util.concurrent.TimeUnit;
 
 import java.util.Collections;
@@ -69,9 +69,6 @@ public class FileTransferManagerImpl implements FileTransferManager {
     private com.justsyncit.network.encryption.EncryptionService encryptionService;
     /** The master password service. */
     private com.justsyncit.auth.MasterPasswordService masterPasswordService;
-    /** Executor for parallel decompression tasks. */
-    // private final java.util.concurrent.ExecutorService decompressionExecutor; //
-    // Removed in favor of ThreadPoolManager
 
     /** Configuration: Compression enabled. */
     private boolean compressionEnabled = true;
@@ -91,7 +88,6 @@ public class FileTransferManagerImpl implements FileTransferManager {
         this.running = new AtomicBoolean(false);
         this.transferIdCounter = new AtomicLong(0);
         // Use ThreadPoolManager instead of custom executor
-        // this.decompressionExecutor = ...
 
         // Initialize with default factory if not set (or leave null and expect
         // injection)
@@ -137,9 +133,9 @@ public class FileTransferManagerImpl implements FileTransferManager {
                                 networkService, compressionService, useCompression,
                                 encryptionService, masterKey, encryptionEnabled, remoteAddress);
 
-                // Initialize hasher
+                // Initialize hasher with CORRECT Blake3 algorithm
                 com.justsyncit.hash.IncrementalHasherFactory hasherFactory = new com.justsyncit.hash.Blake3IncrementalHasherFactory(
-                        com.justsyncit.hash.Sha256HashAlgorithm.create());
+                        Blake3HashAlgorithm.create());
                 fileHasher = hasherFactory.createIncrementalHasher();
 
                 long offset = 0;
@@ -407,32 +403,40 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 throw new IOException("Invalid file path: filename is empty");
             }
 
-            // Calculate file hash (Pre-Scan)
-            // We use SHA-256 directly here to match the current "Blake3" factory behavior
-            // (which uses SHA-256).
-            // This fixes the "Fake Hash" absurdity by ensuring we send a REAL hash.
-            // Note: This adds a read pass, but integrity is paramount.
+            // Calculate file hash (Pre-Scan) using BLAKE3
             String fileHash;
             try {
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                try (java.io.InputStream fis = Files.newInputStream(filePath)) {
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    while ((bytesRead = fis.read(buffer)) != -1) {
-                        digest.update(buffer, 0, bytesRead);
+                if (blake3Service != null) {
+                    fileHash = blake3Service.hashFile(filePath);
+                } else {
+                    // Fallback to internal algorithm if service not injected (should rarely happen
+                    // in prod)
+                    com.justsyncit.hash.HashAlgorithm algo = com.justsyncit.hash.Blake3HashAlgorithm.create();
+                    // Fallback mechanism using manual streaming
+                    // Better: stream it.
+                    // But for now, let's assume blake3Service is injected primarily.
+                    // If not, use manual streaming with Blake3HashAlgorithm.
+
+                    // Let's implement safe manual streaming if blake3Service is null
+                    try (java.io.InputStream fis = Files.newInputStream(filePath)) {
+                        byte[] buffer = new byte[8192];
+                        int bytesRead;
+                        while ((bytesRead = fis.read(buffer)) != -1) {
+                            algo.update(buffer, 0, bytesRead);
+                        }
                     }
+                    byte[] hashBytes = algo.digest();
+                    StringBuilder hexString = new StringBuilder();
+                    for (byte b : hashBytes) {
+                        String hex = Integer.toHexString(0xff & b);
+                        if (hex.length() == 1)
+                            hexString.append('0');
+                        hexString.append(hex);
+                    }
+                    fileHash = hexString.toString();
                 }
-                byte[] hashBytes = digest.digest();
-                StringBuilder hexString = new StringBuilder();
-                for (byte b : hashBytes) {
-                    String hex = Integer.toHexString(0xff & b);
-                    if (hex.length() == 1)
-                        hexString.append('0');
-                    hexString.append(hex);
-                }
-                fileHash = hexString.toString();
-            } catch (NoSuchAlgorithmException e) {
-                logger.error("SHA-256 algorithm not found, falling back to placeholder", e);
+            } catch (Exception e) {
+                logger.error("Failed to calculate BLAKE3 hash", e);
                 fileHash = PLACEHOLDER_HASH;
             }
 
@@ -482,8 +486,13 @@ public class FileTransferManagerImpl implements FileTransferManager {
         // Register the transfer
         // Use fileName as ID for receiving to match what we expect in chunks
         // FIX: Sanitize the path to prevent traversal attacks
+        // Path sanitized by taking only the filename component
         Path rawPath = java.nio.file.Paths.get(fileName);
         String safeFileName = rawPath.getFileName().toString();
+
+        if (!fileName.equals(safeFileName)) {
+            logger.warn("Sanitized path traversal attempt: {} -> {}", fileName, safeFileName);
+        }
 
         // Enforce safe directory
         Path baseDir = java.nio.file.Paths.get("downloads").toAbsolutePath();
@@ -729,31 +738,10 @@ public class FileTransferManagerImpl implements FileTransferManager {
                 // Use BLAKE3 to compute checksum
                 return blake3Service.hashBuffer(data);
             } catch (Exception e) {
-                logger.error("Failed to compute BLAKE3 checksum, falling back to SHA-256", e);
+                throw new RuntimeException("Failed to compute BLAKE3 checksum", e);
             }
         }
-
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] encodedhash = digest.digest(data);
-            return bytesToHex(encodedhash);
-        } catch (NoSuchAlgorithmException e) {
-            // CRITICAL: Do not fall back to weak hash. Fail securely.
-            logger.error("SHA-256 algorithm not found - cannot verify data integrity", e);
-            throw new RuntimeException("Secure hashing algorithm not available", e);
-        }
-    }
-
-    private static String bytesToHex(byte[] hash) {
-        StringBuilder hexString = new StringBuilder(2 * hash.length);
-        for (int i = 0; i < hash.length; i++) {
-            String hex = Integer.toHexString(0xff & hash[i]);
-            if (hex.length() == 1) {
-                hexString.append('0');
-            }
-            hexString.append(hex);
-        }
-        return hexString.toString();
+        throw new RuntimeException("BLAKE3 service not available");
     }
 
     private String formatFileSize(long bytes) {
