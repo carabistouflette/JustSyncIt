@@ -455,6 +455,15 @@ public class TcpServer {
     }
 
     /**
+     * Gets the number of active client connections.
+     * 
+     * @return the number of active clients
+     */
+    public int getConnectionCount() {
+        return clients.size();
+    }
+
+    /**
      * Gets the connection for the specified client address.
      * 
      * @param clientAddress the client address
