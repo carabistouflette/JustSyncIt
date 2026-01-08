@@ -55,9 +55,6 @@ public class AbsurdityReproductionIoTest {
 
         System.out.println("Calculated I/O Requirement: " + ioReq + " MB/s");
 
-        // Assert that the requirement is "Sanity Checked" i.e., less than 2000 MB/s
-        // (approx 2GB/s, high end NVMe)
-        // The current absurd logic will produce ~10,000 MB/s
         assertTrue(ioReq < 2000,
                 "I/O requirement is absurdly high: " + ioReq + " MB/s. logic assumes file must be processed in 10s!");
     }
