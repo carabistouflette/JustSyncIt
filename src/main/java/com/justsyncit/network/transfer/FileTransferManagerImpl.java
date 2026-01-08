@@ -65,6 +65,10 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
     /** The metadata service. */
     private com.justsyncit.storage.metadata.MetadataService metadataService;
+    /** The encryption service. */
+    private com.justsyncit.network.encryption.EncryptionService encryptionService;
+    /** The master password service. */
+    private com.justsyncit.auth.MasterPasswordService masterPasswordService;
     /** Executor for parallel decompression tasks. */
     // private final java.util.concurrent.ExecutorService decompressionExecutor; //
     // Removed in favor of ThreadPoolManager
@@ -119,10 +123,19 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
                 // --- NEW PIPELINE EXECUTION ---
 
+                // Get encryption key from MasterPasswordService
+                byte[] masterKey = null;
+                boolean encryptionEnabled = false;
+                if (masterPasswordService != null && masterPasswordService.isPasswordSet()) {
+                    masterKey = masterPasswordService.getMasterKey();
+                    encryptionEnabled = masterKey != null;
+                }
+
                 // Create stages
                 com.justsyncit.network.transfer.pipeline.TransferPipeline pipeline = transferPipelineFactory
                         .createPipeline(
-                                networkService, compressionService, useCompression, remoteAddress);
+                                networkService, compressionService, useCompression,
+                                encryptionService, masterKey, encryptionEnabled, remoteAddress);
 
                 // Initialize hasher
                 com.justsyncit.hash.IncrementalHasherFactory hasherFactory = new com.justsyncit.hash.Blake3IncrementalHasherFactory(
@@ -287,6 +300,24 @@ public class FileTransferManagerImpl implements FileTransferManager {
     @SuppressFBWarnings(value = "EI_EXPOSE_REP2", justification = "MetadataService is mutable but required for functionality")
     public void setMetadataService(com.justsyncit.storage.metadata.MetadataService metadataService) {
         this.metadataService = metadataService;
+    }
+
+    /**
+     * Sets the encryption service.
+     *
+     * @param encryptionService the encryption service
+     */
+    public void setEncryptionService(com.justsyncit.network.encryption.EncryptionService encryptionService) {
+        this.encryptionService = encryptionService;
+    }
+
+    /**
+     * Sets the master password service.
+     *
+     * @param masterPasswordService the master password service
+     */
+    public void setMasterPasswordService(com.justsyncit.auth.MasterPasswordService masterPasswordService) {
+        this.masterPasswordService = masterPasswordService;
     }
 
     /**
@@ -501,10 +532,22 @@ public class FileTransferManagerImpl implements FileTransferManager {
 
         status.setState(FileTransferStatus.TransferState.IN_PROGRESS);
 
+        // Get encryption key from MasterPasswordService
+        byte[] masterKey = null;
+        boolean encryptionEnabled = false;
+        if (masterPasswordService != null && masterPasswordService.isPasswordSet()) {
+            masterKey = masterPasswordService.getMasterKey();
+            encryptionEnabled = masterKey != null;
+        }
+
         // Create and execute receive pipeline
         ReceivePipeline pipeline = transferPipelineFactory.createReceivePipeline(
                 compressionService,
                 status.getCompressionType(),
+                encryptionService,
+                masterKey,
+                encryptionEnabled,
+                filePath, // Use filePath as transferId for AEAD
                 blake3Service,
                 checksum,
                 chunkOffset,

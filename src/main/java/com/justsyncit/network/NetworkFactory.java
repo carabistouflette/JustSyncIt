@@ -13,6 +13,7 @@ public class NetworkFactory {
 
     private final NetworkModule networkModule;
     private final SecurityModule securityModule; // Security often tied to Network
+    private com.justsyncit.auth.MasterPasswordService masterPasswordService;
 
     public NetworkFactory(SecurityModule securityModule) {
         this.securityModule = securityModule;
@@ -21,6 +22,10 @@ public class NetworkFactory {
 
     public NetworkFactory() {
         this(new SecurityModule());
+    }
+
+    public void setMasterPasswordService(com.justsyncit.auth.MasterPasswordService masterPasswordService) {
+        this.masterPasswordService = masterPasswordService;
     }
 
     public NetworkService createNetworkService(Blake3Service blake3Service) {
@@ -36,7 +41,7 @@ public class NetworkFactory {
             }
             // If still null, we pass it. NetworkModule might fail if key is required.
             // But we preserved legacy behavior.
-            return networkModule.createNetworkService(blake3Service, envKey, null);
+            return networkModule.createNetworkService(blake3Service, envKey, null, masterPasswordService);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) { // Assuming ServiceException or other checked
@@ -51,7 +56,7 @@ public class NetworkFactory {
             if (envKey == null) {
                 envKey = System.getProperty("justsyncit.cluster.key");
             }
-            return networkModule.createNetworkService(blake3Service, envKey, metadataService);
+            return networkModule.createNetworkService(blake3Service, envKey, metadataService, masterPasswordService);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -61,7 +66,7 @@ public class NetworkFactory {
 
     public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKey) {
         try {
-            return networkModule.createNetworkService(blake3Service, clusterKey, null);
+            return networkModule.createNetworkService(blake3Service, clusterKey, null, masterPasswordService);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {
@@ -72,7 +77,8 @@ public class NetworkFactory {
     public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKey,
             com.justsyncit.storage.metadata.MetadataService metadataService) {
         try {
-            return networkModule.createNetworkService(blake3Service, clusterKey, metadataService);
+            return networkModule.createNetworkService(blake3Service, clusterKey, metadataService,
+                    masterPasswordService);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) {

@@ -12,11 +12,14 @@ public class ReceivePipeline {
 
     private static final Logger logger = LoggerFactory.getLogger(ReceivePipeline.class);
 
+    private final DecryptStage decryptStage;
     private final DecompressStage decompressStage;
     private final VerifyStage verifyStage;
     private final StoreStage storeStage;
 
-    public ReceivePipeline(DecompressStage decompressStage, VerifyStage verifyStage, StoreStage storeStage) {
+    public ReceivePipeline(DecryptStage decryptStage, DecompressStage decompressStage, VerifyStage verifyStage,
+            StoreStage storeStage) {
+        this.decryptStage = decryptStage;
         this.decompressStage = decompressStage;
         this.verifyStage = verifyStage;
         this.storeStage = storeStage;
@@ -30,7 +33,8 @@ public class ReceivePipeline {
      *         data, or fails heavily
      */
     public CompletableFuture<Integer> process(byte[] chunkData) {
-        return decompressStage.process(chunkData)
+        return decryptStage.process(chunkData)
+                .thenCompose(decompressStage::process)
                 .thenCompose(verifyStage::process)
                 .thenCompose(storeStage::process)
                 .whenComplete((result, ex) -> {

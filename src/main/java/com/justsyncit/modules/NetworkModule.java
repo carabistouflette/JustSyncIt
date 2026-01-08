@@ -21,11 +21,12 @@ public class NetworkModule {
     }
 
     public NetworkService createNetworkService(Blake3Service blake3Service) {
-        return createNetworkService(blake3Service, null, null);
+        return createNetworkService(blake3Service, null, null, null);
     }
 
     public NetworkService createNetworkService(Blake3Service blake3Service, String clusterKeyBase64,
-            com.justsyncit.storage.metadata.MetadataService metadataService) {
+            com.justsyncit.storage.metadata.MetadataService metadataService,
+            com.justsyncit.auth.MasterPasswordService masterPasswordService) {
         com.justsyncit.network.NetworkConfiguration configuration = new com.justsyncit.network.NetworkConfiguration();
         TcpServer tcpServer = new TcpServer(configuration);
         TcpClient tcpClient = new TcpClient(configuration);
@@ -41,6 +42,9 @@ public class NetworkModule {
 
         com.justsyncit.network.encryption.EncryptionService encryptionService = securityModule
                 .createEncryptionService();
+
+        fileTransferManager.setEncryptionService(encryptionService);
+        fileTransferManager.setMasterPasswordService(masterPasswordService);
 
         String envKey = clusterKeyBase64;
 

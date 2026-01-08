@@ -23,16 +23,18 @@ public class TransferPipeline {
     private final ReadStage readStage;
     private final HashStage hashStage;
     private final CompressStage compressStage;
+    private final EncryptStage encryptStage;
     private final SendStage sendStage;
 
     private final Semaphore flowControl;
     private final List<CompletableFuture<Void>> inFlightFutures;
 
     public TransferPipeline(ReadStage readStage, HashStage hashStage, CompressStage compressStage,
-            SendStage sendStage) {
+            EncryptStage encryptStage, SendStage sendStage) {
         this.readStage = readStage;
         this.hashStage = hashStage;
         this.compressStage = compressStage;
+        this.encryptStage = encryptStage;
         this.sendStage = sendStage;
 
         this.flowControl = new Semaphore(MAX_IN_FLIGHT_CHUNKS);
@@ -66,6 +68,7 @@ public class TransferPipeline {
                 })
                 .thenCompose(hashStage::process)
                 .thenCompose(compressStage::process)
+                .thenCompose(encryptStage::process)
                 .thenCompose(sendStage::process)
                 .handle((result, ex) -> {
                     // Release permit regardless of success/failure

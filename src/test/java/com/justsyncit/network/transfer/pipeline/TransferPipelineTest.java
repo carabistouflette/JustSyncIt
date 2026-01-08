@@ -3,6 +3,7 @@ package com.justsyncit.network.transfer.pipeline;
 import com.justsyncit.network.NetworkService;
 import com.justsyncit.network.compression.CompressionService;
 import com.justsyncit.network.protocol.ProtocolMessage;
+import com.justsyncit.network.encryption.EncryptionService;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,6 +36,7 @@ class TransferPipelineTest {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         NetworkService networkService = Mockito.mock(NetworkService.class);
         CompressionService compressionService = Mockito.mock(CompressionService.class);
+        EncryptionService encryptionService = Mockito.mock(EncryptionService.class);
         InetSocketAddress remoteAddress = new InetSocketAddress("localhost", 8080);
 
         // Mock behaviors
@@ -46,9 +48,10 @@ class TransferPipelineTest {
         ReadStage readStage = new ReadStage(executor);
         HashStage hashStage = new HashStage(executor);
         CompressStage compressStage = new CompressStage(executor, compressionService, true);
+        EncryptStage encryptStage = new EncryptStage(executor, encryptionService, new byte[32], false, "alias");
         SendStage sendStage = new SendStage(executor, networkService, remoteAddress);
 
-        TransferPipeline pipeline = new TransferPipeline(readStage, hashStage, compressStage, sendStage);
+        TransferPipeline pipeline = new TransferPipeline(readStage, hashStage, compressStage, encryptStage, sendStage);
 
         // Create Task
         ChunkTask task = new ChunkTask("test-id", file, 0, content.length, content.length);
