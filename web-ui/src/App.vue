@@ -1,24 +1,40 @@
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useAuthStore } from './stores/auth'
+import { useConnectionStore } from './stores/connection'
 import { useWebSocket } from './composables/useWebSocket'
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
 import ToastContainer from './components/ToastContainer.vue'
 
-const { connect, isConnected } = useWebSocket()
+const route = useRoute()
+const authStore = useAuthStore()
+const connectionStore = useConnectionStore()
+const { connect } = useWebSocket()
 
-onMounted(() => {
-  connect()
+// Only show layout components on protected pages
+const showLayout = computed(() => {
+    return !route.meta.public && authStore.isAuthenticated
+})
+
+// Connect WebSocket and start health checks
+onMounted(async () => {
+    connectionStore.startHealthCheck()
+    await authStore.checkStatus()
+    if (authStore.isAuthenticated) {
+        connect()
+    }
 })
 </script>
 
 <template>
   <div class="app-container">
     <ToastContainer />
-    <AppHeader v-if="!$route.path.includes('/login')" :connected="isConnected" />
+    <AppHeader v-if="showLayout" />
     <div class="app-main">
-      <AppSidebar v-if="!$route.path.includes('/login')" />
-      <main :class="['app-content', { 'fullscreen': $route.path.includes('/login') }]">
+      <AppSidebar v-if="showLayout" />
+      <main class="app-content" :class="{ 'no-layout': !showLayout }">
         <router-view v-slot="{ Component }">
           <Transition name="page" mode="out-in">
             <component :is="Component" />
@@ -48,7 +64,7 @@ onMounted(() => {
   overflow-y: auto;
 }
 
-.app-content.fullscreen {
+.app-content.no-layout {
   padding: 0;
 }
 

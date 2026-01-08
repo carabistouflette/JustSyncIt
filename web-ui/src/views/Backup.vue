@@ -9,6 +9,8 @@ const snapshotName = ref('')
 const description = ref('')
 const includeHidden = ref(false)
 const verifyIntegrity = ref(true)
+const excludePatternsText = ref('')
+const chunkSize = ref(4 * 1024 * 1024)
 const browsePath = ref('')
 const files = ref([])
 const parentPath = ref(null)
@@ -58,8 +60,15 @@ async function startBackup() {
   
   try {
     error.value = null
+    const excludePatterns = excludePatternsText.value
+      .split('\n')
+      .map(p => p.trim())
+      .filter(p => p.length > 0)
+
     await backupStore.startBackup({
-      sourcePath: selectedSources.value[0],
+      sourcePaths: selectedSources.value,
+      excludePatterns: excludePatterns.length > 0 ? excludePatterns : undefined,
+      chunkSize: chunkSize.value,
       snapshotName: snapshotName.value || undefined,
       description: description.value || undefined,
       includeHidden: includeHidden.value,
@@ -215,6 +224,21 @@ onUnmounted(() => {
           <textarea id="description" v-model="description" rows="2" placeholder="Describe this backup"></textarea>
         </div>
         
+        <div class="form-group">
+          <label for="chunk-size">Chunk Size</label>
+          <select id="chunk-size" v-model="chunkSize">
+            <option :value="64 * 1024">64 KB (Small files optimization)</option>
+            <option :value="1024 * 1024">1 MB (Standard)</option>
+            <option :value="4 * 1024 * 1024">4 MB (Large files)</option>
+            <option :value="16 * 1024 * 1024">16 MB (Very large files)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="exclude-patterns">Exclude Patterns (Glob, one per line)</label>
+          <textarea id="exclude-patterns" v-model="excludePatternsText" rows="3" placeholder="**/node_modules/**&#10;**/*.tmp"></textarea>
+        </div>
+
         <div class="form-options">
           <label class="checkbox-label">
             <input type="checkbox" v-model="includeHidden">

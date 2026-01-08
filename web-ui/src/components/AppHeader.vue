@@ -1,13 +1,11 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useConnectionStore } from '../stores/connection'
 import ThemeToggle from './ThemeToggle.vue'
 
-defineProps({
-  connected: Boolean
-})
-
 const router = useRouter()
+const connectionStore = useConnectionStore()
 const scrolled = ref(false)
 const hidden = ref(false)
 let lastScrollY = 0
@@ -48,9 +46,9 @@ onUnmounted(() => {
       </div>
       <div class="header-right">
         <ThemeToggle />
-        <div class="connection-status" :class="{ online: connected }">
-          <div class="status-dot"></div>
-          <span>{{ connected ? 'Connected' : 'Disconnected' }}</span>
+        <div class="connection-status" :title="connectionStore.isWsConnected ? 'Live updates active' : 'Polling mode'">
+          <div class="status-dot" :style="{ background: connectionStore.statusColor }"></div>
+          <span>{{ connectionStore.statusLabel }}</span>
         </div>
       </div>
     </div>
@@ -138,12 +136,7 @@ onUnmounted(() => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--error);
   animation: pulse 2s infinite;
-}
-
-.connection-status.online .status-dot {
-  background: var(--success);
 }
 
 @keyframes pulse {

@@ -1,27 +1,49 @@
 import axios from 'axios'
+import { useAuthStore } from '../stores/auth'
+import router from '../router'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
 const api = axios.create({
     baseURL: API_BASE,
     timeout: 30000,
-    withCredentials: true, // Enable HttpOnly session cookie authentication
     headers: {
         'Content-Type': 'application/json'
     }
 })
 
+// Inject auth token
+api.interceptors.request.use(
+    config => {
+        const authStore = useAuthStore()
+        if (authStore.token) {
+            config.headers.Authorization = `Bearer ${authStore.token}`
+        }
+        return config
+    },
+    error => Promise.reject(error)
+)
+
 // Handle errors globally
 api.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 401) {
-            // Session cookie is expired/invalid, redirect to login
-            window.location.href = '/login'
+        if (error.response && error.response.status === 401) {
+            const authStore = useAuthStore()
+            authStore.logout()
+            router.push('/login')
         }
+        console.error('API error:', error)
         return Promise.reject(error)
     }
 )
+
+export const authApi = {
+    getStatus: () => api.get('/auth/status'),
+    setup: (password) => api.post('/auth/setup', { password }),
+    login: (password) => api.post('/auth/login', { password }),
+    logout: () => api.post('/auth/logout')
+}
 
 export const backupApi = {
     start: (data) => api.post('/backup', data),
@@ -66,20 +88,13 @@ export const schedulerApi = {
     delete: (id) => api.delete(`/schedules/${id}`)
 }
 
-export const usersApi = {
-    list: () => api.get('/users'),
-    create: (data) => api.post('/users', data),
-    update: (id, data) => api.put(`/users/${id}`, data),
-    delete: (id) => api.delete(`/users/${id}`)
-}
-
-export const authApi = {
-    login: (username, password) => api.post('/auth/login', { username, password }),
-    logout: () => api.post('/auth/logout')
-}
-
 export const healthApi = {
     check: () => api.get('/health')
+}
+
+export const networkApi = {
+    getStats: () => api.get('/network/stats'),
+    getStatus: () => api.get('/network/status')
 }
 
 export default api

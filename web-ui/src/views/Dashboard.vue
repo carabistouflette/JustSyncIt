@@ -1,7 +1,9 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useBackupStore } from '../stores/backup'
 import { useSnapshotStore } from '../stores/snapshot'
+import { useConnectionStore } from '../stores/connection'
+import { useNetworkStore } from '../stores/network'
 import { useToast } from '../composables/useToast'
 import { healthApi } from '../services/api'
 import StorageChart from '../components/charts/StorageChart.vue'
@@ -10,14 +12,14 @@ import FileTypeDistChart from '../components/charts/FileTypeDistChart.vue'
 
 const backupStore = useBackupStore()
 const snapshotStore = useSnapshotStore()
+const connectionStore = useConnectionStore()
+const networkStore = useNetworkStore()
 const toast = useToast()
 
-const serverHealth = ref(null)
 const loading = ref(true)
 const fileTypeStats = ref({})
 const statsLoading = ref(false)
-
-// ... existing code ...
+const serverHealth = ref(null)
 
 const loadFileTypeStats = async () => {
     // Get latest snapshot ID
@@ -40,8 +42,7 @@ onMounted(async () => {
   try {
     await Promise.all([
       snapshotStore.fetchSnapshots(),
-      backupStore.fetchHistory(),
-      healthApi.check().then(res => { serverHealth.value = res.data })
+      backupStore.fetchHistory()
     ])
     loadFileTypeStats()
   } catch (error) {
@@ -61,10 +62,22 @@ const stats = computed(() => [
     color: 'var(--accent-primary)'
   },
   { 
+    label: 'Bandwidth (Sent)', 
+    value: formatBytes(networkStore.stats.bytesSent),
+    icon: 'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4',
+    color: 'var(--accent-secondary)'
+  },
+  { 
+    label: 'Active Conns', 
+    value: networkStore.stats.activeConnections,
+    icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+    color: 'var(--warning)'
+  },
+  { 
     label: 'Server Status', 
-    value: serverHealth.value ? 'Online' : 'Offline',
+    value: connectionStore.statusLabel,
     icon: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2',
-    color: serverHealth.value ? 'var(--success)' : 'var(--error)'
+    color: connectionStore.statusColor
   }
 ])
 
@@ -102,8 +115,16 @@ onMounted(async () => {
     await Promise.all([
       snapshotStore.fetchSnapshots(),
       backupStore.fetchHistory(),
+      networkStore.fetchStatus(),
       healthApi.check().then(res => { serverHealth.value = res.data })
     ])
+    
+    // Poll network stats every 2 seconds
+    const interval = setInterval(() => {
+      networkStore.fetchStats()
+    }, 2000)
+    
+    onUnmounted(() => clearInterval(interval))
   } catch (error) {
     console.error('Failed to load dashboard data:', error)
     toast.error('Could not load dashboard data', 'Connection Error')

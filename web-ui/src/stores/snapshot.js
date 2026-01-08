@@ -63,6 +63,19 @@ export const useSnapshotStore = defineStore('snapshot', {
                 this.error = error.response?.data?.message || error.message
                 throw error
             }
+        },
+
+        async verifySnapshot(id) {
+            this.loading = true
+            try {
+                const response = await snapshotApi.verify(id)
+                return response.data
+            } catch (error) {
+                this.error = error.response?.data?.message || error.message
+                throw error
+            } finally {
+                this.loading = false
+            }
         }
     }
 })

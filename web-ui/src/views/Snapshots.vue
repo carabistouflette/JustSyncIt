@@ -26,6 +26,31 @@ async function deleteSnapshot(id) {
   }
 }
 
+async function verifySnapshot(id) {
+  try {
+    const result = await snapshotStore.verifySnapshot(id)
+    alert(result.message || 'Verification complete')
+  } catch (e) {
+    alert('Verification failed: ' + (e.response?.data?.message || e.message))
+  }
+}
+
+const showBrowser = ref(false)
+const browsingSnapshot = ref(null)
+const browsePath = ref('')
+
+async function openBrowser(snapshotId) {
+  browsingSnapshot.value = snapshotId
+  browsePath.value = ''
+  await snapshotStore.fetchSnapshotFiles(snapshotId, '')
+  showBrowser.value = true
+}
+
+async function browseTo(path) {
+  browsePath.value = path
+  await snapshotStore.fetchSnapshotFiles(browsingSnapshot.value, path)
+}
+
 onMounted(() => {
   snapshotStore.fetchSnapshots()
 })
@@ -82,12 +107,51 @@ onMounted(() => {
         <p v-if="snapshot.description" class="snapshot-desc">{{ snapshot.description }}</p>
         
         <div class="snapshot-actions">
+          <button class="btn btn-primary" @click="openBrowser(snapshot.id)">
+            Browse Files
+          </button>
+          <button class="btn btn-secondary" @click="verifySnapshot(snapshot.id)">
+            Verify
+          </button>
           <router-link :to="`/restore?snapshot=${snapshot.id}`" class="btn btn-secondary">
             Restore
           </router-link>
           <button class="btn btn-secondary" @click="deleteSnapshot(snapshot.id)">
             Delete
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Snapshot Browser Modal -->
+    <div v-if="showBrowser" class="modal-overlay" @click.self="showBrowser = false">
+      <div class="modal card">
+        <div class="modal-header">
+          <h3>Files in {{ browsingSnapshot }}</h3>
+          <button class="btn-icon" @click="showBrowser = false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <div class="browser-path">
+          <span>{{ browsePath || '/' }}</span>
+        </div>
+        <div class="file-list">
+          <div v-if="browsePath" class="file-item directory" @click="browseTo(browsePath.split('/').slice(0, -1).join('/'))">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path d="M5 15l7-7 7 7"/>
+             </svg>
+             <span>..</span>
+          </div>
+          <div v-for="file in snapshotStore.files" :key="file.path" class="file-item" :class="{ directory: file.directory }" @click="file.directory && browseTo(file.path)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+               <path v-if="file.directory" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+               <path v-else d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>{{ file.name }}</span>
+            <span class="file-size" v-if="!file.directory">{{ formatBytes(file.size) }}</span>
+          </div>
         </div>
       </div>
     </div>

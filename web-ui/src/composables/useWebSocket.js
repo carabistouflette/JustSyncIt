@@ -1,38 +1,44 @@
-import { ref, onUnmounted } from 'vue'
+import { onUnmounted } from 'vue'
 import { useBackupStore } from '../stores/backup'
+import { useConnectionStore } from '../stores/connection'
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8080/ws'
+const getWsUrl = () => {
+    if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host || 'localhost:8080'
+    return `${protocol}//${host}/ws`
+}
 
 let socket = null
 let reconnectTimer = null
-const isConnected = ref(false)
-const connectionError = ref(null)
 
 export function useWebSocket() {
     const backupStore = useBackupStore()
+    const connectionStore = useConnectionStore()
 
     function connect() {
-        if (socket && socket.readyState === WebSocket.OPEN) {
+        if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
             return
         }
 
+        const url = getWsUrl()
+        console.log(`Connecting to WebSocket: ${url}`)
+
         try {
-            socket = new WebSocket(WS_URL)
+            socket = new WebSocket(url)
 
             socket.onopen = () => {
-                isConnected.value = true
-                connectionError.value = null
+                connectionStore.setWsConnected(true)
                 console.log('WebSocket connected')
             }
 
             socket.onclose = () => {
-                isConnected.value = false
+                connectionStore.setWsConnected(false)
                 console.log('WebSocket disconnected')
                 scheduleReconnect()
             }
 
             socket.onerror = (error) => {
-                connectionError.value = 'WebSocket connection failed'
                 console.error('WebSocket error:', error)
             }
 
@@ -45,7 +51,7 @@ export function useWebSocket() {
                 }
             }
         } catch (error) {
-            connectionError.value = error.message
+            console.error('WebSocket setup error:', error)
         }
     }
 
@@ -73,7 +79,6 @@ export function useWebSocket() {
         if (data.type?.startsWith('backup:')) {
             backupStore.updateFromWebSocket(data)
         }
-        // Add more message handlers as needed
     }
 
     function send(message) {
@@ -83,14 +88,12 @@ export function useWebSocket() {
     }
 
     onUnmounted(() => {
-        // Don't disconnect on unmount, keep connection alive
+        // Shared connection, don't close on individual component unmount
     })
 
     return {
         connect,
         disconnect,
-        send,
-        isConnected,
-        connectionError
+        send
     }
 }
