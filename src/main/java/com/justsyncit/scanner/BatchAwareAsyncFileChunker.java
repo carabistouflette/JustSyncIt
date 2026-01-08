@@ -15,13 +15,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Enhances performance through batch coordination and resource optimization.
  */
 
-/**
- * Batch-aware implementation of AsyncFileChunker that integrates with the batch
- * processing system.
- * Provides optimized chunking operations for batch processing scenarios.
- * Enhances performance through batch coordination and resource optimization.
- */
-
 public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchAwareAsyncFileChunker.class);
@@ -240,18 +233,28 @@ public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
                     error != null ? error : new RuntimeException("Batch operation failed"));
         }
 
-        // Extract chunking information from batch result
-        // In a real implementation, this would parse the actual chunking results
         try {
-            // For now, create a successful result with placeholder data
+            // Extract chunking information from batch result
+            java.util.Map<String, Object> results = batchResult.getResults();
+
+            String fileHash = (String) results.get("fileHash");
+            @SuppressWarnings("unchecked")
+            java.util.List<String> chunkHashes = (java.util.List<String>) results.get("chunkHashes");
+            Integer chunkCount = (Integer) results.get("chunkCount");
+            Long totalSize = (Long) results.get("totalSize");
+
+            if (fileHash == null || chunkHashes == null) {
+                // Fallback if results are missing
+                throw new RuntimeException("Batch operation returned incomplete results");
+            }
+
             return new ChunkingResult(
                     file,
-                    1, // chunkCount
-                    java.nio.file.Files.size(file),
+                    chunkCount != null ? chunkCount : 0,
+                    totalSize != null ? totalSize : java.nio.file.Files.size(file),
                     0, // skippedBytes
-                    "batch-hash-" + file.getFileName(), // fileHash
-                    List.of("chunk-hash-" + file.getFileName()) // chunkHashes
-            );
+                    fileHash,
+                    chunkHashes);
         } catch (Exception e) {
             return ChunkingResult.createFailed(file, e);
         }
@@ -277,7 +280,8 @@ public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
                     : getChunkSize();
 
             // Memory needed for file reading + chunk processing + overhead
-            return fileSize + (chunkSize * 2) + (1024 * 1024); // 1MB overhead
+            // We don't need the whole file size in memory for chunking!
+            return (chunkSize * 4L) + (1024 * 1024); // 4 chunks buffer + 1MB overhead
         } catch (Exception e) {
             logger.warn("Failed to calculate memory requirement for file: {}", file, e);
             return 1024 * 1024; // Default to 1MB
@@ -289,10 +293,8 @@ public final class BatchAwareAsyncFileChunker implements AsyncFileChunker {
      */
     private long calculateIoRequirement(Path file, ChunkingOptions options) {
         try {
-            long fileSize = java.nio.file.Files.size(file);
-            // I/O requirement in bytes per second
-            // Assume we can process the file in 10 seconds
-            return fileSize / 10;
+            // reasonable I/O requirement: 50 MB/s
+            return 50L * 1024 * 1024;
         } catch (Exception e) {
             logger.warn("Failed to calculate I/O requirement for file: {}", file, e);
             return 1024 * 1024; // Default to 1MB/s
