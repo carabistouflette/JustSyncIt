@@ -39,13 +39,44 @@ public class NetworkFactory {
             if (envKey == null || envKey.isBlank()) {
                 envKey = System.getProperty("justsyncit.cluster.key");
             }
-            // If still null, we pass it. NetworkModule might fail if key is required.
-            // But we preserved legacy behavior.
+            validateClusterKey(envKey);
             return networkModule.createNetworkService(blake3Service, envKey, null, masterPasswordService);
         } catch (RuntimeException e) {
             throw e;
         } catch (Exception e) { // Assuming ServiceException or other checked
             throw new RuntimeException("Failed to create network service", e);
+        }
+    }
+
+    /**
+     * Validates the cluster key for proper format and length.
+     * The key must be a valid Base64 string that decodes to exactly 32 bytes (256
+     * bits).
+     *
+     * @param clusterKey the cluster key to validate
+     * @throws IllegalArgumentException if the key is invalid
+     */
+    private void validateClusterKey(String clusterKey) {
+        if (clusterKey == null || clusterKey.isBlank()) {
+            // Allow null key - network service may operate in local-only mode
+            return;
+        }
+        try {
+            byte[] decoded = java.util.Base64.getDecoder().decode(clusterKey);
+            if (decoded.length != 32) {
+                throw new IllegalArgumentException(
+                        "Cluster key must be exactly 32 bytes (256 bits) for AES-256. Got: " + decoded.length
+                                + " bytes. " +
+                                "Generate a valid key with: openssl rand -base64 32");
+            }
+        } catch (IllegalArgumentException e) {
+            if (e.getMessage().contains("32 bytes")) {
+                throw e; // Re-throw our size validation error
+            }
+            throw new IllegalArgumentException(
+                    "Cluster key must be a valid Base64 encoded string. " +
+                            "Generate a valid key with: openssl rand -base64 32",
+                    e);
         }
     }
 

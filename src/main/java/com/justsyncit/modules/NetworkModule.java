@@ -65,9 +65,6 @@ public class NetworkModule {
         }
 
         return new NetworkServiceImpl(tcpServer, tcpClient, fileTransferManager, connectionManager, blake3Service,
-                new com.justsyncit.network.quic.adapter.QuicTransportAdapter(
-                        com.justsyncit.network.quic.QuicConfiguration.defaultConfiguration()),
-                com.justsyncit.network.quic.QuicConfiguration.defaultConfiguration(),
                 com.justsyncit.network.TransportType.TCP,
                 encryptionService,
                 clusterKey);
