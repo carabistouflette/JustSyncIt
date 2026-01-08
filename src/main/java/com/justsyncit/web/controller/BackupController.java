@@ -31,12 +31,14 @@ public final class BackupController {
 
     private final WebServerContext context;
     private final WebServer webServer;
+    private final ConfigController configController;
     private final AtomicReference<BackupState> currentBackup;
     private final List<BackupHistoryEntry> backupHistory;
 
-    public BackupController(WebServerContext context, WebServer webServer) {
+    public BackupController(WebServerContext context, WebServer webServer, ConfigController configController) {
         this.context = context;
         this.webServer = webServer;
+        this.configController = configController;
         this.currentBackup = new AtomicReference<>();
         this.backupHistory = new CopyOnWriteArrayList<>();
     }
@@ -48,132 +50,128 @@ public final class BackupController {
         try {
             BackupRequest request = ctx.bodyAsClass(BackupRequest.class);
 
-            // Validate request
-            if (request.getSourcePath() == null || request.getSourcePath().isEmpty()) {
-                ctx.status(400).json(ApiError.badRequest("Source path is required", ctx.path()));
+            // 1. Gather & Validate Source Paths
+            List<Path> sourcePaths = new java.util.ArrayList<>();
+            if (request.getSourcePaths() != null && !request.getSourcePaths().isEmpty()) {
+                for (String p : request.getSourcePaths())
+                    sourcePaths.add(Paths.get(p));
+            } else if (request.getSourcePath() != null && !request.getSourcePath().isEmpty()) {
+                sourcePaths.add(Paths.get(request.getSourcePath()));
+            }
+
+            if (sourcePaths.isEmpty()) {
+                ctx.status(400).json(ApiError.badRequest("At least one source path is required", ctx.path()));
                 return;
             }
 
-            Path sourcePath = Paths.get(request.getSourcePath());
-            if (!Files.exists(sourcePath) || !Files.isDirectory(sourcePath)) {
-                ctx.status(400).json(ApiError.badRequest("Source path must be an existing directory",
-                        ctx.path()));
-                return;
+            for (Path p : sourcePaths) {
+                if (!Files.exists(p) || !Files.isDirectory(p)) {
+                    ctx.status(400).json(ApiError.badRequest("Invalid source directory: " + p, ctx.path()));
+                    return;
+                }
+                if (!isPathAllowed(p)) {
+                    ctx.status(403).json(ApiError.forbidden("Access to path not allowed: " + p, ctx.path()));
+                    return;
+                }
             }
 
-            // Check if a backup is already running
+            // 2. Check if running
             BackupState state = currentBackup.get();
             if (state != null && state.isRunning()) {
-                ctx.status(409).json(ApiError.of(409, "Conflict",
-                        "A backup is already in progress", ctx.path()));
+                ctx.status(409).json(ApiError.of(409, "Conflict", "A backup is already in progress", ctx.path()));
                 return;
             }
 
-            // Create backup options using Builder pattern
+            // 3. Configure Options
             BackupOptions.Builder optionsBuilder = new BackupOptions.Builder()
-                    .chunkSize(request.getChunkSize())
+                    .chunkSize(request.getChunkSize() > 0 ? request.getChunkSize() : 64 * 1024)
                     .includeHiddenFiles(request.isIncludeHidden())
-                    .verifyIntegrity(request.isVerifyIntegrity());
+                    .verifyIntegrity(request.isVerifyIntegrity())
+                    .excludePatterns(request.getExcludePatterns());
 
-            if (request.getSnapshotName() != null) {
+            if (request.getSnapshotName() != null)
                 optionsBuilder.snapshotName(request.getSnapshotName());
-            }
-            if (request.getDescription() != null) {
+            if (request.getDescription() != null)
                 optionsBuilder.description(request.getDescription());
-            }
 
             BackupOptions options = optionsBuilder.build();
-
-            // Start backup asynchronously
-            BackupState newState = new BackupState(request.getSnapshotName());
+            BackupState newState = new BackupState(options.getSnapshotName());
             currentBackup.set(newState);
 
             BackupService backupService = context.getBackupService();
-            BackupOptions finalOptions = options;
 
+            // 4. Start Async Backup
             CompletableFuture.runAsync(() -> {
                 try {
                     newState.setStatus("running");
                     webServer.broadcast("backup:started", Map.of("snapshotId", newState.getSnapshotId()));
 
-                    // Use atomic long for thread-safe timestamp
                     java.util.concurrent.atomic.AtomicLong lastBroadcast = new java.util.concurrent.atomic.AtomicLong(
                             0);
 
-                    // Set up event listener for detailed logs
                     backupService.setEventListener((type, level, message, file) -> {
                         webServer.broadcast("backup:event", Map.of(
                                 "snapshotId", newState.getSnapshotId(),
-                                "type", type,
-                                "level", level,
-                                "message", message,
+                                "type", type, "level", level, "message", message,
                                 "file", file != null ? file : ""));
                     });
 
-                    // Use the overload with progress listener
-                    BackupService.BackupResult result = backupService.backup(sourcePath, finalOptions, processor -> {
-                        // Update state with live progress from processor
+                    backupService.backupMultiple(sourcePaths, options, processor -> {
                         newState.setFilesProcessed(processor.getProcessedFilesCount());
                         newState.setBytesProcessed(processor.getProcessedBytesCount());
                         newState.setTotalFiles(processor.getDetectedFilesCount());
                         newState.setTotalBytes(processor.getTotalBytesCount());
-                        newState.setCurrentFile(processor.getCurrentFile()); // Update current file in state
-                        newState.setCurrentActivity(processor.getCurrentActivity()); // Update current activity in state
+                        newState.setCurrentFile(processor.getCurrentFile());
+                        newState.setCurrentActivity(processor.getCurrentActivity());
 
-                        // Broadcast progress update (throttled to max 10/sec)
                         long now = System.currentTimeMillis();
                         if (now - lastBroadcast.get() > 100) {
                             lastBroadcast.set(now);
-                            double progressPercent = processor.getProcessingPercentage();
                             webServer.broadcast("backup:progress", Map.of(
                                     "snapshotId", newState.getSnapshotId(),
                                     "filesProcessed", processor.getProcessedFilesCount(),
                                     "bytesProcessed", processor.getProcessedBytesCount(),
                                     "currentFile", processor.getCurrentFile() != null ? processor.getCurrentFile() : "",
                                     "currentActivity",
-                                    processor.getCurrentActivity() != null ? processor.getCurrentActivity() : "", // Added
-                                                                                                                  // currentActivity
-                                    "progressPercent", progressPercent));
+                                    processor.getCurrentActivity() != null ? processor.getCurrentActivity() : "",
+                                    "progressPercent", processor.getProcessingPercentage()));
                         }
                     }).get();
-                    if (result.isSuccess()) {
-                        newState.setStatus("completed");
-                        newState.setFilesProcessed(result.getFilesProcessed());
-                        newState.setBytesProcessed(result.getTotalBytesProcessed());
 
-                        backupHistory.add(0, new BackupHistoryEntry(
-                                result.getSnapshotId(),
-                                "completed",
-                                result.getFilesProcessed(),
-                                result.getTotalBytesProcessed(),
-                                System.currentTimeMillis()));
+                    newState.setStatus("completed");
+                    newState.setCompletedAt(System.currentTimeMillis());
+                    backupHistory.add(new BackupHistoryEntry(newState.getSnapshotId(), "completed",
+                            newState.getFilesProcessed(), newState.getBytesProcessed(), newState.getCompletedAt()));
+                    webServer.broadcast("backup:completed", Map.of("snapshotId", newState.getSnapshotId()));
 
-                        webServer.broadcast("backup:completed", Map.of(
-                                "snapshotId", result.getSnapshotId(),
-                                "filesProcessed", result.getFilesProcessed(),
-                                "bytesProcessed", result.getTotalBytesProcessed()));
-                    } else {
-                        newState.setStatus("failed");
-                        newState.setError(result.getError());
-                        webServer.broadcast("backup:failed", Map.of("error", result.getError()));
-                    }
                 } catch (Exception e) {
-                    LOGGER.error("Backup failed", e);
+                    LOGGER.error("Backup background process failed", e);
                     newState.setStatus("failed");
                     newState.setError(e.getMessage());
-                    webServer.broadcast("backup:failed", Map.of("error", e.getMessage()));
+                    backupHistory.add(new BackupHistoryEntry(newState.getSnapshotId(), "failed",
+                            newState.getFilesProcessed(), newState.getBytesProcessed(), System.currentTimeMillis()));
+                    webServer.broadcast("backup:failed",
+                            Map.of("snapshotId", newState.getSnapshotId(), "error", e.getMessage()));
                 }
             });
 
-            ctx.status(202).json(Map.of(
-                    "status", "accepted",
-                    "message", "Backup started",
-                    "snapshotId", newState.getSnapshotId()));
+            ctx.status(202).json(Map.of("message", "Backup started", "snapshotId", newState.getSnapshotId()));
 
         } catch (Exception e) {
             LOGGER.error("Failed to start backup", e);
             ctx.status(500).json(ApiError.internalError(e.getMessage(), ctx.path()));
         }
+    }
+
+    private boolean isPathAllowed(Path path) {
+        String pathStr = path.toAbsolutePath().normalize().toString();
+        List<String> allowedSources = configController.getBackupSourcesList();
+        if (allowedSources.isEmpty())
+            return pathStr.startsWith(System.getProperty("user.home"));
+        for (String source : allowedSources)
+            if (pathStr.startsWith(source))
+                return true;
+        return false;
     }
 
     /**
@@ -238,27 +236,24 @@ public final class BackupController {
         private volatile int filesProcessed;
         private volatile long bytesProcessed;
         private volatile int totalFiles;
-        private volatile long totalBytes;
-        private volatile String currentFile;
-        private volatile String currentActivity;
-        private volatile String error;
+        private long totalBytes;
+        private String currentFile;
+        private String currentActivity;
+        private String error;
+        private long completedAt;
 
         BackupState(String snapshotId) {
             this.snapshotId = snapshotId != null ? snapshotId : "backup-" + System.currentTimeMillis();
+            this.status = "initialized";
             this.startTime = System.currentTimeMillis();
-            this.status = "starting";
         }
 
         boolean isRunning() {
-            return "starting".equals(status) || "running".equals(status);
+            return "running".equals(status);
         }
 
         String getSnapshotId() {
             return snapshotId;
-        }
-
-        long getStartTime() {
-            return startTime;
         }
 
         String getStatus() {
@@ -267,6 +262,10 @@ public final class BackupController {
 
         void setStatus(String status) {
             this.status = status;
+        }
+
+        long getStartTime() {
+            return startTime;
         }
 
         int getFilesProcessed() {
@@ -323,6 +322,14 @@ public final class BackupController {
 
         void setError(String error) {
             this.error = error;
+        }
+
+        long getCompletedAt() {
+            return completedAt;
+        }
+
+        void setCompletedAt(long completedAt) {
+            this.completedAt = completedAt;
         }
     }
 

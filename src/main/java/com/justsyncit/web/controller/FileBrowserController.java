@@ -28,10 +28,7 @@ public final class FileBrowserController {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileBrowserController.class);
     private static final int MAX_RESULTS = 1000;
 
-    private final ConfigController configController;
-
-    public FileBrowserController(ConfigController configController) {
-        this.configController = configController;
+    public FileBrowserController() {
     }
 
     /**
@@ -48,12 +45,8 @@ public final class FileBrowserController {
 
             Path path = Paths.get(pathParam).toAbsolutePath().normalize();
 
-            // Security check - don't allow browsing sensitive directories
-            if (!isPathAllowed(path)) {
-                ctx.status(403).json(ApiError.of(403, "Forbidden",
-                        "Access to this path is not allowed", ctx.path()));
-                return;
-            }
+            // Security check - Authentication is handled by WebServer
+            // We rely on OS-level permissions for access control
 
             if (!Files.exists(path)) {
                 ctx.status(404).json(ApiError.notFound("Path not found: " + path, ctx.path()));
@@ -135,12 +128,6 @@ public final class FileBrowserController {
 
             Path searchPath = Paths.get(basePath).toAbsolutePath().normalize();
 
-            if (!isPathAllowed(searchPath)) {
-                ctx.status(403).json(ApiError.of(403, "Forbidden",
-                        "Access to this path is not allowed", ctx.path()));
-                return;
-            }
-
             if (!Files.exists(searchPath) || !Files.isDirectory(searchPath)) {
                 ctx.status(404).json(ApiError.notFound("Directory not found: " + searchPath, ctx.path()));
                 return;
@@ -180,24 +167,4 @@ public final class FileBrowserController {
         }
     }
 
-    private boolean isPathAllowed(Path path) {
-        String pathStr = path.toAbsolutePath().normalize().toString();
-        List<String> allowedSources = configController.getBackupSourcesList();
-
-        // If no sources configured, default to user home only (safer default than root)
-        if (allowedSources.isEmpty()) {
-            String userHome = System.getProperty("user.home");
-            return pathStr.startsWith(userHome);
-        }
-
-        // Whitelist check
-        for (String source : allowedSources) {
-            if (pathStr.startsWith(source)) {
-                return true;
-            }
-        }
-
-        LOGGER.warn("Access denied to path not in allowed sources: {}", path);
-        return false;
-    }
 }

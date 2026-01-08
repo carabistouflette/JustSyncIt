@@ -77,9 +77,6 @@ public final class FilesystemContentStore extends AbstractContentStore {
     }
 
     private void startAsyncSizeCalculation() {
-        // [PERF-001] Do NOT walk the filesystem on startup. It is too expensive.
-        // If size.dat is missing, we initialize to 0 and accept the inaccuracy until
-        // stats are rebuilt or updated.
         logger.warn("Total size unknown (size.dat missing). Initializing to 0 to avoid expensive filesystem scan.");
         totalSize.set(0);
         saveTotalSize();

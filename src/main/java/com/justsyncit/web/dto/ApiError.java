@@ -36,6 +36,14 @@ public final class ApiError {
         return of(500, "Internal Server Error", message, path);
     }
 
+    public static ApiError forbidden(String message, String path) {
+        return of(403, "Forbidden", message, path);
+    }
+
+    public static ApiError conflict(String message, String path) {
+        return of(409, "Conflict", message, path);
+    }
+
     public int getStatus() {
         return status;
     }

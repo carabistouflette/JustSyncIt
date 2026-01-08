@@ -8,6 +8,7 @@ import java.util.List;
 public final class BackupRequest {
 
     private String sourcePath;
+    private List<String> sourcePaths;
     private String snapshotName;
     private String description;
     private int chunkSize;
@@ -28,6 +29,14 @@ public final class BackupRequest {
 
     public void setSourcePath(String sourcePath) {
         this.sourcePath = sourcePath;
+    }
+
+    public List<String> getSourcePaths() {
+        return sourcePaths;
+    }
+
+    public void setSourcePaths(List<String> sourcePaths) {
+        this.sourcePaths = sourcePaths;
     }
 
     public String getSnapshotName() {
