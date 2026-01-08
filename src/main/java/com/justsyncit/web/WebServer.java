@@ -13,7 +13,8 @@ import com.justsyncit.web.controller.SnapshotController;
 import com.justsyncit.web.controller.RestoreController;
 import com.justsyncit.web.controller.FileBrowserController;
 import com.justsyncit.web.controller.ConfigController;
-import com.justsyncit.web.controller.UserController;
+import com.justsyncit.web.controller.AuthController;
+import com.justsyncit.web.controller.NetworkController;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,8 +37,6 @@ public final class WebServer {
     private final AtomicBoolean running;
     private final ConcurrentHashMap<String, WsContext> wsClients;
     private Javalin app;
-    private UserController userController;
-    private java.util.concurrent.ScheduledExecutorService rateLimiterCleanup;
 
     /**
      * Creates a new web server with default port.
@@ -115,116 +114,60 @@ public final class WebServer {
                 }
             });
 
-            // Initialize User Controller
-            this.userController = new UserController(context.getAuthStore(), context.getAuthService());
-
-            // Security Configuration
-            configureSecurity(app);
-            configureRateLimiting(app);
-
-            // Clean up user sessions
-            rateLimiterCleanup = java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
-            rateLimiterCleanup.scheduleAtFixedRate(() -> {
-                try {
-                    if (userController != null) {
-                        userController.cleanup();
-                    }
-                } catch (Exception e) {
-                    LOGGER.warn("Session cleanup failed: {}", e.getMessage());
-                }
-            }, 1, 1, java.util.concurrent.TimeUnit.MINUTES);
-
-            // Admin-only endpoints
-            app.before("/api/users/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin");
-            });
-            app.before("/api/users", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin");
-            });
-
-            app.before("/api/config/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin");
-            });
-            app.before("/api/config", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin");
-            });
-            app.before("/api/schedules/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user");
-            });
-            app.before("/api/schedules", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user");
-            });
-            app.before("/api/backup/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user");
-            });
-            app.before("/api/backup", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user");
-            });
-            app.before("/api/restore/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user");
-            });
-            app.before("/api/restore", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user");
-            });
-            app.before("/api/snapshots/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                // DELETE requires admin/user, GET allows viewer too
-                if (ctx.method().toString().equals("DELETE")) {
-                    requireRole(ctx, "admin", "user");
-                } else {
-                    requireRole(ctx, "admin", "user", "viewer");
-                }
-            });
-            app.before("/api/snapshots", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user", "viewer");
-            });
-            app.before("/api/files/*", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user", "viewer");
-            });
-            app.before("/api/files", ctx -> {
-                if (ctx.method().toString().equals("OPTIONS"))
-                    return;
-                requireRole(ctx, "admin", "user", "viewer");
-            });
-
             // Configure WebSocket
             configureWebSocket();
 
             // Configure REST API routes
             configureRoutes();
 
-            // Handle SPA routing - serve index.html for unmatched routes
-            app.get("/{path}", ctx -> {
-                ctx.redirect("/");
+            // Handle SPA routing using error handler for 404s
+            app.error(404, ctx -> {
+                String path = ctx.path();
+                // Only serve index.html for non-API, non-static paths (SPA client routes)
+                if (!path.startsWith("/api/") && !path.contains(".")) {
+                    java.nio.file.Path indexPath = java.nio.file.Paths.get("web-ui/dist/index.html");
+                    if (java.nio.file.Files.exists(indexPath)) {
+                        ctx.status(200);
+                        ctx.contentType("text/html");
+                        try {
+                            ctx.result(java.nio.file.Files.readString(indexPath));
+                        } catch (java.io.IOException e) {
+                            ctx.result("Error reading index.html");
+                        }
+                        return;
+                    }
+                }
+                // Default 404 behavior for API routes and static files
+                ctx.result("Not Found: " + path);
+            });
+
+            // Authentication filter
+            app.before("/api/*", ctx -> {
+                String path = ctx.path();
+                // Allow setup, status, login and health without authentication
+                if (path.equals("/api/auth/status") || path.equals("/api/auth/login") || path.equals("/api/auth/setup")
+                        || path.equals("/api/health")) {
+                    return;
+                }
+
+                String authHeader = ctx.header("Authorization");
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                    String token = authHeader.substring(7);
+                    if (context.getAuthController() == null || !context.getAuthController().isValidSession(token)) {
+                        ctx.status(401).json(Map.of("error", "Unauthorized"));
+                    }
+                } else {
+                    ctx.status(401).json(Map.of("error", "Unauthorized"));
+                }
             });
 
             app.start(port);
             LOGGER.info("Web server started successfully at http://localhost:{}", port);
+            LOGGER.info("Registered API routes:");
+            LOGGER.info("  GET  /api/auth/status");
+            LOGGER.info("  POST /api/auth/setup");
+            LOGGER.info("  POST /api/auth/login");
+            LOGGER.info("  GET  /api/health");
         } else {
             LOGGER.warn("Web server is already running");
         }
@@ -239,9 +182,6 @@ public final class WebServer {
             if (app != null) {
                 app.stop();
                 app = null;
-            }
-            if (rateLimiterCleanup != null) {
-                rateLimiterCleanup.shutdownNow();
             }
             wsClients.clear();
             LOGGER.info("Web server stopped");
@@ -295,84 +235,21 @@ public final class WebServer {
     }
 
     private void configureWebSocket() {
-        // Track clients pending authentication (connected but not yet authenticated)
-        Map<String, Long> pendingAuth = new java.util.concurrent.ConcurrentHashMap<>();
-        final long AUTH_TIMEOUT_MS = 5000; // 5 seconds to authenticate
-
         app.ws("/ws", ws -> {
             ws.onConnect(ctx -> {
-                // Try Header first (preferred method for non-browser clients)
-                String token = ctx.header("X-Auth-Token");
-
-                if (token != null && !token.isEmpty()) {
-                    // Validate header token immediately
-                    if (userController.validateAndConsumeTicket(token) == null) {
-                        LOGGER.warn("WebSocket connection rejected: invalid or expired ticket");
-                        ctx.closeSession(4003, "Invalid token");
-                        return;
-                    }
-                    String clientId = ctx.sessionId();
-                    wsClients.put(clientId, ctx);
-                    LOGGER.info("WebSocket client connected (header auth): {}", clientId);
-                } else {
-                    // No header - require first message authentication
-                    // Mark as pending and set timeout
-                    pendingAuth.put(ctx.sessionId(), System.currentTimeMillis());
-                    LOGGER.debug("WebSocket client pending auth: {}", ctx.sessionId());
-                }
+                String clientId = ctx.sessionId();
+                wsClients.put(clientId, ctx);
+                LOGGER.info("WebSocket client connected: {}", clientId);
             });
 
             ws.onMessage(ctx -> {
                 String clientId = ctx.sessionId();
-
-                // Check if client is pending authentication
-                if (pendingAuth.containsKey(clientId)) {
-                    long connectTime = pendingAuth.remove(clientId);
-                    if (System.currentTimeMillis() - connectTime > AUTH_TIMEOUT_MS) {
-                        LOGGER.warn("WebSocket auth timeout: {}", clientId);
-                        ctx.closeSession(4002, "Authentication timeout");
-                        return;
-                    }
-
-                    // First message must be auth: {"type":"auth","ticket":"..."}
-                    try {
-                        String message = ctx.message();
-                        var authMsg = OBJECT_MAPPER.readTree(message);
-                        if (!"auth".equals(authMsg.path("type").asText())) {
-                            ctx.closeSession(4001, "First message must be authentication");
-                            return;
-                        }
-                        String ticket = authMsg.path("ticket").asText();
-                        if (ticket == null || ticket.isEmpty() ||
-                                userController.validateAndConsumeTicket(ticket) == null) {
-                            LOGGER.warn("WebSocket auth failed: invalid ticket");
-                            ctx.closeSession(4003, "Invalid token");
-                            return;
-                        }
-                        wsClients.put(clientId, ctx);
-                        ctx.send("{\"type\":\"auth_success\"}");
-                        LOGGER.info("WebSocket client authenticated (message auth): {}", clientId);
-                    } catch (Exception e) {
-                        LOGGER.warn("WebSocket auth parsing error: {}", e.getMessage());
-                        ctx.closeSession(4001, "Invalid auth message format");
-                    }
-                    return;
-                }
-
-                // Normal message handling for authenticated clients
-                if (!wsClients.containsKey(clientId)) {
-                    ctx.closeSession(4001, "Not authenticated");
-                    return;
-                }
-
-                // Normal message - log or forward to handlers
                 LOGGER.debug("WebSocket message from {}: {}", clientId, ctx.message());
             });
 
             ws.onClose(ctx -> {
                 String clientId = ctx.sessionId();
                 wsClients.remove(clientId);
-                pendingAuth.remove(clientId); // Clean up pending auth on disconnect
                 LOGGER.info("WebSocket client disconnected: {}", clientId);
             });
 
@@ -384,14 +261,17 @@ public final class WebServer {
 
     private void configureRoutes() {
         // Create controllers
+        AuthController authController = new AuthController(context.getMasterPasswordService());
+        context.setAuthController(authController);
+
         ConfigController configController = new ConfigController(context);
-        FileBrowserController fileBrowserController = new FileBrowserController(configController);
-        BackupController backupController = new BackupController(context, this);
+        FileBrowserController fileBrowserController = new FileBrowserController();
+        BackupController backupController = new BackupController(context, this, configController);
         SnapshotController snapshotController = new SnapshotController(context);
         RestoreController restoreController = new RestoreController(context, this, configController);
         com.justsyncit.web.controller.SchedulerController schedulerController = new com.justsyncit.web.controller.SchedulerController(
                 context);
-        // UserController is already initialized in start()
+        NetworkController networkController = new NetworkController(context);
 
         // Backup endpoints
         app.post("/api/backup", backupController::startBackup);
@@ -421,119 +301,26 @@ public final class WebServer {
         app.get("/api/files", fileBrowserController::browse);
         app.get("/api/files/search", fileBrowserController::search);
 
+        // Network endpoints
+        app.get("/api/network/stats", networkController::getNetworkStats);
+        app.get("/api/network/status", networkController::getNetworkStatus);
+
         // Config endpoints
         app.get("/api/config", configController::getConfig);
         app.put("/api/config", configController::updateConfig);
         app.get("/api/config/backup-sources", configController::getBackupSources);
         app.post("/api/config/backup-sources", configController::addBackupSource);
 
-        // User endpoints
-        app.get("/api/users", userController::listUsers);
-        app.post("/api/users", userController::createUser);
-        app.put("/api/users/{id}", userController::updateUser);
-        app.delete("/api/users/{id}", userController::deleteUser);
-
         // Auth endpoints
-        app.post("/api/auth/login", userController::login);
-        app.post("/api/auth/logout", userController::logout);
+        app.get("/api/auth/status", authController::getStatus);
+        app.post("/api/auth/setup", authController::setup);
+        app.post("/api/auth/login", authController::login);
+        app.post("/api/auth/logout", authController::logout);
 
         // Health check
         app.get("/api/health", ctx -> {
             ctx.json(java.util.Map.of("status", "ok", "timestamp", System.currentTimeMillis()));
         });
-    }
-
-    private void configureSecurity(Javalin app) {
-        // Auth Middleware
-        app.before("/api/*", ctx -> {
-            if (ctx.method().toString().equals("OPTIONS"))
-                return; // Allow CORS preflight
-
-            String path = ctx.path();
-
-            // Public endpoints - Using stricter matching
-            // [SEC-HARDENING] whitelist exact paths to prevent suffix attacks
-            if (path.equals("/api/auth/login") ||
-                    path.equals("/api/auth/logout") ||
-                    path.equals("/api/health")) {
-                return;
-            }
-
-            // Try Authorization header first, then cookie fallback
-            String authHeader = ctx.header("Authorization");
-            String token = null;
-
-            if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                token = authHeader.substring(7);
-            } else {
-                // Fallback to HttpOnly session cookie
-                token = ctx.cookie("session");
-            }
-
-            if (token == null || token.isEmpty()) {
-                ctx.status(401)
-                        .json(java.util.Map.of("error", "Unauthorized", "message",
-                                "Missing authentication"));
-                ctx.skipRemainingHandlers();
-                return;
-            }
-
-            if (!userController.isValidSession(token)) {
-                ctx.status(401)
-                        .json(java.util.Map.of("error", "Unauthorized", "message", "Invalid or expired token"));
-                ctx.skipRemainingHandlers();
-                return;
-            }
-        });
-    }
-
-    private void configureRateLimiting(Javalin app) {
-        // [SEC-003] Thread-safe rate limiter using atomic operations
-        // Max 1000 IPs tracked, 5 attempts per minute
-        RateLimiter loginRateLimiter = new RateLimiter(1000, 5, 60_000);
-
-        app.before("/api/auth/login", ctx -> {
-            if (ctx.method().toString().equals("OPTIONS"))
-                return;
-
-            String clientIp = ctx.ip();
-
-            if (!loginRateLimiter.checkAndIncrement(clientIp)) {
-                LOGGER.warn("Rate limit exceeded for IP: {}", clientIp);
-                ctx.status(429).json(java.util.Map.of(
-                        "error", "Too Many Requests",
-                        "message", "Rate limit exceeded. Try again in 1 minute."));
-                ctx.skipRemainingHandlers();
-            }
-        });
-    }
-
-    private void requireRole(io.javalin.http.Context ctx, String... allowedRoles) {
-        String authHeader = ctx.header("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return; // Auth middleware will handle this
-        }
-
-        String token = authHeader.substring(7);
-        String userId = userController.getUserIdForSession(token);
-        String userRole = userController.getUserRole(userId);
-
-        if (userRole == null) {
-            ctx.status(403).json(java.util.Map.of("error", "Forbidden",
-                    "message", "User role not found"));
-            ctx.skipRemainingHandlers();
-            return;
-        }
-
-        for (String role : allowedRoles) {
-            if (role.equals(userRole)) {
-                return; // Role matches, allow access
-            }
-        }
-
-        ctx.status(403).json(java.util.Map.of("error", "Forbidden",
-                "message", "Insufficient permissions. Required: " + java.util.Arrays.toString(allowedRoles)));
-        ctx.skipRemainingHandlers();
     }
 
     private String serializeToJson(Object data) {

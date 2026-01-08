@@ -5,8 +5,6 @@ import com.justsyncit.restore.RestoreService;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.hash.Blake3Service;
-import com.justsyncit.web.service.AuthService;
-import com.justsyncit.web.service.SqliteAuthStore;
 
 /**
  * Context object containing all services needed by web controllers.
@@ -19,10 +17,10 @@ public final class WebServerContext {
     private final ContentStore contentStore;
     private final MetadataService metadataService;
     private final Blake3Service blake3Service;
+    private final com.justsyncit.auth.MasterPasswordService masterPasswordService;
+    private com.justsyncit.web.controller.AuthController authController;
     private final com.justsyncit.scheduler.SchedulerService schedulerService;
-
-    private final SqliteAuthStore authStore;
-    private final AuthService authService;
+    private final com.justsyncit.network.NetworkService networkService;
 
     private WebServerContext(Builder builder) {
         this.backupService = builder.backupService;
@@ -30,9 +28,9 @@ public final class WebServerContext {
         this.contentStore = builder.contentStore;
         this.metadataService = builder.metadataService;
         this.blake3Service = builder.blake3Service;
+        this.masterPasswordService = builder.masterPasswordService;
         this.schedulerService = builder.schedulerService;
-        this.authStore = builder.authStore;
-        this.authService = builder.authService;
+        this.networkService = builder.networkService;
     }
 
     /**
@@ -44,7 +42,14 @@ public final class WebServerContext {
         return schedulerService;
     }
 
-    // ... existing getters ...
+    /**
+     * Returns the network service.
+     *
+     * @return the network service
+     */
+    public com.justsyncit.network.NetworkService getNetworkService() {
+        return networkService;
+    }
 
     /**
      * Returns the backup service.
@@ -91,12 +96,31 @@ public final class WebServerContext {
         return blake3Service;
     }
 
-    public SqliteAuthStore getAuthStore() {
-        return authStore;
+    /**
+     * Returns the master password service.
+     *
+     * @return the master password service
+     */
+    public com.justsyncit.auth.MasterPasswordService getMasterPasswordService() {
+        return masterPasswordService;
     }
 
-    public AuthService getAuthService() {
-        return authService;
+    /**
+     * Returns the auth controller.
+     *
+     * @return the auth controller
+     */
+    public com.justsyncit.web.controller.AuthController getAuthController() {
+        return authController;
+    }
+
+    /**
+     * Sets the auth controller.
+     *
+     * @param authController the auth controller
+     */
+    public void setAuthController(com.justsyncit.web.controller.AuthController authController) {
+        this.authController = authController;
     }
 
     /**
@@ -117,9 +141,9 @@ public final class WebServerContext {
         private ContentStore contentStore;
         private MetadataService metadataService;
         private Blake3Service blake3Service;
+        private com.justsyncit.auth.MasterPasswordService masterPasswordService;
         private com.justsyncit.scheduler.SchedulerService schedulerService;
-        private SqliteAuthStore authStore;
-        private AuthService authService;
+        private com.justsyncit.network.NetworkService networkService;
 
         private Builder() {
         }
@@ -180,6 +204,17 @@ public final class WebServerContext {
         }
 
         /**
+         * Sets the master password service.
+         *
+         * @param masterPasswordService the master password service
+         * @return this builder
+         */
+        public Builder withMasterPasswordService(com.justsyncit.auth.MasterPasswordService masterPasswordService) {
+            this.masterPasswordService = masterPasswordService;
+            return this;
+        }
+
+        /**
          * Sets the scheduler service.
          *
          * @param schedulerService the scheduler service
@@ -190,13 +225,14 @@ public final class WebServerContext {
             return this;
         }
 
-        public Builder withAuthStore(SqliteAuthStore authStore) {
-            this.authStore = authStore;
-            return this;
-        }
-
-        public Builder withAuthService(AuthService authService) {
-            this.authService = authService;
+        /**
+         * Sets the network service.
+         *
+         * @param networkService the network service
+         * @return this builder
+         */
+        public Builder withNetworkService(com.justsyncit.network.NetworkService networkService) {
+            this.networkService = networkService;
             return this;
         }
 
