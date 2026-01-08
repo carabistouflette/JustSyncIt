@@ -4,8 +4,6 @@ import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.web.WebServer;
 import com.justsyncit.web.WebServerContext;
-import com.justsyncit.web.service.AuthService;
-import com.justsyncit.web.service.SqliteAuthStore;
 import com.justsyncit.scheduler.SchedulerService;
 import com.justsyncit.backup.BackupService;
 import com.justsyncit.restore.RestoreService;
@@ -19,6 +17,8 @@ import java.util.concurrent.CountDownLatch;
 /**
  * Command to start the web server for the management interface.
  * Usage: justsyncit web start [--port 8080]
+ * 
+ * Note: This server runs without authentication for single-user deployments.
  */
 public final class WebStartCommand implements Command {
 
@@ -95,13 +95,12 @@ public final class WebStartCommand implements Command {
                 return false;
             }
 
-            // Retrieve additional services from context
+            // Retrieve scheduler service from context
             SchedulerService schedulerService = context.getSchedulerService();
-            SqliteAuthStore authStore = context.getAuthStore();
-            AuthService authService = context.getAuthService();
+            com.justsyncit.network.NetworkService networkService = context.getNetworkService();
 
-            if (schedulerService == null || authStore == null || authService == null) {
-                System.err.println("Error: Web services (Scheduler, Auth) not available in command context.");
+            if (schedulerService == null) {
+                System.err.println("Error: Scheduler service not available in command context.");
                 return false;
             }
 
@@ -115,8 +114,8 @@ public final class WebStartCommand implements Command {
                     .withBackupService(backupService)
                     .withRestoreService(restoreService)
                     .withSchedulerService(schedulerService)
-                    .withAuthStore(authStore)
-                    .withAuthService(authService)
+                    .withNetworkService(networkService)
+                    .withMasterPasswordService(context.getMasterPasswordService())
                     .build();
             runningServer = new WebServer(port, webContext);
             runningServer.start();

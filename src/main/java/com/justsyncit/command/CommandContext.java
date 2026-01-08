@@ -6,14 +6,12 @@ import com.justsyncit.storage.metadata.MetadataService;
 import com.justsyncit.storage.ContentStore;
 import com.justsyncit.backup.BackupService;
 import com.justsyncit.scheduler.SchedulerService;
-import com.justsyncit.web.service.AuthService;
-import com.justsyncit.web.service.SqliteAuthStore;
+import com.justsyncit.auth.MasterPasswordService;
 
 /**
  * Context object that provides services to commands.
  * Follows Dependency Inversion Principle by providing abstractions to commands.
  */
-
 public class CommandContext {
 
     /** BLAKE3 service instance (required). */
@@ -37,11 +35,8 @@ public class CommandContext {
     /** Scheduler service instance (optional). */
     private final SchedulerService schedulerService;
 
-    /** Auth service instance (optional). */
-    private final AuthService authService;
-
-    /** Auth store instance (optional). */
-    private final SqliteAuthStore authStore;
+    /** Master password service instance (optional). */
+    private final MasterPasswordService masterPasswordService;
 
     /**
      * Creates a new CommandContext with the provided services.
@@ -51,21 +46,21 @@ public class CommandContext {
      * @throws IllegalArgumentException if blake3Service is null
      */
     public CommandContext(Blake3Service blake3Service) {
-        this(blake3Service, null, null, null, null, null, null, null, null);
+        this(blake3Service, null, null, null, null, null, null, null);
     }
 
     /**
      * Creates a new CommandContext with all provided services.
      *
-     * @param blake3Service    the BLAKE3 service (required)
-     * @param networkService   the network service (optional, may be null)
-     * @param metadataService  the metadata service (optional, may be null)
-     * @param contentStore     the content store (optional, may be null)
-     * @param restoreService   the restore service (optional, may be null)
-     * @param backupService    the backup service (optional, may be null)
-     * @param schedulerService the scheduler service (optional, may be null)
-     * @param authService      the auth service (optional, may be null)
-     * @param authStore        the auth store (optional, may be null)
+     * @param blake3Service         the BLAKE3 service (required)
+     * @param networkService        the network service (optional, may be null)
+     * @param metadataService       the metadata service (optional, may be null)
+     * @param contentStore          the content store (optional, may be null)
+     * @param restoreService        the restore service (optional, may be null)
+     * @param backupService         the backup service (optional, may be null)
+     * @param schedulerService      the scheduler service (optional, may be null)
+     * @param masterPasswordService the master password service (optional, may be
+     *                              null)
      * @throws IllegalArgumentException if blake3Service is null
      */
     public CommandContext(Blake3Service blake3Service, NetworkService networkService,
@@ -73,8 +68,7 @@ public class CommandContext {
             com.justsyncit.restore.RestoreService restoreService,
             BackupService backupService,
             SchedulerService schedulerService,
-            AuthService authService,
-            SqliteAuthStore authStore) {
+            MasterPasswordService masterPasswordService) {
         if (blake3Service == null) {
             throw new IllegalArgumentException("blake3Service cannot be null");
         }
@@ -85,14 +79,13 @@ public class CommandContext {
         this.restoreService = restoreService;
         this.backupService = backupService;
         this.schedulerService = schedulerService;
-        this.authService = authService;
-        this.authStore = authStore;
+        this.masterPasswordService = masterPasswordService;
     }
 
     // Backward compatible constructor
     public CommandContext(Blake3Service blake3Service, NetworkService networkService,
             MetadataService metadataService, ContentStore contentStore) {
-        this(blake3Service, networkService, metadataService, contentStore, null, null, null, null, null);
+        this(blake3Service, networkService, metadataService, contentStore, null, null, null, null);
     }
 
     // Backward compatible constructor (Backup+Restore)
@@ -100,8 +93,7 @@ public class CommandContext {
             MetadataService metadataService, ContentStore contentStore,
             com.justsyncit.restore.RestoreService restoreService,
             BackupService backupService) {
-        this(blake3Service, networkService, metadataService, contentStore, restoreService, backupService, null, null,
-                null);
+        this(blake3Service, networkService, metadataService, contentStore, restoreService, backupService, null, null);
     }
 
     /**
@@ -111,8 +103,7 @@ public class CommandContext {
      */
     private CommandContext(Builder builder) {
         this(builder.blake3Service, builder.networkService, builder.metadataService, builder.contentStore,
-                builder.restoreService, builder.backupService, builder.schedulerService, builder.authService,
-                builder.authStore);
+                builder.restoreService, builder.backupService, builder.schedulerService, builder.masterPasswordService);
     }
 
     /**
@@ -179,21 +170,12 @@ public class CommandContext {
     }
 
     /**
-     * Gets the auth service.
+     * Gets the master password service.
      *
-     * @return the auth service (may be null)
+     * @return the master password service (may be null)
      */
-    public AuthService getAuthService() {
-        return authService;
-    }
-
-    /**
-     * Gets the auth store.
-     *
-     * @return the auth store (may be null)
-     */
-    public SqliteAuthStore getAuthStore() {
-        return authStore;
+    public MasterPasswordService getMasterPasswordService() {
+        return masterPasswordService;
     }
 
     /**
@@ -219,8 +201,7 @@ public class CommandContext {
         private com.justsyncit.restore.RestoreService restoreService;
         private BackupService backupService;
         private SchedulerService schedulerService;
-        private AuthService authService;
-        private SqliteAuthStore authStore;
+        private MasterPasswordService masterPasswordService;
 
         /**
          * Creates a new builder with the required BLAKE3 service.
@@ -228,7 +209,6 @@ public class CommandContext {
          * @param blake3Service the BLAKE3 service (required)
          * @throws IllegalArgumentException if blake3Service is null
          */
-
         public Builder(Blake3Service blake3Service) {
             if (blake3Service == null) {
                 throw new IllegalArgumentException("blake3Service cannot be null");
@@ -242,7 +222,6 @@ public class CommandContext {
          * @param networkService the network service
          * @return this builder
          */
-
         public Builder networkService(NetworkService networkService) {
             this.networkService = networkService;
             return this;
@@ -304,24 +283,13 @@ public class CommandContext {
         }
 
         /**
-         * Sets the auth service.
+         * Sets the master password service.
          *
-         * @param authService the auth service
+         * @param masterPasswordService the master password service
          * @return this builder
          */
-        public Builder authService(AuthService authService) {
-            this.authService = authService;
-            return this;
-        }
-
-        /**
-         * Sets the auth store.
-         *
-         * @param authStore the auth store
-         * @return this builder
-         */
-        public Builder authStore(SqliteAuthStore authStore) {
-            this.authStore = authStore;
+        public Builder masterPasswordService(MasterPasswordService masterPasswordService) {
+            this.masterPasswordService = masterPasswordService;
             return this;
         }
 

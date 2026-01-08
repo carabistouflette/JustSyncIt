@@ -27,7 +27,7 @@ public final class CommandRegistry {
         register(new SnapshotsCommandGroup());
 
         // Register new network operation commands
-        register(new ServerCommandGroup(null, null, null, null));
+        register(new ServerCommandGroup());
         register(new com.justsyncit.command.TransferCommand(null)); // Will be injected properly
         register(new com.justsyncit.command.SyncCommand(null)); // Will be injected properly
 

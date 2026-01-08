@@ -52,7 +52,7 @@ public class ServerCommandGroup implements Command {
         this.startCommand = startCommand;
         this.stopCommand = stopCommand;
         this.statusCommand = statusCommand;
-        this.console = console;
+        this.console = console != null ? console : new com.justsyncit.ConsoleInfoDisplay();
     }
 
     @Override

@@ -29,11 +29,7 @@ import com.justsyncit.storage.ContentStore;
 import com.justsyncit.storage.ContentStoreFactory;
 import com.justsyncit.storage.HealingContentStore;
 import com.justsyncit.storage.StorageFactory;
-import com.justsyncit.storage.metadata.DatabaseConnectionManager;
 import com.justsyncit.storage.metadata.MetadataService;
-import com.justsyncit.storage.metadata.SqliteConnectionManager;
-import com.justsyncit.web.service.AuthService;
-import com.justsyncit.web.service.SqliteAuthStore;
 
 /**
  * Factory for creating application services and managing dependencies.
@@ -49,11 +45,10 @@ public class ServiceFactory {
 
     // Singleton instances
     private SchedulerService schedulerService;
-    private SqliteAuthStore authStore;
-    private AuthService authService;
     private BackupService backupService;
     private RestoreService restoreService;
     private MetadataService metadataService;
+    private com.justsyncit.auth.MasterPasswordService masterPasswordService;
 
     public ServiceFactory() {
         this.securityModule = new SecurityModule();
@@ -61,6 +56,7 @@ public class ServiceFactory {
         this.commandModule = new CommandModule();
         this.storageFactory = new StorageFactory();
         this.networkFactory = new NetworkFactory(this.securityModule);
+        this.networkFactory.setMasterPasswordService(createMasterPasswordService());
     }
 
     /**
@@ -98,10 +94,7 @@ public class ServiceFactory {
 
             // Create additional services for Web/Full context
             SchedulerService scheduler = createSchedulerService(backupService);
-
-            String authDbPath = System.getProperty("justsyncit.auth.db.path", "config/auth.db");
-            SqliteAuthStore authStore = createAuthStore(authDbPath);
-            AuthService auth = createAuthService(authStore);
+            NetworkService networkService = createNetworkService(blake3Service);
 
             return CommandContext.builder(blake3Service)
                     .metadataService(metadataService)
@@ -109,8 +102,8 @@ public class ServiceFactory {
                     .restoreService(restoreService)
                     .backupService(backupService)
                     .schedulerService(scheduler)
-                    .authStore(authStore)
-                    .authService(auth)
+                    .networkService(networkService)
+                    .masterPasswordService(createMasterPasswordService())
                     .build();
         } catch (IOException e) {
             throw new ServiceException("Failed to create default command context", e);
@@ -153,6 +146,13 @@ public class ServiceFactory {
         return metadataService;
     }
 
+    public synchronized com.justsyncit.auth.MasterPasswordService createMasterPasswordService() {
+        if (masterPasswordService == null) {
+            masterPasswordService = new com.justsyncit.auth.MasterPasswordService();
+        }
+        return masterPasswordService;
+    }
+
     public MetadataService createMetadataService(String databasePath) throws ServiceException {
         return storageFactory.createMetadataService(databasePath);
     }
@@ -163,23 +163,6 @@ public class ServiceFactory {
 
     public ContentStore createSqliteContentStore(Blake3Service blake3Service) throws ServiceException {
         return storageFactory.createSqliteContentStore(blake3Service);
-    }
-
-    // --- Web / Auth Services ---
-
-    public synchronized SqliteAuthStore createAuthStore(String databasePath) throws IOException {
-        if (authStore == null) {
-            DatabaseConnectionManager cm = new SqliteConnectionManager(databasePath, 10);
-            authStore = new SqliteAuthStore(cm);
-        }
-        return authStore;
-    }
-
-    public synchronized AuthService createAuthService(SqliteAuthStore authStore) {
-        if (authService == null) {
-            authService = new AuthService(authStore);
-        }
-        return authService;
     }
 
     // --- Network Factory Delegates ---

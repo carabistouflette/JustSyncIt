@@ -20,6 +20,7 @@ public class BackupOptions {
     private final int chunkSize;
     private final int maxDepth;
     private final String snapshotName;
+    private final java.util.List<String> excludePatterns;
     private final String description;
 
     // Network options for remote backup
@@ -34,6 +35,8 @@ public class BackupOptions {
         this.chunkSize = builder.chunkSize;
         this.maxDepth = builder.maxDepth;
         this.snapshotName = builder.snapshotName;
+        this.excludePatterns = builder.excludePatterns != null ? java.util.List.copyOf(builder.excludePatterns)
+                : java.util.List.of();
         this.description = builder.description;
         this.remoteBackup = builder.remoteBackup;
         this.remoteAddress = builder.remoteAddress;
@@ -62,6 +65,10 @@ public class BackupOptions {
 
     public String getSnapshotName() {
         return snapshotName;
+    }
+
+    public java.util.List<String> getExcludePatterns() {
+        return excludePatterns;
     }
 
     public String getDescription() {
@@ -96,6 +103,7 @@ public class BackupOptions {
                 && remoteBackup == that.remoteBackup
                 && symlinkStrategy == that.symlinkStrategy
                 && Objects.equals(snapshotName, that.snapshotName)
+                && Objects.equals(excludePatterns, that.excludePatterns)
                 && Objects.equals(description, that.description)
                 && Objects.equals(remoteAddress, that.remoteAddress)
                 && transportType == that.transportType;
@@ -104,6 +112,7 @@ public class BackupOptions {
     @Override
     public int hashCode() {
         return Objects.hash(symlinkStrategy, includeHiddenFiles, verifyIntegrity, chunkSize, maxDepth, snapshotName,
+                excludePatterns,
                 description, remoteBackup, remoteAddress, transportType);
     }
 
@@ -116,6 +125,7 @@ public class BackupOptions {
                 + ", chunkSize=" + chunkSize
                 + ", maxDepth=" + maxDepth
                 + ", snapshotName='" + snapshotName + '\''
+                + ", excludePatterns=" + excludePatterns
                 + ", description='" + description + '\''
                 + ", remoteBackup=" + remoteBackup
                 + ", remoteAddress=" + remoteAddress
@@ -130,6 +140,7 @@ public class BackupOptions {
         private int chunkSize = 64 * 1024; // 64KB default
         private int maxDepth = Integer.MAX_VALUE; // Unlimited depth by default
         private String snapshotName;
+        private java.util.List<String> excludePatterns = new java.util.ArrayList<>();
         private String description;
 
         // Network options with defaults
@@ -170,6 +181,11 @@ public class BackupOptions {
 
         public Builder snapshotName(String snapshotName) {
             this.snapshotName = snapshotName;
+            return this;
+        }
+
+        public Builder excludePatterns(java.util.List<String> excludePatterns) {
+            this.excludePatterns = excludePatterns;
             return this;
         }
 
