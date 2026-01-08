@@ -28,11 +28,14 @@ import org.slf4j.LoggerFactory;
 public final class BackupController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BackupController.class);
+    private static final int MAX_HISTORY_SIZE = 100;
+    private static final long BROADCAST_THROTTLE_MS = 250;
 
     private final WebServerContext context;
     private final WebServer webServer;
     private final ConfigController configController;
     private final AtomicReference<BackupState> currentBackup;
+    private final AtomicReference<CompletableFuture<?>> backupFuture;
     private final List<BackupHistoryEntry> backupHistory;
 
     public BackupController(WebServerContext context, WebServer webServer, ConfigController configController) {
@@ -40,6 +43,7 @@ public final class BackupController {
         this.webServer = webServer;
         this.configController = configController;
         this.currentBackup = new AtomicReference<>();
+        this.backupFuture = new AtomicReference<>();
         this.backupHistory = new CopyOnWriteArrayList<>();
     }
 
@@ -101,8 +105,12 @@ public final class BackupController {
             BackupService backupService = context.getBackupService();
 
             // 4. Start Async Backup
-            CompletableFuture.runAsync(() -> {
+            CompletableFuture<?> future = CompletableFuture.runAsync(() -> {
                 try {
+                    // Check for cancellation before starting
+                    if (Thread.currentThread().isInterrupted() || "cancelled".equals(newState.getStatus())) {
+                        return;
+                    }
                     newState.setStatus("running");
                     webServer.broadcast("backup:started", Map.of("snapshotId", newState.getSnapshotId()));
 
@@ -124,8 +132,13 @@ public final class BackupController {
                         newState.setCurrentFile(processor.getCurrentFile());
                         newState.setCurrentActivity(processor.getCurrentActivity());
 
+                        // Check for cancellation during processing
+                        if (Thread.currentThread().isInterrupted() || "cancelled".equals(newState.getStatus())) {
+                            throw new java.util.concurrent.CancellationException("Backup cancelled by user");
+                        }
+
                         long now = System.currentTimeMillis();
-                        if (now - lastBroadcast.get() > 100) {
+                        if (now - lastBroadcast.get() > BROADCAST_THROTTLE_MS) {
                             lastBroadcast.set(now);
                             webServer.broadcast("backup:progress", Map.of(
                                     "snapshotId", newState.getSnapshotId(),
@@ -140,20 +153,27 @@ public final class BackupController {
 
                     newState.setStatus("completed");
                     newState.setCompletedAt(System.currentTimeMillis());
-                    backupHistory.add(new BackupHistoryEntry(newState.getSnapshotId(), "completed",
+                    addHistoryEntry(new BackupHistoryEntry(newState.getSnapshotId(), "completed",
                             newState.getFilesProcessed(), newState.getBytesProcessed(), newState.getCompletedAt()));
                     webServer.broadcast("backup:completed", Map.of("snapshotId", newState.getSnapshotId()));
 
+                } catch (java.util.concurrent.CancellationException e) {
+                    LOGGER.info("Backup cancelled: {}", newState.getSnapshotId());
+                    newState.setStatus("cancelled");
+                    addHistoryEntry(new BackupHistoryEntry(newState.getSnapshotId(), "cancelled",
+                            newState.getFilesProcessed(), newState.getBytesProcessed(), System.currentTimeMillis()));
+                    webServer.broadcast("backup:cancelled", Map.of("snapshotId", newState.getSnapshotId()));
                 } catch (Exception e) {
                     LOGGER.error("Backup background process failed", e);
                     newState.setStatus("failed");
                     newState.setError(e.getMessage());
-                    backupHistory.add(new BackupHistoryEntry(newState.getSnapshotId(), "failed",
+                    addHistoryEntry(new BackupHistoryEntry(newState.getSnapshotId(), "failed",
                             newState.getFilesProcessed(), newState.getBytesProcessed(), System.currentTimeMillis()));
                     webServer.broadcast("backup:failed",
                             Map.of("snapshotId", newState.getSnapshotId(), "error", e.getMessage()));
                 }
             });
+            backupFuture.set(future);
 
             ctx.status(202).json(Map.of("message", "Backup started", "snapshotId", newState.getSnapshotId()));
 
@@ -222,9 +242,27 @@ public final class BackupController {
             return;
         }
 
+        // Mark as cancelled and attempt to cancel the future
         state.setStatus("cancelled");
+        CompletableFuture<?> future = backupFuture.get();
+        if (future != null) {
+            boolean cancelled = future.cancel(true);
+            LOGGER.info("Backup cancellation requested for {}, future.cancel returned: {}",
+                    state.getSnapshotId(), cancelled);
+        }
         webServer.broadcast("backup:cancelled", Map.of("snapshotId", state.getSnapshotId()));
-        ctx.json(Map.of("status", "cancelled", "message", "Backup cancelled"));
+        ctx.json(Map.of("status", "cancelled", "message", "Backup cancellation requested"));
+    }
+
+    /**
+     * Adds a history entry while enforcing maximum history size.
+     */
+    private void addHistoryEntry(BackupHistoryEntry entry) {
+        backupHistory.add(entry);
+        // Trim oldest entries if exceeding limit
+        while (backupHistory.size() > MAX_HISTORY_SIZE) {
+            backupHistory.remove(0);
+        }
     }
 
     // Internal state classes
