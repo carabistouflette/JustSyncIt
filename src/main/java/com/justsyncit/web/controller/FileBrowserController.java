@@ -45,6 +45,14 @@ public final class FileBrowserController {
 
             Path path = Paths.get(pathParam).toAbsolutePath().normalize();
 
+            // Security check - Restrict to user home
+            Path userHome = Paths.get(System.getProperty("user.home")).toAbsolutePath().normalize();
+            if (!path.startsWith(userHome)) {
+                ctx.status(403)
+                        .json(ApiError.forbidden("Access denied: Path must be within user home directory", ctx.path()));
+                return;
+            }
+
             // Security check - Authentication is handled by WebServer
             // We rely on OS-level permissions for access control
 
@@ -127,6 +135,14 @@ public final class FileBrowserController {
             }
 
             Path searchPath = Paths.get(basePath).toAbsolutePath().normalize();
+
+            // Security check - Restrict to user home
+            Path userHome = Paths.get(System.getProperty("user.home")).toAbsolutePath().normalize();
+            if (!searchPath.startsWith(userHome)) {
+                ctx.status(403)
+                        .json(ApiError.forbidden("Access denied: Path must be within user home directory", ctx.path()));
+                return;
+            }
 
             if (!Files.exists(searchPath) || !Files.isDirectory(searchPath)) {
                 ctx.status(404).json(ApiError.notFound("Directory not found: " + searchPath, ctx.path()));
