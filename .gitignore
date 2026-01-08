@@ -91,3 +91,5 @@ temp/
 # Local configuration
 config/users.json
 config/auth.db
+*.db-wal
+*.db-shm
