@@ -25,8 +25,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class SchedulerService {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerService.class.getName());
-    private static final String STORAGE_FILE = "storage/schedules.json";
+    private static final Logger LOGGER = LoggerFactory.getLogger(SchedulerService.class);
+    private static final String DEFAULT_STORAGE_FILE = "storage/schedules.json";
+
+    private final String storagePath;
 
     private final BackupService backupService;
     private final ScheduledExecutorService executorService;
@@ -37,7 +39,17 @@ public class SchedulerService {
 
     public SchedulerService(BackupService backupService) {
         this.backupService = backupService;
-        this.executorService = Executors.newScheduledThreadPool(2); // Initial pool
+        // Use available processors for thread pool size, minimum 2
+        int corePoolSize = Math.max(2, Runtime.getRuntime().availableProcessors());
+        this.executorService = Executors.newScheduledThreadPool(corePoolSize);
+
+        // Configure storage path from environment/system property with fallback
+        String envPath = System.getenv("JUSTSYNCIT_SCHEDULER_STORAGE");
+        if (envPath == null || envPath.isBlank()) {
+            envPath = System.getProperty("justsyncit.scheduler.storage");
+        }
+        this.storagePath = (envPath != null && !envPath.isBlank()) ? envPath : DEFAULT_STORAGE_FILE;
+
         this.schedules = new ConcurrentHashMap<>();
         this.activeTasks = new ConcurrentHashMap<>();
         this.objectMapper = new ObjectMapper();
@@ -199,7 +211,7 @@ public class SchedulerService {
     }
 
     private void loadSchedules() {
-        File file = new File(STORAGE_FILE);
+        File file = new File(storagePath);
         if (file.exists()) {
             try {
                 List<BackupSchedule> list = objectMapper.readValue(file, new TypeReference<List<BackupSchedule>>() {
@@ -214,7 +226,7 @@ public class SchedulerService {
 
     private void saveSchedules() {
         try {
-            File file = new File(STORAGE_FILE);
+            File file = new File(storagePath);
             if (file.getParentFile() != null)
                 file.getParentFile().mkdirs();
             objectMapper.writeValue(file, new ArrayList<>(schedules.values()));
