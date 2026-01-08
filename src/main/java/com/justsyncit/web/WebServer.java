@@ -161,8 +161,9 @@ public final class WebServer {
                 }
             });
 
-            app.start(port);
-            LOGGER.info("Web server started successfully at http://localhost:{}", port);
+            // Bind strictly to localhost for security
+            app.start("127.0.0.1", port);
+            LOGGER.info("Web server started successfully at http://127.0.0.1:{}", port);
             LOGGER.info("Registered API routes:");
             LOGGER.info("  GET  /api/auth/status");
             LOGGER.info("  POST /api/auth/setup");
