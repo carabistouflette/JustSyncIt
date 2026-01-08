@@ -165,26 +165,6 @@ class FixedSizeFileChunkerTest {
     }
 
     @Test
-    void testStoreChunk() {
-        byte[] data = "test data".getBytes(java.nio.charset.StandardCharsets.UTF_8);
-
-        assertThrows(UnsupportedOperationException.class,
-                () -> chunker.storeChunk(data));
-    }
-
-    @Test
-    void testRetrieveChunkNotImplemented() {
-        assertThrows(UnsupportedOperationException.class,
-                () -> chunker.retrieveChunk("testhash"));
-    }
-
-    @Test
-    void testExistsChunkNotImplemented() {
-        assertThrows(UnsupportedOperationException.class,
-                () -> chunker.existsChunk("testhash"));
-    }
-
-    @Test
     void testSetChunkSize() {
         int newChunkSize = 32 * 1024; // 32KB
         chunker.setChunkSize(newChunkSize);

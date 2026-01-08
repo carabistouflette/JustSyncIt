@@ -165,28 +165,6 @@ public class MockAsyncFileChunker implements AsyncFileChunker {
     }
 
     @Override
-    public String storeChunk(byte[] data) {
-        String chunkId = "mock-chunk-" + data.hashCode();
-        chunkHistory.add(chunkId);
-        return chunkId;
-    }
-
-    @Override
-    public byte[] retrieveChunk(String hash) {
-        return new byte[0]; // Mock empty data
-    }
-
-    @Override
-    public boolean existsChunk(String hash) {
-        return chunkHistory.contains(hash);
-    }
-
-    @Override
-    public void deleteChunk(String hash) {
-        chunkHistory.remove(hash);
-    }
-
-    @Override
     public CompletableFuture<ChunkingResult> chunkFile(Path file, ChunkingOptions options) {
         return chunkFileAsync(file, options);
     }

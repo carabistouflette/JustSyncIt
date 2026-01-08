@@ -8,7 +8,6 @@ import org.mockito.ArgumentCaptor;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -92,10 +91,6 @@ class BatchAwareAsyncFileChunkerTest {
         BatchOperation op = opCaptor.getValue();
         long memoryReq = op.getResourceRequirements().memoryBytes;
         long fileSize = Files.size(largeFile);
-
-        // absurdity: memoryReq ~= fileSize.
-        // We expect memoryReq << fileSize (e.g. around default chunk size *
-        // concurrency)
 
         assertTrue(memoryReq < fileSize / 2,
                 String.format("Memory requirement (%d) should be much less than file size (%d)", memoryReq, fileSize));

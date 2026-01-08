@@ -979,26 +979,6 @@ public final class AsyncTestUtils {
         }
 
         @Override
-        public String storeChunk(byte[] data) {
-            return "mock-chunk-" + data.hashCode();
-        }
-
-        @Override
-        public byte[] retrieveChunk(String hash) {
-            return new byte[0];
-        }
-
-        @Override
-        public boolean existsChunk(String hash) {
-            return false;
-        }
-
-        @Override
-        public void deleteChunk(String hash) {
-            throw new UnsupportedOperationException("Deletions not supported in mock");
-        }
-
-        @Override
         public CompletableFuture<ChunkingResult> chunkFile(Path file, ChunkingOptions options) {
             return chunkFileAsync(file, options);
         }
