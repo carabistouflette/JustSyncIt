@@ -9,9 +9,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Factory for creating incremental hashers.
- * Note: Despite the class name containing "Blake3", this factory currently
- * supports SHA-256
- * as a fallback until a true BLAKE3 implementation is available.
+ * Supports creating hashers for different algorithms based on the prototype
+ * provided.
  * Follows Single Responsibility Principle by focusing only on factory
  * operations.
  */
