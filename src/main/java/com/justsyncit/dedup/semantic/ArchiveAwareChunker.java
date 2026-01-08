@@ -59,28 +59,6 @@ public class ArchiveAwareChunker implements FileChunker {
         return delegate.getChunkSize();
     }
 
-    public String storeChunk(byte[] data) throws IOException {
-        return delegate.storeChunk(data);
-    }
-
-    public byte[] retrieveChunk(String hash) throws IOException {
-        try {
-            return delegate.retrieveChunk(hash);
-        } catch (Exception e) {
-            throw new IOException("Failed to retrieve chunk", e);
-        }
-    }
-
-    @Override
-    public boolean existsChunk(String hash) throws IOException {
-        return delegate.existsChunk(hash);
-    }
-
-    @Override
-    public void deleteChunk(String hash) throws IOException {
-        delegate.deleteChunk(hash);
-    }
-
     public void close() {
         if (delegate instanceof com.justsyncit.scanner.FastCDCFileChunker) {
             ((com.justsyncit.scanner.FastCDCFileChunker) delegate).close();
