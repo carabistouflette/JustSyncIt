@@ -284,10 +284,12 @@ public class ReedSolomonService {
                     return false;
                 }
 
-                // Important: We must delete the corrupt chunk first to ensure we overwrite it,
-                // bypassing any deduplication checks in the content store.
-                // NOW SAFE: Verified that we have the CORRECT data.
-                chunkStore.deleteChunk(missingChunkHash);
+                // CRITICAL FIX: Do NOT delete the corrupt chunk before storing and verifying
+                // the new one.
+                // A crash here would cause permanent data loss.
+                // strict-mode: allowed implicit overwrite or handle specific store semantics
+
+                // chunkStore.deleteChunk(missingChunkHash); // REMOVED PREMATURE DELETION
 
                 String recoveredHash = chunkStore.storeChunk(recoveredData);
                 logger.debug("Stored recovered data. Hash: {} Expected: {}", recoveredHash, missingChunkHash);
