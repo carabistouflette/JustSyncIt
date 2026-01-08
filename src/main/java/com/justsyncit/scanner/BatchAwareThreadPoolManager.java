@@ -517,12 +517,23 @@ public final class BatchAwareThreadPoolManager {
     // Helper methods
 
     /**
-     * Determines if a task is small enough to bypass batch processing.
+     * Determines if a task is small enough or generic enough to bypass batch
+     * processing.
+     * Generic Callables without file context should bypass the batch processor
+     * since
+     * processOperation requires files. The batch processor is designed for
+     * file-based
+     * operations like CHUNKING, HASHING, etc.
+     * 
+     * @param task the task to evaluate
+     * @return true if the task should bypass batch processing
      */
     private boolean isSmallTask(Callable<?> task) {
-        // Simple heuristic based on task class name
-        String className = task.getClass().getSimpleName();
-        return className.contains("Small") || className.contains("Quick") || className.contains("Fast");
+        // All generic Callable tasks should bypass batch processing because:
+        // 1. BatchOperation requires a non-empty file list
+        // 2. processOperation executes file-based operations, causing double-work
+        // 3. The delegate thread pool is sufficient for generic CPU/IO tasks
+        return true;
     }
 
     /**
@@ -551,7 +562,7 @@ public final class BatchAwareThreadPoolManager {
         BatchOperation.ResourceRequirements requirements = new BatchOperation.ResourceRequirements(
                 2 * 1024 * 1024, // 2MB memory for I/O task
                 1, // 1 CPU core
-                50, // 50MB/s I/O bandwidth
+                1, // 1MB/s I/O bandwidth (nominal to avoid throttling)
                 (long) batchConfig.getBatchTimeoutSeconds() * 1500 // 1.5x timeout for I/O
         );
 
