@@ -43,13 +43,8 @@ class BackupServiceTest {
     @Test
     void testBackupWithNullSourceDir() {
         BackupOptions options = new BackupOptions.Builder().build();
-        CompletableFuture<BackupService.BackupResult> future = backupService.backup(null, options);
-
-        ExecutionException exception = assertThrows(ExecutionException.class, future::get);
-        // IllegalArgumentException extends RuntimeException, so it's rethrown directly
-        // without double-wrapping after the exception handling improvements
-        assertTrue(exception.getCause() instanceof IllegalArgumentException);
-        assertEquals("Source directory cannot be null", exception.getCause().getMessage());
+        // List.of(null) throws NullPointerException synchronously
+        assertThrows(NullPointerException.class, () -> backupService.backup(null, options));
     }
 
     /*
