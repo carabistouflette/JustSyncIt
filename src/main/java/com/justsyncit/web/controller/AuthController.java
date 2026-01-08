@@ -18,9 +18,27 @@ public class AuthController {
     private final MasterPasswordService authService;
     private final Map<String, Long> sessions = new ConcurrentHashMap<>();
     private static final long SESSION_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
+    private static final int MAX_SESSIONS = 10000; // Hard limit to prevent OOM
+
+    // Cleanup scheduler
+    private final java.util.concurrent.ScheduledExecutorService cleanupExecutor;
 
     public AuthController(MasterPasswordService authService) {
         this.authService = authService;
+        this.cleanupExecutor = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AuthSessionCleanup");
+            t.setDaemon(true);
+            return t;
+        });
+
+        // Schedule periodic cleanup (e.g., every hour)
+        this.cleanupExecutor.scheduleAtFixedRate(this::cleanupSessions, 1, 1, java.util.concurrent.TimeUnit.HOURS);
+    }
+
+    private void cleanupSessions() {
+        long now = System.currentTimeMillis();
+        sessions.entrySet().removeIf(entry -> now - entry.getValue() > SESSION_TIMEOUT_MS);
+        logger.debug("Cleaned up expired sessions. Current count: {}", sessions.size());
     }
 
     /**
@@ -74,6 +92,16 @@ public class AuthController {
      * Verifies the master password and creates a session.
      */
     public void login(Context ctx) {
+        // Prevent OOM attack
+        if (sessions.size() >= MAX_SESSIONS) {
+            // Force a cleanup
+            cleanupSessions();
+            if (sessions.size() >= MAX_SESSIONS) {
+                ctx.status(HttpStatus.SERVICE_UNAVAILABLE).json(Map.of("error", "Too many active sessions"));
+                return;
+            }
+        }
+
         @SuppressWarnings("unchecked")
         Map<String, String> body = ctx.bodyAsClass(Map.class);
         String password = body.get("password");
